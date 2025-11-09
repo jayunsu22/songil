@@ -91,9 +91,14 @@
 
         // 지수 백오프를 사용한 fetch 함수
         async function fetchWithRetry(url, options, retries = 3) {
+            console.log(`[DEBUG] Webhook URL: ${url}`); // 디버깅: URL 출력
+            console.log(`[DEBUG] Payload:`, JSON.parse(options.body)); // 디버깅: Payload 출력
+
             for (let i = 0; i < retries; i++) {
                 try {
                     const response = await fetch(url, options);
+                    console.log(`[DEBUG] Response Status: ${response.status}, Attempt: ${i + 1}`); // 디버깅: 응답 상태 출력
+
                     if (response.status === 429 && i < retries - 1) { // 429 Too Many Requests
                         const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
                         console.log(`Rate limit exceeded. Retrying in ${Math.round(delay / 1000)}s...`);
@@ -101,10 +106,12 @@
                         continue;
                     }
                     if (!response.ok) {
+                        // 404, 500 등 다른 오류는 여기서 던집니다.
                         throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
                     }
                     return response;
                 } catch (error) {
+                    console.error(`[DEBUG] Fetch Error on attempt ${i + 1}:`, error); // 디버깅: 오류 상세 출력
                     if (i === retries - 1) throw error;
                     // 기타 오류에 대한 재시도 로직은 여기에서 생략하거나 추가할 수 있습니다.
                 }
