@@ -3,245 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 채팅 앱</title>
+    <title>Airtable 문의 전송</title>
     <!-- Tailwind CSS 로드 -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Inter 폰트 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        /* 채팅창 높이 설정을 위한 유틸리티 */
-        .chat-container { height: calc(100vh - 4rem); }
-        .message-area { max-height: calc(100% - 6rem); overflow-y: auto; scroll-behavior: smooth; }
-        .scroll-to-bottom { position: sticky; bottom: 0; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
 
-    <div id="app" class="max-w-md mx-auto shadow-2xl bg-white rounded-lg overflow-hidden my-4">
+    <div id="app" class="w-full max-w-md shadow-2xl bg-white rounded-lg overflow-hidden">
         
         <!-- Header -->
-        <header class="bg-indigo-600 p-4 shadow-md flex justify-between items-center rounded-t-lg">
-            <h1 class="text-xl font-bold text-white">실시간 채팅방</h1>
-            <div id="user-info" class="text-xs text-indigo-200">
-                사용자 ID: <span id="user-id" class="font-mono bg-indigo-700/50 px-2 py-0.5 rounded-full">로딩 중...</span>
-            </div>
+        <header class="bg-indigo-600 p-4 shadow-md rounded-t-lg">
+            <h1 class="text-xl font-bold text-white">1:1 문의 / 홍보 메시지</h1>
+            <p class="text-sm text-indigo-200 mt-1">문의하신 내용은 Airtable에 바로 저장됩니다.</p>
         </header>
 
-        <!-- Message Area -->
-        <div id="messages" class="message-area p-4 space-y-4">
-            <!-- Messages will be loaded here -->
-            <div id="loading-spinner" class="text-center p-8 text-gray-500">
+        <!-- Message Area (Placeholder) -->
+        <div id="messages" class="p-6 space-y-4">
+            <div id="status-message" class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-lg" role="alert">
+                <p class="font-bold">안내</p>
+                <p>문의사항이나 홍보 메시지를 보내주시면 즉시 확인하겠습니다.</p>
+            </div>
+            
+            <!-- 성공/실패 메시지를 보여줄 커스텀 모달 -->
+            <div id="result-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+                <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
+                    <h3 id="modal-title" class="text-xl font-bold mb-3"></h3>
+                    <p id="modal-body" class="text-gray-700 mb-4"></p>
+                    <button onclick="closeModal()" class="w-full bg-indigo-500 text-white p-3 rounded-xl font-semibold hover:bg-indigo-600 transition duration-150">확인</button>
+                </div>
+            </div>
+
+            <!-- 로딩 스피너 -->
+            <div id="loading-spinner" class="hidden text-center p-4">
                 <svg class="animate-spin h-8 w-8 text-indigo-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <p class="mt-2">메시지 로딩 중...</p>
+                <p class="mt-2 text-gray-500">메시지 전송 중...</p>
             </div>
+
         </div>
 
         <!-- Input Area -->
         <div class="p-4 border-t border-gray-200">
-            <form id="message-form" class="flex gap-2">
-                <input type="text" id="message-input" placeholder="메시지를 입력하세요..."
-                       class="flex-grow p-3 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm"
+            <form id="message-form" class="flex flex-col gap-3">
+                
+                <input type="text" id="sender-name" placeholder="이름 또는 회사명 (필수)"
+                       class="p-3 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm"
                        required>
-                <button type="submit"
+                
+                <textarea id="message-input" placeholder="문의/홍보 메시지를 입력하세요 (필수)" rows="4"
+                       class="p-3 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm resize-none"
+                       required></textarea>
+
+                <button type="submit" id="submit-button"
                         class="bg-indigo-500 text-white p-3 rounded-xl font-semibold hover:bg-indigo-600 transition duration-150 shadow-md flex items-center justify-center">
                     <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                    전송
+                    메시지 전송
                 </button>
             </form>
         </div>
         
     </div>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, onSnapshot, collection, query, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script>
+        // =========================================================================
+        // 1. Airtable Configuration (고객님의 정보로 모두 설정되었습니다!)
+        // =========================================================================
+        const AIRTABLE_API_KEY = "patuhBn8A73KuELiZ.8759cccc7cc0298d45d8bc448e7ab2a5761d20f0240b136e606d928bd9e6d68e"; // API 토큰
+        const BASE_ID = "appD9p4z6bX11wTzY"; // Base ID (스크린샷 URL에서 추출)
+        const TABLE_NAME = "견적요청"; // Table 이름
 
-        // Firestore 로깅 활성화 (디버깅용)
-        setLogLevel('Debug');
+        // Airtable API 호출 URL
+        const API_URL = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_NAME}`;
+        // =========================================================================
 
-        // 1. 전역 변수 설정 (Canvas 환경 변수 활용)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chat-app';
-        let firebaseConfig = {};
-        if (typeof __firebase_config !== 'undefined') {
-            try {
-                firebaseConfig = JSON.parse(__firebase_config);
-            } catch (e) {
-                console.error("Firebase config parsing error:", e);
-                // 기본 config 사용
-                firebaseConfig = { apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: "" };
-            }
-        }
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        let db;
-        let auth;
-        let userId = 'loading'; // 초기 사용자 ID
-
-        const messagesContainer = document.getElementById('messages');
-        const userIdSpan = document.getElementById('user-id');
+        const form = document.getElementById('message-form');
+        const nameInput = document.getElementById('sender-name');
+        const messageInput = document.getElementById('message-input');
+        const submitButton = document.getElementById('submit-button');
         const loadingSpinner = document.getElementById('loading-spinner');
+        const resultModal = document.getElementById('result-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
 
-        // 2. Firebase 초기화 및 인증
-        async function initializeAndAuthenticate() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                if (initialAuthToken) {
-                    // 커스텀 토큰 인증 시도
-                    await signInWithCustomToken(auth, initialAuthToken);
-                    console.log("Custom token sign-in successful.");
-                } else {
-                    // 익명 인증 시도
-                    await signInAnonymously(auth);
-                    console.log("Anonymous sign-in successful.");
-                }
-
-                // 인증 상태 변경 감지 및 Firestore 리스너 시작
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        userIdSpan.textContent = userId.substring(0, 8) + '...'; // UI에 일부만 표시
-                        
-                        // 3. 인증 완료 후 데이터 리스너 시작
-                        startChatListener();
-                        
-                        // 4. 폼 전송 이벤트 핸들러 추가
-                        document.getElementById('message-form').addEventListener('submit', handleSendMessage);
-                    } else {
-                        console.error("User is not signed in.");
-                        userIdSpan.textContent = "로그인 실패";
-                    }
-                });
-
-            } catch (error) {
-                console.error("Firebase Initialization or Authentication Error:", error);
-                userIdSpan.textContent = "오류 발생";
-            }
-        }
-        
-        // 5. 실시간 메시지 리스너
-        function startChatListener() {
-            // Firestore 컬렉션 경로: /artifacts/{appId}/public/data/chat_messages
-            const chatCollectionPath = `/artifacts/${appId}/public/data/chat_messages`;
-            const q = query(collection(db, chatCollectionPath), orderBy('timestamp', 'desc')); // 일단 최신순으로 쿼리
-
-            // 스냅샷 리스너: 실시간으로 데이터 변경 감지
-            onSnapshot(q, (snapshot) => {
-                loadingSpinner.remove(); // 로딩 스피너 제거
-
-                const fragment = document.createDocumentFragment();
-                let hasNewMessages = false;
-                
-                // 새로운 메시지부터 렌더링
-                snapshot.docChanges().reverse().forEach(change => {
-                    const messageData = change.doc.data();
-                    
-                    if (change.type === "added") {
-                        const messageElement = createMessageElement(messageData, messageData.uid === userId);
-                        fragment.prepend(messageElement); // 새 메시지를 목록 맨 위에 추가
-                        hasNewMessages = true;
-                    } 
-                    // 간단한 채팅 앱이므로 added만 처리하고 전체 목록은 DOM을 비우고 다시 그립니다.
-                });
-                
-                // 전체 목록 다시 그리기 (간단한 구현을 위해)
-                if (snapshot.docChanges().length > 0) {
-                     // 이전 메시지 모두 삭제 후 새로 추가
-                    messagesContainer.innerHTML = ''; 
-                    
-                    snapshot.docs.reverse().forEach(doc => {
-                        const messageData = doc.data();
-                        const messageElement = createMessageElement(messageData, messageData.uid === userId);
-                        messagesContainer.appendChild(messageElement);
-                    });
-
-                    // 새 메시지가 추가되면 스크롤을 맨 아래로 이동
-                    if (hasNewMessages) {
-                        scrollToBottom();
-                    }
-                }
-            });
+        // 커스텀 모달 표시 함수
+        function showModal(title, body, isSuccess = true) {
+            modalTitle.textContent = title;
+            modalBody.textContent = body;
+            modalTitle.className = isSuccess ? 'text-xl font-bold mb-3 text-green-600' : 'text-xl font-bold mb-3 text-red-600';
+            resultModal.classList.remove('hidden');
+            resultModal.classList.add('flex');
         }
 
-        // 6. 메시지 DOM 요소 생성
-        function createMessageElement(data, isCurrentUser) {
-            const wrapper = document.createElement('div');
-            
-            // 현재 사용자가 보낸 메시지 스타일
-            const alignment = isCurrentUser ? 'justify-end' : 'justify-start';
-            const bgColor = isCurrentUser ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800';
-            const corner = isCurrentUser ? 'rounded-br-none' : 'rounded-bl-none';
-            const timeAlignment = isCurrentUser ? 'text-right' : 'text-left';
-
-            // 사용자 ID 색상 해싱 (단순화)
-            const hue = (data.uid.split('').reduce((a, b) => a + b.charCodeAt(0), 0) * 137.508) % 360;
-            const userColor = `hsl(${hue}, 70%, 50%)`;
-            
-            // 시간 포맷
-            const time = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '전송 중...';
-
-            wrapper.className = `flex ${alignment}`;
-            wrapper.innerHTML = `
-                <div class="max-w-xs md:max-w-md">
-                    <div class="text-xs font-semibold mb-0.5 ${timeAlignment}" style="color: ${isCurrentUser ? 'transparent' : userColor};">
-                        ${data.uid.substring(0, 8)}...
-                    </div>
-                    <div class="p-3 ${bgColor} rounded-xl shadow-md ${corner}">
-                        ${data.text}
-                    </div>
-                    <div class="text-xs text-gray-500 mt-1 ${timeAlignment}">
-                        ${time}
-                    </div>
-                </div>
-            `;
-            return wrapper;
+        // 커스텀 모달 닫기 함수
+        window.closeModal = function() {
+            resultModal.classList.add('hidden');
+            resultModal.classList.remove('flex');
         }
 
-        // 7. 메시지 전송 처리
+        // 메시지 전송 처리
         async function handleSendMessage(event) {
             event.preventDefault();
-            const input = document.getElementById('message-input');
-            const messageText = input.value.trim();
+            
+            const senderName = nameInput.value.trim(); // 웹 폼에서 입력된 '이름 또는 회사명'
+            const messageText = messageInput.value.trim(); // 웹 폼에서 입력된 '문의/홍보 메시지'
 
-            if (!messageText || !db || !userId) return;
+            if (!senderName || !messageText) {
+                showModal("입력 오류", "이름과 메시지 내용을 모두 입력해 주세요.", false);
+                return;
+            }
+
+            // BASE_ID가 정확한지 다시 한번 검증
+            if (BASE_ID === "<여기에_자동견적_MVP2_베이스의_BaseID를_입력하세요>" || !BASE_ID.startsWith('app')) {
+                 showModal("설정 오류", "Airtable Base ID가 정확히 설정되지 않았습니다. Base ID를 확인해 주세요.", false);
+                 console.error("Airtable Base ID is invalid:", BASE_ID);
+                 return;
+            }
+            
+            submitButton.disabled = true;
+            loadingSpinner.classList.remove('hidden');
+            
+            // 전송 시간 생성
+            const timestamp = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+            // Airtable 필드 이름에 맞춘 Payload (가장 중요한 부분)
+            const payload = {
+                records: [
+                    {
+                        fields: {
+                            // 웹 입력 '이름/회사명' -> Airtable 필드 '채팅_ID'
+                            "채팅_ID": senderName,          
+                            // 웹 입력 '메시지' -> Airtable 필드 '견적_요청메모'
+                            "견적_요청메모": messageText,        
+                            // 웹에서 생성된 '전송시간' -> Airtable 필드 '견적_요청일시'
+                            "견적_요청일시": timestamp      
+                        }
+                    }
+                ]
+            };
 
             try {
-                // Firestore 컬렉션 경로: /artifacts/{appId}/public/data/chat_messages
-                const chatCollectionPath = `/artifacts/${appId}/public/data/chat_messages`;
-                
-                await addDoc(collection(db, chatCollectionPath), {
-                    text: messageText,
-                    timestamp: serverTimestamp(), // 서버 타임스탬프 사용
-                    uid: userId,
-                    appId: appId
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
                 });
-                
-                input.value = ''; // 전송 후 입력창 비우기
-                scrollToBottom();
-            } catch (e) {
-                console.error("Error adding document: ", e);
+
+                if (response.ok) {
+                    showModal("전송 성공", "문의 메시지가 성공적으로 전송되었습니다. 곧 연락드리겠습니다.", true);
+                    nameInput.value = ''; // 성공 후 이름 비우기
+                    messageInput.value = ''; // 성공 후 메시지 비우기
+                } else {
+                    const errorData = await response.json();
+                    console.error("Airtable API Error:", errorData);
+                    // 401(인증), 404(Base ID/Table 이름 오류), 422(필드 이름 오류)
+                    const statusText = response.status === 422 ? '필드 이름(채팅_ID, 견적_요청메모, 견적_요청일시)이 Airtable과 정확히 일치하는지 확인해 주세요.' : response.statusText;
+                    showModal("전송 실패", `Airtable API 오류: ${errorData.error?.type || statusText}.`, false);
+                }
+
+            } catch (error) {
+                console.error("Network or Fetch Error:", error);
+                showModal("네트워크 오류", "메시지 전송 중 네트워크 연결에 문제가 발생했습니다.", false);
+            } finally {
+                submitButton.disabled = false;
+                loadingSpinner.classList.add('hidden');
             }
         }
 
-        // 8. 스크롤 맨 아래로 이동
-        function scrollToBottom() {
-            const messages = document.getElementById('messages');
-            messages.scrollTop = messages.scrollHeight;
-        }
-
-        // 앱 시작
-        initializeAndAuthenticate();
-        // 초기 로드 시 한 번 스크롤
-        window.addEventListener('load', scrollToBottom);
-
+        form.addEventListener('submit', handleSendMessage);
     </script>
 </body>
 </html>
