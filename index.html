@@ -3,183 +3,186 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Airtable 문의 전송</title>
-    <!-- Tailwind CSS 로드 -->
+    <title>AI 자동 견적 채팅</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+        .chat-container { max-width: 500px; margin: 40px auto; background-color: white; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); overflow: hidden; }
+        .chat-header { background: linear-gradient(135deg, #6b46c1 0%, #a855f7 100%); color: white; padding: 1.5rem; text-align: center; }
+        .chat-body { padding: 1.5rem; max-height: 50vh; overflow-y: auto; scroll-behavior: smooth; }
+        .user-message { background-color: #e0e7ff; border-radius: 0.75rem 0.75rem 0.1rem 0.75rem; padding: 0.75rem 1rem; max-width: 80%; margin-left: auto; margin-bottom: 0.5rem; color: #1e3a8a; }
+        .system-message { background-color: #f3f4f6; border-radius: 0.75rem 0.75rem 0.75rem 0.1rem; padding: 0.75rem 1rem; max-width: 80%; margin-right: auto; margin-bottom: 0.5rem; color: #1f2937; }
+        .quote-result { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 0.75rem; padding: 1rem; margin-top: 1rem; white-space: pre-wrap; }
+        .option-panel { border-top: 1px solid #e5e7eb; padding: 1.5rem; }
+        .input-group { margin-bottom: 1rem; }
+        .input-group label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 600; color: #4b5563; }
+        input[type="number"], select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; }
+        button { transition: background-color 0.2s, transform 0.1s; }
+        button:hover { transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+<body>
 
-    <div id="app" class="w-full max-w-md shadow-2xl bg-white rounded-lg overflow-hidden">
-        
+    <div class="chat-container">
         <!-- Header -->
-        <header class="bg-indigo-600 p-4 shadow-md rounded-t-lg">
-            <h1 class="text-xl font-bold text-white">1:1 문의 / 홍보 메시지</h1>
-            <p class="text-sm text-indigo-200 mt-1">문의하신 내용은 Airtable에 바로 저장됩니다.</p>
-        </header>
+        <div class="chat-header">
+            <h1 class="text-2xl font-bold">AI 견적 요청</h1>
+            <p class="text-sm opacity-80 mt-1">AI가 고객님의 요청을 검토하여 견적을 내드립니다.</p>
+        </div>
 
-        <!-- Message Area (Placeholder) -->
-        <div id="messages" class="p-6 space-y-4">
-            <div id="status-message" class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-lg" role="alert">
-                <p class="font-bold">안내</p>
-                <p>문의사항이나 홍보 메시지를 보내주시면 즉시 확인하겠습니다.</p>
-            </div>
-            
-            <!-- 성공/실패 메시지를 보여줄 커스텀 모달 -->
-            <div id="result-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-                <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
-                    <h3 id="modal-title" class="text-xl font-bold mb-3"></h3>
-                    <p id="modal-body" class="text-gray-700 mb-4"></p>
-                    <button onclick="closeModal()" class="w-full bg-indigo-500 text-white p-3 rounded-xl font-semibold hover:bg-indigo-600 transition duration-150">확인</button>
+        <!-- Chat Body (Message Display) -->
+        <div id="chatBody" class="chat-body">
+            <div class="system-message">안녕하세요! 어떤 시공이 필요하신가요? 아래 항목을 선택하거나, 직접 요청사항을 적어주세요.</div>
+        </div>
+
+        <!-- Quote Input Panel -->
+        <div class="option-panel">
+            <div id="quoteForm">
+
+                <!-- 1. 품목 선택 (Dropdown) -->
+                <div class="input-group">
+                    <label for="itemSelect">필요 품목</label>
+                    <select id="itemSelect" class="focus:ring-purple-500 focus:border-purple-500">
+                        <option value="화장실문">화장실 문 시공</option>
+                        <option value="현관문">현관 문 시공</option>
+                        <option value="방문">방 문 시공</option>
+                        <option option value="기타">기타 (아래 요청사항에 자세히 기재)</option>
+                    </select>
                 </div>
-            </div>
 
-            <!-- 로딩 스피너 -->
-            <div id="loading-spinner" class="hidden text-center p-4">
-                <svg class="animate-spin h-8 w-8 text-indigo-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="mt-2 text-gray-500">메시지 전송 중...</p>
-            </div>
-
-        </div>
-
-        <!-- Input Area -->
-        <div class="p-4 border-t border-gray-200">
-            <form id="message-form" class="flex flex-col gap-3">
+                <!-- 2. 수량 입력 -->
+                <div class="input-group">
+                    <label for="quantityInput">수량 (개)</label>
+                    <input type="number" id="quantityInput" value="1" min="1" class="focus:ring-purple-500 focus:border-purple-500">
+                </div>
                 
-                <input type="text" id="sender-name" placeholder="이름 또는 회사명 (필수)"
-                       class="p-3 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm"
-                       required>
-                
-                <textarea id="message-input" placeholder="문의/홍보 메시지를 입력하세요 (필수)" rows="4"
-                       class="p-3 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm resize-none"
-                       required></textarea>
+                <!-- 3. 상세 요청 사항 (AI 검토용) -->
+                <div class="input-group">
+                    <label for="requestText">상세 요청 사항 (AI가 검토)</label>
+                    <textarea id="requestText" rows="3" placeholder="예: 화자시문 2개, 문짝 교체, 흰색 시트지" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"></textarea>
+                </div>
 
-                <button type="submit" id="submit-button"
-                        class="bg-indigo-500 text-white p-3 rounded-xl font-semibold hover:bg-indigo-600 transition duration-150 shadow-md flex items-center justify-center">
-                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                    메시지 전송
+                <!-- 4. 견적 요청 버튼 -->
+                <button onclick="calculateQuote()" id="quoteButton"
+                    class="w-full py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 disabled:bg-purple-300 shadow-md">
+                    AI에게 견적 요청하기
                 </button>
-            </form>
+                <div id="loadingMessage" class="text-center text-sm text-gray-500 mt-2 hidden">요청을 처리 중입니다... (최대 10초 소요)</div>
+                <div id="errorMessage" class="text-center text-sm text-red-500 mt-2 hidden"></div>
+            </div>
         </div>
-        
     </div>
 
     <script>
-        // =========================================================================
-        // 1. Airtable Configuration (고객님의 정보로 모두 설정되었습니다!)
-        // =========================================================================
-        const AIRTABLE_API_KEY = "patuhBn8A73KuELiZ.8759cccc7cc0298d45d8bc448e7ab2a5761d20f0240b136e606d928bd9e6d68e"; // API 토큰
-        const BASE_ID = "appD9p4z6bX11wTzY"; // Base ID (스크린샷 URL에서 추출)
-        const TABLE_NAME = "견적요청"; // Table 이름
+        // =======================================================================
+        // ★★★ 1. n8n Webhook URL 설정 (고객님께서 제공하신 URL로 업데이트됨) ★★★
+        // =======================================================================
+        const N8N_WEBHOOK_URL = 'https://primary-production-a6fa.up.railway.app/webhook/landbot-request';
 
-        // Airtable API 호출 URL
-        const API_URL = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_NAME}`;
-        // =========================================================================
+        // =======================================================================
+        // 2. 기타 설정
+        // =======================================================================
+        const chatBody = document.getElementById('chatBody');
+        const quoteButton = document.getElementById('quoteButton');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const errorMessage = document.getElementById('errorMessage');
 
-
-        const form = document.getElementById('message-form');
-        const nameInput = document.getElementById('sender-name');
-        const messageInput = document.getElementById('message-input');
-        const submitButton = document.getElementById('submit-button');
-        const loadingSpinner = document.getElementById('loading-spinner');
-        const resultModal = document.getElementById('result-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalBody = document.getElementById('modal-body');
-
-        // 커스텀 모달 표시 함수
-        function showModal(title, body, isSuccess = true) {
-            modalTitle.textContent = title;
-            modalBody.textContent = body;
-            modalTitle.className = isSuccess ? 'text-xl font-bold mb-3 text-green-600' : 'text-xl font-bold mb-3 text-red-600';
-            resultModal.classList.remove('hidden');
-            resultModal.classList.add('flex');
+        function appendMessage(text, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'user' ? 'user-message' : 'system-message';
+            messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+            chatBody.appendChild(messageDiv);
+            chatBody.scrollTop = chatBody.scrollHeight; // 스크롤 하단으로 이동
         }
 
-        // 커스텀 모달 닫기 함수
-        window.closeModal = function() {
-            resultModal.classList.add('hidden');
-            resultModal.classList.remove('flex');
-        }
-
-        // 메시지 전송 처리
-        async function handleSendMessage(event) {
-            event.preventDefault();
-            
-            const senderName = nameInput.value.trim(); // 웹 폼에서 입력된 '이름 또는 회사명'
-            const messageText = messageInput.value.trim(); // 웹 폼에서 입력된 '문의/홍보 메시지'
-
-            if (!senderName || !messageText) {
-                showModal("입력 오류", "이름과 메시지 내용을 모두 입력해 주세요.", false);
-                return;
-            }
-
-            // BASE_ID가 정확한지 다시 한번 검증
-            if (BASE_ID === "<여기에_자동견적_MVP2_베이스의_BaseID를_입력하세요>" || !BASE_ID.startsWith('app')) {
-                 showModal("설정 오류", "Airtable Base ID가 정확히 설정되지 않았습니다. Base ID를 확인해 주세요.", false);
-                 console.error("Airtable Base ID is invalid:", BASE_ID);
-                 return;
-            }
-            
-            submitButton.disabled = true;
-            loadingSpinner.classList.remove('hidden');
-            
-            // 전송 시간 생성
-            const timestamp = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-
-            // Airtable 필드 이름에 맞춘 Payload (가장 중요한 부분)
-            const payload = {
-                records: [
-                    {
-                        fields: {
-                            // 웹 입력 '이름/회사명' -> Airtable 필드 '채팅_ID'
-                            "채팅_ID": senderName,          
-                            // 웹 입력 '메시지' -> Airtable 필드 '견적_요청메모'
-                            "견적_요청메모": messageText,        
-                            // 웹에서 생성된 '전송시간' -> Airtable 필드 '견적_요청일시'
-                            "견적_요청일시": timestamp      
-                        }
+        // 지수 백오프를 사용한 fetch 함수
+        async function fetchWithRetry(url, options, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 429 && i < retries - 1) { // 429 Too Many Requests
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        console.log(`Rate limit exceeded. Retrying in ${Math.round(delay / 1000)}s...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
                     }
-                ]
-            };
-
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    showModal("전송 성공", "문의 메시지가 성공적으로 전송되었습니다. 곧 연락드리겠습니다.", true);
-                    nameInput.value = ''; // 성공 후 이름 비우기
-                    messageInput.value = ''; // 성공 후 메시지 비우기
-                } else {
-                    const errorData = await response.json();
-                    console.error("Airtable API Error:", errorData);
-                    // 401(인증), 404(Base ID/Table 이름 오류), 422(필드 이름 오류)
-                    const statusText = response.status === 422 ? '필드 이름(채팅_ID, 견적_요청메모, 견적_요청일시)이 Airtable과 정확히 일치하는지 확인해 주세요.' : response.statusText;
-                    showModal("전송 실패", `Airtable API 오류: ${errorData.error?.type || statusText}.`, false);
+                    if (!response.ok) {
+                        throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    // 기타 오류에 대한 재시도 로직은 여기에서 생략하거나 추가할 수 있습니다.
                 }
-
-            } catch (error) {
-                console.error("Network or Fetch Error:", error);
-                showModal("네트워크 오류", "메시지 전송 중 네트워크 연결에 문제가 발생했습니다.", false);
-            } finally {
-                submitButton.disabled = false;
-                loadingSpinner.classList.add('hidden');
             }
         }
 
-        form.addEventListener('submit', handleSendMessage);
+
+        async function calculateQuote() {
+            const itemSelect = document.getElementById('itemSelect').value;
+            const quantityInput = document.getElementById('quantityInput').value;
+            const requestText = document.getElementById('requestText').value;
+
+            // 사용자 입력 메시지를 채팅창에 표시
+            const userMessageText = `품목: ${itemSelect}\n수량: ${quantityInput}개\n요청: ${requestText}`;
+            appendMessage(userMessageText, 'user');
+            
+            // 버튼 비활성화 및 로딩 메시지 표시
+            quoteButton.disabled = true;
+            loadingMessage.classList.remove('hidden');
+            errorMessage.classList.add('hidden');
+            
+            // =======================================================================
+            // ★★★ 3. n8n Webhook으로 데이터 전송 ★★★
+            // =======================================================================
+            try {
+                const payload = {
+                    // n8n Webhook이 받을 데이터 형식
+                    item_type: itemSelect,
+                    quantity: parseInt(quantityInput, 10),
+                    user_request: requestText,
+                    // chat_id는 Landbot 없이 임의로 생성 (n8n에서 사용될 수 있음)
+                    chat_id: 'web-' + Date.now() 
+                };
+
+                const options = {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                };
+
+                const response = await fetchWithRetry(N8N_WEBHOOK_URL, options);
+
+                // n8n에서 반환된 응답 (JSON 형식, { message_to_send: "..." } 형태 기대)
+                const result = await response.json();
+                
+                // n8n이 반환한 메시지(총 견적 결과)를 채팅창에 표시
+                // n8n의 "응답노드"에서 반환된 최종 메시지 필드가 'message_to_send'라고 가정합니다.
+                const finalMessage = result.message_to_send || 
+                                     `📢 AI 검토 및 견적 계산 완료! <br><br>n8n 워크플로우는 정상 작동했지만, 응답 메시지 필드(message_to_send)를 찾지 못했습니다. <br>n8n의 **'웹훅응답'** 노드에서 **'message_to_send'** 필드를 확인해주세요.`;
+                
+                appendMessage(`<div class="quote-result">${finalMessage}</div>`, 'system');
+                
+            } catch (error) {
+                console.error("n8n Webhook 호출 오류:", error);
+                const errorText = `❌ 견적 요청 중 오류 발생: ${error.message}. <br>1. n8n 워크플로우가 **'Active' 상태**인지 확인하세요. <br>2. **Webhook 노드의 설정**이 POST 방식인지 확인하세요.`;
+                errorMessage.textContent = errorText;
+                errorMessage.classList.remove('hidden');
+                appendMessage(errorText, 'system');
+            } finally {
+                // 버튼 다시 활성화 및 로딩 메시지 숨김
+                quoteButton.disabled = false;
+                loadingMessage.classList.add('hidden');
+            }
+        }
+
+        // 초기 메시지 및 UI 로드 시 스크롤 조정
+        window.onload = () => {
+            chatBody.scrollTop = chatBody.scrollHeight;
+        };
     </script>
 </body>
 </html>
