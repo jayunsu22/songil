@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 자동 견적 채팅</title>
+    <title>섬세한 자동 견적</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -27,49 +27,39 @@
 <body>
 
     <div class="chat-container">
-        <!-- Header -->
+        <!-- Header: 제목과 설명 수정됨 -->
         <div class="chat-header">
-            <h1 class="text-2xl font-bold">AI 견적 요청</h1>
-            <p class="text-sm opacity-80 mt-1">AI가 고객님의 요청을 검토하여 견적을 내드립니다.</p>
+            <h1 class="text-2xl font-bold">섬세한 자동견적 입니다 ^^</h1>
+            <p class="text-sm opacity-80 mt-1">섬세한 AI 가 상세한 견적을 도와 드립니다.</p>
         </div>
 
         <!-- Chat Body (Message Display) -->
         <div id="chatBody" class="chat-body">
-            <div class="system-message">안녕하세요! 어떤 시공이 필요하신가요? 아래 항목을 선택하거나, 직접 요청사항을 적어주세요.</div>
+            <div class="system-message">안녕하세요! 어떤 시공이 필요하신가요? 예: 방문 2개, 샤시 2개, 흰색 시트지 교체</div>
         </div>
 
         <!-- Quote Input Panel -->
         <div class="option-panel">
             <div id="quoteForm">
-
-                <!-- 1. 품목 선택 (Dropdown) -->
+                
+                <!-- 1. 상세 요청 사항 (AI 검토용) - 품목/수량 필드 삭제됨 -->
                 <div class="input-group">
-                    <label for="itemSelect">필요 품목</label>
-                    <select id="itemSelect" class="focus:ring-purple-500 focus:border-purple-500">
-                        <option value="화장실문">화장실 문 시공</option>
-                        <option value="현관문">현관 문 시공</option>
-                        <option value="방문">방 문 시공</option>
-                        <option option value="기타">기타 (아래 요청사항에 자세히 기재)</option>
-                    </select>
+                    <label for="requestText">요청 사항</label>
+                    <textarea id="requestText" rows="3" placeholder="예: 방문 2개, 샤시 2개, 문짝 교체, 흰색 시트지" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"></textarea>
                 </div>
 
-                <!-- 2. 수량 입력 -->
-                <div class="input-group">
-                    <label for="quantityInput">수량 (개)</label>
-                    <input type="number" id="quantityInput" value="1" min="1" class="focus:ring-purple-500 focus:border-purple-500">
+                <!-- 2. 견적 요청 및 다시 쓰기 버튼 -->
+                <div class="flex space-x-4">
+                    <button onclick="calculateQuote()" id="quoteButton"
+                        class="flex-1 py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 disabled:bg-purple-300 shadow-md">
+                        견적 요청
+                    </button>
+                    <button onclick="resetForm()" id="resetButton"
+                        class="flex-1 py-3 bg-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-400 shadow-md">
+                        다시 쓰기
+                    </button>
                 </div>
                 
-                <!-- 3. 상세 요청 사항 (AI 검토용) -->
-                <div class="input-group">
-                    <label for="requestText">상세 요청 사항 (AI가 검토)</label>
-                    <textarea id="requestText" rows="3" placeholder="예: 화자시문 2개, 문짝 교체, 흰색 시트지" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"></textarea>
-                </div>
-
-                <!-- 4. 견적 요청 버튼 -->
-                <button onclick="calculateQuote()" id="quoteButton"
-                    class="w-full py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 disabled:bg-purple-300 shadow-md">
-                    AI에게 견적 요청하기
-                </button>
                 <div id="loadingMessage" class="text-center text-sm text-gray-500 mt-2 hidden">요청을 처리 중입니다... (최대 10초 소요)</div>
                 <div id="errorMessage" class="text-center text-sm text-red-500 mt-2 hidden"></div>
             </div>
@@ -89,6 +79,7 @@
         const quoteButton = document.getElementById('quoteButton');
         const loadingMessage = document.getElementById('loadingMessage');
         const errorMessage = document.getElementById('errorMessage');
+        const requestTextarea = document.getElementById('requestText');
 
         function appendMessage(text, type) {
             const messageDiv = document.createElement('div');
@@ -120,14 +111,29 @@
             }
         }
 
+        // 입력 필드를 초기화하고, 초기 메시지로 스크롤을 조정하는 함수 추가
+        function resetForm() {
+            requestTextarea.value = ''; // 요청 사항 초기화
+            errorMessage.classList.add('hidden'); // 오류 메시지 숨김
+            // 채팅 내용을 초기화하고 싶다면: chatBody.innerHTML = '<div class="system-message">...초기 메시지...</div>';
+            
+            // 사용자에게 다시 입력하라는 시스템 메시지를 보냅니다.
+            appendMessage('다시 쓰기를 시작합니다. 원하는 요청 사항을 자세히 적어주세요.', 'system');
+        }
+
 
         async function calculateQuote() {
-            const itemSelect = document.getElementById('itemSelect').value;
-            const quantityInput = document.getElementById('quantityInput').value;
-            const requestText = document.getElementById('requestText').value;
+            // 품목 및 수량 필드가 제거되었으므로, 요청 사항만 가져옵니다.
+            const requestText = requestTextarea.value.trim();
 
-            // 사용자 입력 메시지를 채팅창에 표시
-            const userMessageText = `품목: ${itemSelect}\n수량: ${quantityInput}개\n요청: ${requestText}`;
+            if (!requestText) {
+                errorMessage.textContent = '견적 요청 내용을 입력해 주세요.';
+                errorMessage.classList.remove('hidden');
+                return;
+            }
+
+            // 사용자 입력 메시지를 채팅창에 표시 (수정된 메시지 형식)
+            const userMessageText = `요청: ${requestText}`;
             appendMessage(userMessageText, 'user');
             
             // 버튼 비활성화 및 로딩 메시지 표시
@@ -136,13 +142,11 @@
             errorMessage.classList.add('hidden');
             
             // =======================================================================
-            // ★★★ 3. n8n Webhook으로 데이터 전송 ★★★
+            // ★★★ 3. n8n Webhook으로 데이터 전송 (requestText만 포함) ★★★
             // =======================================================================
             try {
                 const payload = {
-                    // n8n Webhook이 받을 데이터 형식
-                    item_type: itemSelect,
-                    quantity: parseInt(quantityInput, 10),
+                    // 이제 AI가 requestText에서 모든 정보를 파싱해야 합니다.
                     user_request: requestText,
                     // chat_id는 Landbot 없이 임의로 생성 (n8n에서 사용될 수 있음)
                     chat_id: 'web-' + Date.now() 
@@ -160,7 +164,6 @@
                 const result = await response.json();
                 
                 // n8n이 반환한 메시지(총 견적 결과)를 채팅창에 표시
-                // n8n의 "응답노드"에서 반환된 최종 메시지 필드가 'message_to_send'라고 가정합니다.
                 const finalMessage = result.message_to_send || 
                                      `📢 AI 검토 및 견적 계산 완료! <br><br>n8n 워크플로우는 정상 작동했지만, 응답 메시지 필드(message_to_send)를 찾지 못했습니다. <br>n8n의 **'웹훅응답'** 노드에서 **'message_to_send'** 필드를 확인해주세요.`;
                 
@@ -168,7 +171,7 @@
                 
             } catch (error) {
                 console.error("n8n Webhook 호출 오류:", error);
-                const errorText = `❌ 견적 요청 중 오류 발생: ${error.message}. <br>1. n8n 워크플로우가 **'Active' 상태**인지 확인하세요. <br>2. **Webhook 노드의 설정**이 POST 방식인지 확인하세요.`;
+                const errorText = `❌ 견적 요청 중 오류 발생: ${error.message}. <br>1. n8n 워크플로우가 **'Active' 상태**인지 확인하세요. <br>2. **Webhook 노드의 설정**이 POST 방식인지 확인하세요. <br>3. 요청 본문(Payload)에 'user_request' 필드가 올바르게 전달되었는지 확인하세요.`;
                 errorMessage.textContent = errorText;
                 errorMessage.classList.remove('hidden');
                 appendMessage(errorText, 'system');
