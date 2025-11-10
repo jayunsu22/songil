@@ -23,7 +23,7 @@
             width: 100%;
             max-width: 420px;
             height: 80vh; 
-            max-height: 700px; /* ✅ 2. 세로 길이 100px 확장 (600px -> 700px) */
+            max-height: 700px; /* ✅ 세로 길이 확장 유지 */
             background: white;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
@@ -57,9 +57,9 @@
             max-width: 85%;
             padding: 10px 14px;
             border-radius: 18px;
-            line-height: 1.6; /* 가독성을 위해 라인 높이 조정 */
+            line-height: 1.6; 
             word-wrap: break-word;
-            font-size: 16px; /* ✅ 1. 글자 크기 2포인트 키움 (14px -> 16px) */
+            font-size: 16px; /* ✅ 글자 크기 유지 */
         }
         .user {
             align-self: flex-end;
@@ -138,7 +138,6 @@
 </div>
 
 <script>
-    // ✅ 6. 웹훅 주소 반영 (변경 없음, 그대로 유지)
     const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
     
     const chatBox = document.getElementById('chat-box');
@@ -175,44 +174,42 @@
     }
 
     // ----------------------------------------------------
-    // ✅ 핵심: N8N 응답 전처리 함수
+    // ✅ 응답 전처리 로직 수정 (최소한의 처리로 메시지 표시 보장)
     // ----------------------------------------------------
     function preprocessN8nResponse(text) {
         let cleanedText = text.trim();
         
-        // 3. {"message": 글자 안나오게 할 것
-        if (cleanedText.startsWith('{"message":') && cleanedText.endsWith('}')) {
-            // "message": "..." 부분만 추출
-            // 정확히 {"message":"로 시작하는지 확인하고, 뒤쪽 }를 제거합니다.
-            cleanedText = cleanedText.substring('{"message":"'.length);
-            // 끝에 } 가 있을 경우 (3, 5번 요청 처리)
-            if (cleanedText.endsWith('"')) {
-                cleanedText = cleanedText.substring(0, cleanedText.length - 1);
+        // 1. JSON 문자열 형태 제거 (가장 흔한 에러 형식 처리: "{\"message\":\"...\"}")
+        // n8n이 Content-Type을 제대로 설정하지 못하고 텍스트로 보낼 경우를 대비
+        try {
+            const parsed = JSON.parse(cleanedText);
+            // 만약 유효한 JSON이고 'message' 키가 있다면 해당 값 사용
+            if (typeof parsed === 'object' && parsed !== null && parsed.message) {
+                cleanedText = parsed.message;
             }
-        } else if (cleanedText.startsWith('"') && cleanedText.endsWith('"')) {
-            // 전체가 따옴표로 감싸져 있는 경우 따옴표 제거
+        } catch (e) {
+            // JSON 파싱 실패 -> 순수 텍스트로 간주하고 계속 진행
+        }
+
+        // 2. 따옴표로 감싸져 있는 경우 제거
+        if (cleanedText.startsWith('"') && cleanedText.endsWith('"')) {
             cleanedText = cleanedText.substring(1, cleanedText.length - 1);
         }
 
-        // 4, 5. ━━━━━━━━━━━━━━━━━━━━ 두줄로 안나오게 하고 } 없앨 것
-        // 문자열 리터럴로 넘어온 "\\n"을 실제 줄바꿈 문자로 변환 (필요한 경우)
+        // 3. 줄바꿈 문자와 불필요한 기호 제거 및 변환
+        // 문자열 리터럴로 넘어온 "\\n"을 실제 줄바꿈 문자로 변환
         cleanedText = cleanedText.replace(/\\n/g, '\n'); 
 
-        // ━━━━━━━━━━━━━━━━━━━━ 이 포함된 시작/끝 줄 제거
+        // 4. ━━━━━━━━━━━━━━━━━━━━ 및 남은 { } 제거 (줄 단위)
         const lines = cleanedText.split('\n');
         const filteredLines = lines.filter(line => {
             const trimmed = line.trim();
-            // ━━━━━━━━━━━━━━━━━━━━ 문자가 포함된 줄 제거
-            return !trimmed.includes('━━━━━━━━━━━━━━━━━━━━') && trimmed !== '}'; 
+            // ━━━━━━━━━━━━━━━━━━━━ 문자열이 포함된 줄 또는 단독 } 제거
+            return !trimmed.includes('━━━━━━━━━━━━━━━━━━━━') && trimmed !== '}' && trimmed !== '{'; 
         });
 
-        // 텍스트를 다시 합치기
-        cleanedText = filteredLines.join('<br>'); // HTML 렌더링을 위해 \n 대신 <br> 사용
-
-        // 남은 { 또는 } 제거 (특히 마지막 } 제거 요청 처리)
-        cleanedText = cleanedText.replace(/\{/g, '').replace(/\}/g, '');
-        
-        // Markdown 볼드를 HTML 볼드로 변환 (*...* -> <b>...</b>)
+        // HTML <br>로 합치고, Markdown 볼드 **를 HTML <b>로 변환
+        cleanedText = filteredLines.join('<br>');
         cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 
         return cleanedText.trim();
@@ -244,7 +241,11 @@
             
             const resultText = await response.text(); 
             
-            // ✅ 응답 전처리
+            // ✅ N8N 응답 텍스트를 콘솔에 출력 (디버깅용)
+            console.log("----- N8N Raw Response Text -----");
+            console.log(resultText);
+            console.log("---------------------------------");
+
             const processedText = preprocessN8nResponse(resultText); 
             
             chatBox.removeChild(loadingMessage);
@@ -261,8 +262,8 @@
             
             appendMessage(
                 '❌ **견적 요청 중 오류 발생:** 시스템에서 응답을 처리하지 못했습니다. <br>' +
-                '1. n8n 워크플로우의 **`웹훅 응답` 노드에서 `Response Body`의 맨 앞의 `=` 등호**를 제거했는지 확인해주세요. <br>' +
-                '2. n8n 워크플로우가 **`Active`** 상태인지 확인해주세요.', 
+                '1. **개발자 도구 (F12) 콘솔**에서 어떤 응답이 넘어왔는지 확인해보세요. <br>' +
+                '2. n8n 워크플로우의 **`웹훅 응답` 노드** 설정을 다시 한번 확인해주세요.', 
                 'bot', 
                 true
             );
