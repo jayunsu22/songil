@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 인테리어 견적 채팅</title>
+    <title>AI 인테리어 견적 채팅1110_1629</title>
     <!-- Tailwind CSS 로드 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -21,9 +21,9 @@
         }
         .chat-container {
             width: 100%;
-            max-width: 420px; /* 이전 버전처럼 조금 더 슬림하게 */
-            height: 70vh;
-            max-height: 600px;
+            max-width: 420px; 
+            height: 80vh; 
+            max-height: 700px;
             background: white;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
@@ -33,7 +33,7 @@
         }
         .chat-header {
             padding: 1rem;
-            background-color: #4f46e5; /* Indigo */
+            background-color: #4f46e5; 
             color: white;
             font-weight: 600;
             text-align: center;
@@ -44,37 +44,33 @@
             flex-grow: 1;
             padding: 1rem;
             overflow-y: auto;
-            background-color: #ffffff; /* 흰색 배경 */
+            background-color: #ffffff;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-        /* 스크롤바 디자인 (선택사항, 깔끔함 유지) */
-        #chat-box::-webkit-scrollbar {
-            width: 6px;
-        }
-        #chat-box::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1; /* Gray 300 */
-            border-radius: 3px;
-        }
+        /* 스크롤바 디자인 */
+        #chat-box::-webkit-scrollbar { width: 6px; }
+        #chat-box::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
+        
         .message {
             max-width: 85%;
             padding: 10px 14px;
             border-radius: 18px;
-            line-height: 1.5;
+            line-height: 1.6; 
             word-wrap: break-word;
-            font-size: 14px;
+            font-size: 16px; 
         }
         .user {
             align-self: flex-end;
-            background-color: #4f46e5; /* Indigo 600 */
+            background-color: #4f46e5; 
             color: white;
             border-bottom-right-radius: 4px;
         }
         .bot {
             align-self: flex-start;
-            background-color: #f1f5f9; /* Slate 100 */
-            color: #1e293b; /* Slate 900 */
+            background-color: #f1f5f9; 
+            color: #1e293b;
             border-bottom-left-radius: 4px;
         }
         .input-area {
@@ -89,7 +85,6 @@
             border: 1px solid #cbd5e1;
             border-radius: 8px;
             margin-right: 8px;
-            transition: border-color 0.2s, box-shadow 0.2s;
             font-size: 14px;
         }
         #user-input:focus {
@@ -103,11 +98,7 @@
             color: white;
             border-radius: 8px;
             font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
             cursor: pointer;
-        }
-        #send-button:hover:not(:disabled) {
-            background-color: #4338ca;
         }
         #send-button:disabled {
             background-color: #a5b4fc;
@@ -137,7 +128,7 @@
         <div class="message bot">
             안녕하세요! 인테리어 시공 견적을 도와드릴 AI 챗봇입니다.<br>
             예시처럼 필요한 항목과 수량을 입력해주세요.<br><br>
-            **예시: 방문 3개, 샤시 5개 견적 알려줘**
+            <b>예시: 방문 3개, 샤시 5개 견적 알려줘</b>
         </div>
     </div>
     <div class="input-area">
@@ -147,17 +138,12 @@
 </div>
 
 <script>
-    // ✅ 고객님의 웹훅 URL을 적용했습니다.
     const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
     
     const chatBox = document.getElementById('chat-box');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
 
-    // ----------------------------------------------------
-    // [핵심 함수 1] 메시지 추가 함수 (HTML 렌더링 기능)
-    // ----------------------------------------------------
-    // isHtml=true 일 경우 <br> 태그 등을 HTML로 렌더링합니다.
     function appendMessage(message, sender, isHtml = false) {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', sender);
@@ -172,9 +158,6 @@
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // ----------------------------------------------------
-    // [보조 함수] 오류 발생 시 재시도 로직 (지수 백오프)
-    // ----------------------------------------------------
     async function fetchWithRetry(url, options, retries = 3) {
         for (let i = 0; i < retries; i++) {
             try {
@@ -182,7 +165,6 @@
                 if (response.ok) {
                     return response;
                 }
-                // 4xx, 5xx 에러는 서버 문제일 가능성이 높으므로 재시도
                 throw new Error(`Server responded with status: ${response.status}`);
             } catch (error) {
                 if (i === retries - 1) throw error; 
@@ -192,18 +174,53 @@
     }
 
     // ----------------------------------------------------
-    // [핵심 함수 2] N8N으로 메시지 전송 및 응답 처리
+    // ✅ 응답 전처리 로직 (n8n JSON 래퍼 및 불필요 문자 제거)
     // ----------------------------------------------------
+    function preprocessN8nResponse(text) {
+        let cleanedText = text.trim();
+        
+        // 1. 요청 사항: {"message": 와 맨 끝의 } 제거
+        // 응답이 {"message":"...텍스트..."} 형태일 때만 처리합니다.
+        if (cleanedText.startsWith('{"message":') && cleanedText.endsWith('}')) {
+            // {"message": 부분 제거 (11자)
+            cleanedText = cleanedText.substring(11).trim(); 
+            // 맨 끝의 } 제거
+            cleanedText = cleanedText.substring(0, cleanedText.length - 1).trim();
+        }
+        
+        // 2. 남아있을 수 있는 앞뒤 따옴표 제거 (따옴표로 감싸진 문자열 처리)
+        if (cleanedText.startsWith('"') && cleanedText.endsWith('"')) {
+            cleanedText = cleanedText.substring(1, cleanedText.length - 1).trim();
+        }
+        
+        // 3. n8n에서 넘어올 때 이스케이프된 \n을 실제 줄바꿈 문자로 변환
+        cleanedText = cleanedText.replace(/\\n/g, '\n'); 
+
+        // 4. 불필요한 구분선 제거 (줄 단위 필터링)
+        const lines = cleanedText.split('\n');
+        const filteredLines = lines.filter(line => {
+            const trimmed = line.trim();
+            // ━━━━━━━━━━━━━━━━━━━━ 문자열이 포함된 줄 제거
+            return !trimmed.includes('━━━━━━━━━━━━━━━━━━━━');
+        });
+
+        // 5. HTML <br>로 합치고, Markdown 볼드 **를 HTML <b>로 변환
+        cleanedText = filteredLines.join('<br>');
+        // 참고: n8n 노드에서 이미 HTML로 변환했다면 이 부분은 필요 없을 수 있으나, 안전을 위해 남겨둡니다.
+        cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        
+        return cleanedText.trim();
+    }
+
+
     async function sendMessageToN8n(message) {
         if (!message.trim()) return;
 
-        // 사용자 메시지 출력
         appendMessage(message, 'user');
         
         userInput.value = '';
         sendButton.disabled = true;
 
-        // 로딩 메시지 출력 (bot 메시지에 로딩 스피너 포함)
         const loadingMessage = document.createElement('div');
         loadingMessage.classList.add('message', 'bot', 'flex', 'items-center');
         loadingMessage.innerHTML = '<span>견적 계산 중...</span><span class="loading-indicator bg-indigo-600"></span>';
@@ -214,34 +231,47 @@
             const options = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // n8n에서 'user_request' 키로 데이터를 받도록 페이로드 구성
                 body: JSON.stringify({ user_request: message }) 
             };
             
             const response = await fetchWithRetry(N8N_WEBHOOK_URL, options);
             
-            // n8n에서 순수 텍스트(text/plain)로 응답할 것을 가정하고 .text()로 받습니다.
             const resultText = await response.text(); 
             
-            // 로딩 메시지 제거
+            // ✅ 디버깅용: 콘솔에서 원본 응답 텍스트 확인 가능
+            console.log("----- N8N Raw Response Text -----");
+            console.log(resultText); 
+            console.log("---------------------------------");
+
+            const processedText = preprocessN8nResponse(resultText); 
+            
             chatBox.removeChild(loadingMessage);
 
-            // 봇 메시지 출력 (HTML 렌더링 활성화)
-            appendMessage(resultText, 'bot', true); 
+            // 봇 메시지 출력
+            if (processedText.length > 0) {
+                // 전처리된 텍스트를 HTML로 렌더링 (줄바꿈 <br> 포함)
+                appendMessage(processedText, 'bot', true); 
+            } else {
+                 appendMessage(
+                    '⚠️ **응답 내용 없음:** n8n에서 빈 메시지를 받았습니다. 워크플로우를 확인해 주세요.',
+                    'bot'
+                );
+            }
 
         } catch (error) {
             console.error('N8N Webhook 호출 중 오류 발생:', error);
             
-            // 로딩 메시지 제거
             if (chatBox.contains(loadingMessage)) {
                 chatBox.removeChild(loadingMessage);
             }
             
-            // 사용자에게 오류 메시지 전달 (가장 흔한 n8n 설정 오류 안내 포함)
+            // 사용자에게 오류 메시지 전달
+            const errorMessage = error.message.includes('400') 
+                ? '❌ **서버 오류(400):** n8n 워크플로우를 확인해주세요.'
+                : '❌ **통신 오류:** 웹훅 URL 또는 네트워크 상태를 확인해주세요.';
+
             appendMessage(
-                '❌ **견적 요청 중 오류 발생:** 시스템에서 응답을 처리하지 못했습니다. <br>' +
-                '1. n8n 워크플로우의 **`웹훅 응답` 노드에서 `Response Body`의 맨 앞의 `=` 등호**를 제거했는지 확인해주세요. <br>' +
-                '2. n8n 워크플로우가 **`Active`** 상태인지 확인해주세요.', 
+                '⚠️ **견적 요청 중 오류 발생:** ' + errorMessage,
                 'bot', 
                 true
             );
@@ -259,7 +289,6 @@
     });
 
     userInput.addEventListener('keydown', (event) => {
-        // 엔터 키 입력 시 전송
         if (event.key === 'Enter' && !sendButton.disabled) {
             sendMessageToN8n(userInput.value);
         }
