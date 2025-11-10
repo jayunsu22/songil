@@ -23,7 +23,7 @@
             width: 100%;
             max-width: 420px;
             height: 80vh; 
-            max-height: 700px; /* ✅ 세로 길이 확장 유지 */
+            max-height: 700px; /* 세로 길이 확장 유지 */
             background: white;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
@@ -59,7 +59,7 @@
             border-radius: 18px;
             line-height: 1.6; 
             word-wrap: break-word;
-            font-size: 16px; /* ✅ 글자 크기 유지 */
+            font-size: 16px; /* 글자 크기 유지 */
         }
         .user {
             align-self: flex-end;
@@ -174,44 +174,39 @@
     }
 
     // ----------------------------------------------------
-    // ✅ 응답 전처리 로직 수정 (최소한의 처리로 메시지 표시 보장)
+    // ✅ 응답 전처리 로직 (문자열 치환에만 집중하여 오류 방지)
     // ----------------------------------------------------
     function preprocessN8nResponse(text) {
         let cleanedText = text.trim();
         
-        // 1. JSON 문자열 형태 제거 (가장 흔한 에러 형식 처리: "{\"message\":\"...\"}")
-        // n8n이 Content-Type을 제대로 설정하지 못하고 텍스트로 보낼 경우를 대비
-        try {
-            const parsed = JSON.parse(cleanedText);
-            // 만약 유효한 JSON이고 'message' 키가 있다면 해당 값 사용
-            if (typeof parsed === 'object' && parsed !== null && parsed.message) {
-                cleanedText = parsed.message;
-            }
-        } catch (e) {
-            // JSON 파싱 실패 -> 순수 텍스트로 간주하고 계속 진행
+        // 1. 요청 사항 3, 5번: {"message": 와 끝의 } 제거
+        if (cleanedText.startsWith('{"message":')) {
+            cleanedText = cleanedText.substring('{"message":'.length).trim();
         }
-
-        // 2. 따옴표로 감싸져 있는 경우 제거
+        if (cleanedText.endsWith('}')) {
+            cleanedText = cleanedText.substring(0, cleanedText.length - 1).trim();
+        }
+        
+        // 2. 남아있을 수 있는 앞뒤 따옴표 제거 (따옴표로 감싸진 문자열 처리)
         if (cleanedText.startsWith('"') && cleanedText.endsWith('"')) {
-            cleanedText = cleanedText.substring(1, cleanedText.length - 1);
+            cleanedText = cleanedText.substring(1, cleanedText.length - 1).trim();
         }
-
-        // 3. 줄바꿈 문자와 불필요한 기호 제거 및 변환
-        // 문자열 리터럴로 넘어온 "\\n"을 실제 줄바꿈 문자로 변환
+        
+        // 3. n8n에서 넘어올 때 이스케이프된 \n을 실제 줄바꿈 문자로 변환
         cleanedText = cleanedText.replace(/\\n/g, '\n'); 
 
-        // 4. ━━━━━━━━━━━━━━━━━━━━ 및 남은 { } 제거 (줄 단위)
+        // 4. 요청 사항 4, 5번: ━━━━━━━━━━━━━━━━━━━━ 라인 제거 (줄 단위 필터링)
         const lines = cleanedText.split('\n');
         const filteredLines = lines.filter(line => {
             const trimmed = line.trim();
-            // ━━━━━━━━━━━━━━━━━━━━ 문자열이 포함된 줄 또는 단독 } 제거
-            return !trimmed.includes('━━━━━━━━━━━━━━━━━━━━') && trimmed !== '}' && trimmed !== '{'; 
+            // ━━━━━━━━━━━━━━━━━━━━ 문자열이 포함된 줄 제거
+            return !trimmed.includes('━━━━━━━━━━━━━━━━━━━━');
         });
 
-        // HTML <br>로 합치고, Markdown 볼드 **를 HTML <b>로 변환
+        // 5. HTML <br>로 합치고, Markdown 볼드 **를 HTML <b>로 변환
         cleanedText = filteredLines.join('<br>');
         cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-
+        
         return cleanedText.trim();
     }
 
@@ -241,17 +236,24 @@
             
             const resultText = await response.text(); 
             
-            // ✅ N8N 응답 텍스트를 콘솔에 출력 (디버깅용)
+            // ✅ 디버깅용: 콘솔에서 원본 응답 텍스트 확인 가능
             console.log("----- N8N Raw Response Text -----");
-            console.log(resultText);
+            console.log(resultText); 
             console.log("---------------------------------");
 
             const processedText = preprocessN8nResponse(resultText); 
             
             chatBox.removeChild(loadingMessage);
 
-            // 봇 메시지 출력 (HTML 렌더링 활성화)
-            appendMessage(processedText, 'bot', true); 
+            // 봇 메시지 출력
+            if (processedText.length > 0) {
+                appendMessage(processedText, 'bot', true); 
+            } else {
+                 appendMessage(
+                    '⚠️ **응답 내용 없음:** n8n에서 빈 메시지를 받았습니다. 워크플로우를 확인해 주세요.',
+                    'bot'
+                );
+            }
 
         } catch (error) {
             console.error('N8N Webhook 호출 중 오류 발생:', error);
@@ -262,8 +264,8 @@
             
             appendMessage(
                 '❌ **견적 요청 중 오류 발생:** 시스템에서 응답을 처리하지 못했습니다. <br>' +
-                '1. **개발자 도구 (F12) 콘솔**에서 어떤 응답이 넘어왔는지 확인해보세요. <br>' +
-                '2. n8n 워크플로우의 **`웹훅 응답` 노드** 설정을 다시 한번 확인해주세요.', 
+                '1. **개발자 도구 (F12) 콘솔**에서 오류 메시지와 원본 응답(`N8N Raw Response Text`)을 확인해주세요. <br>' +
+                '2. n8n 워크플로우가 **`Active`** 상태인지 확인해주세요.', 
                 'bot', 
                 true
             );
