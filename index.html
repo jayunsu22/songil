@@ -1,198 +1,106 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>섬세한 자동 견적</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
-        .chat-container { max-width: 500px; margin: 40px auto; background-color: white; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); overflow: hidden; }
-        .chat-header { background: linear-gradient(135deg, #6b46c1 0%, #a855f7 100%); color: white; padding: 1.5rem; text-align: center; }
-        .chat-body { padding: 1.5rem; max-height: 50vh; overflow-y: auto; scroll-behavior: smooth; }
-        .user-message { background-color: #e0e7ff; border-radius: 0.75rem 0.75rem 0.1rem 0.75rem; padding: 0.75rem 1rem; max-width: 80%; margin-left: auto; margin-bottom: 0.5rem; color: #1e3a8a; }
-        .system-message { background-color: #f3f4f6; border-radius: 0.75rem 0.75rem 0.75rem 0.1rem; padding: 0.75rem 1rem; max-width: 80%; margin-right: auto; margin-bottom: 0.5rem; color: #1f2937; }
-        .quote-result { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 0.75rem; padding: 1rem; margin-top: 1rem; white-space: pre-wrap; }
-        .option-panel { border-top: 1px solid #e5e7eb; padding: 1.5rem; }
-        .input-group { margin-bottom: 1rem; }
-        .input-group label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 600; color: #4b5563; }
-        input[type="number"], select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; }
-        button { transition: background-color 0.2s, transform 0.1s; }
-        button:hover { transform: translateY(-1px); }
-        button:active { transform: translateY(0); }
-    </style>
-</head>
-<body>
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AI 인테리어 견적 채팅</title><script src="https://www.google.com/search?q=https://cdn.tailwindcss.com"></script><style>@import url('https://www.google.com/search?q=https://fonts.googleapis.com/css2%3Ffamily%3DInter:wght%40400%3B600%3B700%26display%3Dswap');body {font-family: 'Inter', sans-serif;background-color: #f7f9fb;display: flex;justify-content: center;align-items: center;min-height: 100vh;padding: 20px;}.chat-container {width: 100%;max-width: 480px;height: 80vh;max-height: 700px;background: white;border-radius: 16px;box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);display: flex;flex-direction: column;overflow: hidden;}.chat-header {padding: 1rem;background-color: #3b82f6; /* Blue 500 /color: white;font-weight: 700;text-align: center;border-top-left-radius: 16px;border-top-right-radius: 16px;}#chat-box {flex-grow: 1;padding: 1rem;overflow-y: auto;background-color: #eef2f6; / Gray 100 /display: flex;flex-direction: column;gap: 12px;}.message {max-width: 85%;padding: 10px 15px;border-radius: 18px;line-height: 1.5;word-wrap: break-word;}.user {align-self: flex-end;background-color: #4f46e5; / Indigo 600 /color: white;border-bottom-right-radius: 4px;}.bot {align-self: flex-start;background-color: #ffffff;color: #1f2937; / Gray 800 /box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);border: 1px solid #d1d5db; / Gray 300 */border-bottom-left-radius: 4px;}.input-area {display: flex;padding: 1rem;background-color: #ffffff;border-top: 1px solid #e5e7eb;}#user-input {flex-grow: 1;padding: 10px;border: 2px solid #e5e7eb;border-radius: 10px;margin-right: 10px;transition: border-color 0.2s;}#user-input:focus {outline: none;border-color: #3b82f6;}#send-button {padding: 10px 15px;background-color: #3b82f6;color: white;border-radius: 10px;font-weight: 600;transition: background-color 0.2s, transform 0.1s;}#send-button:hover:not(:disabled) {background-color: #2563eb;}#send-button:disabled {background-color: #93c5fd;cursor: not-allowed;}.loading-indicator {display: inline-block;width: 10px;height: 10px;border: 2px solid rgba(255, 255, 255, 0.3);border-radius: 50%;border-top-color: #fff;animation: spin 1s ease-in-out infinite;}@keyframes spin {to { transform: rotate(360deg); }}</style></head><body><div class="chat-container"><div class="chat-header">AI 인테리어 견적 챗봇</div><div id="chat-box"><!-- 초기 메시지 --><div class="message bot">안녕하세요! 인테리어 시공 견적을 도와드릴 AI 챗봇입니다.예시처럼 필요한 항목과 수량을 입력해주세요.예시: 방문 3개, 샤시 5개 견적 알려줘</div></div><div class="input-area"><input type="text" id="user-input" placeholder="견적 요청 사항을 입력하세요"><button id="send-button">전송</button></div></div><script>// ** 고객님의 N8N Webhook URL로 반드시 변경해야 합니다. **const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request";const chatBox = document.getElementById(&#39;chat-box&#39;);
+const userInput = document.getElementById(&#39;user-input&#39;);
+const sendButton = document.getElementById(&#39;send-button&#39;);
 
-    <div class="chat-container">
-        <!-- Header: 제목과 설명 수정됨 -->
-        <div class="chat-header">
-            <h1 class="text-2xl font-bold">섬세한 자동견적 입니다 ^^</h1>
-            <p class="text-sm opacity-80 mt-1">섬세한 AI 가 상세한 견적을 도와 드립니다.</p>
-        </div>
+// ----------------------------------------------------
+// [핵심 수정 함수 1] 메시지 추가 함수 (HTML 렌더링 기능 추가)
+// ----------------------------------------------------
+function appendMessage(message, sender, isHtml = false) {
+    const messageElement = document.createElement(&#39;div&#39;);
+    messageElement.classList.add(&#39;message&#39;, sender);
+    
+    // n8n에서 <br> 태그가 포함된 응답을 받기 때문에 innerHTML을 사용해야 합니다.
+    if (isHtml) {
+        messageElement.innerHTML = message;
+    } else {
+        messageElement.textContent = message;
+    }
+    
+    chatBox.appendChild(messageElement);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
 
-        <!-- Chat Body (Message Display) -->
-        <div id="chatBody" class="chat-body">
-            <div class="system-message">안녕하세요! 어떤 시공이 필요하신가요? 예: 방문 2개, 샤시 2개, 흰색 시트지 교체</div>
-        </div>
-
-        <!-- Quote Input Panel -->
-        <div class="option-panel">
-            <div id="quoteForm">
-                
-                <!-- 1. 상세 요청 사항 (AI 검토용) - 품목/수량 필드 삭제됨 -->
-                <div class="input-group">
-                    <label for="requestText">요청 사항</label>
-                    <textarea id="requestText" rows="3" placeholder="예: 방문 2개, 샤시 2개, 문짝 교체, 흰색 시트지" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"></textarea>
-                </div>
-
-                <!-- 2. 견적 요청 및 다시 쓰기 버튼 -->
-                <div class="flex space-x-4">
-                    <button onclick="calculateQuote()" id="quoteButton"
-                        class="flex-1 py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 disabled:bg-purple-300 shadow-md">
-                        견적 요청
-                    </button>
-                    <button onclick="resetForm()" id="resetButton"
-                        class="flex-1 py-3 bg-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-400 shadow-md">
-                        다시 쓰기
-                    </button>
-                </div>
-                
-                <div id="loadingMessage" class="text-center text-sm text-gray-500 mt-2 hidden">요청을 처리 중입니다... (최대 10초 소요)</div>
-                <div id="errorMessage" class="text-center text-sm text-red-500 mt-2 hidden"></div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // =======================================================================
-        // ★★★ 1. n8n Webhook URL 설정 (고객님께서 제공하신 URL로 업데이트됨) ★★★
-        // =======================================================================
-        const N8N_WEBHOOK_URL = 'https://primary-production-a6fa.up.railway.app/webhook/landbot-request';
-
-        // =======================================================================
-        // 2. 기타 설정
-        // =======================================================================
-        const chatBody = document.getElementById('chatBody');
-        const quoteButton = document.getElementById('quoteButton');
-        const loadingMessage = document.getElementById('loadingMessage');
-        const errorMessage = document.getElementById('errorMessage');
-        const requestTextarea = document.getElementById('requestText');
-
-        function appendMessage(text, type) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = type === 'user' ? 'user-message' : 'system-message';
-            messageDiv.innerHTML = text.replace(/\n/g, '<br>');
-            chatBody.appendChild(messageDiv);
-            chatBody.scrollTop = chatBody.scrollHeight; // 스크롤 하단으로 이동
-        }
-
-        // 지수 백오프를 사용한 fetch 함수
-        async function fetchWithRetry(url, options, retries = 3) {
-            console.log(`[DEBUG] Webhook URL: ${url}`); // 디버깅: URL 출력
-            console.log(`[DEBUG] Payload:`, JSON.parse(options.body)); // 디버깅: Payload 출력
-
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    console.log(`[DEBUG] Response Status: ${response.status}, Attempt: ${i + 1}`); // 디버깅: 응답 상태 출력
-
-                    if (response.status === 429 && i < retries - 1) { // 429 Too Many Requests
-                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-                        console.log(`Rate limit exceeded. Retrying in ${Math.round(delay / 1000)}s...`);
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        continue;
-                    }
-                    if (!response.ok) {
-                        // 404, 500 등 다른 오류는 여기서 던집니다.
-                        throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
-                    }
-                    return response;
-                } catch (error) {
-                    console.error(`[DEBUG] Fetch Error on attempt ${i + 1}:`, error); // 디버깅: 오류 상세 출력
-                    if (i === retries - 1) throw error;
-                    // 기타 오류에 대한 재시도 로직은 여기에서 생략하거나 추가할 수 있습니다.
-                }
+// ----------------------------------------------------
+// [보조 함수] 오류 발생 시 재시도 로직
+// ----------------------------------------------------
+async function fetchWithRetry(url, options, retries = 3) {
+    for (let i = 0; i &lt; retries; i++) {
+        try {
+            const response = await fetch(url, options);
+            if (response.ok) {
+                return response;
             }
+            // 4xx, 5xx 에러는 재시도하지 않고 바로 오류 발생
+            throw new Error(`Server responded with status: ${response.status}`);
+        } catch (error) {
+            if (i === retries - 1) throw error; 
+            await new Promise(resolve =&gt; setTimeout(resolve, 1000 * (i + 1))); // 지수 백오프
         }
+    }
+}
 
-        // 입력 필드를 초기화하고, 초기 메시지로 스크롤을 조정하는 함수 추가
-        function resetForm() {
-            requestTextarea.value = ''; // 요청 사항 초기화
-            errorMessage.classList.add('hidden'); // 오류 메시지 숨김
-            // 채팅 내용을 초기화하고 싶다면: chatBody.innerHTML = '<div class="system-message">...초기 메시지...</div>';
-            
-            // 사용자에게 다시 입력하라는 시스템 메시지를 보냅니다.
-            appendMessage('다시 쓰기를 시작합니다. 원하는 요청 사항을 자세히 적어주세요.', 'system');
-        }
+// ----------------------------------------------------
+// [핵심 수정 함수 2] N8N으로 메시지 전송 및 응답 처리
+// ----------------------------------------------------
+async function sendMessageToN8n(message) {
+    if (!message.trim()) return;
+
+    // 사용자 메시지 출력
+    appendMessage(message, &#39;user&#39;);
+    
+    userInput.value = &#39;&#39;;
+    sendButton.disabled = true;
+
+    // 로딩 메시지 출력
+    const loadingMessage = document.createElement(&#39;div&#39;);
+    loadingMessage.classList.add(&#39;message&#39;, &#39;bot&#39;, &#39;flex&#39;, &#39;items-center&#39;, &#39;space-x-2&#39;);
+    loadingMessage.innerHTML = &#39;&lt;span&gt;견적 계산 중...&lt;/span&gt;&lt;span class=&quot;loading-indicator&quot;&gt;&lt;/span&gt;&#39;;
+    chatBox.appendChild(loadingMessage);
+    chatBox.scrollTop = chatBox.scrollHeight;
 
 
-        async function calculateQuote() {
-            // 품목 및 수량 필드가 제거되었으므로, 요청 사항만 가져옵니다.
-            const requestText = requestTextarea.value.trim();
-
-            if (!requestText) {
-                errorMessage.textContent = '견적 요청 내용을 입력해 주세요.';
-                errorMessage.classList.remove('hidden');
-                return;
-            }
-
-            // 사용자 입력 메시지를 채팅창에 표시 (수정된 메시지 형식)
-            const userMessageText = `요청: ${requestText}`;
-            appendMessage(userMessageText, 'user');
-            
-            // 버튼 비활성화 및 로딩 메시지 표시
-            quoteButton.disabled = true;
-            loadingMessage.classList.remove('hidden');
-            errorMessage.classList.add('hidden');
-            
-            // =======================================================================
-            // ★★★ 3. n8n Webhook으로 데이터 전송 (requestText만 포함) ★★★
-            // =======================================================================
-            try {
-                const payload = {
-                    // 이제 AI가 requestText에서 모든 정보를 파싱해야 합니다.
-                    user_request: requestText,
-                    // chat_id는 Landbot 없이 임의로 생성 (n8n에서 사용될 수 있음)
-                    chat_id: 'web-' + Date.now() 
-                };
-
-                const options = {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                };
-
-                const response = await fetchWithRetry(N8N_WEBHOOK_URL, options);
-
-                // n8n에서 반환된 응답 (JSON 형식, { message_to_send: "..." } 형태 기대)
-                const result = await response.json();
-                
-                // n8n이 반환한 메시지(총 견적 결과)를 채팅창에 표시
-                const finalMessage = result.message_to_send || 
-                                     `📢 AI 검토 및 견적 계산 완료! <br><br>n8n 워크플로우는 정상 작동했지만, 응답 메시지 필드(message_to_send)를 찾지 못했습니다. <br>n8n의 **'웹훅응답'** 노드에서 **'message_to_send'** 필드를 확인해주세요.`;
-                
-                appendMessage(`<div class="quote-result">${finalMessage}</div>`, 'system');
-                
-            } catch (error) {
-                console.error("n8n Webhook 호출 오류:", error);
-                const errorText = `❌ 견적 요청 중 오류 발생: ${error.message}. <br>1. n8n 워크플로우가 **'Active' 상태**인지 확인하세요. <br>2. **Webhook 노드의 설정**이 POST 방식인지 확인하세요. <br>3. 요청 본문(Payload)에 'user_request' 필드가 올바르게 전달되었는지 확인하세요.`;
-                errorMessage.textContent = errorText;
-                errorMessage.classList.remove('hidden');
-                appendMessage(errorText, 'system');
-            } finally {
-                // 버튼 다시 활성화 및 로딩 메시지 숨김
-                quoteButton.disabled = false;
-                loadingMessage.classList.add('hidden');
-            }
-        }
-
-        // 초기 메시지 및 UI 로드 시 스크롤 조정
-        window.onload = () => {
-            chatBody.scrollTop = chatBody.scrollHeight;
+    try {
+        const options = {
+            method: &#39;POST&#39;,
+            headers: { &#39;Content-Type&#39;: &#39;application/json&#39; },
+            body: JSON.stringify({ user_request: message })
         };
-    </script>
-</body>
-</html>
+        
+        const response = await fetchWithRetry(N8N_WEBHOOK_URL, options);
+        
+        // ✅ 수정된 부분: N8N이 순수 텍스트(text/plain)를 반환하도록 설정했으므로, .text()로 받습니다.
+        const resultText = await response.text(); 
+        
+        // 로딩 메시지 제거
+        chatBox.removeChild(loadingMessage);
+
+        // 봇 메시지 생성 및 출력
+        // n8n에서 <br> 태그가 포함된 최종 견적 메시지가 resultText에 담겨 있습니다.
+        appendMessage(resultText, &#39;bot&#39;, true); // true를 전달하여 HTML로 렌더링
+
+    } catch (error) {
+        console.error(&#39;N8N Webhook 호출 중 오류 발생:&#39;, error);
+        // 로딩 메시지 제거 (오류 발생 시에도 제거)
+        if (chatBox.contains(loadingMessage)) {
+            chatBox.removeChild(loadingMessage);
+        }
+        appendMessage(&#39;죄송합니다. 견적을 계산하는 중 시스템 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.&#39;, &#39;bot&#39;);
+    } finally {
+        sendButton.disabled = false;
+        userInput.focus();
+    }
+}
+
+// ----------------------------------------------------
+// 이벤트 리스너
+// ----------------------------------------------------
+sendButton.addEventListener(&#39;click&#39;, () =&gt; {
+    sendMessageToN8n(userInput.value);
+});
+
+userInput.addEventListener(&#39;keydown&#39;, (event) =&gt; {
+    if (event.key === &#39;Enter&#39; &amp;&amp; !sendButton.disabled) {
+        sendMessageToN8n(userInput.value);
+    }
+});
+</script></body></html>
