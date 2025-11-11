@@ -1,3 +1,4 @@
+<!-- [chat.html] 이 코드 전체를 복사하여 붙여넣으세요 -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -7,171 +8,43 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .chat-container {
-            width: 100%;
-            max-width: 420px; 
-            height: 80vh; 
-            max-height: 700px; 
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .chat-header {
-            padding: 1rem;
-            background-color: #4f46e5; 
-            color: white;
-            font-weight: 600;
-            text-align: center;
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
-        }
-        .header-text {
-            font-size: 1.125rem; /* text-lg */
-        }
-        .header-version {
-            font-size: 0.75rem; /* text-xs */
-            font-weight: 400;
-            margin-top: 4px;
-        }
-        #chat-box {
-            flex-grow: 1;
-            padding: 1rem;
-            overflow-y: auto;
-            background-color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .chat-container { width: 100%; max-width: 420px; height: 80vh; max-height: 700px; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { padding: 1rem; background-color: #4f46e5; color: white; font-weight: 600; text-align: center; border-top-left-radius: 12px; border-top-right-radius: 12px; }
+        .header-text { font-size: 1.125rem; }
+        .header-version { font-size: 0.75rem; font-weight: 400; margin-top: 4px; }
+        #chat-box { flex-grow: 1; padding: 1rem; overflow-y: auto; background-color: #ffffff; display: flex; flex-direction: column; gap: 10px; }
         #chat-box::-webkit-scrollbar { width: 6px; }
         #chat-box::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
-        
-        .message {
-            max-width: 85%;
-            padding: 10px 14px;
-            border-radius: 18px;
-            line-height: 1.6; 
-            word-wrap: break-word;
-            font-size: 16px; 
-        }
-        .user {
-            align-self: flex-end;
-            background-color: #4f46e5; 
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-        .bot {
-            align-self: flex-start;
-            background-color: #f1f5f9; 
-            color: #1e293b;
-            border-bottom-left-radius: 4px;
-        }
-        
-        .quote-footer {
-            font-size: 14px;
-            color: #475569;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px solid #e2e8f0;
-        }
-        .contact-number {
-            font-size: 24px; 
-            font-weight: 700;
-            color: #4f46e5; 
-            text-decoration: none; 
-            display: block;
-            margin-top: 5px;
-        }
-        .share-button {
-            font-size: 14px;
-            font-weight: 600;
-            color: #4f46e5;
-            background-color: #eef2ff;
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 10px;
-            text-align: center;
-        }
+        .message { max-width: 85%; padding: 10px 14px; border-radius: 18px; line-height: 1.6; word-wrap: break-word; font-size: 16px; }
+        .user { align-self: flex-end; background-color: #4f46e5; color: white; border-bottom-right-radius: 4px; }
+        .bot { align-self: flex-start; background-color: #f1f5f9; color: #1e293b; border-bottom-left-radius: 4px; }
+        .quote-footer { font-size: 14px; color: #475569; margin-top: 15px; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+        .contact-number { font-size: 24px; font-weight: 700; color: #4f46e5; text-decoration: none; display: block; margin-top: 5px; }
+        .share-button { font-size: 14px; font-weight: 600; color: #4f46e5; background-color: #eef2ff; padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-top: 10px; text-align: center; }
         .share-button:hover { background-color: #e0e7ff; }
-        
-        .timer-message {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            color: #4f46e5;
-        }
-        .timer-spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(79, 70, 229, 0.2);
-            border-top-color: #4f46e5;
-            border-radius: 50%;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        .input-area {
-            display: flex;
-            padding: 0.75rem;
-            background-color: #ffffff;
-            border-top: 1px solid #e2e8f0;
-        }
-        #user-input {
-            flex-grow: 1;
-            padding: 10px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            margin-right: 8px;
-            font-size: 14px;
-        }
-        #user-input:focus {
-            outline: none;
-            border-color: #4f46e5;
-            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
-        }
-        #send-button {
-            padding: 10px 16px;
-            background-color: #4f46e5;
-            color: white;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        #send-button:disabled {
-            background-color: #a5b4fc;
-            cursor: not-allowed;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        .timer-message { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 600; color: #4f46e5; }
+        .timer-spinner { width: 20px; height: 20px; border: 2px solid rgba(79, 70, 229, 0.2); border-top-color: #4f46e5; border-radius: 50%; animation: spin 1s ease-in-out infinite; }
+        .input-area { display: flex; padding: 0.75rem; background-color: #ffffff; border-top: 1px solid #e2e8f0; }
+        #user-input { flex-grow: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-right: 8px; font-size: 14px; }
+        #user-input:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2); }
+        #send-button { padding: 10px 16px; background-color: #4f46e5; color: white; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        #send-button:disabled { background-color: #a5b4fc; cursor: not-allowed; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
 <div class="chat-container">
     <div class="chat-header">
-        <div class="header-text">섬세한 1분 필름견적 </div>
-        <div id="version-display" class="header-version"></div>
+        <div id="header-title" class="header-text">섬세한 1분 필름견적</div>
+        <div id="version-display" class="header-version">V.251111_1001</div>
     </div>
     <div id="chat-box">
         <div class="message bot">
             안녕하세요!<br>
-            시공부위와 수량을 입력해주세요.<br>
-            1분 이내로 견적 알려드립니다.<br>
+            필요한 항목과 수량을 입력해주세요.<br>
+            1분 이내로 견적 알려드립니다.<br><br>
             <b>예) 방문 3, 샤시 5</b>
         </div>
     </div>
@@ -189,8 +62,13 @@
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
     const versionDisplay = document.getElementById('version-display');
+    const headerTitle = document.getElementById('header-title');
     let timerInterval = null; 
 
+    // (고객님이 수정하신 제목/안내문구 반영)
+    headerTitle.textContent = "섬세한 1분 필름견적";
+    document.querySelector('.message.bot').innerHTML = "안녕하세요!<br>필요한 항목과 수량을 입력해주세요.<br>1분 이내로 견적 알려드립니다.<br><br><b>예) 방문 3, 샤시 5</b>";
+    
     function getVersionString() {
         const now = new Date();
         const year = String(now.getFullYear()).substring(2);
@@ -200,19 +78,16 @@
         const minutes = String(now.getMinutes()).padStart(2, '0');
         return `V.${year}${month}${day}_${hours}${minutes}`;
     }
-    
     versionDisplay.textContent = getVersionString();
 
     function appendMessage(message, sender, isHtml = false) {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', sender);
-        
         if (isHtml) {
             messageElement.innerHTML = message;
         } else {
             messageElement.textContent = message;
         }
-        
         chatBox.appendChild(messageElement);
         chatBox.scrollTop = chatBox.scrollHeight;
         return messageElement; 
@@ -236,7 +111,6 @@
     function startTimer(loadingMessageElement) {
         let timeLeft = 60;
         const timerTextSpan = loadingMessageElement.querySelector('.timer-text');
-        
         timerInterval = setInterval(() => {
             timeLeft--;
             if (timerTextSpan) {
@@ -263,9 +137,7 @@
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = quoteText;
         let textToShare = tempDiv.textContent || tempDiv.innerText || "";
-        
         textToShare = textToShare.replace(/<br>/g, '\n');
-
         if (navigator.share) {
             navigator.share({
                 title: 'AI 인테리어 견적 내역',
@@ -288,51 +160,91 @@
         }
     }
 
-    // ✅ 수정: n8n 응답 전처리 함수 (불필요한 문자 제거 로직 대폭 강화)
-    function preprocessN8nResponse(text) {
-        let cleanedText = text.trim();
+    // ★★★ 핵심 수정: N8N 응답 전처리 (JSON 파싱 및 에러 핸들링) ★★★
+    async function handleN8nResponse(response, loadingMessage) {
+        stopTimer(loadingMessage); 
         
-        // 1. JSON Wrapper 제거 
-        if (cleanedText.startsWith('{"message":') && cleanedText.endsWith('}')) {
-            cleanedText = cleanedText.substring('{"message":"'.length);
-            if (cleanedText.endsWith('"')) {
-                cleanedText = cleanedText.substring(0, cleanedText.length - 1);
-            }
-        } else if (cleanedText.startsWith('"') && cleanedText.endsWith('"')) {
-            cleanedText = cleanedText.substring(1, cleanedText.length - 1);
-        }
-        
-        cleanedText = cleanedText.replace(/\\n/g, '\n'); 
-        
-        const lines = cleanedText.split('\n');
-        const filteredLines = lines.filter(line => {
-            const trimmed = line.trim();
+        let resultData;
+        let rawTextForDebug = ""; // 디버깅용 텍스트 저장
+
+        try {
+            // N8N이 텍스트를 보냈는지 JSON을 보냈는지 확인하기 위해 먼저 text()로 받음
+            rawTextForDebug = await response.text();
             
-            // 2. 불필요한 문자열, 구분선, 단독 괄호 제거
-            const isUnwanted = trimmed.includes('━━━━━━━━━━━━━━━━━━━━') || 
-                                trimmed === '}' ||                          
-                                trimmed === '{' ||                          
-                                trimmed.length === 0;                       
+            // 디버깅용: 콘솔에 n8n이 보낸 원본 텍스트를 출력
+            console.log("----- N8N Raw Response Text -----");
+            console.log(rawTextForDebug);
+            console.log("---------------------------------");
+            
+            // 텍스트를 JSON으로 파싱 시도
+            resultData = JSON.parse(rawTextForDebug); 
+            
+        } catch (e) {
+            // ★★★ JSON 파싱 실패 시 (즉, 이전 버전의 순수 텍스트 응답이 온 경우) ★★★
+            // 이 블록은 "없는 항목" 처리가 적용되기 전의 임시 호환성 코드입니다.
+            // (N8N이 아직 `request_detail` 텍스트를 보내는 경우)
+            console.warn("N8N 응답이 JSON이 아닙니다. 텍스트로 처리합니다.");
+            
+            // 이전 버전의 전처리 로직 (불필요한 문자 제거)
+            let cleanedText = rawTextForDebug.trim();
+            cleanedText = cleanedText.replace(/\\n/g, '\n'); 
+            const lines = cleanedText.split('\n');
+            const filteredLines = lines.filter(line => {
+                const trimmed = line.trim();
+                return !trimmed.includes('━━━━━━━━━━━━━━━━━━━━') && trimmed !== '}' && trimmed !== '{' && trimmed.length > 0;
+            });
+            cleanedText = filteredLines.join('<br>');
+            cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+             
+            // (견적 하단 정보 및 공유 버튼 추가)
+            const quoteHtml = `
+                <div id="quote-content-to-share">
+                    ${cleanedText}
+                </div>
+                <div class="quote-footer">
+                    시공문의 (김정헌 실장)<br>
+                    <a href="tel:${CONTACT_NUMBER}" class="contact-number">${CONTACT_NUMBER.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3')}</a><br>
+                    2013년 부터 섬세한 시공중
+                </div>
+                <div class="share-button" onclick="shareQuote(document.getElementById('quote-content-to-share').innerHTML)">
+                    견적 내역 공유하기
+                </div>
+            `;
+            appendMessage(quoteHtml, 'bot', true);
+            return; // 여기서 함수 종료
+        }
 
-            return !isUnwanted;
-        });
 
-        cleanedText = filteredLines.join('<br>');
-        
-        // 3. 텍스트 중간에 남아있는 불필요한 문자열 정리
-        cleanedText = cleanedText.replace(/<br> *\} *<br>/g, '<br>'); 
-        cleanedText = cleanedText.replace(/\}<br>/g, '<br>'); 
-        cleanedText = cleanedText.replace(/ *\{<br>/g, '<br>'); 
-        
-        // Markdown 볼드체 (** **)를 HTML 볼드체 (<b> </b>)로 변환
-        cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        // --- 이 아래는 N8N이 JSON을 성공적으로 반환한 경우 (1번 개선안 적용) ---
 
-        // ★★★★★ [핵심 수정] ★★★★★
-        // 모든 처리가 끝난 후, 텍스트의 맨 끝에 남아있을 수 있는
-        // 공백, <br> 태그, 그리고 불필요한 '}' 문자를 모두 제거합니다.
-        cleanedText = cleanedText.replace(/(<br>|\s)*\}*$/, '');
+        // ★★★ 1번 개선안: "없는 항목" 오류 처리 ★★★
+        // n8n이 { "error": "unknown_item" } 객체를 반환했는지 확인합니다.
+        if (resultData && resultData.error === "unknown_item") {
+            const errorHtml = `
+                <b>Oops! 죄송합니다.</b><br>
+                자동견적에 등록되지 않는 품목입니다.<br>
+                <b>010-6657-1222</b>로 문의 부탁드립니다.<br>
+                감사합니다.
+            `;
+            appendMessage(errorHtml, 'bot', true);
+            return;
+        }
+
+        // ★★★ 4, 5번 개선안 (견적번호, 알림내역 등)은 이 단계에서 처리합니다. ★★★
+        // (주의: 이 부분은 다음 단계(n8n 수정)에서 데이터가 추가되어야 보입니다)
         
-        return cleanedText.trim();
+        // (임시) N8N이 JSON을 보냈지만, 아직 4, 5번 개선안이 적용 안 된 경우
+        // (예: { "품목명": "방문", "수량": 2 } 객체가 온 경우)
+        if (Array.isArray(resultData) && resultData[0]?.json) {
+             let tempText = "N8N에서 JSON 응답을 받았으나, '합계계산' 노드가 아직 수정되지 않았습니다.<br><br><b>임시 출력:</b><br>" + JSON.stringify(resultData, null, 2);
+             appendMessage(tempText, 'bot', true);
+        } else if (resultData.error) {
+             // n8n이 보낸 다른 오류 (예: 파싱 실패)
+             appendMessage(`🚫 **n8n 오류:** ${resultData.reason || '알 수 없는 오류'}`, 'bot', true);
+        } else {
+             // 알 수 없는 JSON 형식
+             appendMessage('⚠️ **응답 형식 오류:** n8n에서 예상치 못한 JSON 응답을 받았습니다.', 'bot', true);
+        }
     }
 
 
@@ -361,38 +273,9 @@
             };
             
             const response = await fetchWithRetry(N8N_WEBHOOK_URL, options);
-            const resultText = await response.text(); 
             
-            stopTimer(loadingMessage); 
-
-            const processedText = preprocessN8nResponse(resultText); 
-            
-            if (processedText.length > 0) {
-                
-                const quoteHtml = `
-                    <div id="quote-content-to-share">
-                        ${processedText}
-                    </div>
-                    
-                    <!-- 시공문의 하단 정보 -->
-                    <div class="quote-footer">
-                        시공문의 (김정헌 실장)<br>
-                        <a href="tel:${CONTACT_NUMBER}" class="contact-number">${CONTACT_NUMBER.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3')}</a><br>
-                        2013년 부터 섬세한 시공중
-                    </div>
-                    
-                    <!-- 공유 버튼 -->
-                    <div class="share-button" onclick="shareQuote(document.getElementById('quote-content-to-share').innerHTML)">
-                        견적 내역 공유하기
-                    </div>
-                `;
-                appendMessage(quoteHtml, 'bot', true); 
-            } else {
-                 appendMessage(
-                    '⚠️ <b>응답 내용 없음:</b> n8n에서 빈 메시지를 받았습니다. 워크플로우를 확인해 주세요.',
-                    'bot', true
-                );
-            }
+            // ★★★ N8N 응답 처리를 새 함수로 분리 ★★★
+            await handleN8nResponse(response, loadingMessage);
 
         } catch (error) {
             console.error('N8N Webhook 호출 중 오류 발생:', error);
@@ -429,7 +312,4 @@
 
 </body>
 </html>
-
-
-
-
+<!-- --- 여기까지 복사 --- -->
