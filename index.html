@@ -37,6 +37,14 @@
             border-top-left-radius: 12px;
             border-top-right-radius: 12px;
         }
+        .header-text {
+            font-size: 1.125rem; /* text-lg */
+        }
+        .header-version {
+            font-size: 0.75rem; /* text-xs */
+            font-weight: 400;
+            margin-top: 4px;
+        }
         #chat-box {
             flex-grow: 1;
             padding: 1rem;
@@ -79,7 +87,7 @@
             border-top: 1px solid #e2e8f0;
         }
         .contact-number {
-            font-size: 24px; /* ✅ 수정: 28px -> 24px */
+            font-size: 24px; 
             font-weight: 700;
             color: #4f46e5; 
             text-decoration: none; 
@@ -159,7 +167,11 @@
 <body>
 
 <div class="chat-container">
-    <div class="chat-header">AI 인테리어 견적 챗봇</div>
+    <!-- ✅ 수정: 헤더에 버전 정보 표시 로직 추가 -->
+    <div class="chat-header">
+        <div class="header-text">AI 인테리어 견적 챗봇</div>
+        <div id="version-display" class="header-version"></div>
+    </div>
     <div id="chat-box">
         <div class="message bot">
             안녕하세요! 인테리어 시공 견적을 도와드릴 AI 챗봇입니다.<br>
@@ -180,7 +192,23 @@
     const chatBox = document.getElementById('chat-box');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
+    const versionDisplay = document.getElementById('version-display');
     let timerInterval = null; 
+
+    // 현재 날짜/시간을 가져와 버전 문자열 생성 (YYYYMMDD_HHMM)
+    function getVersionString() {
+        const now = new Date();
+        const year = String(now.getFullYear()).substring(2);
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `V.${year}${month}${day}_${hours}${minutes}`;
+    }
+    
+    // 버전 표시 업데이트
+    versionDisplay.textContent = getVersionString();
+
 
     function appendMessage(message, sender, isHtml = false) {
         const messageElement = document.createElement('div');
@@ -239,12 +267,10 @@
     }
 
     function shareQuote(quoteText) {
-        // HTML을 텍스트로 변환 (br -> \n, 태그 제거)
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = quoteText;
         let textToShare = tempDiv.textContent || tempDiv.innerText || "";
         
-        // 줄바꿈 보정
         textToShare = textToShare.replace(/<br>/g, '\n');
 
         if (navigator.share) {
@@ -261,7 +287,6 @@
                 }
             });
         } else {
-            // PC 환경 또는 navigator.share 미지원 시 클립보드 복사
             navigator.clipboard.writeText(textToShare).then(() => {
                 alert('공유하기 기능이 지원되지 않아, 견적 내역이 클립보드에 복사되었습니다.');
             }).catch(err => {
@@ -270,7 +295,7 @@
         }
     }
 
-    // ✅ 수정: n8n 응답 전처리 함수 (불필요한 문자 제거 로직 강화)
+    // ✅ 수정: n8n 응답 전처리 함수 (불필요한 문자 제거 로직 대폭 강화)
     function preprocessN8nResponse(text) {
         let cleanedText = text.trim();
         
@@ -284,17 +309,29 @@
             cleanedText = cleanedText.substring(1, cleanedText.length - 1);
         }
         
+        // 줄바꿈 이스케이프 해제
         cleanedText = cleanedText.replace(/\\n/g, '\n'); 
         
-        // 줄바꿈으로 분리하여 불필요한 줄 제거 (핵심 수정)
+        // 줄바꿈으로 분리하여 불필요한 줄 제거 (강력 필터링)
         const lines = cleanedText.split('\n');
         const filteredLines = lines.filter(line => {
             const trimmed = line.trim();
-            // '━━━━━━━━━━━━' 또는 '}'만 있는 줄, 그리고 불필요한 공백을 가진 줄을 제거
-            return !trimmed.includes('━━━━━━━━━━━━━━━━━━━━') && trimmed !== '}' && trimmed !== '{' && trimmed.length > 0;
+            
+            // 2. 불필요한 문자열, 구분선, 단독 괄호 제거
+            const isUnwanted = trimmed.includes('━━━━━━━━━━━━━━━━━━━━') || // 구분선
+                                trimmed === '}' ||                          // 단독 }
+                                trimmed === '{' ||                          // 단독 {
+                                trimmed.length === 0;                       // 빈 줄
+
+            return !isUnwanted;
         });
 
         cleanedText = filteredLines.join('<br>');
+        
+        // 3. 텍스트 중간에 남아있는 불필요한 문자열 정리
+        cleanedText = cleanedText.replace(/<br> *\} *<br>/g, '<br>'); // 중간에 남아있는 "} <br>" 패턴 제거
+        cleanedText = cleanedText.replace(/\}<br>/g, '<br>'); // 줄 끝에 붙어있는 } 제거
+        cleanedText = cleanedText.replace(/ *\{<br>/g, '<br>'); // 줄 시작에 붙어있는 { 제거
         
         // Markdown 볼드체 (** **)를 HTML 볼드체 (<b> </b>)로 변환
         cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
@@ -341,7 +378,7 @@
                         ${processedText}
                     </div>
                     
-                    <!-- 시공문의 하단 정보 (전화번호 크기 수정) -->
+                    <!-- 시공문의 하단 정보 -->
                     <div class="quote-footer">
                         시공문의 (김정헌 실장)<br>
                         <a href="tel:${CONTACT_NUMBER}" class="contact-number">${CONTACT_NUMBER.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3')}</a><br>
