@@ -69,15 +69,7 @@
             color: #1e293b;
             border-bottom-left-radius: 4px;
         }
-        /* ✅ 4. 알림내역 스타일 */
-        .notification {
-            font-size: 14px;
-            color: #64748b;
-            border-left: 3px solid #cbd5e1;
-            padding-left: 10px;
-            margin-top: 5px;
-            white-space: pre-wrap; /* \n을 줄바꿈으로 */
-        }
+        
         /* ✅ 2. 하단 정보 스타일 */
         .quote-footer {
             font-size: 14px;
@@ -150,16 +142,6 @@
             background-color: #a5b4fc;
             cursor: not-allowed;
         }
-        .loading-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-            margin-left: 5px;
-        }
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
@@ -191,20 +173,21 @@
     let timerInterval = null; // ✅ 6. 타이머 변수
 
     function appendMessage(message, sender, isHtml = false) {
-        // ... (이전과 동일)
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', sender);
+        
         if (isHtml) {
             messageElement.innerHTML = message;
         } else {
             messageElement.textContent = message;
         }
+        
         chatBox.appendChild(messageElement);
         chatBox.scrollTop = chatBox.scrollHeight;
+        return messageElement; // ✅ 3, 6. 생성된 메시지 객체 반환
     }
 
     async function fetchWithRetry(url, options, retries = 3) {
-        // ... (이전과 동일)
         for (let i = 0; i < retries; i++) {
             try {
                 const response = await fetch(url, options);
@@ -227,7 +210,7 @@
         timerInterval = setInterval(() => {
             timeLeft--;
             if (timerElement) {
-                timerElement.textContent = `(AI 견적 ${timeLeft}초 남음)`;
+                timerElement.textContent = `1분만 기다리세요... (${timeLeft}초)`;
             }
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
@@ -249,86 +232,41 @@
 
     // ✅ 3. 공유 버튼 함수
     function shareQuote(quoteText) {
-        if (navigator.share) {
-            navigator.share({
-                title: '인테리어필름 견적 내역',
-                text: quoteText,
-            }).catch(console.error);
-        } else {
-            // navigator.share가 없는 PC 환경을 위해 클립보드 복사
-            navigator.clipboard.writeText(quoteText).then(() => {
-                alert('견적 내역이 클립보드에 복사되었습니다.');
-            }).catch(err => {
-                alert('공유하기에 실패했습니다.');
-            });
-        }
+        // n8n 응답에서 \n을 실제 줄바꿈으로 변경
+        const textToCopy = quoteText.replace(/<br>/g, '\n');
+        
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            alert('견적 내역이 클립보드에 복사되었습니다.');
+        }).catch(err => {
+            alert('복사에 실패했습니다.');
+        });
     }
 
-    // ✅ 1, 2, 4, 5. n8n 응답을 처리하여 견적 HTML 생성
-    function buildQuoteHtml(data) {
-        // 1. 없는 항목 입력시 처리
-        if (data.error === "unknown_item") {
-            return `Oops! 죄송합니다.<br>
-                    자동견적에 등록되지 않는 품목입니다.<br>
-                    <b>010-6657-1222</b>로 문의 부탁드립니다.<br>
-                    감사합니다.`;
-        }
-
-        // 5. 견적번호 만들기
-        let html = `✅ <b>견적 내역입니다 (No. ${data.quoteId || '??? '})</b><br><br>`;
-        let quoteTextForShare = `[견적 No. ${data.quoteId || '???'}]\n`; // 공유용 텍스트
-
-        // 4. 알림내역 (품목별)
-        data.items.forEach(item => {
-            html += `◆ <b>${item.name} ${item.quantity}세트</b><br>`;
-            html += `ㆍ자재비: ${item.materialCost.toLocaleString()}원<br>`;
-            html += `ㆍ인건비: ${item.laborCost.toLocaleString()}원<br>`;
-            html += `ㆍ소계: ${item.subtotal.toLocaleString()}원<br>`;
-            
-            quoteTextForShare += `\n◆ ${item.name} ${item.quantity}세트\n`;
-            quoteTextForShare += `ㆍ소계: ${item.subtotal.toLocaleString()}원\n`;
-
-            if (item.notification) {
-                html += `<div class="notification">${item.notification.replace(/\n/g, '<br>')}</div><br>`;
-            } else {
-                html += `<br>`;
+    // (기존 전처리 함수 - n8n 수정 전까지 유지)
+    function preprocessN8nResponse(text) {
+        let cleanedText = text.trim();
+        
+        if (cleanedText.startsWith('{"message":') && cleanedText.endsWith('}')) {
+            cleanedText = cleanedText.substring('{"message":"'.length);
+            if (cleanedText.endsWith('"')) {
+                cleanedText = cleanedText.substring(0, cleanedText.length - 1);
             }
+        } else if (cleanedText.startsWith('"') && cleanedText.endsWith('"')) {
+            cleanedText = cleanedText.substring(1, cleanedText.length - 1);
+        }
+        
+        cleanedText = cleanedText.replace(/\\n/g, '\n'); 
+
+        const lines = cleanedText.split('\n');
+        const filteredLines = lines.filter(line => {
+            const trimmed = line.trim();
+            return !trimmed.includes('━━━━━━━━━━━━━━━━━━━━') && trimmed !== '}'; 
         });
 
-        html += '━━━━━━━━━━━━━━━<br>';
-        html += `⭐ <b>예상 견적 총합: ${data.totalCost.toLocaleString()}원</b><br>`;
-        html += '━━━━━━━━━━━━━━━<br>';
+        cleanedText = filteredLines.join('<br>');
+        cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
         
-        quoteTextForShare += `\n⭐ 예상 견적 총합: ${data.totalCost.toLocaleString()}원\n`;
-
-        // 4. 알림내역 (공통)
-        if (data.commonNotification) {
-            html += `<br><b>공통알림</b><br>`;
-            html += `<div class="notification" style="border-left: 3px solid #f59e0b;">${data.commonNotification.replace(/\n/g, '<br>')}</div>`;
-            quoteTextForShare += `\n[공통알림]\n${data.commonNotification}\n`;
-        }
-
-        // 2. 견적 내역 밑에 정보 넣기
-        html += `<div class="quote-footer">
-                    시공문의 (김정헌 실장)<br>
-                    <b>010-6657-1222</b><br>
-                    2013년 부터 섬세한 시공중
-                 </div>`;
-        
-        quoteTextForShare += `\n시공문의 (김정헌 실장)\n010-6657-1222`;
-
-        // 3. 공유버튼 만들기
-        const shareButtonId = `share-${Date.now()}`;
-        html += `<div id="${shareButtonId}" class="share-button">견적 내역 공유하기 (복사)</div>`;
-        
-        // 공유 버튼에 이벤트 리스너 동적 추가
-        setTimeout(() => {
-            document.getElementById(shareButtonId)?.addEventListener('click', () => {
-                shareQuote(quoteTextForShare);
-            });
-        }, 0);
-
-        return html;
+        return cleanedText.trim();
     }
 
 
@@ -340,11 +278,13 @@
         sendButton.disabled = true;
 
         // ✅ 6. 타이머 메시지 추가
-        const loadingMessage = document.createElement('div');
-        loadingMessage.classList.add('message', 'bot', 'timer-message');
-        loadingMessage.innerHTML = '<div class="timer-spinner"></div><span class="timer-text">1분만 기다리세요. (AI 견적 60초 남음)</span>';
-        chatBox.appendChild(loadingMessage);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        const loadingMessage = appendMessage(
+            '<div class="flex items-center justify-center gap-2">' +
+            '<div class="timer-spinner"></div>' +
+            '<span class="timer-text">1분만 기다리세요... (60초)</span>' +
+            '</div>', 
+            'bot'
+        );
         startTimer(loadingMessage); // 타이머 시작
 
         try {
@@ -355,24 +295,51 @@
             };
             
             const response = await fetchWithRetry(N8N_WEBHOOK_URL, options);
+            const resultText = await response.text(); 
             
-            // ✅ n8n이 JSON 객체를 반환하므로 .json()으로 받습니다.
-            const resultData = await response.json(); 
-            
-            stopTimer(loadingMessage); // ✅ 6. 타이머 중지
+            console.log("----- N8N Raw Response Text -----");
+            console.log(resultText); 
+            console.log("---------------------------------");
 
-            // ✅ 1, 2, 4, 5. 새로운 견적 HTML 빌드
-            const quoteHtml = buildQuoteHtml(resultData);
-            appendMessage(quoteHtml, 'bot', true); 
+            const processedText = preprocessN8nResponse(resultText); 
+            
+            stopTimer(loadingMessage); // 타이머 중지
+
+            if (processedText.length > 0) {
+                // ✅ 2, 3. 견적 결과와 함께 하단 정보/공유 버튼 추가
+                const quoteHtml = `
+                    ${processedText}
+                    
+                    <!-- 2. 시공문의 하단 정보 -->
+                    <div class="quote-footer">
+                        시공문의 (김정헌 실장)<br>
+                        <b>010-6657-1222</b><br>
+                        2013년 부터 섬세한 시공중
+                    </div>
+                    
+                    <!-- 3. 공유 버튼 -->
+                    <div class="share-button" onclick="shareQuote(this.previousElementSibling.previousElementSibling.innerHTML)">
+                        견적 내역 공유하기 (복사)
+                    </div>
+                `;
+                appendMessage(quoteHtml, 'bot', true); 
+            } else {
+                 appendMessage(
+                    '⚠️ <b>응답 내용 없음:</b> n8n에서 빈 메시지를 받았습니다. 워크플로우를 확인해 주세요.',
+                    'bot', true
+                );
+            }
 
         } catch (error) {
             console.error('N8N Webhook 호출 중 오류 발생:', error);
-            stopTimer(loadingMessage); // ✅ 6. 타이머 중지
+            stopTimer(loadingMessage); // 타이머 중지
             
+            const errorMessage = error.message.includes('400') 
+                ? '🚫 <b>서버 오류(400):</b> n8n 워크플로우를 확인해주세요.'
+                : '❌ <b>통신 오류:</b> 웹훅 URL 또는 네트워크 상태를 확인해주세요.';
+
             appendMessage(
-                '❌ **견적 요청 중 오류 발생:** 시스템에서 응답을 처리하지 못했습니다. <br>' +
-                '1. n8n 워크플로우가 <b>`Active`</b> 상태인지 확인해주세요. <br>' +
-                '2. n8n 워크플로우의 실행 로그(Execution Logs)를 확인해주세요.', 
+                `⚠️ <b>견적 요청 중 오류 발생:</b> ${errorMessage}`,
                 'bot', 
                 true
             );
