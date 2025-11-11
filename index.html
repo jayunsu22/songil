@@ -164,7 +164,7 @@
 
 <div class="chat-container">
     <div class="chat-header">
-                <div class="header-text">섬세한 1분 필름견적 </div>
+        <div class="header-text">섬세한 1분 필름견적 </div>
         <div id="version-display" class="header-version"></div>
     </div>
     <div id="chat-box">
@@ -288,7 +288,8 @@
         }
     }
 
-    // ✅ 수정: n8n 응답 전처리 함수 (불필요한 문자 제거 로직 대폭 강화)
+    // ✅ 수정: n8n 응답 전처리 함수 
+    // N8N에서 이미 <br>로 변환된 상태로 오지만, 혹시 모를 상황에 대비
     function preprocessN8nResponse(text) {
         let cleanedText = text.trim();
 
@@ -302,34 +303,31 @@
             cleanedText = cleanedText.substring(1, cleanedText.length - 1);
         }
 
+        // 2. 이스케이프된 개행 처리
         cleanedText = cleanedText.replace(/\\n/g, '\n'); 
 
+        // 3. 불필요한 문자 제거
         const lines = cleanedText.split('\n');
         const filteredLines = lines.filter(line => {
             const trimmed = line.trim();
-
-            // 2. 불필요한 문자열, 구분선, 단독 괄호 제거
             const isUnwanted = trimmed.includes('━━━━━━━━━━━━━━━━━━━━') || 
                                 trimmed === '}' ||                          
                                 trimmed === '{' ||                          
                                 trimmed.length === 0;                       
-
             return !isUnwanted;
         });
 
         cleanedText = filteredLines.join('<br>');
 
-        // 3. 텍스트 중간에 남아있는 불필요한 문자열 정리
+        // 4. 텍스트 중간에 남아있는 불필요한 문자열 정리
         cleanedText = cleanedText.replace(/<br> *\} *<br>/g, '<br>'); 
         cleanedText = cleanedText.replace(/\}<br>/g, '<br>'); 
         cleanedText = cleanedText.replace(/ *\{<br>/g, '<br>'); 
 
-        // Markdown 볼드체 (** **)를 HTML 볼드체 (<b> </b>)로 변환
+        // 5. Markdown 볼드체를 HTML 볼드체로 변환
         cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 
-        // ★★★★★ [핵심 수정] ★★★★★
-        // 모든 처리가 끝난 후, 텍스트의 맨 끝에 남아있을 수 있는
-        // 공백, <br> 태그, 그리고 불필요한 '}' 문자를 모두 제거합니다.
+        // 6. 텍스트 맨 끝 정리
         cleanedText = cleanedText.replace(/(<br>|\s)*\}*$/, '');
 
         return cleanedText.trim();
@@ -368,7 +366,8 @@
             const processedText = preprocessN8nResponse(resultText); 
 
             if (processedText.length > 0) {
-
+                // ✅ 수정: N8N에서 이미 모든 포매팅이 완료된 상태로 옴
+                // 품목설명(💞), 공통설명(🔥) 등이 포함되어 있음
                 const quoteHtml = `
                     <div id="quote-content-to-share">
                         ${processedText}
@@ -413,9 +412,7 @@
         }
     }
 
-    // ----------------------------------------------------
     // 이벤트 리스너
-    // ----------------------------------------------------
     sendButton.addEventListener('click', () => {
         sendMessageToN8n(userInput.value);
     });
@@ -429,7 +426,3 @@
 
 </body>
 </html>
-
-
-
-
