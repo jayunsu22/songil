@@ -70,7 +70,7 @@
             border-bottom-left-radius: 4px;
         }
         
-        /* ✅ 3. 하단 정보 스타일 (폰트 크기 조정) */
+        /* 하단 정보 스타일 */
         .quote-footer {
             font-size: 14px;
             color: #475569;
@@ -79,15 +79,15 @@
             border-top: 1px solid #e2e8f0;
         }
         .contact-number {
-            font-size: 28px; /* 14px의 2배 */
+            font-size: 24px; /* ✅ 수정: 28px -> 24px */
             font-weight: 700;
-            color: #4f46e5; /* 돋보이게 색상 지정 */
-            text-decoration: none; /* 링크 밑줄 제거 */
+            color: #4f46e5; 
+            text-decoration: none; 
             display: block;
             margin-top: 5px;
         }
 
-        /* ✅ 4. 공유 버튼 스타일 (공유하기로 텍스트 변경) */
+        /* 공유 버튼 스타일 */
         .share-button {
             font-size: 14px;
             font-weight: 600;
@@ -101,7 +101,7 @@
         }
         .share-button:hover { background-color: #e0e7ff; }
         
-        /* ✅ 1. 타이머 스타일 */
+        /* 타이머 스타일 */
         .timer-message {
             display: flex;
             align-items: center;
@@ -175,7 +175,7 @@
 
 <script>
     const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
-    const CONTACT_NUMBER = "01066571222"; // 전화번호
+    const CONTACT_NUMBER = "01066571222"; 
     
     const chatBox = document.getElementById('chat-box');
     const userInput = document.getElementById('user-input');
@@ -212,12 +212,10 @@
         }
     }
 
-    // ✅ 1. 타이머 시작 함수
     function startTimer(loadingMessageElement) {
         let timeLeft = 60;
         const timerTextSpan = loadingMessageElement.querySelector('.timer-text');
         
-        // 타이머 메시지가 DOM에 추가된 후 setInterval 시작
         timerInterval = setInterval(() => {
             timeLeft--;
             if (timerTextSpan) {
@@ -230,7 +228,6 @@
         }, 1000);
     }
     
-    // ✅ 1. 타이머 중지 함수
     function stopTimer(loadingMessageElement) {
         if (timerInterval) {
             clearInterval(timerInterval);
@@ -241,24 +238,21 @@
         }
     }
 
-    // ✅ 4. 공유 버튼 함수 (navigator.share 사용)
     function shareQuote(quoteText) {
         // HTML을 텍스트로 변환 (br -> \n, 태그 제거)
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = quoteText;
         let textToShare = tempDiv.textContent || tempDiv.innerText || "";
         
-        // n8n 응답에서 \n을 실제 줄바꿈으로 변경
+        // 줄바꿈 보정
         textToShare = textToShare.replace(/<br>/g, '\n');
 
-        // 모바일 환경에서만 navigator.share 시도
         if (navigator.share) {
             navigator.share({
-                title: '인테리어 견적 내역',
+                title: 'AI 인테리어 견적 내역',
                 text: textToShare,
             }).catch(error => {
                 if (error.name !== 'AbortError') {
-                    // 사용자가 취소한 것이 아니면 에러로 간주
                     console.error('Share failed:', error);
                     alert('공유하기에 실패했습니다. 내용을 클립보드에 복사합니다.');
                     navigator.clipboard.writeText(textToShare).then(() => {
@@ -276,11 +270,11 @@
         }
     }
 
-    // ✅ 2. n8n 응답 전처리 함수 (불필요한 문자 제거 강화)
+    // ✅ 수정: n8n 응답 전처리 함수 (불필요한 문자 제거 로직 강화)
     function preprocessN8nResponse(text) {
         let cleanedText = text.trim();
         
-        // 1. JSON Wrapper 제거 (n8n이 텍스트로 보낼 경우)
+        // 1. JSON Wrapper 제거 
         if (cleanedText.startsWith('{"message":') && cleanedText.endsWith('}')) {
             cleanedText = cleanedText.substring('{"message":"'.length);
             if (cleanedText.endsWith('"')) {
@@ -290,15 +284,14 @@
             cleanedText = cleanedText.substring(1, cleanedText.length - 1);
         }
         
-        // 2. n8n이 남긴 불필요한 문자열 제거 (핵심 수정)
         cleanedText = cleanedText.replace(/\\n/g, '\n'); 
         
-        // 줄바꿈으로 분리하여 불필요한 줄 제거
+        // 줄바꿈으로 분리하여 불필요한 줄 제거 (핵심 수정)
         const lines = cleanedText.split('\n');
         const filteredLines = lines.filter(line => {
             const trimmed = line.trim();
-            // 2. 불필요한 '}'와 '━━━━━━━━━━━━━━━━━━━━' 제거 로직 강화
-            return !trimmed.includes('━━━━━━━━━━━━━━━━━━━━') && trimmed !== '}' && trimmed !== '{'; 
+            // '━━━━━━━━━━━━' 또는 '}'만 있는 줄, 그리고 불필요한 공백을 가진 줄을 제거
+            return !trimmed.includes('━━━━━━━━━━━━━━━━━━━━') && trimmed !== '}' && trimmed !== '{' && trimmed.length > 0;
         });
 
         cleanedText = filteredLines.join('<br>');
@@ -313,21 +306,19 @@
     async function sendMessageToN8n(message) {
         if (!message.trim()) return;
 
-        // 1. 사용자 메시지 추가
         appendMessage(message, 'user');
         userInput.value = '';
         sendButton.disabled = true;
 
-        // ✅ 1. 타이머 메시지 추가 및 시작
         const loadingMessage = appendMessage(
             '<div class="flex items-center justify-center gap-2 timer-message">' +
             '<div class="timer-spinner"></div>' +
             '<span class="timer-text">1분만 기다리세요... (60초)</span>' +
             '</div>', 
             'bot',
-            true // HTML로 렌더링하도록 설정
+            true 
         );
-        startTimer(loadingMessage); // 타이머 시작
+        startTimer(loadingMessage); 
 
         try {
             const options = {
@@ -339,25 +330,25 @@
             const response = await fetchWithRetry(N8N_WEBHOOK_URL, options);
             const resultText = await response.text(); 
             
-            stopTimer(loadingMessage); // 타이머 중지
+            stopTimer(loadingMessage); 
 
             const processedText = preprocessN8nResponse(resultText); 
             
             if (processedText.length > 0) {
-                // ✅ 2, 3, 4. 견적 결과와 함께 하단 정보/공유 버튼 추가 (전화번호 링크 및 크기 수정)
+                
                 const quoteHtml = `
                     <div id="quote-content-to-share">
                         ${processedText}
                     </div>
                     
-                    <!-- 2, 3. 시공문의 하단 정보 (전화번호 링크 및 크기 수정) -->
+                    <!-- 시공문의 하단 정보 (전화번호 크기 수정) -->
                     <div class="quote-footer">
                         시공문의 (김정헌 실장)<br>
                         <a href="tel:${CONTACT_NUMBER}" class="contact-number">${CONTACT_NUMBER.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3')}</a><br>
                         2013년 부터 섬세한 시공중
                     </div>
                     
-                    <!-- 4. 공유 버튼 (공유하기 기능 사용) -->
+                    <!-- 공유 버튼 -->
                     <div class="share-button" onclick="shareQuote(document.getElementById('quote-content-to-share').innerHTML)">
                         견적 내역 공유하기
                     </div>
