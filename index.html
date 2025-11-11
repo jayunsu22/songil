@@ -78,7 +78,6 @@
             border-bottom-left-radius: 4px;
         }
         
-        /* 하단 정보 스타일 */
         .quote-footer {
             font-size: 14px;
             color: #475569;
@@ -94,8 +93,6 @@
             display: block;
             margin-top: 5px;
         }
-
-        /* 공유 버튼 스타일 */
         .share-button {
             font-size: 14px;
             font-weight: 600;
@@ -109,7 +106,6 @@
         }
         .share-button:hover { background-color: #e0e7ff; }
         
-        /* 타이머 스타일 */
         .timer-message {
             display: flex;
             align-items: center;
@@ -167,7 +163,6 @@
 <body>
 
 <div class="chat-container">
-    <!-- ✅ 수정: 헤더에 버전 정보 표시 로직 추가 -->
     <div class="chat-header">
         <div class="header-text">AI 인테리어 견적 챗봇</div>
         <div id="version-display" class="header-version"></div>
@@ -195,7 +190,6 @@
     const versionDisplay = document.getElementById('version-display');
     let timerInterval = null; 
 
-    // 현재 날짜/시간을 가져와 버전 문자열 생성 (YYYYMMDD_HHMM)
     function getVersionString() {
         const now = new Date();
         const year = String(now.getFullYear()).substring(2);
@@ -206,9 +200,7 @@
         return `V.${year}${month}${day}_${hours}${minutes}`;
     }
     
-    // 버전 표시 업데이트
     versionDisplay.textContent = getVersionString();
-
 
     function appendMessage(message, sender, isHtml = false) {
         const messageElement = document.createElement('div');
@@ -309,19 +301,17 @@
             cleanedText = cleanedText.substring(1, cleanedText.length - 1);
         }
         
-        // 줄바꿈 이스케이프 해제
         cleanedText = cleanedText.replace(/\\n/g, '\n'); 
         
-        // 줄바꿈으로 분리하여 불필요한 줄 제거 (강력 필터링)
         const lines = cleanedText.split('\n');
         const filteredLines = lines.filter(line => {
             const trimmed = line.trim();
             
             // 2. 불필요한 문자열, 구분선, 단독 괄호 제거
-            const isUnwanted = trimmed.includes('━━━━━━━━━━━━━━━━━━━━') || // 구분선
-                                trimmed === '}' ||                          // 단독 }
-                                trimmed === '{' ||                          // 단독 {
-                                trimmed.length === 0;                       // 빈 줄
+            const isUnwanted = trimmed.includes('━━━━━━━━━━━━━━━━━━━━') || 
+                                trimmed === '}' ||                          
+                                trimmed === '{' ||                          
+                                trimmed.length === 0;                       
 
             return !isUnwanted;
         });
@@ -329,12 +319,17 @@
         cleanedText = filteredLines.join('<br>');
         
         // 3. 텍스트 중간에 남아있는 불필요한 문자열 정리
-        cleanedText = cleanedText.replace(/<br> *\} *<br>/g, '<br>'); // 중간에 남아있는 "} <br>" 패턴 제거
-        cleanedText = cleanedText.replace(/\}<br>/g, '<br>'); // 줄 끝에 붙어있는 } 제거
-        cleanedText = cleanedText.replace(/ *\{<br>/g, '<br>'); // 줄 시작에 붙어있는 { 제거
+        cleanedText = cleanedText.replace(/<br> *\} *<br>/g, '<br>'); 
+        cleanedText = cleanedText.replace(/\}<br>/g, '<br>'); 
+        cleanedText = cleanedText.replace(/ *\{<br>/g, '<br>'); 
         
         // Markdown 볼드체 (** **)를 HTML 볼드체 (<b> </b>)로 변환
         cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+        // ★★★★★ [핵심 수정] ★★★★★
+        // 모든 처리가 끝난 후, 텍스트의 맨 끝에 남아있을 수 있는
+        // 공백, <br> 태그, 그리고 불필요한 '}' 문자를 모두 제거합니다.
+        cleanedText = cleanedText.replace(/(<br>|\s)*\}*$/, '');
         
         return cleanedText.trim();
     }
