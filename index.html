@@ -9,24 +9,25 @@
             font-family: Arial, sans-serif;
             margin: 0;
             background-color: #f4f4f4;
-            /* [!] 수정: 화면 중앙에 .chat-wrapper를 배치하기 위함 */
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
         }
 
-        /* [!] 수정: 채팅창 전체를 감싸는 껍데기(Wrapper) 추가 */
         .chat-wrapper {
             width: 100%;
             max-width: 500px; /* 채팅창의 최대 가로폭 고정 */
-            height: 90vh;     /* 채팅창의 세로 높이 */
+            
+            /* [!] 1번 문제 수정: 90vh -> 700px (예전 크기로) */
+            height: 700px;     
+            
             display: flex;
             flex-direction: column;
             border-radius: 10px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            overflow: hidden; /* 내부 요소가 둥근 모서리를 넘지 않도록 */
-            background: #ffffff; /* 래퍼 자체의 배경색 */
+            overflow: hidden; 
+            background: #ffffff; 
         }
 
         .chat-header {
@@ -34,9 +35,8 @@
             color: white;
             padding: 15px 20px;
             text-align: center;
-            /* [!] 수정: 래퍼가 있으므로 그림자 불필요, 부모(래퍼)에 맞춤 */
             box-shadow: none;
-            flex-shrink: 0; /* 헤더 크기 고정 */
+            flex-shrink: 0; 
         }
         .chat-header h1 {
             margin: 0;
@@ -47,12 +47,12 @@
             font-size: 0.9em;
         }
         .chat-container {
-            flex: 1; /* [!] 수정: 래퍼 안에서 남은 공간을 모두 차지 */
+            flex: 1; 
             overflow-y: auto;
             padding: 20px;
             display: flex;
             flex-direction: column;
-            background-color: #f9f9f9; /* 채팅 배경색 */
+            background-color: #f9f9f9; 
         }
         .chat-bubble {
             max-width: 65%; 
@@ -74,15 +74,11 @@
             align-self: flex-start;
             border-bottom-left-radius: 5px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            max-width: 80%; /* 일반 봇 버블 너비 */
+            max-width: 80%; 
         }
         
-        /* [!] 요청하신 수정사항
-         * 견적 내역이 담긴 봇 버블(.quote-response)만 
-         * 가로폭을 95%로 확장합니다. (부모인 .chat-container 기준)
-        */
         .chat-bubble.bot.quote-response {
-            max-width: 95%;
+            max-width: 95%; /* 견적 버블만 꽉 차게 */
         }
 
         .chat-bubble.bot-loading, .chat-bubble.bot-error {
@@ -97,7 +93,7 @@
             padding: 15px;
             border-top: 1px solid #ddd;
             background-color: #ffffff;
-            flex-shrink: 0; /* 입력창 크기 고정 */
+            flex-shrink: 0; 
         }
         #userInput {
             flex: 1;
@@ -121,7 +117,7 @@
             background-color: #a0a0a0;
         }
 
-        /* 폰트 스타일링 (이전과 동일) */
+        /* 폰트 스타일링 */
         .chat-bubble.bot .quote-title {
             font-size: 1.2em;
             font-weight: bold;
@@ -190,16 +186,16 @@
 
     <script>
         // ----------------------------------------------------
-        // [!] 여기에 고객님의 n8n 웹훅 URL을 입력하세요
+        // [!] 🚨🚨 3번, 4번 문제 원인 🚨🚨
+        // [!] 여기에 고객님의 n8n 웹훅 URL을 꼭!! 입력하세요
         // ----------------------------------------------------
-        const N8N_WEBHOOK_URL = "YOUR_N8N_WEBHOOK_URL_HERE";
+        const N8N_WEBHOOK_URL = "YOUR_N8N_WEBHOOK_URL_HERE"; 
         // ----------------------------------------------------
 
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
 
-        // 채팅 버블을 추가하는 함수 (isQuote 파라미터 유지)
         function addBubble(message, sender, isQuote = false) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
@@ -213,7 +209,6 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // n8n 서버에 요청을 보내는 함수 (이전과 동일)
         async function sendRequest() {
             const message = userInput.value.trim();
             if (message === "") return;
@@ -222,13 +217,27 @@
             userInput.value = "";
             sendButton.disabled = true;
 
+            // [!] 2번 문제 수정: 1분 타이머 로딩 버블 추가
             const loadingBubble = document.createElement('div');
             loadingBubble.classList.add('chat-bubble', 'bot-loading');
-            loadingBubble.textContent = "견적을 계산하는 중입니다. 잠시만 기다려주세요...";
+            
+            let seconds = 60;
+            loadingBubble.innerHTML = `<div>1분만 기다리세요...</div><div style="font-size: 1.2em; font-weight: bold;">${seconds}s</div>`;
             chatContainer.appendChild(loadingBubble);
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
+            const timerId = setInterval(() => {
+                seconds--;
+                if (seconds > 0) {
+                    loadingBubble.innerHTML = `<div>1분만 기다리세요...</div><div style="font-size: 1.2em; font-weight: bold;">${seconds}s</div>`;
+                } else {
+                    clearInterval(timerId);
+                    loadingBubble.innerHTML = `<div>거의 다 되었습니다...</div>`;
+                }
+            }, 1000);
+
             try {
+                // [!] 4번 문제: N8N_WEBHOOK_URL이 비어있으면 여기서 에러가 납니다.
                 const response = await fetch(N8N_WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
@@ -237,7 +246,8 @@
                     body: JSON.stringify({ user_request: message })
                 });
 
-                chatContainer.removeChild(loadingBubble);
+                clearInterval(timerId); // 타이머 중지
+                chatContainer.removeChild(loadingBubble); // 로딩 버블 제거
 
                 if (!response.ok) {
                     throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
@@ -246,7 +256,6 @@
                 const data = await response.json();
 
                 if (data && data.length > 0 && data[0].json && data[0].json.request_detail) {
-                    // 견적 응답일 경우 isQuote 플래그를 true로 전달
                     addBubble(data[0].json.request_detail, 'bot', true);
                 } else if (data && data.length > 0 && data[0].json && data[0].json.error) {
                     addBubble(`⚠️ ${data[0].json.error}`, 'bot-error');
@@ -255,16 +264,19 @@
                 }
 
             } catch (error) {
-                chatContainer.removeChild(loadingBubble);
+                clearInterval(timerId); // 에러 시 타이머 중지
+                chatContainer.removeChild(loadingBubble); // 에러 시 로딩 버블 제거
+                
                 console.error('Fetch error:', error);
-                addBubble(`⚠️ 요청 실패: 서버에 연결할 수 없습니다. (${error.message})`, 'bot-error');
+                
+                // [!] 4번 문제: N8N_WEBHOOK_URL이 비어있으면 이 메시지가 뜹니다.
+                addBubble(`⚠️ 요청 실패: n8n 서버에 연결할 수 없습니다. (URL 주소를 확인하세요)`, 'bot-error');
             } finally {
                 sendButton.disabled = false;
                 userInput.focus();
             }
         }
 
-        // 이벤트 리스너 (이전과 동일)
         sendButton.addEventListener('click', sendRequest);
         userInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
@@ -272,7 +284,6 @@
             }
         });
 
-        // 초기 환영 메시지 추가 (이전과 동일)
         addBubble("안녕하세요!<br>시공항목과 수량을 입력해주세요.<br>1분 이내로 견적 알려드립니다.<br><br><b>예) 방문 3, 샤시 5</b>", 'bot');
     </script>
 
