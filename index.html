@@ -3,432 +3,248 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 인테리어 견적 채팅</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>섬세한 1분 필름견적</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .chat-container {
-            width: 100%;
-            max-width: 420px; 
-            height: 80vh; 
-            max-height: 700px; 
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
         }
         .chat-header {
-            padding: 1rem;
-            background-color: #4f46e5; 
+            background-color: #4A90E2;
             color: white;
-            font-weight: 600;
+            padding: 15px 20px;
             text-align: center;
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .header-text {
-            font-size: 1.125rem; /* text-lg */
+        .chat-header h1 {
+            margin: 0;
+            font-size: 1.4em;
         }
-        .header-version {
-            font-size: 0.75rem; /* text-xs */
-            font-weight: 400;
-            margin-top: 4px;
+        .chat-header p {
+            margin: 5px 0 0;
+            font-size: 0.9em;
         }
-        #chat-box {
-            flex-grow: 1;
-            padding: 1rem;
+        .chat-container {
+            flex: 1;
             overflow-y: auto;
-            background-color: #ffffff;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
         }
-        #chat-box::-webkit-scrollbar { width: 6px; }
-        #chat-box::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
-
-        .message {
-            max-width: 85%;
-            padding: 10px 14px;
+        .chat-bubble {
+            max-width: 65%; /* 기본 최대 너비 */
+            padding: 12px 18px;
             border-radius: 18px;
-            line-height: 1.6; 
-            word-wrap: break-word;
-            font-size: 16px; 
+            margin-bottom: 10px;
+            line-height: 1.5;
+            position: relative;
         }
-        .user {
-            align-self: flex-end;
-            background-color: #4f46e5; 
+        .chat-bubble.user {
+            background-color: #4A90E2;
             color: white;
-            border-bottom-right-radius: 4px;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
         }
-        .bot {
+        .chat-bubble.bot {
+            background-color: #ffffff;
+            color: #333;
             align-self: flex-start;
-            background-color: #f1f5f9; 
-            color: #1e293b;
-            border-bottom-left-radius: 4px;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            /* [!] 4번 문제 해결: 가로폭 확장 */
+            max-width: 80%;
+        }
+        .chat-bubble.bot-loading, .chat-bubble.bot-error {
+            background-color: #fdfdea;
+            color: #7d7a4f;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+            font-style: italic;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid #ddd;
+            background-color: #ffffff;
+        }
+        #userInput {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            margin-right: 10px;
+            font-size: 1em;
+        }
+        #sendButton {
+            padding: 10px 20px;
+            background-color: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+        }
+        #sendButton:disabled {
+            background-color: #a0a0a0;
         }
 
-        .quote-footer {
-            font-size: 14px;
-            color: #475569;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px solid #e2e8f0;
+        /* [!] 5번 문제 해결: 폰트 스타일링 */
+        .chat-bubble.bot .quote-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4A90E2;
+            margin-bottom: 15px;
         }
-        .contact-number {
-            font-size: 24px; 
-            font-weight: 700;
-            color: #4f46e5; 
-            text-decoration: none; 
-            display: block;
+        .chat-bubble.bot .item-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-top: 12px;
+            color: #111;
+        }
+        .chat-bubble.bot .item-detail {
+            padding-left: 20px;
+            color: #333;
+        }
+        .chat-bubble.bot .item-subtotal {
+            font-weight: 500;
+            color: #000;
+        }
+        .chat-bubble.bot .item-notification {
+            padding-left: 20px;
+            color: #d9534f; /* 알림 텍스트 붉은 계열 */
+            font-size: 0.95em;
             margin-top: 5px;
         }
-        .share-button {
-            font-size: 14px;
-            font-weight: 600;
-            color: #4f46e5;
-            background-color: #eef2ff;
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 10px;
-            text-align: center;
+        .chat-bubble.bot .item-spacer {
+            height: 15px;
         }
-        .share-button:hover { background-color: #e0e7ff; }
-
-        .timer-message {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            color: #4f46e5;
+        .chat-bubble.bot .total-line {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            color: #e67e22; /* 총합 텍스트 주황 계열 */
         }
-        .timer-spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(79, 70, 229, 0.2);
-            border-top-color: #4f46e5;
-            border-radius: 50%;
-            animation: spin 1s ease-in-out infinite;
+        .chat-bubble.bot .common-title {
+            font-weight: bold;
+            margin-top: 15px;
+            color: #111;
         }
-
-        .input-area {
-            display: flex;
-            padding: 0.75rem;
-            background-color: #ffffff;
-            border-top: 1px solid #e2e8f0;
-        }
-        #user-input {
-            flex-grow: 1;
-            padding: 10px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            margin-right: 8px;
-            font-size: 14px;
-        }
-        #user-input:focus {
-            outline: none;
-            border-color: #4f46e5;
-            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
-        }
-        #send-button {
-            padding: 10px 16px;
-            background-color: #4f46e5;
-            color: white;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        #send-button:disabled {
-            background-color: #a5b4fc;
-            cursor: not-allowed;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .chat-bubble.bot .common-detail {
+            font-size: 0.95em;
+            color: #555;
+            line-height: 1.6;
         }
     </style>
 </head>
 <body>
 
-<div class="chat-container">
     <div class="chat-header">
-                <div class="header-text">섬세한 1분 필름견적 </div>
-        <div id="version-display" class="header-version"></div>
+        <h1>섬세한 1분 필름견적</h1>
+        <p>V.251112_1547</p>
     </div>
-    <div id="chat-box">
-        <div class="message bot">
-            안녕하세요!<br>
-            시공항목과 수량을 입력해주세요.<br>
-            1분 이내로 견적 알려드립니다.<br>
-            <b>예) 방문 3, 샤시 5</b>
+
+    <div class="chat-container" id="chatContainer">
         </div>
+
+    <div class="chat-input-area">
+        <input type="text" id="userInput" placeholder="견적 요청 사항을 입력하세요">
+        <button id="sendButton">전송</button>
     </div>
-    <div class="input-area">
-        <input type="text" id="user-input" placeholder="견적 요청 사항을 입력하세요">
-        <button id="send-button">전송</button>
-    </div>
-</div>
 
-<script>
-    const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
-    const CONTACT_NUMBER = "01066571222"; 
+    <script>
+        // ----------------------------------------------------
+        // [!] 여기에 고객님의 n8n 웹훅 URL을 입력하세요
+        // ----------------------------------------------------
+        const N8N_WEBHOOK_URL = "YOUR_N8N_WEBHOOK_URL_HERE";
+        // ----------------------------------------------------
 
-    const chatBox = document.getElementById('chat-box');
-    const userInput = document.getElementById('user-input');
-    const sendButton = document.getElementById('send-button');
-    const versionDisplay = document.getElementById('version-display');
-    let timerInterval = null; 
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
 
-    function getVersionString() {
-        const now = new Date();
-        const year = String(now.getFullYear()).substring(2);
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        return `V.${year}${month}${day}_${hours}${minutes}`;
-    }
-
-    versionDisplay.textContent = getVersionString();
-
-    function appendMessage(message, sender, isHtml = false) {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', sender);
-
-        if (isHtml) {
-            messageElement.innerHTML = message;
-        } else {
-            messageElement.textContent = message;
+        // 채팅 버블을 추가하는 함수
+        function addBubble(message, sender) {
+            const bubble = document.createElement('div');
+            bubble.classList.add('chat-bubble', sender);
+            
+            // [!] n8n에서 받은 HTML을 그대로 렌더링하기 위해 .innerHTML 사용
+            bubble.innerHTML = message; 
+            
+            chatContainer.appendChild(bubble);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        chatBox.appendChild(messageElement);
-        chatBox.scrollTop = chatBox.scrollHeight;
-        return messageElement; 
-    }
+        // n8n 서버에 요청을 보내는 함수
+        async function sendRequest() {
+            const message = userInput.value.trim();
+            if (message === "") return;
 
-    async function fetchWithRetry(url, options, retries = 3) {
-        for (let i = 0; i < retries; i++) {
+            addBubble(message, 'user');
+            userInput.value = "";
+            sendButton.disabled = true;
+
+            const loadingBubble = document.createElement('div');
+            loadingBubble.classList.add('chat-bubble', 'bot-loading');
+            loadingBubble.textContent = "견적을 계산하는 중입니다. 잠시만 기다려주세요...";
+            chatContainer.appendChild(loadingBubble);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
             try {
-                const response = await fetch(url, options);
-                if (response.ok) {
-                    return response;
+                const response = await fetch(N8N_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ user_request: message })
+                });
+
+                chatContainer.removeChild(loadingBubble);
+
+                if (!response.ok) {
+                    throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
                 }
-                throw new Error(`Server responded with status: ${response.status}`);
+
+                const data = await response.json();
+
+                // n8n 워크플로우의 '합계계산1' 노드에서 온 응답을 처리합니다.
+                // data[0].json.request_detail 에 HTML이 담겨있습니다.
+                if (data && data.length > 0 && data[0].json && data[0].json.request_detail) {
+                    addBubble(data[0].json.request_detail, 'bot');
+                } else if (data && data.length > 0 && data[0].json && data[0].json.error) {
+                    // GPT결과_분해 노드 등에서 에러 발생 시
+                    addBubble(`⚠️ ${data[0].json.error}`, 'bot-error');
+                } else {
+                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. 워크플로우를 확인해 주세요.", 'bot-error');
+                }
+
             } catch (error) {
-                if (i === retries - 1) throw error; 
-                await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); 
+                chatContainer.removeChild(loadingBubble);
+                console.error('Fetch error:', error);
+                addBubble(`⚠️ 요청 실패: 서버에 연결할 수 없습니다. (${error.message})`, 'bot-error');
+            } finally {
+                sendButton.disabled = false;
+                userInput.focus();
             }
         }
-    }
 
-    function startTimer(loadingMessageElement) {
-        let timeLeft = 60;
-        const timerTextSpan = loadingMessageElement.querySelector('.timer-text');
-
-        timerInterval = setInterval(() => {
-            timeLeft--;
-            if (timerTextSpan) {
-                timerTextSpan.textContent = `1분만 기다리세요... (${timeLeft}초)`;
+        // 이벤트 리스너
+        sendButton.addEventListener('click', sendRequest);
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                sendRequest();
             }
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-        }, 1000);
-    }
-
-    function stopTimer(loadingMessageElement) {
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-        }
-        if (chatBox.contains(loadingMessageElement)) {
-            chatBox.removeChild(loadingMessageElement);
-        }
-    }
-
-    function shareQuote(quoteText) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = quoteText;
-        let textToShare = tempDiv.textContent || tempDiv.innerText || "";
-
-        textToShare = textToShare.replace(/<br>/g, '\n');
-
-        if (navigator.share) {
-            navigator.share({
-                title: 'AI 인테리어 견적 내역',
-                text: textToShare,
-            }).catch(error => {
-                if (error.name !== 'AbortError') {
-                    console.error('Share failed:', error);
-                    alert('공유하기에 실패했습니다. 내용을 클립보드에 복사합니다.');
-                    navigator.clipboard.writeText(textToShare).then(() => {
-                        alert('클립보드에 복사 완료!');
-                    });
-                }
-            });
-        } else {
-            navigator.clipboard.writeText(textToShare).then(() => {
-                alert('공유하기 기능이 지원되지 않아, 견적 내역이 클립보드에 복사되었습니다.');
-            }).catch(err => {
-                alert('복사에 실패했습니다.');
-            });
-        }
-    }
-
-    // ✅ 수정: n8n 응답 전처리 함수 (불필요한 문자 제거 로직 대폭 강화)
-    function preprocessN8nResponse(text) {
-        let cleanedText = text.trim();
-
-        // 1. JSON Wrapper 제거 
-        if (cleanedText.startsWith('{"message":') && cleanedText.endsWith('}')) {
-            cleanedText = cleanedText.substring('{"message":"'.length);
-            if (cleanedText.endsWith('"')) {
-                cleanedText = cleanedText.substring(0, cleanedText.length - 1);
-            }
-        } else if (cleanedText.startsWith('"') && cleanedText.endsWith('"')) {
-            cleanedText = cleanedText.substring(1, cleanedText.length - 1);
-        }
-
-        cleanedText = cleanedText.replace(/\\n/g, '\n'); 
-
-        const lines = cleanedText.split('\n');
-        const filteredLines = lines.filter(line => {
-            const trimmed = line.trim();
-
-            // 2. 불필요한 문자열, 구분선, 단독 괄호 제거
-            const isUnwanted = trimmed.includes('━━━━━━━━━━━━━━━━━━━━') || 
-                                trimmed === '}' ||                          
-                                trimmed === '{' ||                          
-                                trimmed.length === 0;                       
-
-            return !isUnwanted;
         });
 
-        cleanedText = filteredLines.join('<br>');
-
-        // 3. 텍스트 중간에 남아있는 불필요한 문자열 정리
-        cleanedText = cleanedText.replace(/<br> *\} *<br>/g, '<br>'); 
-        cleanedText = cleanedText.replace(/\}<br>/g, '<br>'); 
-        cleanedText = cleanedText.replace(/ *\{<br>/g, '<br>'); 
-
-        // Markdown 볼드체 (** **)를 HTML 볼드체 (<b> </b>)로 변환
-        cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-
-        // ★★★★★ [핵심 수정] ★★★★★
-        // 모든 처리가 끝난 후, 텍스트의 맨 끝에 남아있을 수 있는
-        // 공백, <br> 태그, 그리고 불필요한 '}' 문자를 모두 제거합니다.
-        cleanedText = cleanedText.replace(/(<br>|\s)*\}*$/, '');
-
-        return cleanedText.trim();
-    }
-
-
-    async function sendMessageToN8n(message) {
-        if (!message.trim()) return;
-
-        appendMessage(message, 'user');
-        userInput.value = '';
-        sendButton.disabled = true;
-
-        const loadingMessage = appendMessage(
-            '<div class="flex items-center justify-center gap-2 timer-message">' +
-            '<div class="timer-spinner"></div>' +
-            '<span class="timer-text">1분만 기다리세요... (60초)</span>' +
-            '</div>', 
-            'bot',
-            true 
-        );
-        startTimer(loadingMessage); 
-
-        try {
-            const options = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_request: message }) 
-            };
-
-            const response = await fetchWithRetry(N8N_WEBHOOK_URL, options);
-            const resultText = await response.text(); 
-
-            stopTimer(loadingMessage); 
-
-            const processedText = preprocessN8nResponse(resultText); 
-
-            if (processedText.length > 0) {
-
-                const quoteHtml = `
-                    <div id="quote-content-to-share">
-                        ${processedText}
-                    </div>
-                    
-                    <!-- 시공문의 하단 정보 -->
-                    <div class="quote-footer">
-                        시공문의 (김정헌 실장)<br>
-                        <a href="tel:${CONTACT_NUMBER}" class="contact-number">${CONTACT_NUMBER.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3')}</a><br>
-                        2013년 부터 섬세한 시공중
-                    </div>
-                    
-                    <!-- 공유 버튼 -->
-                    <div class="share-button" onclick="shareQuote(document.getElementById('quote-content-to-share').innerHTML)">
-                        견적 내역 공유하기
-                    </div>
-                `;
-                appendMessage(quoteHtml, 'bot', true); 
-            } else {
-                 appendMessage(
-                    '⚠️ <b>응답 내용 없음:</b> n8n에서 빈 메시지를 받았습니다. 워크플로우를 확인해 주세요.',
-                    'bot', true
-                );
-            }
-
-        } catch (error) {
-            console.error('N8N Webhook 호출 중 오류 발생:', error);
-            stopTimer(loadingMessage); 
-
-            const errorMessage = error.message.includes('400') 
-                ? '🚫 <b>서버 오류(400):</b> n8n 워크플로우를 확인해주세요.'
-                : '❌ <b>통신 오류:</b> 웹훅 URL 또는 네트워크 상태를 확인해주세요.';
-
-            appendMessage(
-                `⚠️ <b>견적 요청 중 오류 발생:</b> ${errorMessage}`,
-                'bot', 
-                true
-            );
-        } finally {
-            sendButton.disabled = false;
-            userInput.focus();
-        }
-    }
-
-    // ----------------------------------------------------
-    // 이벤트 리스너
-    // ----------------------------------------------------
-    sendButton.addEventListener('click', () => {
-        sendMessageToN8n(userInput.value);
-    });
-
-    userInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && !sendButton.disabled) {
-            sendMessageToN8n(userInput.value);
-        }
-    });
-</script>
+        // 초기 환영 메시지 추가
+        addBubble("안녕하세요!<br>시공항목과 수량을 입력해주세요.<br>1분 이내로 견적 알려드립니다.<br><br><b>예) 방문 3, 샤시 5</b>", 'bot');
+    </script>
 
 </body>
 </html>
-
-
-
