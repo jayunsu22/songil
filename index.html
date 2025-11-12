@@ -17,11 +17,8 @@
 
         .chat-wrapper {
             width: 100%;
-            max-width: 500px; /* 채팅창의 최대 가로폭 고정 */
-            
-            /* [!] 1번 문제 수정: 90vh -> 700px (예전 크기로) */
-            height: 700px;     
-            
+            max-width: 500px; 
+            height: 700px; /* 세로 크기 고정 */
             display: flex;
             flex-direction: column;
             border-radius: 10px;
@@ -80,7 +77,8 @@
         .chat-bubble.bot.quote-response {
             max-width: 95%; /* 견적 버블만 꽉 차게 */
         }
-
+        
+        /* [!] 2번 문제 수정: 기존 노란색 로딩 버블 */
         .chat-bubble.bot-loading, .chat-bubble.bot-error {
             background-color: #fdfdea;
             color: #7d7a4f;
@@ -88,6 +86,16 @@
             border-bottom-left-radius: 5px;
             font-style: italic;
         }
+
+        /* [!] 2번 문제 수정: 요청하신 파란색 타이머 스타일 */
+        .chat-bubble.bot-loading-blue {
+            background-color: #4A90E2; /* 파란색 배경 */
+            color: white; /* 흰색 글씨 */
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+            font-weight: bold;
+        }
+
         .chat-input-area {
             display: flex;
             padding: 15px;
@@ -117,7 +125,7 @@
             background-color: #a0a0a0;
         }
 
-        /* 폰트 스타일링 */
+        /* 폰트 스타일링 (이전과 동일) */
         .chat-bubble.bot .quote-title {
             font-size: 1.2em;
             font-weight: bold;
@@ -185,6 +193,7 @@
     </div>
 
     <script>
+        // [!] 고객님의 n8n 웹훅 URL (이전 코드에서 가져옴)
         const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
 
         const chatContainer = document.getElementById('chatContainer');
@@ -203,6 +212,17 @@
             chatContainer.appendChild(bubble);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
+        
+        // [!] 2번 문제 수정: 파란색 타이머 버블을 위한 별도 함수
+        function addTimerBubble(message, sender) {
+            const bubble = document.createElement('div');
+            // 'bot-loading-blue' 클래스 사용
+            bubble.classList.add('chat-bubble', sender, 'bot-loading-blue');
+            bubble.innerHTML = message;
+            chatContainer.appendChild(bubble);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return bubble; // 타이머 업데이트를 위해 버블 객체 반환
+        }
 
         async function sendRequest() {
             const message = userInput.value.trim();
@@ -212,21 +232,18 @@
             userInput.value = "";
             sendButton.disabled = true;
 
-            const loadingBubble = document.createElement('div');
-            loadingBubble.classList.add('chat-bubble', 'bot-loading');
-            
+            // [!] 2번 문제 수정: 파란색 타이머 버블 생성
             let seconds = 60;
-            loadingBubble.innerHTML = `<div>1분만 기다리세요...</div><div style="font-size: 1.2em; font-weight: bold;">${seconds}s</div>`;
-            chatContainer.appendChild(loadingBubble);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            const loadingBubble = addTimerBubble(`1분만 기다리세요... ${seconds}s`, 'bot');
 
             const timerId = setInterval(() => {
                 seconds--;
                 if (seconds > 0) {
-                    loadingBubble.innerHTML = `<div>1분만 기다리세요...</div><div style="font-size: 1.2em; font-weight: bold;">${seconds}s</div>`;
+                    // 한 줄로 업데이트
+                    loadingBubble.innerHTML = `1분만 기다리세요... ${seconds}s`;
                 } else {
                     clearInterval(timerId);
-                    loadingBubble.innerHTML = `<div>거의 다 되었습니다...</div>`;
+                    loadingBubble.innerHTML = `거의 다 되었습니다...`;
                 }
             }, 1000);
 
@@ -249,13 +266,11 @@
                 const data = await response.json();
 
                 // ----------------------------------------------------
-                // [!] 🚨🚨 여기가 수정된 부분입니다 🚨🚨
+                // [!] 🚨🚨 3번 문제 수정: data.message를 찾도록 수정 🚨🚨
                 // ----------------------------------------------------
-                // n8n이 {"message": "..."} 형식으로 응답하므로
-                // data.message가 있는지 확인합니다.
                 if (data && data.message) {
                     addBubble(data.message, 'bot', true);
-                } else if (data && data.error) { // n8n이 에러를 보냈을 경우
+                } else if (data && data.error) { 
                     addBubble(`⚠️ ${data.error}`, 'bot-error');
                 } else {
                     // data.message가 없는 경우
@@ -265,7 +280,9 @@
 
             } catch (error) {
                 clearInterval(timerId); 
-                chatContainer.removeChild(loadingBubble); 
+                if (loadingBubble.parentNode === chatContainer) {
+                    chatContainer.removeChild(loadingBubble); 
+                }
                 
                 console.error('Fetch error:', error);
                 addBubble(`⚠️ 요청 실패: n8n 서버에 연결할 수 없습니다. (URL 주소를 확인하세요)`, 'bot-error');
@@ -274,16 +291,3 @@
                 userInput.focus();
             }
         }
-
-        sendButton.addEventListener('click', sendRequest);
-        userInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                sendRequest();
-            }
-        });
-
-        addBubble("안녕하세요!<br>시공항목과 수량을 입력해주세요.<br>1분 이내로 견적 알려드립니다.<br><br><b>예) 방문 3, 샤시 5</b>", 'bot');
-    </script>
-
-</body>
-</html>
