@@ -55,9 +55,18 @@
             align-self: flex-start;
             border-bottom-left-radius: 5px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            /* [!] 4번 문제 해결: 가로폭 확장 */
-            max-width: 80%;
+            /* [!] 기본 봇 버블 너비는 80%로 유지합니다. */
+            max-width: 80%; 
         }
+        
+        /* * [!] 요청하신 수정사항 (4번)
+         * 견적 내역이 담긴 봇 버블(.quote-response)만 
+         * 가로폭을 95%로 확장합니다. 
+        */
+        .chat-bubble.bot.quote-response {
+            max-width: 95%;
+        }
+
         .chat-bubble.bot-loading, .chat-bubble.bot-error {
             background-color: #fdfdea;
             color: #7d7a4f;
@@ -93,7 +102,7 @@
             background-color: #a0a0a0;
         }
 
-        /* [!] 5번 문제 해결: 폰트 스타일링 */
+        /* 폰트 스타일링 (이전과 동일) */
         .chat-bubble.bot .quote-title {
             font-size: 1.2em;
             font-weight: bold;
@@ -116,7 +125,7 @@
         }
         .chat-bubble.bot .item-notification {
             padding-left: 20px;
-            color: #d9534f; /* 알림 텍스트 붉은 계열 */
+            color: #d9534f; 
             font-size: 0.95em;
             margin-top: 5px;
         }
@@ -129,7 +138,7 @@
             margin-top: 15px;
             padding-top: 10px;
             border-top: 1px solid #eee;
-            color: #e67e22; /* 총합 텍스트 주황 계열 */
+            color: #e67e22; 
         }
         .chat-bubble.bot .common-title {
             font-weight: bold;
@@ -169,14 +178,18 @@
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
 
-        // 채팅 버블을 추가하는 함수
-        function addBubble(message, sender) {
+        // [!] 요청하신 수정사항 (4번)
+        // 채팅 버블을 추가하는 함수에 isQuote 파라미터 추가
+        function addBubble(message, sender, isQuote = false) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
             
-            // [!] n8n에서 받은 HTML을 그대로 렌더링하기 위해 .innerHTML 사용
-            bubble.innerHTML = message; 
+            // isQuote가 true일 경우, .quote-response 클래스 추가
+            if (isQuote) {
+                bubble.classList.add('quote-response');
+            }
             
+            bubble.innerHTML = message; 
             chatContainer.appendChild(bubble);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
@@ -213,12 +226,11 @@
 
                 const data = await response.json();
 
-                // n8n 워크플로우의 '합계계산1' 노드에서 온 응답을 처리합니다.
-                // data[0].json.request_detail 에 HTML이 담겨있습니다.
                 if (data && data.length > 0 && data[0].json && data[0].json.request_detail) {
-                    addBubble(data[0].json.request_detail, 'bot');
+                    // [!] 요청하신 수정사항 (4번)
+                    // 견적 응답일 경우 isQuote 플래그를 true로 전달
+                    addBubble(data[0].json.request_detail, 'bot', true);
                 } else if (data && data.length > 0 && data[0].json && data[0].json.error) {
-                    // GPT결과_분해 노드 등에서 에러 발생 시
                     addBubble(`⚠️ ${data[0].json.error}`, 'bot-error');
                 } else {
                     addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. 워크플로우를 확인해 주세요.", 'bot-error');
@@ -243,6 +255,7 @@
         });
 
         // 초기 환영 메시지 추가
+        // [!] isQuote 플래그를 false로 전달 (기본값)
         addBubble("안녕하세요!<br>시공항목과 수량을 입력해주세요.<br>1분 이내로 견적 알려드립니다.<br><br><b>예) 방문 3, 샤시 5</b>", 'bot');
     </script>
 
