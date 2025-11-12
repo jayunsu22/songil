@@ -185,12 +185,7 @@
     </div>
 
     <script>
-        // ----------------------------------------------------
-        // [!] 🚨🚨 3번, 4번 문제 원인 🚨🚨
-        // [!] 여기에 고객님의 n8n 웹훅 URL을 꼭!! 입력하세요
-        // ----------------------------------------------------
         const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
-        // ----------------------------------------------------
 
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
@@ -217,7 +212,6 @@
             userInput.value = "";
             sendButton.disabled = true;
 
-            // [!] 2번 문제 수정: 1분 타이머 로딩 버블 추가
             const loadingBubble = document.createElement('div');
             loadingBubble.classList.add('chat-bubble', 'bot-loading');
             
@@ -237,7 +231,6 @@
             }, 1000);
 
             try {
-                // [!] 4번 문제: N8N_WEBHOOK_URL이 비어있으면 여기서 에러가 납니다.
                 const response = await fetch(N8N_WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
@@ -246,8 +239,8 @@
                     body: JSON.stringify({ user_request: message })
                 });
 
-                clearInterval(timerId); // 타이머 중지
-                chatContainer.removeChild(loadingBubble); // 로딩 버블 제거
+                clearInterval(timerId); 
+                chatContainer.removeChild(loadingBubble); 
 
                 if (!response.ok) {
                     throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
@@ -255,21 +248,26 @@
 
                 const data = await response.json();
 
-                if (data && data.length > 0 && data[0].json && data[0].json.request_detail) {
-                    addBubble(data[0].json.request_detail, 'bot', true);
-                } else if (data && data.length > 0 && data[0].json && data[0].json.error) {
-                    addBubble(`⚠️ ${data[0].json.error}`, 'bot-error');
+                // ----------------------------------------------------
+                // [!] 🚨🚨 여기가 수정된 부분입니다 🚨🚨
+                // ----------------------------------------------------
+                // n8n이 {"message": "..."} 형식으로 응답하므로
+                // data.message가 있는지 확인합니다.
+                if (data && data.message) {
+                    addBubble(data.message, 'bot', true);
+                } else if (data && data.error) { // n8n이 에러를 보냈을 경우
+                    addBubble(`⚠️ ${data.error}`, 'bot-error');
                 } else {
-                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. 워크로우를 확인해 주세요.", 'bot-error');
+                    // data.message가 없는 경우
+                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. (데이터 형식 불일치)", 'bot-error');
                 }
+                // ----------------------------------------------------
 
             } catch (error) {
-                clearInterval(timerId); // 에러 시 타이머 중지
-                chatContainer.removeChild(loadingBubble); // 에러 시 로딩 버블 제거
+                clearInterval(timerId); 
+                chatContainer.removeChild(loadingBubble); 
                 
                 console.error('Fetch error:', error);
-                
-                // [!] 4번 문제: N8N_WEBHOOK_URL이 비어있으면 이 메시지가 뜹니다.
                 addBubble(`⚠️ 요청 실패: n8n 서버에 연결할 수 없습니다. (URL 주소를 확인하세요)`, 'bot-error');
             } finally {
                 sendButton.disabled = false;
@@ -289,4 +287,3 @@
 
 </body>
 </html>
-
