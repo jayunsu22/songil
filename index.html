@@ -241,20 +241,21 @@
                 chatContainer.removeChild(loadingBubble); 
 
                 if (!response.ok) {
+                    // [!] 500 에러 등이 여기서 걸립니다.
                     throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
                 }
                 
                 // ----------------------------------------------------
                 // [!] 🚨🚨 여기가 수정된 부분입니다 🚨🚨
-                // n8n이 이제 JSON을 보내므로 .text()가 아닌 .json()으로 받습니다.
+                // n8n이 이제 순수 Text(HTML)를 보내므로 .json()이 아닌 .text()로 받습니다.
                 // ----------------------------------------------------
-                const data = await response.json();
+                const data = await response.text();
 
-                // data.message를 찾아서 출력합니다.
-                if (data && data.message) {
-                    addBubble(data.message, 'bot', true);
+                if (data) {
+                    // data.message가 아닌 data (텍스트 그 자체)를 출력합니다.
+                    addBubble(data, 'bot', true);
                 } else {
-                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. (데이터 형식 불일치)", 'bot-error');
+                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다.", 'bot-error');
                 }
                 // ----------------------------------------------------
 
@@ -265,7 +266,8 @@
                 }
                 
                 console.error('Fetch error:', error);
-                addBubble(`⚠️ 요청 실패: n8n 서버에 연결할 수 없습니다. (캐시 문제일 수 있습니다)`, 'bot-error');
+                // "연결 실패" 또는 "500 에러" 메시지는 이 catch 블록에서 나옵니다.
+                addBubble(`⚠️ 요청 실패: n8n 서버에 연결할 수 없습니다. (캐시/CORS/500에러)`, 'bot-error');
             } finally {
                 sendButton.disabled = false;
                 userInput.focus();
