@@ -64,7 +64,6 @@
             border-bottom-left-radius: 5px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             max-width: 80%; 
-            /* [!] 수정: 공유 버튼을 위한 기준점 */
             position: relative;
         }
         .chat-bubble.bot.quote-response {
@@ -85,28 +84,24 @@
             font-weight: bold;
         }
 
-        /* [!] 2번 요청: 공유 버튼 스타일 */
+        /* [!] 3번 요청: 공유 버튼 스타일 (눈에 띄게 변경) */
         .share-button {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: #f0f0f0;
-            border: 1px solid #ccc;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            cursor: pointer;
-            font-size: 16px;
-            line-height: 30px;
+            display: block;
+            width: 95%; /* 부모(버블) 대비 95% */
+            margin: 15px auto 5px; /* 위아래 여백, 좌우 자동 */
+            padding: 10px;
+            background-color: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1em;
             text-align: center;
-            opacity: 0.5;
-            transition: opacity 0.2s;
-        }
-        .chat-bubble.bot:hover .share-button {
-            opacity: 1;
+            cursor: pointer;
+            transition: background-color 0.2s;
         }
         .share-button:hover {
-            background-color: #e0e0e0;
+            background-color: #357ABD;
         }
 
         .chat-input-area {
@@ -184,12 +179,29 @@
             color: #555;
             line-height: 1.6;
         }
-        /* [!] 3번 요청: 연락처 스타일 */
+        
+        /* [!] 1번 요청: 연락처 박스 스타일 */
+        .contact-box {
+            background-color: #f8f8f8;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 15px;
+        }
         .contact-info {
             font-size: 0.95em;
             font-weight: 500;
             color: #333;
-            margin-top: 5px;
+            margin: 5px 0;
+        }
+        /* [!] 2번 요청: 전화걸기 링크 스타일 */
+        .contact-info a {
+            color: #4A90E2;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .contact-info a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -229,32 +241,31 @@
             bubble.innerHTML = message; 
             chatContainer.appendChild(bubble);
 
-            // [!] 2번 요청: 공유 버튼 추가 (견적 응답일 경우)
+            // [!] 3번 요청: 공유 버튼 추가 (견적 응답일 경우)
             if (isQuote) {
                 const shareBtn = document.createElement('button');
-                shareBtn.className = 'share-button';
-                shareBtn.innerHTML = '🔗'; // 공유 아이콘
+                shareBtn.className = 'share-button'; // 새 스타일 적용
+                shareBtn.innerHTML = '공유하기'; // 텍스트 변경
                 shareBtn.onclick = () => shareQuote(bubble);
-                bubble.appendChild(shareBtn);
+                bubble.appendChild(shareBtn); // 버블의 자식으로 추가
             }
             
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
         
-        // [!] 2번 요청: 공유 기능 함수
+        // [!] 3번 요청: 공유 기능 함수
         function shareQuote(bubble) {
-            // HTML 태그를 제거하고 순수 텍스트만 추출
-            // (버튼 텍스트 '🔗'도 함께 제거)
-            const quoteText = bubble.innerText.replace('🔗', '').trim(); 
+            // 버튼을 제외한 순수 텍스트만 추출
+            const quoteHTML = bubble.cloneNode(true);
+            quoteHTML.querySelector('.share-button').remove(); // 버튼 제거
+            const quoteText = quoteHTML.innerText.trim();
             
             if (navigator.share) {
-                // 모바일 기기 (네이티브 공유)
                 navigator.share({
                     title: '인테리어 필름 견적 내역',
                     text: quoteText
                 }).catch(console.error);
             } else {
-                // PC (클립보드 복사)
                 navigator.clipboard.writeText(quoteText).then(() => {
                     alert('견적 내용이 클립보드에 복사되었습니다.');
                 }).catch(console.error);
