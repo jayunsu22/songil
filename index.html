@@ -84,12 +84,13 @@
             font-weight: bold;
         }
 
-        /* [!] 3번 요청: 공유 버튼 스타일 (눈에 띄게 변경) */
-        .share-button {
+        /* [!] 2번 요청: 공유 버튼 스타일 (눈에 띄게 변경) */
+        .share-button-n8n {
             display: block;
-            width: 95%; /* 부모(버블) 대비 95% */
-            margin: 15px auto 5px; /* 위아래 여백, 좌우 자동 */
-            padding: 10px;
+            width: 100%; /* 부모(버블) 대비 100% */
+            box-sizing: border-box; /* 패딩 포함 */
+            margin-top: 20px; /* 위 여백 */
+            padding: 12px;
             background-color: #4A90E2;
             color: white;
             border: none;
@@ -100,7 +101,7 @@
             cursor: pointer;
             transition: background-color 0.2s;
         }
-        .share-button:hover {
+        .share-button-n8n:hover {
             background-color: #357ABD;
         }
 
@@ -180,16 +181,22 @@
             line-height: 1.6;
         }
         
-        /* [!] 1번 요청: 연락처 박스 스타일 */
+        /* [!] 1번 요청: 연락처 박스 스타일 (더 눈에 띄게) */
         .contact-box {
-            background-color: #f8f8f8;
-            border: 1px solid #eee;
+            background-color: #f0f8ff; /* 연한 하늘색 배경 */
+            border: 1px solid #4A90E2;  /* 파란색 테두리 */
             border-radius: 8px;
             padding: 12px;
-            margin-top: 15px;
+            margin-top: 20px;
+        }
+        .contact-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #111;
+            margin-bottom: 10px;
         }
         .contact-info {
-            font-size: 0.95em;
+            font-size: 1em;
             font-weight: 500;
             color: #333;
             margin: 5px 0;
@@ -241,31 +248,38 @@
             bubble.innerHTML = message; 
             chatContainer.appendChild(bubble);
 
-            // [!] 3번 요청: 공유 버튼 추가 (견적 응답일 경우)
+            // [!] 2번 요청: JavaScript로 버튼 생성 대신, HTML에 포함된 버튼을 찾아 이벤트 연결
             if (isQuote) {
-                const shareBtn = document.createElement('button');
-                shareBtn.className = 'share-button'; // 새 스타일 적용
-                shareBtn.innerHTML = '공유하기'; // 텍스트 변경
-                shareBtn.onclick = () => shareQuote(bubble);
-                bubble.appendChild(shareBtn); // 버블의 자식으로 추가
+                const shareBtn = bubble.querySelector('.share-button-n8n'); // n8n이 보낸 버튼을 찾음
+                if (shareBtn) {
+                    shareBtn.onclick = (e) => {
+                        e.stopPropagation(); // 버블 클릭 방지
+                        shareQuote(bubble); // 공유 함수 호출
+                    };
+                }
             }
             
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
         
-        // [!] 3번 요청: 공유 기능 함수
+        // [!] 2번 요청: 공유 기능 함수 (버튼을 찾아서 제거)
         function shareQuote(bubble) {
             // 버튼을 제외한 순수 텍스트만 추출
             const quoteHTML = bubble.cloneNode(true);
-            quoteHTML.querySelector('.share-button').remove(); // 버튼 제거
+            const btn = quoteHTML.querySelector('.share-button-n8n');
+            if (btn) {
+                btn.remove(); // 복사하기 전에 버튼 제거
+            }
             const quoteText = quoteHTML.innerText.trim();
             
             if (navigator.share) {
+                // 모바일 기기 (네이티브 공유)
                 navigator.share({
                     title: '인테리어 필름 견적 내역',
                     text: quoteText
                 }).catch(console.error);
             } else {
+                // PC (클립보드 복사)
                 navigator.clipboard.writeText(quoteText).then(() => {
                     alert('견적 내용이 클립보드에 복사되었습니다.');
                 }).catch(console.error);
