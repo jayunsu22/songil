@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>섬세한 1분 필름견적</title>
     <style>
+        /* [스타일(CSS) 부분은 이전과 동일합니다] */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -14,11 +15,10 @@
             align-items: center;
             height: 100vh;
         }
-
         .chat-wrapper {
             width: 100%;
             max-width: 500px; 
-            height: 700px; /* 세로 크기 고정 */
+            height: 700px; 
             display: flex;
             flex-direction: column;
             border-radius: 10px;
@@ -26,7 +26,6 @@
             overflow: hidden; 
             background: #ffffff; 
         }
-
         .chat-header {
             background-color: #4A90E2;
             color: white;
@@ -35,14 +34,8 @@
             box-shadow: none;
             flex-shrink: 0; 
         }
-        .chat-header h1 {
-            margin: 0;
-            font-size: 1.4em;
-        }
-        .chat-header p {
-            margin: 5px 0 0;
-            font-size: 0.9em;
-        }
+        .chat-header h1 { margin: 0; font-size: 1.4em; }
+        .chat-header p { margin: 5px 0 0; font-size: 0.9em; }
         .chat-container {
             flex: 1; 
             overflow-y: auto;
@@ -73,12 +66,9 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             max-width: 80%; 
         }
-        
         .chat-bubble.bot.quote-response {
-            max-width: 95%; /* 견적 버블만 꽉 차게 */
+            max-width: 95%; 
         }
-        
-        /* 기존 노란색 로딩 버블 */
         .chat-bubble.bot-loading, .chat-bubble.bot-error {
             background-color: #fdfdea;
             color: #7d7a4f;
@@ -86,16 +76,13 @@
             border-bottom-left-radius: 5px;
             font-style: italic;
         }
-
-        /* [!] 요청하신 파란색 타이머 스타일 */
         .chat-bubble.bot-loading-blue {
-            background-color: #4A90E2; /* 파란색 배경 */
-            color: white; /* 흰색 글씨 */
+            background-color: #4A90E2; 
+            color: white; 
             align-self: flex-start;
             border-bottom-left-radius: 5px;
             font-weight: bold;
         }
-
         .chat-input-area {
             display: flex;
             padding: 15px;
@@ -124,8 +111,6 @@
         #sendButton:disabled {
             background-color: #a0a0a0;
         }
-
-        /* 폰트 스타일링 */
         .chat-bubble.bot .quote-title {
             font-size: 1.2em;
             font-weight: bold;
@@ -261,15 +246,15 @@
                 
                 // ----------------------------------------------------
                 // [!] 🚨🚨 여기가 수정된 부분입니다 🚨🚨
-                // n8n이 이제 순수 Text(HTML)를 보내므로 .json()이 아닌 .text()로 받습니다.
+                // n8n이 이제 JSON을 보내므로 .text()가 아닌 .json()으로 받습니다.
                 // ----------------------------------------------------
-                const data = await response.text();
+                const data = await response.json();
 
-                if (data) {
-                    // data.message가 아닌 data (텍스트 그 자체)를 출력합니다.
-                    addBubble(data, 'bot', true);
+                // data.message를 찾아서 출력합니다.
+                if (data && data.message) {
+                    addBubble(data.message, 'bot', true);
                 } else {
-                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다.", 'bot-error');
+                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. (데이터 형식 불일치)", 'bot-error');
                 }
                 // ----------------------------------------------------
 
