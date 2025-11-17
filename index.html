@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>섬세한 1분 필름견적</title>
     <style>
-        /* [스타일(CSS) 부분은 이전과 동일합니다] */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -65,6 +64,8 @@
             border-bottom-left-radius: 5px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             max-width: 80%; 
+            /* [!] 수정: 공유 버튼을 위한 기준점 */
+            position: relative;
         }
         .chat-bubble.bot.quote-response {
             max-width: 95%; 
@@ -83,6 +84,31 @@
             border-bottom-left-radius: 5px;
             font-weight: bold;
         }
+
+        /* [!] 2번 요청: 공유 버튼 스타일 */
+        .share-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 30px;
+            text-align: center;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        .chat-bubble.bot:hover .share-button {
+            opacity: 1;
+        }
+        .share-button:hover {
+            background-color: #e0e0e0;
+        }
+
         .chat-input-area {
             display: flex;
             padding: 15px;
@@ -158,6 +184,13 @@
             color: #555;
             line-height: 1.6;
         }
+        /* [!] 3번 요청: 연락처 스타일 */
+        .contact-info {
+            font-size: 0.95em;
+            font-weight: 500;
+            color: #333;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -195,7 +228,37 @@
             
             bubble.innerHTML = message; 
             chatContainer.appendChild(bubble);
+
+            // [!] 2번 요청: 공유 버튼 추가 (견적 응답일 경우)
+            if (isQuote) {
+                const shareBtn = document.createElement('button');
+                shareBtn.className = 'share-button';
+                shareBtn.innerHTML = '🔗'; // 공유 아이콘
+                shareBtn.onclick = () => shareQuote(bubble);
+                bubble.appendChild(shareBtn);
+            }
+            
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // [!] 2번 요청: 공유 기능 함수
+        function shareQuote(bubble) {
+            // HTML 태그를 제거하고 순수 텍스트만 추출
+            // (버튼 텍스트 '🔗'도 함께 제거)
+            const quoteText = bubble.innerText.replace('🔗', '').trim(); 
+            
+            if (navigator.share) {
+                // 모바일 기기 (네이티브 공유)
+                navigator.share({
+                    title: '인테리어 필름 견적 내역',
+                    text: quoteText
+                }).catch(console.error);
+            } else {
+                // PC (클립보드 복사)
+                navigator.clipboard.writeText(quoteText).then(() => {
+                    alert('견적 내용이 클립보드에 복사되었습니다.');
+                }).catch(console.error);
+            }
         }
         
         function addTimerBubble(message, sender) {
@@ -244,20 +307,15 @@
                     throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
                 }
                 
-                // ----------------------------------------------------
-                // [!] 🚨🚨 여기가 수정된 부분입니다 🚨🚨
-                // n8n이 이제 [ {"message": "..."} ] (배열)이 아닌
-                // { "message": "..." } (객체)를 보냅니다.
-                // ----------------------------------------------------
-                const data = await response.json(); // .json()으로 받습니다.
+                // n8n이 { "message": "..." } (객체)를 보냅니다.
+                const data = await response.json(); 
 
-                // data[0].message (배열)가 아닌 data.message (객체)를 찾습니다.
+                // data.message (객체)를 찾습니다.
                 if (data && data.message) {
                     addBubble(data.message, 'bot', true);
                 } else {
                     addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. (데이터 형식 불일치)", 'bot-error');
                 }
-                // ----------------------------------------------------
 
             } catch (error) {
                 clearInterval(timerId); 
