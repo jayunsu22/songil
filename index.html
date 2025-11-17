@@ -213,14 +213,13 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
         
-        // [!] 파란색 타이머 버블을 위한 별도 함수
         function addTimerBubble(message, sender) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender, 'bot-loading-blue');
             bubble.innerHTML = message;
             chatContainer.appendChild(bubble);
             chatContainer.scrollTop = chatContainer.scrollHeight;
-            return bubble; // 타이머 업데이트를 위해 버블 객체 반환
+            return bubble;
         }
 
         async function sendRequest() {
@@ -231,7 +230,6 @@
             userInput.value = "";
             sendButton.disabled = true;
 
-            // [!] 파란색 타이머 버블 생성
             let seconds = 60;
             const loadingBubble = addTimerBubble(`1분만 기다리세요... ${seconds}s`, 'bot');
 
@@ -260,30 +258,28 @@
                 if (!response.ok) {
                     throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
                 }
-
-                const data = await response.json();
-
+                
                 // ----------------------------------------------------
-                // [!] 🚨🚨 n8n 응답을 data.message에서 찾도록 수정된 부분
+                // [!] 🚨🚨 여기가 수정된 부분입니다 🚨🚨
+                // n8n이 이제 순수 Text(HTML)를 보내므로 .json()이 아닌 .text()로 받습니다.
                 // ----------------------------------------------------
-                if (data && data.message) {
-                    addBubble(data.message, 'bot', true);
-                } else if (data && data.error) { 
-                    addBubble(`⚠️ ${data.error}`, 'bot-error');
+                const data = await response.text();
+
+                if (data) {
+                    // data.message가 아닌 data (텍스트 그 자체)를 출력합니다.
+                    addBubble(data, 'bot', true);
                 } else {
-                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. (데이터 형식 불일치)", 'bot-error');
+                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다.", 'bot-error');
                 }
                 // ----------------------------------------------------
 
             } catch (error) {
                 clearInterval(timerId); 
-                // 로딩 버블이 아직 DOM에 남아있다면 제거
                 if (loadingBubble && loadingBubble.parentNode === chatContainer) {
                     chatContainer.removeChild(loadingBubble); 
                 }
                 
                 console.error('Fetch error:', error);
-                // "연결 실패" 메시지는 이 catch 블록에서 나옵니다.
                 addBubble(`⚠️ 요청 실패: n8n 서버에 연결할 수 없습니다. (캐시 문제일 수 있습니다)`, 'bot-error');
             } finally {
                 sendButton.disabled = false;
@@ -298,7 +294,6 @@
             }
         });
 
-        // [!] 이 코드가 실행되어야 환영 메시지가 보입니다.
         addBubble("안녕하세요!<br>시공항목과 수량을 입력해주세요.<br>1분 이내로 견적 알려드립니다.<br><br><b>예) 방문 3, 샤시 5</b>", 'bot');
     </script>
 
