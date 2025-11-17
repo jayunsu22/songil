@@ -246,13 +246,13 @@
                 
                 // ----------------------------------------------------
                 // [!] 🚨🚨 여기가 수정된 부분입니다 🚨🚨
-                // '합계계산1' 노드의 응답 [ { "json": {"message": "..."} } ]을 받습니다.
+                // n8n이 이제 [ {"message": "..."} ]을(를) 보냅니다.
                 // ----------------------------------------------------
-                const data = await response.json(); // .text()가 아닌 .json()으로 받습니다.
+                const data = await response.json(); // .json()으로 받습니다.
 
-                // data[0].json.message를 찾아서 출력합니다.
-                if (data && data.length > 0 && data[0].json && data[0].json.message) {
-                    addBubble(data[0].json.message, 'bot', true);
+                // data[0].message를 찾아서 출력합니다.
+                if (data && data.length > 0 && data[0].message) {
+                    addBubble(data[0].message, 'bot', true);
                 } else {
                     addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. (데이터 형식 불일치)", 'bot-error');
                 }
