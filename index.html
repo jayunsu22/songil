@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>섬세한 1분 필름견적</title>
     <style>
+        /* [스타일(CSS) 부분은 이전과 동일합니다] */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -83,13 +84,11 @@
             border-bottom-left-radius: 5px;
             font-weight: bold;
         }
-
-        /* [!] 3번 요청: (파란색) 공유 버튼 스타일 */
-        .share-button-html {
+        .share-button-n8n {
             display: block;
-            width: 100%; /* 부모(버블) 대비 100% */
-            box-sizing: border-box; /* 패딩 포함 */
-            margin-top: 20px; /* 위 여백 */
+            width: 100%; 
+            box-sizing: border-box; 
+            margin-top: 20px; 
             padding: 12px;
             background-color: #4A90E2;
             color: white;
@@ -101,10 +100,9 @@
             cursor: pointer;
             transition: background-color 0.2s;
         }
-        .share-button-html:hover {
+        .share-button-n8n:hover {
             background-color: #357ABD;
         }
-
         .chat-input-area {
             display: flex;
             padding: 15px;
@@ -180,14 +178,18 @@
             color: #555;
             line-height: 1.6;
         }
-        
-        /* [!] 1번 요청: 연락처 박스 스타일 */
         .contact-box {
-            background-color: #f0f8ff; /* 연한 하늘색 배경 */
-            border: 1px solid #4A90E2;  /* 파란색 테두리 */
+            background-color: #f0f8ff; 
+            border: 1px solid #4A90E2;  
             border-radius: 8px;
             padding: 12px;
             margin-top: 20px;
+        }
+        .contact-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #111;
+            margin-bottom: 10px;
         }
         .contact-info {
             font-size: 1em;
@@ -195,7 +197,6 @@
             color: #333;
             margin: 5px 0;
         }
-        /* [!] 2번 요청: 전화걸기 링크 스타일 */
         .contact-info a {
             color: #4A90E2;
             text-decoration: none;
@@ -224,7 +225,7 @@
     </div>
 
     <script>
-        // [!] n8n 웹훅 URL (이전에 입력하신 값)
+        // [!] n8n 웹훅 URL
         const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
 
         const chatContainer = document.getElementById('chatContainer');
@@ -242,42 +243,33 @@
             bubble.innerHTML = message; 
             chatContainer.appendChild(bubble);
 
-            // [!] 3번 요청: JavaScript가 유일하게 공유 버튼을 추가 (중복 방지)
             if (isQuote) {
-                // n8n이 보낸 HTML에 버튼이 없는지 확인
-                if (!bubble.querySelector('.share-button-html')) {
-                    const shareBtn = document.createElement('button');
-                    shareBtn.className = 'share-button-html'; // 새 스타일 적용
-                    shareBtn.innerHTML = '공유하기'; // 텍스트 변경
+                const shareBtn = bubble.querySelector('.share-button-n8n'); 
+                if (shareBtn) {
                     shareBtn.onclick = (e) => {
-                        e.stopPropagation(); // 버블 클릭 방지
-                        shareQuote(bubble); // 공유 함수 호출
+                        e.stopPropagation(); 
+                        shareQuote(bubble); 
                     };
-                    bubble.appendChild(shareBtn); // 버블의 자식으로 추가
                 }
             }
             
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
         
-        // [!] 3번 요청: 공유 기능 함수
         function shareQuote(bubble) {
-            // 버튼을 제외한 순수 텍스트만 추출
             const quoteHTML = bubble.cloneNode(true);
-            const btn = quoteHTML.querySelector('.share-button-html');
+            const btn = quoteHTML.querySelector('.share-button-n8n');
             if (btn) {
-                btn.remove(); // 복사하기 전에 버튼 제거
+                btn.remove(); 
             }
             const quoteText = quoteHTML.innerText.trim();
             
             if (navigator.share) {
-                // 모바일 기기 (네이티브 공유)
                 navigator.share({
                     title: '인테리어 필름 견적 내역',
                     text: quoteText
                 }).catch(console.error);
             } else {
-                // PC (클립보드 복사)
                 navigator.clipboard.writeText(quoteText).then(() => {
                     alert('견적 내용이 클립보드에 복사되었습니다.');
                 }).catch(console.error);
@@ -330,15 +322,21 @@
                     throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
                 }
                 
-                // n8n이 { "message": "..." } (객체)를 보냅니다.
                 const data = await response.json(); 
 
-                // data.message (객체)를 찾습니다.
-                if (data && data.message) {
+                // ----------------------------------------------------
+                // [!] 🚨🚨 여기가 진짜 최종 수정입니다 🚨🚨
+                // n8n은 배열 [ {...} ]을 보냅니다. 첫 번째 항목 [0]을 확인해야 합니다.
+                // ----------------------------------------------------
+                if (Array.isArray(data) && data.length > 0 && data[0].message) {
+                    addBubble(data[0].message, 'bot', true);
+                } else if (data && data.message) {
+                    // 만약 객체로 올 경우를 대비한 백업
                     addBubble(data.message, 'bot', true);
                 } else {
-                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. (데이터 형식 불일치)", 'bot-error');
+                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다.", 'bot-error');
                 }
+                // ----------------------------------------------------
 
             } catch (error) {
                 clearInterval(timerId); 
