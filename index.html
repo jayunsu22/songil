@@ -2,208 +2,211 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>섬세한 1분 필름견적</title>
     <style>
+        /* [기본 설정] */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
             margin: 0;
             background-color: #f4f4f4;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            /* 모바일 브라우저 주소창 대응 */
+            height: 100dvh; 
         }
+
         .chat-wrapper {
             width: 100%;
-            max-width: 500px; 
-            height: 700px; 
+            max-width: 500px;
+            height: 100%; /* 화면 전체 사용 */
             display: flex;
             flex-direction: column;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            overflow: hidden; 
-            background: #ffffff; 
+            background: #ffffff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            overflow: hidden;
         }
+
+        /* [헤더] */
         .chat-header {
             background-color: #4A90E2;
             color: white;
-            padding: 15px 20px;
+            padding: 18px 20px;
             text-align: center;
-            box-shadow: none;
-            flex-shrink: 0; 
+            flex-shrink: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
         }
-        .chat-header h1 { margin: 0; font-size: 1.4em; }
-        .chat-header p { margin: 5px 0 0; font-size: 0.9em; }
+        .chat-header h1 { margin: 0; font-size: 1.3em; font-weight: 700; }
+        .chat-header p { margin: 5px 0 0; font-size: 0.85em; opacity: 0.9; }
+
+        /* [채팅 영역] */
         .chat-container {
-            flex: 1; 
+            flex: 1;
             overflow-y: auto;
             padding: 20px;
+            padding-bottom: 30px; /* 하단 여백 확보 */
             display: flex;
             flex-direction: column;
-            background-color: #f9f9f9; 
+            background-color: #f9fafc;
+            -webkit-overflow-scrolling: touch; /* 부드러운 스크롤 */
         }
+
+        /* [말풍선 공통] */
         .chat-bubble {
-            max-width: 65%; 
-            padding: 12px 18px;
+            max-width: 80%;
+            padding: 14px 18px;
             border-radius: 18px;
-            margin-bottom: 10px;
-            line-height: 1.5;
+            margin-bottom: 12px;
+            line-height: 1.55;
             position: relative;
+            font-size: 0.95em;
+            word-break: break-word;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
+        
+        /* [유저 말풍선] */
         .chat-bubble.user {
             background-color: #4A90E2;
             color: white;
             align-self: flex-end;
-            border-bottom-right-radius: 5px;
+            border-bottom-right-radius: 4px;
+            margin-left: 20%;
         }
+
+        /* [봇 말풍선] */
         .chat-bubble.bot {
             background-color: #ffffff;
             color: #333;
             align-self: flex-start;
-            border-bottom-left-radius: 5px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            max-width: 80%; 
-            position: relative;
+            border-bottom-left-radius: 4px;
+            margin-right: 10%;
+            border: 1px solid #eee;
         }
         .chat-bubble.bot.quote-response {
-            max-width: 95%; 
-        }
-        .chat-bubble.bot-loading, .chat-bubble.bot-error {
-            background-color: #fdfdea;
-            color: #7d7a4f;
-            align-self: flex-start;
-            border-bottom-left-radius: 5px;
-            font-style: italic;
-        }
-        .chat-bubble.bot-loading-blue {
-            background-color: #4A90E2; 
-            color: white; 
-            align-self: flex-start;
-            border-bottom-left-radius: 5px;
-            font-weight: bold;
+            max-width: 95%; /* 견적서는 넓게 */
+            margin-right: 0;
+            border-radius: 12px;
+            padding: 0; /* 내부 패딩 제거 (카드 스타일) */
+            overflow: hidden; /* 둥근 모서리 적용 */
         }
 
-        /* [!] 3번 요청: (파란색) 공유 버튼 스타일 */
-        .share-button-html {
-            display: block;
-            width: 100%; /* 부모(버블) 대비 100% */
-            box-sizing: border-box; /* 패딩 포함 */
-            margin-top: 20px; /* 위 여백 */
-            padding: 12px;
-            background-color: #4A90E2;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 1em;
+        /* [로딩/에러] */
+        .chat-bubble.bot-loading { background-color: #4A90E2; color: white; font-weight: 600; }
+        .chat-bubble.bot-error { background-color: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; }
+
+        /* [견적서 내부 스타일] */
+        .quote-content { padding: 20px; }
+        .quote-title {
+            font-size: 1.2em; font-weight: 800; color: #2c3e50;
+            margin-bottom: 15px; padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .item-title { font-size: 1.05em; font-weight: 700; color: #333; margin-top: 15px; }
+        .item-detail { font-size: 0.9em; color: #666; padding-left: 10px; margin: 3px 0; }
+        .item-subtotal { font-weight: 600; color: #2d3748; margin-top: 5px; }
+        .item-notification { 
+            font-size: 0.85em; color: #e53e3e; background: #fff5f5; 
+            padding: 8px; border-radius: 6px; margin-top: 8px; 
+        }
+        .total-line {
+            font-size: 1.3em; font-weight: 800; color: #e53e3e;
+            margin-top: 20px; padding-top: 15px; border-top: 2px dashed #e2e8f0;
+            text-align: right;
+        }
+        .common-title { font-weight: 700; margin-top: 20px; font-size: 1em; color: #4a5568; }
+        .common-detail { font-size: 0.9em; color: #718096; line-height: 1.6; }
+
+        /* [!] 연락처 박스 디자인 (세련된 카드 스타일) */
+        .contact-card {
+            background: linear-gradient(135deg, #f6f9fc 0%, #f1f4f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 18px;
+            margin: 25px 15px 10px 15px; /* 견적서 내용 밖 여백 */
             text-align: center;
-            cursor: pointer;
-            transition: background-color 0.2s;
         }
-        .share-button-html:hover {
-            background-color: #357ABD;
+        .contact-label { font-size: 0.85em; color: #64748b; margin-bottom: 5px; font-weight: 500; }
+        .contact-name { font-size: 1.1em; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
+        
+        /* [!] 전화걸기 버튼 (눈에 띄게) */
+        .call-button {
+            display: block;
+            width: 100%;
+            background-color: #25D366; /* 신뢰감을 주는 녹색 계열 */
+            color: white;
+            text-decoration: none;
+            padding: 12px 0;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1.1em;
+            box-shadow: 0 4px 6px rgba(37, 211, 102, 0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
         }
+        .call-button:active { transform: scale(0.98); box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2); }
+        .call-button span { margin-left: 8px; }
 
+        /* [!] 공유 버튼 (하단 고정 느낌) */
+        .share-area { padding: 0 15px 20px 15px; }
+        .share-button-n8n {
+            width: 100%;
+            padding: 12px;
+            background-color: white;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .share-button-n8n:hover { background-color: #f8fafc; border-color: #94a3b8; }
+
+        /* [입력 영역] */
         .chat-input-area {
             display: flex;
+            align-items: center;
             padding: 15px;
-            border-top: 1px solid #ddd;
+            /* [!] 모바일 키보드 및 하단 바 대응을 위한 여백 */
+            padding-bottom: max(15px, env(safe-area-inset-bottom)); 
             background-color: #ffffff;
-            flex-shrink: 0; 
+            border-top: 1px solid #edf2f7;
+            flex-shrink: 0;
         }
         #userInput {
             flex: 1;
-            padding: 10px 15px;
-            border: 1px solid #ccc;
-            border-radius: 20px;
-            margin-right: 10px;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
             font-size: 1em;
+            outline: none;
+            background: #f8fafc;
+            transition: border-color 0.2s;
         }
+        #userInput:focus { border-color: #4A90E2; background: white; }
+        
         #sendButton {
-            padding: 10px 20px;
+            margin-left: 10px;
+            padding: 12px 20px;
             background-color: #4A90E2;
             color: white;
             border: none;
-            border-radius: 20px;
+            border-radius: 24px;
+            font-size: 1em;
+            font-weight: 700;
             cursor: pointer;
-            font-size: 1em;
-            font-weight: bold;
+            /* [!] 줄바꿈 방지 */
+            white-space: nowrap; 
+            transition: background-color 0.2s;
         }
-        #sendButton:disabled {
-            background-color: #a0a0a0;
-        }
-        .chat-bubble.bot .quote-title {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #4A90E2;
-            margin-bottom: 15px;
-        }
-        .chat-bubble.bot .item-title {
-            font-size: 1.1em;
-            font-weight: bold;
-            margin-top: 12px;
-            color: #111;
-        }
-        .chat-bubble.bot .item-detail {
-            padding-left: 20px;
-            color: #333;
-        }
-        .chat-bubble.bot .item-subtotal {
-            font-weight: 500;
-            color: #000;
-        }
-        .chat-bubble.bot .item-notification {
-            padding-left: 20px;
-            color: #d9534f; 
-            font-size: 0.95em;
-            margin-top: 5px;
-        }
-        .chat-bubble.bot .item-spacer {
-            height: 15px;
-        }
-        .chat-bubble.bot .total-line {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px solid #eee;
-            color: #e67e22; 
-        }
-        .chat-bubble.bot .common-title {
-            font-weight: bold;
-            margin-top: 15px;
-            color: #111;
-        }
-        .chat-bubble.bot .common-detail {
-            font-size: 0.95em;
-            color: #555;
-            line-height: 1.6;
-        }
-        
-        /* [!] 1번 요청: 연락처 박스 스타일 */
-        .contact-box {
-            background-color: #f0f8ff; /* 연한 하늘색 배경 */
-            border: 1px solid #4A90E2;  /* 파란색 테두리 */
-            border-radius: 8px;
-            padding: 12px;
-            margin-top: 20px;
-        }
-        .contact-info {
-            font-size: 1em;
-            font-weight: 500;
-            color: #333;
-            margin: 5px 0;
-        }
-        /* [!] 2번 요청: 전화걸기 링크 스타일 */
-        .contact-info a {
-            color: #4A90E2;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .contact-info a:hover {
-            text-decoration: underline;
-        }
+        #sendButton:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+
+        /* 스크롤바 스타일 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
     </style>
 </head>
 <body>
@@ -218,13 +221,13 @@
             </div>
 
         <div class="chat-input-area">
-            <input type="text" id="userInput" placeholder="견적 요청 사항을 입력하세요">
+            <input type="text" id="userInput" placeholder="견적 내용을 입력하세요 (예: 방문 3, 샤시 5)">
             <button id="sendButton">전송</button>
         </div>
     </div>
 
     <script>
-        // [!] n8n 웹훅 URL (이전에 입력하신 값)
+        // [!] n8n 웹훅 URL
         const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
 
         const chatContainer = document.getElementById('chatContainer');
@@ -237,49 +240,56 @@
             
             if (isQuote) {
                 bubble.classList.add('quote-response');
-            }
-            
-            bubble.innerHTML = message; 
-            chatContainer.appendChild(bubble);
+                // 견적서일 경우 내부 패딩을 위한 div 감싸기 (디자인상 필요)
+                bubble.innerHTML = `<div class="quote-content">${message}</div>`;
+                
+                // [!] 세련된 연락처 카드 추가
+                const contactCard = document.createElement('div');
+                contactCard.className = 'contact-card';
+                contactCard.innerHTML = `
+                    <div class="contact-label">더 정확한 상담이 필요하신가요?</div>
+                    <div class="contact-name">시공문의 : 김정헌 실장</div>
+                    <a href="tel:01066571222" class="call-button">📞 전화로 문의하기</a>
+                `;
+                bubble.appendChild(contactCard);
 
-            // [!] 3번 요청: JavaScript가 유일하게 공유 버튼을 추가 (중복 방지)
-            if (isQuote) {
-                // n8n이 보낸 HTML에 버튼이 없는지 확인
-                if (!bubble.querySelector('.share-button-html')) {
-                    const shareBtn = document.createElement('button');
-                    shareBtn.className = 'share-button-html'; // 새 스타일 적용
-                    shareBtn.innerHTML = '공유하기'; // 텍스트 변경
-                    shareBtn.onclick = (e) => {
-                        e.stopPropagation(); // 버블 클릭 방지
-                        shareQuote(bubble); // 공유 함수 호출
-                    };
-                    bubble.appendChild(shareBtn); // 버블의 자식으로 추가
-                }
+                // [!] 공유 버튼 추가
+                const shareArea = document.createElement('div');
+                shareArea.className = 'share-area';
+                const shareBtn = document.createElement('button');
+                shareBtn.className = 'share-button-n8n';
+                shareBtn.innerHTML = '🔗 견적 내용 공유하기';
+                shareBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    shareQuote(bubble);
+                };
+                shareArea.appendChild(shareBtn);
+                bubble.appendChild(shareArea);
+
+            } else {
+                bubble.innerHTML = message;
             }
-            
+
+            chatContainer.appendChild(bubble);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
         
-        // [!] 3번 요청: 공유 기능 함수
         function shareQuote(bubble) {
-            // 버튼을 제외한 순수 텍스트만 추출
+            // 버튼과 연락처 카드를 제외한 순수 텍스트만 추출
             const quoteHTML = bubble.cloneNode(true);
-            const btn = quoteHTML.querySelector('.share-button-html');
-            if (btn) {
-                btn.remove(); // 복사하기 전에 버튼 제거
-            }
-            const quoteText = quoteHTML.innerText.trim();
+            const buttons = quoteHTML.querySelectorAll('button, .contact-card, .share-area');
+            buttons.forEach(btn => btn.remove());
+            
+            const quoteText = quoteHTML.innerText.trim() + "\n\n[문의] 김정헌 실장: 010-6657-1222";
             
             if (navigator.share) {
-                // 모바일 기기 (네이티브 공유)
                 navigator.share({
-                    title: '인테리어 필름 견적 내역',
+                    title: '인테리어 필름 견적',
                     text: quoteText
                 }).catch(console.error);
             } else {
-                // PC (클립보드 복사)
                 navigator.clipboard.writeText(quoteText).then(() => {
-                    alert('견적 내용이 클립보드에 복사되었습니다.');
+                    alert('견적 내용이 복사되었습니다.');
                 }).catch(console.error);
             }
         }
@@ -302,12 +312,12 @@
             sendButton.disabled = true;
 
             let seconds = 60;
-            const loadingBubble = addTimerBubble(`1분만 기다리세요... ${seconds}s`, 'bot');
+            const loadingBubble = addTimerBubble(`견적을 계산하고 있습니다... ${seconds}s`, 'bot');
 
             const timerId = setInterval(() => {
                 seconds--;
                 if (seconds > 0) {
-                    loadingBubble.innerHTML = `1분만 기다리세요... ${seconds}s`;
+                    loadingBubble.innerHTML = `견적을 계산하고 있습니다... ${seconds}s`;
                 } else {
                     clearInterval(timerId);
                     loadingBubble.innerHTML = `거의 다 되었습니다...`;
@@ -317,27 +327,23 @@
             try {
                 const response = await fetch(N8N_WEBHOOK_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_request: message })
                 });
 
                 clearInterval(timerId); 
                 chatContainer.removeChild(loadingBubble); 
 
-                if (!response.ok) {
-                    throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
                 
-                // n8n이 { "message": "..." } (객체)를 보냅니다.
                 const data = await response.json(); 
 
-                // data.message (객체)를 찾습니다.
-                if (data && data.message) {
+                if (Array.isArray(data) && data.length > 0 && data[0].message) {
+                    addBubble(data[0].message, 'bot', true);
+                } else if (data && data.message) {
                     addBubble(data.message, 'bot', true);
                 } else {
-                    addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. (데이터 형식 불일치)", 'bot-error');
+                    addBubble("⚠️ 견적을 산출할 수 없습니다. 내용을 다시 확인해주세요.", 'bot-error');
                 }
 
             } catch (error) {
@@ -345,9 +351,8 @@
                 if (loadingBubble && loadingBubble.parentNode === chatContainer) {
                     chatContainer.removeChild(loadingBubble); 
                 }
-                
                 console.error('Fetch error:', error);
-                addBubble(`⚠️ 요청 실패: n8n 서버에 연결할 수 없습니다. (캐시/CORS/500에러)`, 'bot-error');
+                addBubble(`⚠️ 서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.`, 'bot-error');
             } finally {
                 sendButton.disabled = false;
                 userInput.focus();
@@ -361,7 +366,7 @@
             }
         });
 
-        addBubble("안녕하세요!<br>시공항목과 수량을 입력해주세요.<br>1분 이내로 견적 알려드립니다.<br><br><b>예) 방문 3, 샤시 5</b>", 'bot');
+        addBubble("안녕하세요! 👋<br><b>시공 항목</b>과 <b>수량</b>을 입력해주세요.<br>1분 이내로 상세 견적을 알려드립니다.<br><br>예) 방문 3, 샤시 5, 30평 몰딩", 'bot');
     </script>
 
 </body>
