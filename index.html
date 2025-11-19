@@ -5,55 +5,178 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>섬세한 1분 필름견적</title>
     <style>
-        /* [스타일 기존과 동일 유지] */
-        body { font-family: 'Pretendard', sans-serif; margin: 0; background-color: #f0f2f5; height: 100%; overflow: hidden; }
-        .chat-wrapper { width: 100%; max-width: 500px; margin: 0 auto; background: #fff; display: flex; flex-direction: column; height: 100dvh; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
-        .chat-header { background-color: #4A90E2; color: white; padding: 15px; text-align: center; flex-shrink: 0; z-index: 100; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            margin: 0;
+            background-color: #f0f2f5;
+            height: 100%;
+            overflow: hidden;
+        }
+        .chat-wrapper {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        .chat-header {
+            background-color: #4A90E2;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            flex-shrink: 0;
+            z-index: 100;
+            position: relative; /* 리셋 버튼 배치를 위해 */
+        }
         .chat-header h1 { margin: 0; font-size: 1.3em; font-weight: 700; }
         .chat-header p { margin: 5px 0 0; font-size: 0.9em; opacity: 0.9; }
-        .chat-container { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px; padding-bottom: 20px; background-color: #f9fafc; }
         
-        .chat-bubble { width: fit-content; max-width: 85%; padding: 12px 16px; border-radius: 18px; margin-bottom: 12px; line-height: 1.5; position: relative; font-size: 1.05em; word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .chat-bubble.user { background-color: #4A90E2; color: white; align-self: flex-end; border-bottom-right-radius: 4px; margin-left: auto; }
-        .chat-bubble.bot { background-color: #fff; color: #333; align-self: flex-start; border-bottom-left-radius: 4px; margin-right: auto; border: 1px solid #eee; }
-        .chat-bubble.bot.quote-response { width: 100%; max-width: 96%; padding: 0; overflow: hidden; }
-        .chat-bubble.bot-loading-blue { background: #4A90E2; color: white; font-weight: 700; text-align: center; border-radius: 30px; margin: 10px auto; display: table; min-width: 200px; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3); }
+        /* [추가] 대화 초기화 버튼 (헤더 오른쪽 위) */
+        .reset-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            cursor: pointer;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px;
+            padding-bottom: 20px;
+            background-color: #f9fafc;
+        }
+        .chat-bubble {
+            width: fit-content;
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            line-height: 1.5;
+            position: relative;
+            font-size: 1.05em;
+            word-break: break-word;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .chat-bubble.user {
+            background-color: #4A90E2;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+            margin-left: auto;
+        }
+        .chat-bubble.bot {
+            background-color: #ffffff;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            margin-right: auto;
+            border: 1px solid #eee;
+        }
+        .chat-bubble.bot.quote-response {
+            width: 100%;
+            max-width: 96%;
+            padding: 0;
+            overflow: hidden;
+        }
+        .chat-bubble.bot-loading-blue {
+            background: #4A90E2;
+            color: white;
+            font-weight: 700;
+            text-align: center;
+            border-radius: 30px;
+            animation: pulse 2s infinite;
+            margin: 10px auto;
+            display: table;
+            min-width: 200px;
+        }
         .chat-bubble.bot-error { background-color: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; }
         
-        /* [견적서 스타일] */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(74, 144, 226, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(74, 144, 226, 0); }
+        }
+
         .quote-content { padding: 25px 20px; }
-        .quote-title { font-size: 1.3em; font-weight: 800; color: #4A90E2; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }
+        .quote-title {
+            font-size: 1.3em; font-weight: 800; color: #4A90E2;
+            margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;
+        }
         .item-title { font-size: 1.2em; font-weight: 700; color: #222; margin-top: 20px; margin-bottom: 5px; }
         .item-detail { font-size: 1em; color: #555; padding-left: 8px; margin: 2px 0; }
         .item-subtotal { font-size: 1.05em; font-weight: 600; color: #333; margin-top: 8px; }
         .item-notification { font-size: 0.9em; color: #e53e3e; background: #fff5f5; padding: 10px; border-radius: 8px; margin-top: 10px; }
-        .total-line { font-size: 1.5em; font-weight: 800; color: #e53e3e; margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ddd; text-align: center; }
+        .total-line {
+            font-size: 1.5em; font-weight: 800; color: #e53e3e;
+            margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ddd;
+            text-align: center;
+        }
         .common-title { font-weight: 700; margin-top: 25px; font-size: 1.15em; color: #333; }
         .common-detail { font-size: 1em; color: #666; line-height: 1.7; }
-
-        /* [연락처] */
-        .contact-card { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 12px; padding: 20px; margin: 30px 15px 15px 15px; text-align: center; }
-        .contact-name { font-size: 1.2em; font-weight: 700; color: #333; margin-bottom: 12px; }
-        .call-button { display: block; width: 100%; background-color: #e7f1ff; color: #4A90E2; text-decoration: none; padding: 14px 0; border-radius: 8px; font-weight: 700; font-size: 1.1em; transition: background-color 0.2s; }
+        .contact-card {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 15px 15px 15px;
+            text-align: center;
+        }
+        .contact-name { font-size: 1.2em; font-weight: 700; color: #333; margin-bottom: 10px; }
+        .call-button {
+            display: block; width: 100%; background-color: #e7f1ff; color: #4A90E2;
+            text-decoration: none; padding: 14px 0; border-radius: 8px;
+            font-weight: 700; font-size: 1.1em; transition: background-color 0.2s;
+        }
         .call-button:hover { background-color: #d0e1fd; }
-        
-        /* [공유 버튼] */
         .share-area { padding: 0 15px 25px 15px; }
-        .share-button-n8n { width: 100%; padding: 14px; background-color: #ffffff; border: 2px solid #4A90E2; color: #4A90E2; border-radius: 8px; font-weight: 700; font-size: 1.1em; cursor: pointer; }
+        .share-button-n8n {
+            width: 100%; padding: 14px; background-color: #ffffff;
+            border: 2px solid #4A90E2; color: #4A90E2;
+            border-radius: 8px; font-weight: 700; font-size: 1.1em; cursor: pointer;
+        }
 
-        /* [입력창] */
-        .chat-input-area { background-color: #fff; padding: 15px; padding-bottom: max(20px, env(safe-area-inset-bottom)); border-top: 1px solid #eee; display: flex; align-items: center; flex-shrink: 0; }
-        #userInput { flex: 1; padding: 14px; border: 1px solid #ddd; border-radius: 30px; font-size: 1em; outline: none; background: #f8f9fa; }
+        .chat-input-area {
+            background-color: #fff;
+            padding: 15px;
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+            border-top: 1px solid #eee;
+            display: flex; align-items: center; flex-shrink: 0;
+        }
+        #userInput {
+            flex: 1; padding: 14px; border: 1px solid #ddd; border-radius: 30px;
+            font-size: 1em; outline: none; background: #f8f9fa;
+        }
         #userInput:focus { border-color: #4A90E2; background: white; }
-        #sendButton { margin-left: 10px; padding: 14px 24px; background-color: #4A90E2; color: white; border: none; border-radius: 30px; font-size: 1.1em; font-weight: 700; white-space: nowrap; cursor: pointer; }
+        #sendButton {
+            margin-left: 10px; padding: 14px 24px; background-color: #4A90E2;
+            color: white; border: none; border-radius: 30px;
+            font-size: 1.1em; font-weight: 700; white-space: nowrap; cursor: pointer;
+        }
         #sendButton:disabled { background-color: #cbd5e1; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
     </style>
 </head>
 <body>
     <div class="chat-wrapper">
         <div class="chat-header">
             <h1>섬세한 1분 필름견적</h1>
-            <p>V.251120_1100</p> </div>
+            <p>V.251120_1300</p>
+            <button onclick="clearHistory()" class="reset-btn">🔄 대화 초기화</button>
+        </div>
         <div class="chat-container" id="chatContainer"></div>
         <div class="chat-input-area">
             <input type="text" id="userInput" placeholder="예) 방문 3, 샤시 5">
@@ -67,15 +190,63 @@
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
 
+        // [핵심 1] 페이지 로드 시 저장된 대화 불러오기
+        window.onload = function() {
+            loadChatHistory();
+        };
+
         function scrollToBottom() {
-            setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50);
+            setTimeout(() => {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }, 50);
+        }
+
+        // [핵심 2] 대화 내용을 브라우저(localStorage)에 저장
+        function saveChatHistory() {
+            // 로딩 버블은 저장하지 않음
+            const cleanHTML = chatContainer.innerHTML.replace(/<div class="chat-bubble bot-loading-blue".*?<\/div>/g, '');
+            localStorage.setItem('filmChatHistory', cleanHTML);
+        }
+
+        // [핵심 3] 저장된 대화 불러오기 및 기능 복구
+        function loadChatHistory() {
+            const saved = localStorage.getItem('filmChatHistory');
+            if (saved && saved.trim() !== "") {
+                chatContainer.innerHTML = saved;
+                
+                // 공유 버튼 기능 다시 살리기 (HTML만 불러오면 버튼 클릭이 안되므로)
+                const shareBtns = document.querySelectorAll('.share-button-n8n');
+                shareBtns.forEach(btn => {
+                    btn.onclick = function(e) {
+                        e.stopPropagation();
+                        // 버튼의 부모의 부모의 부모... 해서 chat-bubble을 찾음
+                        const bubble = btn.closest('.chat-bubble');
+                        shareQuote(bubble);
+                    };
+                });
+                
+                scrollToBottom();
+            } else {
+                // 저장된 게 없으면 초기 메시지 출력
+                addBubble("안녕하세요! 👋<br><b>시공 항목</b>과 <b>수량</b>을 입력해주세요.<br>1분 이내로 상세 견적을 알려드립니다.<br><br>예) 방문 3, 샤시 5, 30평 몰딩", 'bot');
+            }
+        }
+
+        // [추가] 대화 초기화 함수
+        function clearHistory() {
+            if(confirm("대화 내용을 모두 지우시겠습니까?")) {
+                localStorage.removeItem('filmChatHistory');
+                location.reload(); // 새로고침
+            }
         }
 
         function shareQuote(bubble) {
             const clone = bubble.cloneNode(true);
             const removeTargets = clone.querySelectorAll('button, .contact-card, .share-area');
             removeTargets.forEach(el => el.remove());
+            
             const text = clone.innerText.trim() + "\n\n[문의] 김정헌 실장: 010-6657-1222";
+            
             if (navigator.share) {
                 navigator.share({ title: '견적 내역', text: text }).catch(err => console.log(err));
             } else {
@@ -86,6 +257,7 @@
         function addBubble(message, sender, isQuote = false) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
+            
             if (isQuote) {
                 bubble.classList.add('quote-response');
                 bubble.innerHTML = `<div class="quote-content">${message}</div>`;
@@ -103,14 +275,23 @@
                 const shareBtn = document.createElement('button');
                 shareBtn.className = 'share-button-n8n';
                 shareBtn.innerHTML = '🔗 견적 내용 공유하기';
-                shareBtn.onclick = (e) => { e.stopPropagation(); shareQuote(bubble); };
+                
+                shareBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    shareQuote(bubble);
+                };
+                
                 shareArea.appendChild(shareBtn);
                 bubble.appendChild(shareArea);
             } else {
                 bubble.innerHTML = message;
             }
+            
             chatContainer.appendChild(bubble);
             scrollToBottom();
+            
+            // 메시지 추가될 때마다 저장
+            saveChatHistory();
         }
         
         function addTimerBubble(message) {
@@ -145,8 +326,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_request: msg })
                 });
+                
                 clearInterval(timer);
                 if(loading.parentNode) loading.parentNode.removeChild(loading);
+
                 if (!res.ok) throw new Error('Server Error');
                 const data = await res.json();
 
@@ -171,8 +354,6 @@
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') sendRequest();
         });
-
-        addBubble("안녕하세요! 👋<br><b>시공 항목</b>과 <b>수량</b>을 입력해주세요.<br>1분 이내로 상세 견적을 알려드립니다.<br><br>예) 방문 3, 샤시 5, 30평 몰딩", 'bot');
     </script>
 </body>
 </html>
