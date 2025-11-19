@@ -5,41 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>섬세한 1분 필름견적</title>
     <style>
-        body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        /* [화면 높이 버그 수정] html, body 모두 100% 설정 */
+        html, body {
             margin: 0;
-            background-color: #f0f2f5;
+            padding: 0;
+            width: 100%;
             height: 100%;
-            overflow: hidden;
+            background-color: #f0f2f5;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            overflow: hidden; /* 이중 스크롤 방지 */
         }
+
+        /* [채팅창 틀] */
         .chat-wrapper {
             width: 100%;
             max-width: 500px;
+            height: 100%; /* 화면 꽉 차게 */
             margin: 0 auto;
             background: #ffffff;
             display: flex;
             flex-direction: column;
-            height: 100dvh;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
         }
+
+        /* [헤더] */
         .chat-header {
             background-color: #4A90E2;
             color: white;
             padding: 15px;
             text-align: center;
             flex-shrink: 0;
-            z-index: 100;
+            z-index: 10;
         }
         .chat-header h1 { margin: 0; font-size: 1.3em; font-weight: 700; }
         .chat-header p { margin: 5px 0 0; font-size: 0.9em; opacity: 0.9; }
+
+        /* [채팅 내용 영역] */
         .chat-container {
             flex: 1;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             padding: 20px;
-            padding-bottom: 20px;
+            padding-bottom: 40px;
             background-color: #f9fafc;
+            display: block;
         }
+
+        /* [말풍선] */
         .chat-bubble {
             width: fit-content;
             max-width: 85%;
@@ -57,14 +70,14 @@
             color: white;
             align-self: flex-end;
             border-bottom-right-radius: 4px;
-            margin-left: auto;
+            margin-left: auto; /* 우측 정렬 */
         }
         .chat-bubble.bot {
             background-color: #ffffff;
             color: #333;
             align-self: flex-start;
             border-bottom-left-radius: 4px;
-            margin-right: auto;
+            margin-right: auto; /* 좌측 정렬 */
             border: 1px solid #eee;
         }
         .chat-bubble.bot.quote-response {
@@ -73,51 +86,36 @@
             padding: 0;
             overflow: hidden;
         }
+
+        /* [로딩 애니메이션] */
         .chat-bubble.bot-loading-blue {
             background: #4A90E2;
             color: white;
             font-weight: 700;
             text-align: center;
             border-radius: 30px;
-            animation: pulse 2s infinite;
             margin: 10px auto;
             display: table;
             min-width: 200px;
+            box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);
         }
         .chat-bubble.bot-error { background-color: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(74, 144, 226, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(74, 144, 226, 0); }
-        }
 
         /* [견적서 스타일] */
         .quote-content { padding: 25px 20px; }
         .quote-title {
             font-size: 1.3em; font-weight: 800; color: #4A90E2;
-            margin-bottom: 15px; padding-bottom: 8px;
-            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;
         }
-        .item-title { font-size: 1.15em; font-weight: 700; color: #222; margin-top: 15px; margin-bottom: 4px; }
-        .item-detail { font-size: 0.95em; color: #666; padding-left: 8px; margin: 2px 0; }
-        .item-subtotal { font-size: 1em; font-weight: 600; color: #333; margin-top: 6px; }
-        .item-notification { font-size: 0.9em; color: #e53e3e; background: #fff5f5; padding: 8px; border-radius: 6px; margin-top: 6px; }
+        .item-title { font-size: 1.2em; font-weight: 700; color: #222; margin-top: 20px; margin-bottom: 5px; }
+        .item-detail { font-size: 1em; color: #555; padding-left: 8px; margin: 2px 0; }
+        .item-subtotal { font-size: 1.05em; font-weight: 600; color: #333; margin-top: 8px; }
+        .item-notification { font-size: 0.9em; color: #e53e3e; background: #fff5f5; padding: 10px; border-radius: 8px; margin-top: 10px; }
+        
         .total-line {
-            font-size: 1.4em; font-weight: 800; color: #e53e3e;
-            margin-top: 25px; padding-top: 15px; border-top: 2px dashed #ddd;
+            font-size: 1.5em; font-weight: 800; color: #e53e3e;
+            margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ddd;
             text-align: center;
         }
-        .common-title { font-weight: 700; margin-top: 20px; font-size: 1.1em; color: #333; }
-        .common-detail { font-size: 0.95em; color: #666; line-height: 1.6; }
-
-        /* [연락처 카드] */
-        .contact-card {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 25px 10px 10px 10px;
-            text-align: center;
-        }
-        .contact-name { font-size: 1
+        .common-title { font-weight: 700; margin-top: 25px; font-size: 1.15em; color: #333; }
+        .common-detail { font-size: 1em; color: #666;
