@@ -7,15 +7,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-    
     <style>
         body {
-            font-family: 'Noto Sans KR', sans-serif; /* 폰트 변경 */
+            font-family: 'Noto Sans KR', sans-serif;
             margin: 0;
             background-color: #f0f2f5;
             height: 100%;
             overflow: hidden;
-            letter-spacing: -0.5px; /* 전체적으로 자간을 살짝 좁힘 */
+            letter-spacing: -0.5px;
         }
         .chat-wrapper {
             width: 100%;
@@ -25,9 +24,10 @@
             display: flex;
             flex-direction: column;
             height: 100dvh;
-            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
         }
-        /* ... (헤더 등 기존 스타일 유지) ... */
+        
+        /* [헤더 수정] 버튼 배치를 위해 relative 설정 */
         .chat-header {
             background-color: #4A90E2;
             color: white;
@@ -35,10 +35,28 @@
             text-align: center;
             flex-shrink: 0;
             z-index: 100;
+            position: relative; 
         }
         .chat-header h1 { margin: 0; font-size: 1.3em; font-weight: 700; }
         .chat-header p { margin: 5px 0 0; font-size: 0.9em; opacity: 0.9; }
         
+        /* [복구됨] 대화 초기화 버튼 스타일 */
+        .reset-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            cursor: pointer;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .reset-btn:hover { background: rgba(255,255,255,0.3); }
+
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -47,8 +65,7 @@
             padding-bottom: 20px;
             background-color: #f9fafc;
         }
-        
-        /* [말풍선] */
+
         .chat-bubble {
             width: fit-content;
             max-width: 85%;
@@ -83,7 +100,28 @@
             overflow: hidden;
         }
 
-        /* [견적서 내부 스타일 - 숫자 예쁘게] */
+        /* 로딩 애니메이션 */
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.7); }
+            70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(74, 144, 226, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 144, 226, 0); }
+        }
+        
+        .chat-bubble.bot-loading-blue {
+            background: #4A90E2;
+            color: white;
+            font-weight: 700;
+            text-align: center;
+            border-radius: 30px;
+            animation: pulse 1.5s infinite;
+            margin: 10px auto;
+            display: table;
+            min-width: 220px;
+            border: 2px solid white;
+        }
+        .chat-bubble.bot-error { background-color: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; }
+
+        /* 견적서 스타일 */
         .quote-content { padding: 25px 20px; }
         .quote-title {
             font-size: 1.3em; font-weight: 800; color: #4A90E2;
@@ -91,49 +129,64 @@
             border-bottom: 2px solid #f0f0f0;
             display: flex; justify-content: space-between; align-items: center;
         }
-        /* 시간 표시 스타일 */
-        .quote-time {
-            font-size: 0.65em; color: #999; font-weight: 400; 
-            letter-spacing: 0; /* 시간 숫자는 자간 유지 */
-        }
-
+        .quote-time { font-size: 0.65em; color: #999; font-weight: 400; letter-spacing: 0; }
+        
         .item-title { font-size: 1.2em; font-weight: 700; color: #222; margin-top: 20px; margin-bottom: 5px; }
-        .item-detail { 
-            font-size: 1em; color: #555; padding-left: 8px; margin: 2px 0; 
-            font-feature-settings: "tnum"; /* 숫자 너비 일정하게 */
-        }
+        .item-detail { font-size: 1em; color: #555; padding-left: 8px; margin: 2px 0; font-feature-settings: "tnum"; }
         .item-subtotal { font-size: 1.05em; font-weight: 600; color: #333; margin-top: 8px; }
         .item-notification { font-size: 0.9em; color: #e53e3e; background: #fff5f5; padding: 10px; border-radius: 8px; margin-top: 10px; }
         
         .total-line {
             font-size: 1.5em; font-weight: 800; color: #e53e3e;
             margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ddd;
-            text-align: center;
-            letter-spacing: -1px; /* 총액 숫자 자간 좁게 */
+            text-align: center; letter-spacing: -1px;
         }
         
-        /* ... (나머지 스타일은 기존과 동일) ... */
-        /* (연락처 카드, 버튼, 입력창 등 기존 CSS 그대로 유지) */
         .common-title { font-weight: 700; margin-top: 25px; font-size: 1.15em; color: #333; }
         .common-detail { font-size: 1em; color: #666; line-height: 1.7; }
-        .contact-card { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 12px; padding: 20px; margin: 30px 15px 15px 15px; text-align: center; }
+
+        /* 연락처 및 버튼 */
+        .contact-card {
+            background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 12px;
+            padding: 20px; margin: 30px 15px 15px 15px; text-align: center;
+        }
         .contact-name { font-size: 1.2em; font-weight: 700; color: #333; margin-bottom: 12px; }
-        .call-button { display: block; width: 100%; background-color: #e7f1ff; color: #4A90E2; text-decoration: none; padding: 14px 0; border-radius: 8px; font-weight: 700; font-size: 1.1em; transition: background-color 0.2s; }
+        .call-button {
+            display: block; width: 100%; background-color: #e7f1ff; color: #4A90E2;
+            text-decoration: none; padding: 14px 0; border-radius: 8px;
+            font-weight: 700; font-size: 1.1em; transition: background-color 0.2s;
+        }
         .call-button:hover { background-color: #d0e1fd; }
+        
         .share-area { padding: 0 15px 25px 15px; }
-        .share-button-n8n { width: 100%; padding: 14px; background-color: #ffffff; border: 2px solid #4A90E2; color: #4A90E2; border-radius: 8px; font-weight: 700; font-size: 1.1em; cursor: pointer; }
-        .chat-input-area { background-color: #fff; padding: 15px; padding-bottom: max(20px, env(safe-area-inset-bottom)); border-top: 1px solid #eee; display: flex; align-items: center; flex-shrink: 0; }
+        .share-button-n8n {
+            width: 100%; padding: 14px; background-color: #ffffff;
+            border: 2px solid #4A90E2; color: #4A90E2; border-radius: 8px;
+            font-weight: 700; font-size: 1.1em; cursor: pointer;
+        }
+
+        .chat-input-area {
+            background-color: #fff; padding: 15px;
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+            border-top: 1px solid #eee;
+            display: flex; align-items: center; flex-shrink: 0;
+        }
         #userInput { flex: 1; padding: 14px; border: 1px solid #ddd; border-radius: 30px; font-size: 1em; outline: none; background: #f8f9fa; }
         #userInput:focus { border-color: #4A90E2; background: white; }
         #sendButton { margin-left: 10px; padding: 14px 24px; background-color: #4A90E2; color: white; border: none; border-radius: 30px; font-size: 1.1em; font-weight: 700; white-space: nowrap; cursor: pointer; }
         #sendButton:disabled { background-color: #cbd5e1; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
     </style>
 </head>
 <body>
     <div class="chat-wrapper">
         <div class="chat-header">
             <h1>섬세한 1분 필름견적</h1>
-            <p>V.251120_Final_v2</p>
+            <p>V.251120_1530</p>
+            <button onclick="clearHistory()" class="reset-btn">🔄 대화 초기화</button>
         </div>
         <div class="chat-container" id="chatContainer"></div>
         <div class="chat-input-area">
@@ -141,32 +194,83 @@
             <button id="sendButton">전송</button>
         </div>
     </div>
+
     <script>
-        // ... (자바스크립트 코드는 기존과 100% 동일합니다) ...
-        // (기존 코드 그대로 복사해서 넣으시면 됩니다)
         const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
-        
-        function scrollToBottom() { setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50); }
+
+        // [!] 페이지 로드 시 저장된 대화 불러오기
+        window.onload = function() {
+            loadChatHistory();
+        };
+
+        function scrollToBottom() {
+            setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50);
+        }
+
+        // [!] 대화 저장 함수
+        function saveChatHistory() {
+            // 로딩 버블은 저장하지 않음
+            const cleanHTML = chatContainer.innerHTML.replace(/<div class="chat-bubble bot-loading-blue".*?<\/div>/g, '');
+            localStorage.setItem('filmChatHistory', cleanHTML);
+        }
+
+        // [!] 대화 불러오기 함수 (버튼 기능 복구 포함)
+        function loadChatHistory() {
+            const saved = localStorage.getItem('filmChatHistory');
+            if (saved && saved.trim() !== "") {
+                chatContainer.innerHTML = saved;
+                // 저장된 HTML에는 버튼 이벤트가 없으므로 다시 연결해줘야 함
+                const shareBtns = document.querySelectorAll('.share-button-n8n');
+                shareBtns.forEach(btn => {
+                    btn.onclick = function(e) {
+                        e.stopPropagation();
+                        const bubble = btn.closest('.chat-bubble');
+                        shareQuote(bubble);
+                    };
+                });
+                scrollToBottom();
+            } else {
+                addBubble("안녕하세요! 👋<br><b>시공 항목</b>과 <b>수량</b>을 입력해주세요.<br>1분 이내로 상세 견적을 알려드립니다.<br><br>예) 방문 3, 샤시 5, 30평 몰딩", 'bot');
+            }
+        }
+
+        // [!] 대화 초기화 함수
+        function clearHistory() {
+            if(confirm("대화 내용을 모두 지우시겠습니까?")) {
+                localStorage.removeItem('filmChatHistory');
+                location.reload();
+            }
+        }
+
         function shareQuote(bubble) {
             const clone = bubble.cloneNode(true);
             const removeTargets = clone.querySelectorAll('button, .contact-card, .share-area');
             removeTargets.forEach(el => el.remove());
             const text = clone.innerText.trim() + "\n\n[문의] 김정헌 실장: 010-6657-1222";
-            if (navigator.share) { navigator.share({ title: '견적 내역', text: text }).catch(console.error); } else { navigator.clipboard.writeText(text).then(() => alert('견적 내용이 복사되었습니다.')); }
+            
+            if (navigator.share) {
+                navigator.share({ title: '견적 내역', text: text }).catch(console.error);
+            } else {
+                navigator.clipboard.writeText(text).then(() => alert('견적 내용이 복사되었습니다.'));
+            }
         }
+
         function addBubble(message, sender, isQuote = false) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
+            
             if (isQuote) {
                 bubble.classList.add('quote-response');
                 bubble.innerHTML = `<div class="quote-content">${message}</div>`;
+                
                 const contactCard = document.createElement('div');
                 contactCard.className = 'contact-card';
                 contactCard.innerHTML = `<div class="contact-name">시공문의 : 김정헌 실장</div><a href="tel:01066571222" class="call-button">📞 010-6657-1222</a>`;
                 bubble.appendChild(contactCard);
+
                 const shareArea = document.createElement('div');
                 shareArea.className = 'share-area';
                 const shareBtn = document.createElement('button');
@@ -175,10 +279,17 @@
                 shareBtn.onclick = (e) => { e.stopPropagation(); shareQuote(bubble); };
                 shareArea.appendChild(shareBtn);
                 bubble.appendChild(shareArea);
-            } else { bubble.innerHTML = message; }
+            } else { 
+                bubble.innerHTML = message; 
+            }
+            
             chatContainer.appendChild(bubble);
             scrollToBottom();
+            
+            // [!] 메시지 추가될 때마다 저장
+            saveChatHistory();
         }
+        
         function addTimerBubble(message) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', 'bot-loading-blue');
@@ -187,13 +298,16 @@
             scrollToBottom();
             return bubble;
         }
+
         async function sendRequest() {
             const msg = userInput.value.trim();
             if (!msg) return;
+
             addBubble(msg, 'user');
             userInput.value = "";
             userInput.blur(); 
             sendButton.disabled = true;
+
             let sec = 60;
             const loading = addTimerBubble(`견적 계산 중... ${sec}s`);
             const timer = setInterval(() => {
@@ -201,16 +315,20 @@
                 loading.innerHTML = `⏳ 견적 계산 중... ${sec}s`;
                 if(sec <= 0) clearInterval(timer);
             }, 1000);
+
             try {
                 const res = await fetch(N8N_WEBHOOK_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_request: msg })
                 });
+                
                 clearInterval(timer);
                 if(loading.parentNode) loading.parentNode.removeChild(loading);
+
                 if (!res.ok) throw new Error('Server Error');
                 const data = await res.json();
+
                 if (Array.isArray(data) && data.length > 0 && data[0].message) {
                     addBubble(data[0].message, 'bot', true);
                 } else if (data && data.message) {
@@ -226,11 +344,15 @@
             } finally {
                 sendButton.disabled = false;
                 scrollToBottom();
+                // [!] 완료 후에도 저장
+                saveChatHistory();
             }
         }
+
         sendButton.addEventListener('click', sendRequest);
-        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
-        addBubble("안녕하세요! 👋<br><b>시공 항목</b>과 <b>수량</b>을 입력해주세요.<br>1분 이내로 상세 견적을 알려드립니다.<br><br>예) 방문 3, 샤시 5, 30평 몰딩", 'bot');
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendRequest();
+        });
     </script>
 </body>
 </html>
