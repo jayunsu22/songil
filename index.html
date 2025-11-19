@@ -1,121 +1,154 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>섬세한 1분 필름견적</title>
-    <style>
-        /* [화면 높이 버그 수정] html, body 모두 100% 설정 */
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #f0f2f5;
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-            overflow: hidden; /* 이중 스크롤 방지 */
-        }
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>섬세한 1분 필름견적</title>
+<style>
+        /* [스타일(CSS) 부분은 이전과 동일합니다] */
+body {
+font-family: Arial, sans-serif;
+margin: 0;
+@@ -84,11 +83,13 @@
+border-bottom-left-radius: 5px;
+font-weight: bold;
+}
+        .share-button-n8n {
 
-        /* [채팅창 틀] */
-        .chat-wrapper {
-            width: 100%;
-            max-width: 500px;
-            height: 100%; /* 화면 꽉 차게 */
-            margin: 0 auto;
-            background: #ffffff;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            box-shadow: 0 0 20px rgba(0,0,0,0.05);
-        }
+        /* [!] 3번 요청: (파란색) 공유 버튼 스타일 */
+        .share-button-html {
+display: block;
+            width: 100%; 
+            box-sizing: border-box; 
+            margin-top: 20px; 
+            width: 100%; /* 부모(버블) 대비 100% */
+            box-sizing: border-box; /* 패딩 포함 */
+            margin-top: 20px; /* 위 여백 */
+padding: 12px;
+background-color: #4A90E2;
+color: white;
+@@ -100,9 +101,10 @@
+cursor: pointer;
+transition: background-color 0.2s;
+}
+        .share-button-n8n:hover {
+        .share-button-html:hover {
+background-color: #357ABD;
+}
 
-        /* [헤더] */
-        .chat-header {
-            background-color: #4A90E2;
-            color: white;
-            padding: 15px;
-            text-align: center;
-            flex-shrink: 0;
-            z-index: 10;
-        }
-        .chat-header h1 { margin: 0; font-size: 1.3em; font-weight: 700; }
-        .chat-header p { margin: 5px 0 0; font-size: 0.9em; opacity: 0.9; }
-
-        /* [채팅 내용 영역] */
-        .chat-container {
-            flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: 20px;
-            padding-bottom: 40px;
-            background-color: #f9fafc;
-            display: block;
-        }
-
-        /* [말풍선] */
-        .chat-bubble {
-            width: fit-content;
-            max-width: 85%;
-            padding: 12px 16px;
-            border-radius: 18px;
-            margin-bottom: 12px;
-            line-height: 1.5;
-            position: relative;
-            font-size: 1.05em;
-            word-break: break-word;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .chat-bubble.user {
-            background-color: #4A90E2;
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-            margin-left: auto; /* 우측 정렬 */
-        }
-        .chat-bubble.bot {
-            background-color: #ffffff;
-            color: #333;
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-            margin-right: auto; /* 좌측 정렬 */
-            border: 1px solid #eee;
-        }
-        .chat-bubble.bot.quote-response {
-            width: 100%;
-            max-width: 96%;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        /* [로딩 애니메이션] */
-        .chat-bubble.bot-loading-blue {
-            background: #4A90E2;
-            color: white;
-            font-weight: 700;
-            text-align: center;
-            border-radius: 30px;
-            margin: 10px auto;
-            display: table;
-            min-width: 200px;
-            box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);
-        }
-        .chat-bubble.bot-error { background-color: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; }
-
-        /* [견적서 스타일] */
-        .quote-content { padding: 25px 20px; }
-        .quote-title {
-            font-size: 1.3em; font-weight: 800; color: #4A90E2;
-            margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;
-        }
-        .item-title { font-size: 1.2em; font-weight: 700; color: #222; margin-top: 20px; margin-bottom: 5px; }
-        .item-detail { font-size: 1em; color: #555; padding-left: 8px; margin: 2px 0; }
-        .item-subtotal { font-size: 1.05em; font-weight: 600; color: #333; margin-top: 8px; }
-        .item-notification { font-size: 0.9em; color: #e53e3e; background: #fff5f5; padding: 10px; border-radius: 8px; margin-top: 10px; }
+.chat-input-area {
+display: flex;
+padding: 15px;
+@@ -178,25 +180,22 @@
+color: #555;
+line-height: 1.6;
+}
         
-        .total-line {
-            font-size: 1.5em; font-weight: 800; color: #e53e3e;
-            margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ddd;
-            text-align: center;
+        /* [!] 1번 요청: 연락처 박스 스타일 */
+.contact-box {
+            background-color: #f0f8ff; 
+            border: 1px solid #4A90E2;  
+            background-color: #f0f8ff; /* 연한 하늘색 배경 */
+            border: 1px solid #4A90E2;  /* 파란색 테두리 */
+border-radius: 8px;
+padding: 12px;
+margin-top: 20px;
+}
+        .contact-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #111;
+            margin-bottom: 10px;
         }
-        .common-title { font-weight: 700; margin-top: 25px; font-size: 1.15em; color: #333; }
-        .common-detail { font-size: 1em; color: #666;
+.contact-info {
+font-size: 1em;
+font-weight: 500;
+color: #333;
+margin: 5px 0;
+}
+        /* [!] 2번 요청: 전화걸기 링크 스타일 */
+.contact-info a {
+color: #4A90E2;
+text-decoration: none;
+@@ -225,7 +224,7 @@ <h1>섬세한 1분 필름견적</h1>
+</div>
+
+<script>
+        // [!] n8n 웹훅 URL
+        // [!] n8n 웹훅 URL (이전에 입력하신 값)
+const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
+
+const chatContainer = document.getElementById('chatContainer');
+@@ -243,33 +242,42 @@ <h1>섬세한 1분 필름견적</h1>
+bubble.innerHTML = message; 
+chatContainer.appendChild(bubble);
+
+            // [!] 3번 요청: JavaScript가 유일하게 공유 버튼을 추가 (중복 방지)
+if (isQuote) {
+                const shareBtn = bubble.querySelector('.share-button-n8n'); 
+                if (shareBtn) {
+                // n8n이 보낸 HTML에 버튼이 없는지 확인
+                if (!bubble.querySelector('.share-button-html')) {
+                    const shareBtn = document.createElement('button');
+                    shareBtn.className = 'share-button-html'; // 새 스타일 적용
+                    shareBtn.innerHTML = '공유하기'; // 텍스트 변경
+shareBtn.onclick = (e) => {
+                        e.stopPropagation(); 
+                        shareQuote(bubble); 
+                        e.stopPropagation(); // 버블 클릭 방지
+                        shareQuote(bubble); // 공유 함수 호출
+};
+                    bubble.appendChild(shareBtn); // 버블의 자식으로 추가
+}
+}
+
+chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+        // [!] 3번 요청: 공유 기능 함수
+function shareQuote(bubble) {
+            // 버튼을 제외한 순수 텍스트만 추출
+const quoteHTML = bubble.cloneNode(true);
+            const btn = quoteHTML.querySelector('.share-button-n8n');
+            const btn = quoteHTML.querySelector('.share-button-html');
+if (btn) {
+                btn.remove(); 
+                btn.remove(); // 복사하기 전에 버튼 제거
+}
+const quoteText = quoteHTML.innerText.trim();
+
+if (navigator.share) {
+                // 모바일 기기 (네이티브 공유)
+navigator.share({
+title: '인테리어 필름 견적 내역',
+text: quoteText
+}).catch(console.error);
+} else {
+                // PC (클립보드 복사)
+navigator.clipboard.writeText(quoteText).then(() => {
+alert('견적 내용이 클립보드에 복사되었습니다.');
+}).catch(console.error);
+@@ -322,22 +330,15 @@ <h1>섬세한 1분 필름견적</h1>
+throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
+}
+
+                // ----------------------------------------------------
+                // [!] 🚨🚨 여기가 최종 수정된 부분입니다 🚨🚨
+                // n8n이 [ {"message": "..."} ] (배열)이 아닌
+                // { "message": "..." } (객체)를 보내는 버그를 우회합니다.
+                // ----------------------------------------------------
+                const data = await response.json(); // .json()으로 받습니다.
+                // n8n이 { "message": "..." } (객체)를 보냅니다.
+                const data = await response.json(); 
+
+                // n8n이 보내는 데이터는 [ {"message": "..."} ] 형태입니다.
+                // 따라서 data가 배열이고 첫 항목이 있으면, 그 안의 message를 사용합니다.
+                if (Array.isArray(data) && data.length > 0 && data[0].message) {
+                    addBubble(data[0].message, 'bot', true);
+                // data.message (객체)를 찾습니다.
+                if (data && data.message) {
+                    addBubble(data.message, 'bot', true);
+} else {
+                    // 이 else 블록은 n8n이 빈 배열이나 엉뚱한 데이터를 보냈을 때 실행됩니다.
+addBubble("⚠️ 응답 내용 없음: n8n에서 빈 메시지를 받았습니다. (데이터 형식 불일치)", 'bot-error');
+}
+                // ----------------------------------------------------
+
+} catch (error) {
+clearInterval(timerId); 
