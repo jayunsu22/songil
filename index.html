@@ -271,14 +271,14 @@
                 contactCard.innerHTML = `<div class="contact-name">시공문의 : 김정헌 실장</div><a href="tel:01066571222" class="call-button">📞 010-6657-1222</a>`;
                 bubble.appendChild(contactCard);
 
-                const shareArea = document.createElement('div');
-                shareArea.className = 'share-area';
-                const shareBtn = document.createElement('button');
-                shareBtn.className = 'share-button-n8n';
-                shareBtn.innerHTML = '🔗 견적 내용 공유하기';
-                shareBtn.onclick = (e) => { e.stopPropagation(); shareQuote(bubble); };
-                shareArea.appendChild(shareBtn);
-                bubble.appendChild(shareArea);
+                // const shareArea = document.createElement('div');
+                // shareArea.className = 'share-area';
+                // const shareBtn = document.createElement('button');
+                // shareBtn.className = 'share-button-n8n';
+                // shareBtn.innerHTML = '🔗 견적 내용 공유하기';
+                // shareBtn.onclick = (e) => { e.stopPropagation(); shareQuote(bubble); };
+                // shareArea.appendChild(shareBtn);
+                // bubble.appendChild(shareArea);
             } else { 
                 bubble.innerHTML = message; 
             }
@@ -356,3 +356,4 @@
     </script>
 </body>
 </html>
+
