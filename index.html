@@ -268,7 +268,11 @@
                 
                 const contactCard = document.createElement('div');
                 contactCard.className = 'contact-card';
-                contactCard.innerHTML = `<div class="contact-name">문의: 김정헌실장 (블로그 시공사진보기)</div><a href="https://blog.naver.com/shine22" target="_blank" class="call-button" style="background-color:#2DB400;">🏠 블로그 구경가기</a><a href="tel:01066571222" class="call-button" style="margin-top:10px;">📞 010-6657-1222</a>`;
+                contactCard.innerHTML = ` <div class="contact-name">문의: 김정헌실장</div>
+                    <div class="contact-row">
+                        <a href="https://blog.naver.com/shine22" target="_blank" class="call-button blog">🏠 블로그 구경</a>
+                        <a href="tel:01066571222" class="call-button">📞 전화 상담하기</a>
+                    </div>`;
                 bubble.appendChild(contactCard);
 
                 // const shareArea = document.createElement('div');
@@ -356,6 +360,7 @@
     </script>
 </body>
 </html>
+
 
 
 
