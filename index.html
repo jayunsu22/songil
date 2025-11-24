@@ -27,7 +27,6 @@
             box-shadow: 0 0 15px rgba(0,0,0,0.1);
         }
         
-        /* [헤더 수정] 버튼 배치를 위해 relative 설정 */
         .chat-header {
             background-color: #4A90E2;
             color: white;
@@ -40,7 +39,6 @@
         .chat-header h1 { margin: 0; font-size: 1.3em; font-weight: 700; }
         .chat-header p { margin: 5px 0 0; font-size: 0.9em; opacity: 0.9; }
         
-        /* [복구됨] 대화 초기화 버튼 스타일 */
         .reset-btn {
             position: absolute;
             right: 15px;
@@ -100,7 +98,6 @@
             overflow: hidden;
         }
 
-        /* 로딩 애니메이션 */
         @keyframes pulse {
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.7); }
             70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(74, 144, 226, 0); }
@@ -121,7 +118,6 @@
         }
         .chat-bubble.bot-error { background-color: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; }
 
-        /* 견적서 스타일 */
         .quote-content { padding: 25px 20px; }
         .quote-title {
             font-size: 1.3em; font-weight: 800; color: #4A90E2;
@@ -137,7 +133,7 @@
         .item-notification { font-size: 0.9em; color: #e53e3e; background: #fff5f5; padding: 10px; border-radius: 8px; margin-top: 10px; }
         
         .total-line {
-            font-size: 1.5em; font-weight: 600; color: #e53e3e;
+            font-size: 1.5em; font-weight: 800; color: #e53e3e;
             margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ddd;
             text-align: center; letter-spacing: -1px;
         }
@@ -145,12 +141,12 @@
         .common-title { font-weight: 700; margin-top: 25px; font-size: 1.15em; color: #333; }
         .common-detail { font-size: 1em; color: #666; line-height: 1.7; }
 
-        /* 연락처 및 버튼 */
         .contact-card {
             background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 12px;
             padding: 20px; margin: 30px 15px 15px 15px; text-align: center;
         }
-        .contact-name { font-size: 1.2em; font-weight: 700; color: #333; margin-bottom: 12px; }
+        .contact-name { font-size: 1.2em; font-weight: 700; color: #333; margin-bottom: 0; }
+        
         .call-button {
             display: block; width: 100%; background-color: #e7f1ff; color: #4A90E2;
             text-decoration: none; padding: 14px 0; border-radius: 8px;
@@ -185,7 +181,7 @@
     <div class="chat-wrapper">
         <div class="chat-header">
             <h1>섬세한 1분 필름견적</h1>
-            <p>V.251120_1530</p>
+            <p>V.251122_1450</p>
             <button onclick="clearHistory()" class="reset-btn">🔄대화삭제</button>
         </div>
         <div class="chat-container" id="chatContainer"></div>
@@ -201,23 +197,21 @@
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
 
-        // [!] 페이지 로드 시 저장된 대화 불러오기
-        window.onload = function() {
-            loadChatHistory();
-        };
+        window.onload = function() { loadChatHistory(); };
 
         function scrollToBottom() {
             setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50);
         }
 
-        // [!] 대화 저장 함수
         function saveChatHistory() {
             // 로딩 버블은 저장하지 않음
-            const cleanHTML = chatContainer.innerHTML.replace(/<div class="chat-bubble bot-loading-blue".*?<\/div>/g, '');
-            localStorage.setItem('filmChatHistory', cleanHTML);
+            let htmlContent = chatContainer.innerHTML;
+            // [!] 메뉴 버튼 컨테이너는 저장하지 않음 (로드 시 새로 생성)
+            htmlContent = htmlContent.replace(/<div class="chat-bubble bot-loading-blue".*?<\/div>/g, '');
+            htmlContent = htmlContent.replace(/<div class="menu-buttons-container".*?<\/div>/g, '');
+            localStorage.setItem('filmChatHistory', htmlContent);
         }
 
-        // [!] 대화 불러오기 함수 (버튼 기능 복구 포함)
         function loadChatHistory() {
             const saved = localStorage.getItem('filmChatHistory');
             if (saved && saved.trim() !== "") {
@@ -231,13 +225,56 @@
                         shareQuote(bubble);
                     };
                 });
+                
+                // [!] 메뉴 버튼 다시 보여주기 (맨 아래에 추가)
+                showMenuButtons();
                 scrollToBottom();
             } else {
-                addBubble("안녕하세요! 섬세한손길 필름팀입니다!🔍<br><b>견적가능</b>한 시공품목 예시입니다!<br><b>품목</b>과 <b>수량</b>을 알려주세요!<br><br>🔸30평 아파트, 30평 빌라<br>🔸방문3, 현관문1, 중문1, 터닝도어2<br>🔸샤시2, 시스템샤시3, 갈바5m<br>🔸샤시3m 2개, 시스템샤시2m 3개<br>🔸샤시2중창 5m 3개, 갈바양쪽시공 5m<br>🔸갈매기몰딩30평, 걸레받이30평<br>🔸싱크대20평, 싱크대하부장 20평<br>🔸붙박이장1, 수납장1, 신발장2<br>🔸등박스10m, 가벽10m, 알판5m<br>🔸웨인스코팅10m<br>🔸아치2,아트월1,냉장고장1", 'bot');
+                // 초기 메시지
+                addBubble("안녕하세요! 섬세한손길 필름팀입니다!🔍<br><b>견적가능</b>한 시공품목 예시입니다!<br><b>품목</b>과 <b>수량</b>을 알려주세요!<br><br>👇 <b>아래 버튼을 누르거나 직접 입력하세요!</b>", 'bot');
+                
+                // [!] 메뉴 버튼 생성
+                setTimeout(() => { showMenuButtons(); }, 500);
             }
         }
+        
+        // [!] 클릭형 메뉴 버튼 생성 함수
+        function showMenuButtons() {
+            // 중복 생성 방지
+            if(document.querySelector('.menu-buttons-container')) return;
 
-        // [!] 대화 초기화 함수
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'menu-buttons-container';
+            buttonContainer.style.cssText = "display:flex; flex-wrap:wrap; gap:8px; margin:10px 20px; justify-content:flex-start;";
+            
+            const menus = [
+                "30평 아파트 전체",
+                "방문 3개, 화장실문 2개",
+                "싱크대 30평",
+                "샤시 5개",
+                "붙박이장 1개, 신발장 1개"
+            ];
+
+            menus.forEach(text => {
+                const btn = document.createElement('button');
+                btn.innerText = text;
+                // 기존 테마(파란색)에 맞춘 버튼 스타일
+                btn.style.cssText = "padding:8px 14px; background:#fff; border:1px solid #4A90E2; color:#4A90E2; border-radius:20px; font-size:0.9em; cursor:pointer; font-family:'Noto Sans KR'; font-weight:500; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s;";
+                
+                btn.onmouseover = () => { btn.style.backgroundColor = "#e7f1ff"; };
+                btn.onmouseout = () => { btn.style.backgroundColor = "#fff"; };
+
+                btn.onclick = () => {
+                    userInput.value = text;
+                    sendRequest();
+                };
+                buttonContainer.appendChild(btn);
+            });
+
+            chatContainer.appendChild(buttonContainer);
+            scrollToBottom();
+        }
+
         function clearHistory() {
             if(confirm("대화 내용을 모두 지우시겠습니까?")) {
                 localStorage.removeItem('filmChatHistory');
@@ -249,7 +286,7 @@
             const clone = bubble.cloneNode(true);
             const removeTargets = clone.querySelectorAll('button, .contact-card, .share-area');
             removeTargets.forEach(el => el.remove());
-            const text = clone.innerText.trim() + "\n\n[문의] 김정헌 실장: 010-6657-1222";
+            const text = clone.innerText.trim() + "\n\n[문의] 김정헌 실장: 010-6657-1222\nhttps://blog.naver.com/shine22";
             
             if (navigator.share) {
                 navigator.share({ title: '견적 내역', text: text }).catch(console.error);
@@ -266,32 +303,32 @@
                 bubble.classList.add('quote-response');
                 bubble.innerHTML = `<div class="quote-content">${message}</div>`;
                 
+                // [!] 연락처 카드 (블로그 버튼 옆에 배치)
                 const contactCard = document.createElement('div');
                 contactCard.className = 'contact-card';
-                contactCard.innerHTML = ` <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:15px;">
-                        <div class="contact-name" style="margin-bottom:0;">문의 : 김정헌 실장</div>
-                        <a href="https://blog.naver.com/shine22" target="_blank" style="background-color:#03C75A; color:white; text-decoration:none; padding:4px 8px; border-radius:4px; font-size:0.8em; font-weight:bold;">🏠 블로그</a>
+                contactCard.innerHTML = `
+                    <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:15px;">
+                        <div class="contact-name">문의 : 김정헌 실장</div>
+                        <a href="https://blog.naver.com/shine22" target="_blank" style="background-color:#03C75A; color:white; text-decoration:none; padding:4px 8px; border-radius:4px; font-size:0.8em; font-weight:bold; display:flex; align-items:center;">🏠 블로그</a>
                     </div>
                     <a href="tel:01066571222" class="call-button">📞 전화 상담하기</a>
                 `;
                 bubble.appendChild(contactCard);
 
-                // const shareArea = document.createElement('div');
-                // shareArea.className = 'share-area';
-                // const shareBtn = document.createElement('button');
-                // shareBtn.className = 'share-button-n8n';
-                // shareBtn.innerHTML = '🔗 견적 내용 공유하기';
-                // shareBtn.onclick = (e) => { e.stopPropagation(); shareQuote(bubble); };
-                // shareArea.appendChild(shareBtn);
-                // bubble.appendChild(shareArea);
+                const shareArea = document.createElement('div');
+                shareArea.className = 'share-area';
+                const shareBtn = document.createElement('button');
+                shareBtn.className = 'share-button-n8n';
+                shareBtn.innerHTML = '🔗 견적 내용 공유하기';
+                shareBtn.onclick = (e) => { e.stopPropagation(); shareQuote(bubble); };
+                shareArea.appendChild(shareBtn);
+                bubble.appendChild(shareArea);
             } else { 
                 bubble.innerHTML = message; 
             }
             
             chatContainer.appendChild(bubble);
             scrollToBottom();
-            
-            // [!] 메시지 추가될 때마다 저장
             saveChatHistory();
         }
         
@@ -349,7 +386,6 @@
             } finally {
                 sendButton.disabled = false;
                 scrollToBottom();
-                // [!] 완료 후에도 저장
                 saveChatHistory();
             }
         }
@@ -361,24 +397,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
