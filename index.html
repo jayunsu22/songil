@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -192,7 +192,24 @@
     </div>
 
     <script>
-        const N8N_WEBHOOK_URL = "https://primary-production-a6fa.up.railway.app/webhook/landbot-request"; 
+        // =========================================================================
+        // [설정 영역] 고객사(사장님)마다 여기만 수정해서 납품하면 됩니다!
+        // =========================================================================
+        const CONFIG = {
+            // 1. n8n 웹훅 주소 (고객사별로 다를 수 있음)
+            webhookUrl: "https://primary-production-a6fa.up.railway.app/webhook/landbot-request",
+            
+            // 2. n8n 보안 토큰 (고객사별 고유 비밀번호)
+            secretToken: "songil_secret_2025", 
+
+            // 3. 업체 정보 (견적서 하단 표시용)
+            managerName: "김정헌 실장",             // 담당자 이름
+            phoneNumber: "010-6657-1222",           // 전화번호 (하이픈 포함)
+            blogUrl: "https://blog.naver.com/shine22", // 블로그/홈페이지 주소
+            blogName: "블로그"                      // 버튼에 표시될 이름
+        };
+        // =========================================================================
+
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
@@ -297,10 +314,12 @@
         }
 
         function shareQuote(bubble) {
+            // [수정] 공유 텍스트 생성 시 CONFIG 변수 사용
             const clone = bubble.cloneNode(true);
             const removeTargets = clone.querySelectorAll('button, .contact-card, .share-area');
             removeTargets.forEach(el => el.remove());
-            const text = clone.innerText.trim() + "\n\n[문의] 김정헌 실장: 010-6657-1222\nhttps://blog.naver.com/shine22";
+            
+            const text = clone.innerText.trim() + `\n\n[문의] ${CONFIG.managerName}: ${CONFIG.phoneNumber}\n${CONFIG.blogUrl}`;
             
             if (navigator.share) {
                 navigator.share({ title: '견적 내역', text: text }).catch(console.error);
@@ -309,7 +328,7 @@
             }
         }
 
-        // [수정] addBubble 함수: 반환값 추가
+        // [수정] addBubble 함수: CONFIG 변수를 사용하여 연락처 카드 생성
         function addBubble(message, sender, isQuote = false) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
@@ -318,18 +337,20 @@
                 bubble.classList.add('quote-response');
                 bubble.innerHTML = `<div class="quote-content">${message}</div>`;
                 
+                // 전화번호에서 하이픈(-) 제거하여 tel 링크 생성
+                const cleanPhone = CONFIG.phoneNumber.replace(/-/g, '');
+
                 const contactCard = document.createElement('div');
                 contactCard.className = 'contact-card';
                 contactCard.innerHTML = `
                     <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:15px;">
-                        <div class="contact-name">문의 : 김정헌 실장</div>
-                        <a href="https://blog.naver.com/shine22" target="_blank" style="background-color:#03C75A; color:white; text-decoration:none; padding:5px 10px; border-radius:4px; font-size:0.8em; font-weight:bold; display:flex; align-items:center;">
+                        <div class="contact-name">문의 : ${CONFIG.managerName}</div>
+                        <a href="${CONFIG.blogUrl}" target="_blank" style="background-color:#03C75A; color:white; text-decoration:none; padding:5px 10px; border-radius:4px; font-size:0.8em; font-weight:bold; display:flex; align-items:center;">
                             <img src="https://ssl.pstatic.net/static/blog/favicon/blog_favicon_190724.ico" style="width:14px; height:14px; margin-right:6px; background:white; border-radius:3px; padding:1px;">
-                            블로그
+                            ${CONFIG.blogName}
                         </a>
-
                     </div>
-                    <a href="tel:01066571222" class="call-button">📞 010-6657-1222</a>
+                    <a href="tel:${cleanPhone}" class="call-button">📞 ${CONFIG.phoneNumber}</a>
                 `;
                 bubble.appendChild(contactCard);
 
@@ -382,11 +403,12 @@
             }, 1000);
 
             try {
-                const res = await fetch(N8N_WEBHOOK_URL, {
+                // [수정] CONFIG 변수와 보안 토큰(x-secret-token) 적용
+                const res = await fetch(CONFIG.webhookUrl, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'x-secret-token': 'songil_secret_2025'  // 🔑 핵심: 비밀 암호 추가!
+                        'x-secret-token': CONFIG.secretToken  // 설정된 암호 전송
                     },
                     body: JSON.stringify({ user_request: msg })
                 });
@@ -430,7 +452,3 @@
     </script>
 </body>
 </html>
-
-
-
-
