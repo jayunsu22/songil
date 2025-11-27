@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -384,7 +384,10 @@
             try {
                 const res = await fetch(N8N_WEBHOOK_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-secret-token': 'songil_secret_2025'  // 🔑 핵심: 비밀 암호 추가!
+                    },
                     body: JSON.stringify({ user_request: msg })
                 });
                 
@@ -427,6 +430,7 @@
     </script>
 </body>
 </html>
+
 
 
 
