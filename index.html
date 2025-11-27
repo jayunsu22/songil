@@ -313,18 +313,73 @@
             }
         }
 
+        // [수정된 함수] 텍스트를 깔끔하게 정렬해서 공유하는 기능 (업그레이드 완료!)
         function shareQuote(bubble) {
-            // [수정] 공유 텍스트 생성 시 CONFIG 변수 사용
-            const clone = bubble.cloneNode(true);
-            const removeTargets = clone.querySelectorAll('button, .contact-card, .share-area');
-            removeTargets.forEach(el => el.remove());
+            let shareText = "";
             
-            const text = clone.innerText.trim() + `\n\n[문의] ${CONFIG.managerName}: ${CONFIG.phoneNumber}\n${CONFIG.blogUrl}`;
+            // 1. 견적 내용이 들어있는 메인 컨텐츠 가져오기
+            const contentDiv = bubble.querySelector('.quote-content');
             
-            if (navigator.share) {
-                navigator.share({ title: '견적 내역', text: text }).catch(console.error);
+            if (contentDiv) {
+                // 시간 및 제목 가져오기
+                const titleEl = contentDiv.querySelector('.quote-title');
+                if (titleEl) {
+                    const time = titleEl.querySelector('span')?.innerText || "";
+                    shareText += `[ 견적서 ${time} ]\n\n`;
+                }
+
+                // 2. 각 항목들을 순서대로 돌면서 예쁘게 줄맞춤
+                const children = contentDiv.children;
+                for (let i = 0; i < children.length; i++) {
+                    const el = children[i];
+                    const text = el.innerText.trim();
+
+                    if (!text) continue; // 빈 줄은 패스
+
+                    if (el.classList.contains('item-title')) {
+                        // 품목명 (한 줄 띄우고 강조)
+                        shareText += `\n${text}\n`; 
+                    } 
+                    else if (el.classList.contains('item-detail')) {
+                        // 금액 상세 (들여쓰기 적용)
+                        shareText += `   ${text}\n`; 
+                    } 
+                    else if (el.classList.contains('item-notification')) {
+                        // 빨간색 알림 박스 (경고 아이콘 붙여서 들여쓰기)
+                        const cleanNoti = text.replace(/📌/g, '').trim(); 
+                        shareText += `   ⚠️ ${cleanNoti}\n`; 
+                    } 
+                    else if (el.classList.contains('total-line')) {
+                        // 총 견적 금액 (구분선 추가)
+                        shareText += `\n==============================\n`;
+                        shareText += `   ${text}\n`;
+                        shareText += `==============================\n\n`;
+                    }
+                    else if (el.classList.contains('common-title')) {
+                        // 공통 알림 제목
+                        shareText += `📢 ${text}\n`;
+                    }
+                    else if (el.classList.contains('common-detail')) {
+                        // 공통 알림 내용
+                        shareText += `${text}\n`;
+                    }
+                }
             } else {
-                navigator.clipboard.writeText(text).then(() => alert('견적 내용이 복사되었습니다.'));
+                // 견적서 포맷이 아닌 일반 메시지일 경우
+                shareText = bubble.innerText.trim();
+            }
+
+            // 3. 하단에 문의 정보 붙이기 (설정된 CONFIG 변수 사용)
+            shareText += `\n------------------------------\n`;
+            shareText += `[문의] ${CONFIG.managerName}\n`;
+            shareText += `📞 ${CONFIG.phoneNumber}\n`;
+            shareText += `🔗 ${CONFIG.blogUrl}`;
+
+            // 4. 공유 또는 복사 실행
+            if (navigator.share) {
+                navigator.share({ title: '견적 내역', text: shareText }).catch(console.error);
+            } else {
+                navigator.clipboard.writeText(shareText).then(() => alert('견적 내용이 깔끔하게 복사되었습니다! ✨'));
             }
         }
 
@@ -359,7 +414,13 @@
                 const shareBtn = document.createElement('button');
                 shareBtn.className = 'share-button-n8n';
                 shareBtn.innerHTML = '🔗 견적 내용 공유하기';
-                shareBtn.onclick = (e) => { e.stopPropagation(); shareQuote(bubble); };
+                
+                // 여기 onclick은 addBubble 내에서 bubble을 참조하기 위해 설정
+                shareBtn.onclick = (e) => { 
+                    e.stopPropagation(); 
+                    shareQuote(bubble); // 위에서 새로 정의한 shareQuote 함수 호출
+                };
+                
                 shareArea.appendChild(shareBtn);
                 bubble.appendChild(shareArea);
             } else { 
@@ -370,7 +431,6 @@
             scrollToBottom();
             saveChatHistory();
             
-            // [핵심] 생성된 버블 요소 반환 (나중에 여기로 스크롤하기 위해)
             return bubble;
         }
         
@@ -387,7 +447,6 @@
             const msg = userInput.value.trim();
             if (!msg) return;
 
-            // [핵심] 사용자가 보낸 메시지 버블을 변수에 저장!
             const userBubble = addBubble(msg, 'user'); 
             
             userInput.value = "";
@@ -435,12 +494,10 @@
                 sendButton.disabled = false;
                 saveChatHistory();
                 
-                // [핵심] 모든 처리가 끝난 후, 아까 저장해둔 '질문 말풍선'으로 스크롤 이동!
-                // 부드럽게(smooth) 이동
                 if (userBubble) {
                     setTimeout(() => {
                         userBubble.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 100); // 약간의 딜레이를 줘서 화면이 그려진 후 이동
+                    }, 100); 
                 }
             }
         }
