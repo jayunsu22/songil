@@ -161,16 +161,105 @@
             font-weight: 700; font-size: 1.1em; cursor: pointer;
         }
 
+        /* --- [수정된 부분] 채팅 입력 영역 디자인 변경 --- */
         .chat-input-area {
-            background-color: #fff; padding: 15px;
+            background-color: #fff; 
+            padding: 15px;
             padding-bottom: max(20px, env(safe-area-inset-bottom));
             border-top: 1px solid #eee;
-            display: flex; align-items: center; flex-shrink: 0;
+            /* 기존 flex-direction에서 세로 정렬(미리보기 때문)로 변경하되, 입력창은 가로 유지 */
+            display: flex; 
+            flex-direction: column; 
+            flex-shrink: 0;
         }
-        #userInput { flex: 1; padding: 14px; border: 1px solid #ddd; border-radius: 30px; font-size: 1em; outline: none; background: #f8f9fa; }
+
+        /* 입력창과 전송버튼을 감싸는 컨테이너 */
+        .input-row {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* 입력 인풋과 카메라 아이콘을 감싸는 컨테이너 (relative) */
+        .input-wrapper {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        #userInput { 
+            width: 100%; 
+            padding: 14px; 
+            padding-right: 45px; /* 카메라 아이콘 공간 확보 */
+            border: 1px solid #ddd; 
+            border-radius: 30px; 
+            font-size: 1em; 
+            outline: none; 
+            background: #f8f9fa; 
+            box-sizing: border-box; /* 패딩 포함 너비 계산 */
+        }
         #userInput:focus { border-color: #4A90E2; background: white; }
-        #sendButton { margin-left: 10px; padding: 14px 24px; background-color: #4A90E2; color: white; border: none; border-radius: 30px; font-size: 1.1em; font-weight: 700; white-space: nowrap; cursor: pointer; }
+
+        /* 카메라 버튼 스타일 */
+        .camera-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+        .camera-btn:hover { transform: scale(1.1); }
+        .camera-btn svg { stroke: #666; }
+
+        #sendButton { 
+            margin-left: 10px; 
+            padding: 14px 24px; 
+            background-color: #4A90E2; 
+            color: white; 
+            border: none; 
+            border-radius: 30px; 
+            font-size: 1.1em; 
+            font-weight: 700; 
+            white-space: nowrap; 
+            cursor: pointer; 
+        }
         #sendButton:disabled { background-color: #cbd5e1; }
+
+        /* 이미지 미리보기 스타일 */
+        #preview-container {
+            display: none;
+            margin-bottom: 10px;
+            position: relative;
+            width: fit-content;
+        }
+        #preview-img {
+            max-height: 80px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            display: block;
+        }
+        .preview-close {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #e53e3e;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
@@ -181,38 +270,53 @@
     <div class="chat-wrapper">
         <div class="chat-header">
             <h1>이미지견적</h1>
-            <p>V.251123_1030</p>
+            <p>V.251123_DEV</p>
             <button onclick="clearHistory()" class="reset-btn">🔄대화삭제</button>
         </div>
         <div class="chat-container" id="chatContainer"></div>
+        
         <div class="chat-input-area">
-            <input type="text" id="userInput" placeholder="예) 방문 3, 샤시 5">
-            <button id="sendButton">전송</button>
+            <div id="preview-container">
+                <img id="preview-img" src="" alt="미리보기">
+                <button class="preview-close" onclick="clearImage()">×</button>
+            </div>
+
+            <div class="input-row">
+                <div class="input-wrapper">
+                    <input type="text" id="userInput" placeholder="사진 또는 내용 입력...">
+                    
+                    <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImageSelect(event)">
+                    
+                    <button class="camera-btn" onclick="document.getElementById('imageInput').click()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <button id="sendButton">전송</button>
+            </div>
         </div>
     </div>
 
     <script>
         // =========================================================================
-        // [설정 영역] 고객사(사장님)마다 여기만 수정해서 납품하면 됩니다!
+        // [설정 영역]
         // =========================================================================
         const CONFIG = {
-            // 1. n8n 웹훅 주소 (고객사별로 다를 수 있음)
             webhookUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test",
-            
-            // 2. n8n 보안 토큰 (고객사별 고유 비밀번호)
             secretToken: "songil_secret_2025", 
-
-            // 3. 업체 정보 (견적서 하단 표시용)
-            managerName: "김정헌 실장",             // 담당자 이름
-            phoneNumber: "010-6657-1222",           // 전화번호 (하이픈 포함)
-            blogUrl: "https://blog.naver.com/shine22", // 블로그/홈페이지 주소
-            blogName: "블로그"                      // 버튼에 표시될 이름
+            managerName: "김정헌 실장",
+            phoneNumber: "010-6657-1222",
+            blogUrl: "https://blog.naver.com/shine22",
+            blogName: "블로그"
         };
         // =========================================================================
 
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
+        let currentBase64Image = null; // [추가] 이미지 데이터 저장 변수
 
         window.onload = function() { loadChatHistory(); };
 
@@ -221,19 +325,16 @@
         }
 
         function saveChatHistory() {
-            // 로딩 버블은 저장하지 않음
             let htmlContent = chatContainer.innerHTML;
-            // [!] 메뉴 버튼 컨테이너는 저장하지 않음 (로드 시 새로 생성)
             htmlContent = htmlContent.replace(/<div class="chat-bubble bot-loading-blue".*?<\/div>/g, '');
             htmlContent = htmlContent.replace(/<div class="menu-buttons-container".*?<\/div>/g, '');
-            localStorage.setItem('filmChatHistory', htmlContent);
+            localStorage.setItem('filmChatHistoryDev', htmlContent); // Dev환경용 키로 변경(충돌방지)
         }
 
         function loadChatHistory() {
-            const saved = localStorage.getItem('filmChatHistory');
+            const saved = localStorage.getItem('filmChatHistoryDev');
             if (saved && saved.trim() !== "") {
                 chatContainer.innerHTML = saved;
-                // 저장된 HTML에는 버튼 이벤트가 없으므로 다시 연결해줘야 함
                 const shareBtns = document.querySelectorAll('.share-button-n8n');
                 shareBtns.forEach(btn => {
                     btn.onclick = function(e) {
@@ -242,22 +343,60 @@
                         shareQuote(bubble);
                     };
                 });
-                
-                // [!] 메뉴 버튼 다시 보여주기 (맨 아래에 추가)
                 showMenuButtons();
                 scrollToBottom();
             } else {
-                // 초기 메시지
-                addBubble("안녕하세요! 섬세한손길 필름팀입니다!🔍<br><b>견적가능</b>한 시공품목 예시입니다!<br><b>품목</b>과 <b>수량</b>을 알려주세요!<br><br>👇 <b>아래 버튼을 누르거나 직접 입력하세요!</b>", 'bot');
-                
-                // [!] 메뉴 버튼 생성
+                addBubble("안녕하세요! Dev환경입니다. 📸<br><b>카메라 아이콘</b>을 눌러 사진을 올려보세요!", 'bot');
                 setTimeout(() => { showMenuButtons(); }, 500);
             }
         }
         
-        // [!] 클릭형 메뉴 버튼 생성 함수
+        // [추가] 이미지 선택 및 압축 처리 함수
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // 캔버스 리사이징 (최대 800px)
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const MAX_WIDTH = 800;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // 압축된 Base64 데이터 저장
+                    currentBase64Image = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    // 미리보기 표시
+                    document.getElementById('preview-img').src = currentBase64Image;
+                    document.getElementById('preview-container').style.display = 'block';
+                    userInput.focus();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // [추가] 이미지 선택 취소
+        function clearImage() {
+            currentBase64Image = null;
+            document.getElementById('imageInput').value = '';
+            document.getElementById('preview-container').style.display = 'none';
+        }
+
         function showMenuButtons() {
-            // 중복 생성 방지
             if(document.querySelector('.menu-buttons-container')) return;
 
             const buttonContainer = document.createElement('div');
@@ -265,31 +404,15 @@
             buttonContainer.style.cssText = "display:flex; flex-wrap:wrap; gap:8px; margin:10px 20px; justify-content:flex-start;";
             
             const menus = [
-                "30평 아파트 전체",
-                "40평 빌라 전체",
-                "방문3, 화장실문2",
-                "현관문1",
-                "문틀 2개", "문짝 3개",
-                "중문 1개", "터닝도어2개",
-                "샤시2", "시스템샤시3", 
-                "시스템샤시2m 3개",
-                "샤시2중창 5m 3개", 
-                "갈바 5m", "갈바양쪽시공 3m",
-                "갈매기몰딩30평",
-                "몰딩 20평", "걸레받이30평",
-                "싱크대20평", "싱크대하부장 30평",
-                "붙박이장1", "수납장1", "신발장2",
-                "등박스10m", "가벽10m",
-                "알판5m, 웨인스코팅10m",
-                "아치2,아트월1,냉장고장1",
-                "붙박이장문틀 3개",
-                "신발장문짝 2개",
+                "방문 사진 견적", "샤시 사진 견적", // 메뉴 일부 수정
+                "30평 아파트 전체", "방문3, 화장실문2",
+                "현관문1", "문틀 2개", "문짝 3개",
+                "중문 1개", "터닝도어2개", "샤시2"
             ];
 
             menus.forEach(text => {
                 const btn = document.createElement('button');
                 btn.innerText = text;
-                // 기존 테마(파란색)에 맞춘 버튼 스타일
                 btn.style.cssText = "padding:8px 14px; background:#fff; border:1px solid #4A90E2; color:#4A90E2; border-radius:20px; font-size:0.9em; cursor:pointer; font-family:'Noto Sans KR'; font-weight:500; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s;";
                 
                 btn.onmouseover = () => { btn.style.backgroundColor = "#e7f1ff"; };
@@ -297,7 +420,7 @@
 
                 btn.onclick = () => {
                     userInput.value = text;
-                    sendRequest();
+                    sendRequest(); // 버튼 클릭 시 바로 전송
                 };
                 buttonContainer.appendChild(btn);
             });
@@ -308,74 +431,46 @@
 
         function clearHistory() {
             if(confirm("대화 내용을 모두 지우시겠습니까?")) {
-                localStorage.removeItem('filmChatHistory');
+                localStorage.removeItem('filmChatHistoryDev');
                 location.reload();
             }
         }
 
-        // [수정된 함수] 텍스트를 깔끔하게 정렬해서 공유하는 기능 (업그레이드 완료!)
         function shareQuote(bubble) {
             let shareText = "";
-            
-            // 1. 견적 내용이 들어있는 메인 컨텐츠 가져오기
             const contentDiv = bubble.querySelector('.quote-content');
             
             if (contentDiv) {
-                // 시간 및 제목 가져오기
                 const titleEl = contentDiv.querySelector('.quote-title');
                 if (titleEl) {
                     const time = titleEl.querySelector('span')?.innerText || "";
                     shareText += `[ 견적서 ${time} ]\n\n`;
                 }
 
-                // 2. 각 항목들을 순서대로 돌면서 예쁘게 줄맞춤
                 const children = contentDiv.children;
                 for (let i = 0; i < children.length; i++) {
                     const el = children[i];
                     const text = el.innerText.trim();
+                    if (!text) continue;
 
-                    if (!text) continue; // 빈 줄은 패스
-
-                    if (el.classList.contains('item-title')) {
-                        // 품목명 (한 줄 띄우고 강조)
-                        shareText += `\n${text}\n`; 
-                    } 
-                    else if (el.classList.contains('item-detail')) {
-                        // 금액 상세 (들여쓰기 적용)
-                        shareText += `   ${text}\n`; 
-                    } 
+                    if (el.classList.contains('item-title')) shareText += `\n${text}\n`; 
+                    else if (el.classList.contains('item-detail')) shareText += `   ${text}\n`; 
                     else if (el.classList.contains('item-notification')) {
-                        // 빨간색 알림 박스 (경고 아이콘 붙여서 들여쓰기)
                         const cleanNoti = text.replace(/📌/g, '').trim(); 
                         shareText += `   ⚠️ ${cleanNoti}\n`; 
                     } 
                     else if (el.classList.contains('total-line')) {
-                        // 총 견적 금액 (구분선 추가)
-                        shareText += `\n==============================\n`;
-                        shareText += `   ${text}\n`;
-                        shareText += `==============================\n\n`;
+                        shareText += `\n==============================\n   ${text}\n==============================\n\n`;
                     }
-                    else if (el.classList.contains('common-title')) {
-                        // 공통 알림 제목
-                        shareText += `📢 ${text}\n`;
-                    }
-                    else if (el.classList.contains('common-detail')) {
-                        // 공통 알림 내용
-                        shareText += `${text}\n`;
-                    }
+                    else if (el.classList.contains('common-title')) shareText += `📢 ${text}\n`;
+                    else if (el.classList.contains('common-detail')) shareText += `${text}\n`;
                 }
             } else {
-                // 견적서 포맷이 아닌 일반 메시지일 경우
                 shareText = bubble.innerText.trim();
             }
 
-            // 3. 하단에 문의 정보 붙이기 (설정된 CONFIG 변수 사용)
-            shareText += `\n------------------------------\n`;
-            shareText += `[문의] ${CONFIG.managerName}\n`;
-            shareText += `📞 ${CONFIG.phoneNumber}\n`;
-            shareText += `🔗 ${CONFIG.blogUrl}`;
+            shareText += `\n------------------------------\n[문의] ${CONFIG.managerName}\n📞 ${CONFIG.phoneNumber}\n🔗 ${CONFIG.blogUrl}`;
 
-            // 4. 공유 또는 복사 실행
             if (navigator.share) {
                 navigator.share({ title: '견적 내역', text: shareText }).catch(console.error);
             } else {
@@ -383,7 +478,6 @@
             }
         }
 
-        // [수정] addBubble 함수: CONFIG 변수를 사용하여 연락처 카드 생성
         function addBubble(message, sender, isQuote = false) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
@@ -392,9 +486,7 @@
                 bubble.classList.add('quote-response');
                 bubble.innerHTML = `<div class="quote-content">${message}</div>`;
                 
-                // 전화번호에서 하이픈(-) 제거하여 tel 링크 생성
                 const cleanPhone = CONFIG.phoneNumber.replace(/-/g, '');
-
                 const contactCard = document.createElement('div');
                 contactCard.className = 'contact-card';
                 contactCard.innerHTML = `
@@ -414,13 +506,10 @@
                 const shareBtn = document.createElement('button');
                 shareBtn.className = 'share-button-n8n';
                 shareBtn.innerHTML = '🔗 견적 내용 공유하기';
-                
-                // 여기 onclick은 addBubble 내에서 bubble을 참조하기 위해 설정
                 shareBtn.onclick = (e) => { 
                     e.stopPropagation(); 
-                    shareQuote(bubble); // 위에서 새로 정의한 shareQuote 함수 호출
+                    shareQuote(bubble); 
                 };
-                
                 shareArea.appendChild(shareBtn);
                 bubble.appendChild(shareArea);
             } else { 
@@ -430,7 +519,6 @@
             chatContainer.appendChild(bubble);
             scrollToBottom();
             saveChatHistory();
-            
             return bubble;
         }
         
@@ -443,16 +531,24 @@
             return bubble;
         }
 
+        // [수정] 전송 함수: 이미지 데이터(currentBase64Image)가 있으면 같이 전송
         async function sendRequest() {
             const msg = userInput.value.trim();
-            if (!msg) return;
+            // 메시지도 없고 이미지도 없으면 중단
+            if (!msg && !currentBase64Image) return;
 
-            const userBubble = addBubble(msg, 'user'); 
+            // 사용자 말풍선 표시 (이미지 있으면 이미지도 표시)
+            let displayMsg = msg;
+            if (currentBase64Image) {
+                displayMsg = `<img src="${currentBase64Image}" style="max-width:100%; border-radius:8px; display:block; margin-bottom:5px;">` + (msg ? msg : "사진 전송");
+            }
+            const userBubble = addBubble(displayMsg, 'user'); 
             
             userInput.value = "";
             userInput.blur(); 
             sendButton.disabled = true;
 
+            // 로딩 표시
             let sec = 60;
             const loading = addTimerBubble(`견적 계산 중... ${sec}s`);
             const timer = setInterval(() => {
@@ -462,14 +558,19 @@
             }, 1000);
 
             try {
-                // [수정] CONFIG 변수와 보안 토큰(x-secret-token) 적용
+                // n8n으로 보낼 데이터 구성
+                const payload = {
+                    message: msg, // 텍스트
+                    image: currentBase64Image // 이미지 데이터 (없으면 null)
+                };
+
                 const res = await fetch(CONFIG.webhookUrl, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'x-secret-token': CONFIG.secretToken  // 설정된 암호 전송
+                        'x-secret-token': CONFIG.secretToken
                     },
-                    body: JSON.stringify({ user_request: msg })
+                    body: JSON.stringify(payload)
                 });
                 
                 clearInterval(timer);
@@ -492,6 +593,7 @@
                 addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot-error');
             } finally {
                 sendButton.disabled = false;
+                clearImage(); // 전송 후 이미지 초기화
                 saveChatHistory();
                 
                 if (userBubble) {
@@ -509,4 +611,3 @@
     </script>
 </body>
 </html>
-
