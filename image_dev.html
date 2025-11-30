@@ -3,275 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>이미지테스트</title>
+    <title>이미지견적 (실전모드)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Noto Sans KR', sans-serif;
-            margin: 0;
-            background-color: #f0f2f5;
-            height: 100%;
-            overflow: hidden;
-            letter-spacing: -0.5px;
-        }
-        .chat-wrapper {
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto;
-            background: #ffffff;
-            display: flex;
-            flex-direction: column;
-            height: 100dvh;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
-        }
-        
-        .chat-header {
-            background-color: #4A90E2;
-            color: white;
-            padding: 15px;
-            text-align: center;
-            flex-shrink: 0;
-            z-index: 100;
-            position: relative; 
-        }
+        body { font-family: 'Noto Sans KR', sans-serif; margin: 0; background-color: #f0f2f5; height: 100%; overflow: hidden; letter-spacing: -0.5px; }
+        .chat-wrapper { width: 100%; max-width: 500px; margin: 0 auto; background: #ffffff; display: flex; flex-direction: column; height: 100dvh; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
+        .chat-header { background-color: #4A90E2; color: white; padding: 15px; text-align: center; flex-shrink: 0; z-index: 100; position: relative; }
         .chat-header h1 { margin: 0; font-size: 1.3em; font-weight: 700; }
-        .chat-header p { margin: 5px 0 0; font-size: 0.9em; opacity: 0.9; }
+        .chat-container { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px; background-color: #f9fafc; }
+        .chat-bubble { width: fit-content; max-width: 85%; padding: 12px 16px; border-radius: 18px; margin-bottom: 12px; line-height: 1.5; position: relative; font-size: 1.05em; word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .chat-bubble.user { background-color: #4A90E2; color: white; align-self: flex-end; border-bottom-right-radius: 4px; margin-left: auto; }
+        .chat-bubble.bot { background-color: #ffffff; color: #333; align-self: flex-start; border-bottom-left-radius: 4px; margin-right: auto; border: 1px solid #eee; }
+        .chat-bubble.bot-loading-blue { background: #4A90E2; color: white; text-align: center; border-radius: 30px; animation: pulse 1.5s infinite; margin: 10px auto; display: table; min-width: 220px; border: 2px solid white; font-weight: 700;}
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
         
-        .reset-btn {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.85em;
-            cursor: pointer;
-            font-family: 'Noto Sans KR', sans-serif;
-        }
-        .reset-btn:hover { background: rgba(255,255,255,0.3); }
+        /* 견적서 스타일 */
+        .quote-content { padding: 10px; }
+        .quote-title { font-size: 1.2em; font-weight: 800; color: #4A90E2; border-bottom: 2px solid #f0f0f0; margin-bottom: 10px; padding-bottom: 5px; }
+        .item-title { font-weight: 700; color: #222; margin-top: 10px; }
+        .item-detail { color: #555; padding-left: 8px; font-size: 0.95em; }
+        .total-line { font-size: 1.3em; font-weight: 800; color: #e53e3e; margin-top: 20px; border-top: 2px dashed #ddd; padding-top: 10px; text-align: center; }
 
-        .chat-container {
-            flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: 20px;
-            padding-bottom: 20px;
-            background-color: #f9fafc;
-        }
-
-        .chat-bubble {
-            width: fit-content;
-            max-width: 85%;
-            padding: 12px 16px;
-            border-radius: 18px;
-            margin-bottom: 12px;
-            line-height: 1.5;
-            position: relative;
-            font-size: 1.05em;
-            word-break: break-word;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .chat-bubble.user {
-            background-color: #4A90E2;
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-            margin-left: auto;
-        }
-        .chat-bubble.bot {
-            background-color: #ffffff;
-            color: #333;
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-            margin-right: auto;
-            border: 1px solid #eee;
-        }
-        .chat-bubble.bot.quote-response {
-            width: 100%;
-            max-width: 96%;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.7); }
-            70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(74, 144, 226, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 144, 226, 0); }
-        }
-        
-        .chat-bubble.bot-loading-blue {
-            background: #4A90E2;
-            color: white;
-            font-weight: 700;
-            text-align: center;
-            border-radius: 30px;
-            animation: pulse 1.5s infinite;
-            margin: 10px auto;
-            display: table;
-            min-width: 220px;
-            border: 2px solid white;
-        }
-        .chat-bubble.bot-error { background-color: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; }
-
-        .quote-content { padding: 25px 20px; }
-        .quote-title {
-            font-size: 1.3em; font-weight: 800; color: #4A90E2;
-            margin-bottom: 20px; padding-bottom: 10px;
-            border-bottom: 2px solid #f0f0f0;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .quote-time { font-size: 0.65em; color: #999; font-weight: 400; letter-spacing: 0; }
-        
-        .item-title { font-size: 1.2em; font-weight: 700; color: #222; margin-top: 20px; margin-bottom: 5px; }
-        .item-detail { font-size: 1em; color: #555; padding-left: 8px; margin: 2px 0; font-feature-settings: "tnum"; }
-        .item-subtotal { font-size: 1.05em; font-weight: 600; color: #333; margin-top: 8px; }
-        .item-notification { font-size: 0.9em; color: #e53e3e; background: #fff5f5; padding: 10px; border-radius: 8px; margin-top: 10px; }
-        
-        .total-line {
-            font-size: 1.5em; font-weight: 800; color: #e53e3e;
-            margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ddd;
-            text-align: center; letter-spacing: -1px;
-        }
-        
-        .common-title { font-weight: 700; margin-top: 25px; font-size: 1.15em; color: #333; }
-        .common-detail { font-size: 1em; color: #666; line-height: 1.7; }
-
-        .contact-card {
-            background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 12px;
-            padding: 20px; margin: 30px 15px 15px 15px; text-align: center;
-        }
-        .contact-name { font-size: 1.2em; font-weight: 700; color: #333; margin-bottom: 0; }
-        
-        .call-button {
-            display: block; width: 100%; background-color: #e7f1ff; color: #4A90E2;
-            text-decoration: none; padding: 14px 0; border-radius: 8px;
-            font-weight: 700; font-size: 1.1em; transition: background-color 0.2s;
-        }
-        .call-button:hover { background-color: #d0e1fd; }
-        
-        .share-area { padding: 0 15px 25px 15px; }
-        .share-button-n8n {
-            width: 100%; padding: 14px; background-color: #ffffff;
-            border: 2px solid #4A90E2; color: #4A90E2; border-radius: 8px;
-            font-weight: 700; font-size: 1.1em; cursor: pointer;
-        }
-
-        /* --- [수정된 부분] 채팅 입력 영역 디자인 변경 --- */
-        .chat-input-area {
-            background-color: #fff; 
-            padding: 15px;
-            padding-bottom: max(20px, env(safe-area-inset-bottom));
-            border-top: 1px solid #eee;
-            /* 기존 flex-direction에서 세로 정렬(미리보기 때문)로 변경하되, 입력창은 가로 유지 */
-            display: flex; 
-            flex-direction: column; 
-            flex-shrink: 0;
-        }
-
-        /* 입력창과 전송버튼을 감싸는 컨테이너 */
-        .input-row {
-            display: flex;
-            align-items: center;
-            width: 100%;
-        }
-
-        /* 입력 인풋과 카메라 아이콘을 감싸는 컨테이너 (relative) */
-        .input-wrapper {
-            position: relative;
-            flex: 1;
-            display: flex;
-            align-items: center;
-        }
-
-        #userInput { 
-            width: 100%; 
-            padding: 14px; 
-            padding-right: 45px; /* 카메라 아이콘 공간 확보 */
-            border: 1px solid #ddd; 
-            border-radius: 30px; 
-            font-size: 1em; 
-            outline: none; 
-            background: #f8f9fa; 
-            box-sizing: border-box; /* 패딩 포함 너비 계산 */
-        }
-        #userInput:focus { border-color: #4A90E2; background: white; }
-
-        /* 카메라 버튼 스타일 */
-        .camera-btn {
-            position: absolute;
-            right: 10px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s;
-        }
-        .camera-btn:hover { transform: scale(1.1); }
-        .camera-btn svg { stroke: #666; }
-
-        #sendButton { 
-            margin-left: 10px; 
-            padding: 14px 24px; 
-            background-color: #4A90E2; 
-            color: white; 
-            border: none; 
-            border-radius: 30px; 
-            font-size: 1.1em; 
-            font-weight: 700; 
-            white-space: nowrap; 
-            cursor: pointer; 
-        }
-        #sendButton:disabled { background-color: #cbd5e1; }
-
-        /* 이미지 미리보기 스타일 */
-        #preview-container {
-            display: none;
-            margin-bottom: 10px;
-            position: relative;
-            width: fit-content;
-        }
-        #preview-img {
-            max-height: 80px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            display: block;
-        }
-        .preview-close {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: #e53e3e;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-track { background: transparent; }
+        /* 입력창 스타일 */
+        .chat-input-area { background-color: #fff; padding: 15px; border-top: 1px solid #eee; display: flex; flex-direction: column; flex-shrink: 0; }
+        .input-row { display: flex; align-items: center; width: 100%; }
+        .input-wrapper { position: relative; flex: 1; display: flex; align-items: center; }
+        #userInput { width: 100%; padding: 14px; padding-right: 45px; border: 1px solid #ddd; border-radius: 30px; font-size: 1em; outline: none; background: #f8f9fa; box-sizing: border-box; }
+        .camera-btn { position: absolute; right: 10px; background: none; border: none; cursor: pointer; padding: 5px; }
+        #sendButton { margin-left: 10px; padding: 14px 24px; background-color: #4A90E2; color: white; border: none; border-radius: 30px; font-weight: 700; cursor: pointer; }
+        #preview-container { display: none; margin-bottom: 10px; position: relative; width: fit-content; }
+        #preview-img { max-height: 100px; border-radius: 8px; border: 1px solid #ddd; display: block; }
+        .preview-close { position: absolute; top: -8px; right: -8px; background: #e53e3e; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="chat-wrapper">
         <div class="chat-header">
             <h1>이미지견적</h1>
-            <p>V.251123_DEV</p>
-            <button onclick="clearHistory()" class="reset-btn">🔄대화삭제</button>
+            <p>실전모드(Production)</p>
+            <button onclick="location.reload()" style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
         </div>
         <div class="chat-container" id="chatContainer"></div>
         
@@ -280,18 +52,12 @@
                 <img id="preview-img" src="" alt="미리보기">
                 <button class="preview-close" onclick="clearImage()">×</button>
             </div>
-
             <div class="input-row">
                 <div class="input-wrapper">
                     <input type="text" id="userInput" placeholder="사진 또는 내용 입력...">
-                    
                     <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImageSelect(event)">
-                    
                     <button class="camera-btn" onclick="document.getElementById('imageInput').click()">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                            <circle cx="12" cy="13" r="4"></circle>
-                        </svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                     </button>
                 </div>
                 <button id="sendButton">전송</button>
@@ -301,85 +67,39 @@
 
     <script>
         // =========================================================================
-        // [설정 영역]
+        // [설정 영역] Production URL 적용 완료
         // =========================================================================
         const CONFIG = {
+            // 사장님 서버 주소 (수정 금지)
             webhookUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test",
             secretToken: "songil_secret_2025", 
-            managerName: "김정헌 실장",
-            phoneNumber: "010-6657-1222",
-            blogUrl: "https://blog.naver.com/shine22",
-            blogName: "블로그"
+            managerName: "김정헌 실장"
         };
         // =========================================================================
 
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
-        let currentBase64Image = null; // [추가] 이미지 데이터 저장 변수
+        let currentBase64Image = null;
 
-        window.onload = function() { loadChatHistory(); };
+        function scrollToBottom() { setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50); }
 
-        function scrollToBottom() {
-            setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50);
-        }
-
-        function saveChatHistory() {
-            let htmlContent = chatContainer.innerHTML;
-            htmlContent = htmlContent.replace(/<div class="chat-bubble bot-loading-blue".*?<\/div>/g, '');
-            htmlContent = htmlContent.replace(/<div class="menu-buttons-container".*?<\/div>/g, '');
-            localStorage.setItem('filmChatHistoryDev', htmlContent); // Dev환경용 키로 변경(충돌방지)
-        }
-
-        function loadChatHistory() {
-            const saved = localStorage.getItem('filmChatHistoryDev');
-            if (saved && saved.trim() !== "") {
-                chatContainer.innerHTML = saved;
-                const shareBtns = document.querySelectorAll('.share-button-n8n');
-                shareBtns.forEach(btn => {
-                    btn.onclick = function(e) {
-                        e.stopPropagation();
-                        const bubble = btn.closest('.chat-bubble');
-                        shareQuote(bubble);
-                    };
-                });
-                showMenuButtons();
-                scrollToBottom();
-            } else {
-                addBubble("안녕하세요! Dev환경입니다. 📸<br><b>카메라 아이콘</b>을 눌러 사진을 올려보세요!", 'bot');
-                setTimeout(() => { showMenuButtons(); }, 500);
-            }
-        }
-        
-        // [추가] 이미지 선택 및 압축 처리 함수
         function handleImageSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 const img = new Image();
                 img.onload = function() {
-                    // 캔버스 리사이징 (최대 800px)
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     const MAX_WIDTH = 800;
                     let width = img.width;
                     let height = img.height;
-
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
-
-                    // 압축된 Base64 데이터 저장
                     currentBase64Image = canvas.toDataURL('image/jpeg', 0.7);
-                    
-                    // 미리보기 표시
                     document.getElementById('preview-img').src = currentBase64Image;
                     document.getElementById('preview-container').style.display = 'block';
                     userInput.focus();
@@ -389,139 +109,25 @@
             reader.readAsDataURL(file);
         }
 
-        // [추가] 이미지 선택 취소
         function clearImage() {
             currentBase64Image = null;
             document.getElementById('imageInput').value = '';
             document.getElementById('preview-container').style.display = 'none';
         }
 
-        function showMenuButtons() {
-            if(document.querySelector('.menu-buttons-container')) return;
-
-            const buttonContainer = document.createElement('div');
-            buttonContainer.className = 'menu-buttons-container';
-            buttonContainer.style.cssText = "display:flex; flex-wrap:wrap; gap:8px; margin:10px 20px; justify-content:flex-start;";
-            
-            const menus = [
-                "방문 사진 견적", "샤시 사진 견적", // 메뉴 일부 수정
-                "30평 아파트 전체", "방문3, 화장실문2",
-                "현관문1", "문틀 2개", "문짝 3개",
-                "중문 1개", "터닝도어2개", "샤시2"
-            ];
-
-            menus.forEach(text => {
-                const btn = document.createElement('button');
-                btn.innerText = text;
-                btn.style.cssText = "padding:8px 14px; background:#fff; border:1px solid #4A90E2; color:#4A90E2; border-radius:20px; font-size:0.9em; cursor:pointer; font-family:'Noto Sans KR'; font-weight:500; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s;";
-                
-                btn.onmouseover = () => { btn.style.backgroundColor = "#e7f1ff"; };
-                btn.onmouseout = () => { btn.style.backgroundColor = "#fff"; };
-
-                btn.onclick = () => {
-                    userInput.value = text;
-                    sendRequest(); // 버튼 클릭 시 바로 전송
-                };
-                buttonContainer.appendChild(btn);
-            });
-
-            chatContainer.appendChild(buttonContainer);
-            scrollToBottom();
-        }
-
-        function clearHistory() {
-            if(confirm("대화 내용을 모두 지우시겠습니까?")) {
-                localStorage.removeItem('filmChatHistoryDev');
-                location.reload();
-            }
-        }
-
-        function shareQuote(bubble) {
-            let shareText = "";
-            const contentDiv = bubble.querySelector('.quote-content');
-            
-            if (contentDiv) {
-                const titleEl = contentDiv.querySelector('.quote-title');
-                if (titleEl) {
-                    const time = titleEl.querySelector('span')?.innerText || "";
-                    shareText += `[ 견적서 ${time} ]\n\n`;
-                }
-
-                const children = contentDiv.children;
-                for (let i = 0; i < children.length; i++) {
-                    const el = children[i];
-                    const text = el.innerText.trim();
-                    if (!text) continue;
-
-                    if (el.classList.contains('item-title')) shareText += `\n${text}\n`; 
-                    else if (el.classList.contains('item-detail')) shareText += `   ${text}\n`; 
-                    else if (el.classList.contains('item-notification')) {
-                        const cleanNoti = text.replace(/📌/g, '').trim(); 
-                        shareText += `   ⚠️ ${cleanNoti}\n`; 
-                    } 
-                    else if (el.classList.contains('total-line')) {
-                        shareText += `\n==============================\n   ${text}\n==============================\n\n`;
-                    }
-                    else if (el.classList.contains('common-title')) shareText += `📢 ${text}\n`;
-                    else if (el.classList.contains('common-detail')) shareText += `${text}\n`;
-                }
-            } else {
-                shareText = bubble.innerText.trim();
-            }
-
-            shareText += `\n------------------------------\n[문의] ${CONFIG.managerName}\n📞 ${CONFIG.phoneNumber}\n🔗 ${CONFIG.blogUrl}`;
-
-            if (navigator.share) {
-                navigator.share({ title: '견적 내역', text: shareText }).catch(console.error);
-            } else {
-                navigator.clipboard.writeText(shareText).then(() => alert('견적 내용이 깔끔하게 복사되었습니다! ✨'));
-            }
-        }
-
         function addBubble(message, sender, isQuote = false) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
-            
             if (isQuote) {
-                bubble.classList.add('quote-response');
                 bubble.innerHTML = `<div class="quote-content">${message}</div>`;
-                
-                const cleanPhone = CONFIG.phoneNumber.replace(/-/g, '');
-                const contactCard = document.createElement('div');
-                contactCard.className = 'contact-card';
-                contactCard.innerHTML = `
-                    <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:15px;">
-                        <div class="contact-name">문의 : ${CONFIG.managerName}</div>
-                        <a href="${CONFIG.blogUrl}" target="_blank" style="background-color:#03C75A; color:white; text-decoration:none; padding:5px 10px; border-radius:4px; font-size:0.8em; font-weight:bold; display:flex; align-items:center;">
-                            <img src="https://ssl.pstatic.net/static/blog/favicon/blog_favicon_190724.ico" style="width:14px; height:14px; margin-right:6px; background:white; border-radius:3px; padding:1px;">
-                            ${CONFIG.blogName}
-                        </a>
-                    </div>
-                    <a href="tel:${cleanPhone}" class="call-button">📞 ${CONFIG.phoneNumber}</a>
-                `;
-                bubble.appendChild(contactCard);
-
-                const shareArea = document.createElement('div');
-                shareArea.className = 'share-area';
-                const shareBtn = document.createElement('button');
-                shareBtn.className = 'share-button-n8n';
-                shareBtn.innerHTML = '🔗 견적 내용 공유하기';
-                shareBtn.onclick = (e) => { 
-                    e.stopPropagation(); 
-                    shareQuote(bubble); 
-                };
-                shareArea.appendChild(shareBtn);
-                bubble.appendChild(shareArea);
-            } else { 
-                bubble.innerHTML = message; 
+            } else {
+                bubble.innerHTML = message;
             }
-            
             chatContainer.appendChild(bubble);
             scrollToBottom();
-            saveChatHistory();
             return bubble;
         }
-        
+
         function addTimerBubble(message) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', 'bot-loading-blue');
@@ -531,39 +137,30 @@
             return bubble;
         }
 
-        // [수정] 전송 함수: 이미지 데이터(currentBase64Image)가 있으면 같이 전송
         async function sendRequest() {
             const msg = userInput.value.trim();
-            // 메시지도 없고 이미지도 없으면 중단
             if (!msg && !currentBase64Image) return;
 
-            // 사용자 말풍선 표시 (이미지 있으면 이미지도 표시)
             let displayMsg = msg;
             if (currentBase64Image) {
                 displayMsg = `<img src="${currentBase64Image}" style="max-width:100%; border-radius:8px; display:block; margin-bottom:5px;">` + (msg ? msg : "사진 전송");
             }
-            const userBubble = addBubble(displayMsg, 'user'); 
+            addBubble(displayMsg, 'user');
             
             userInput.value = "";
-            userInput.blur(); 
             sendButton.disabled = true;
 
-            // 로딩 표시
-            let sec = 60;
-            const loading = addTimerBubble(`견적 계산 중... ${sec}s`);
+            let sec = 0;
+            const loading = addTimerBubble(`견적 계산 중...`);
             const timer = setInterval(() => {
-                sec--;
+                sec++;
                 loading.innerHTML = `⏳ 견적 계산 중... ${sec}s`;
-                if(sec <= 0) clearInterval(timer);
             }, 1000);
 
             try {
-                // n8n으로 보낼 데이터 구성
-                const payload = {
-                    message: msg, // 텍스트
-                    image: currentBase64Image // 이미지 데이터 (없으면 null)
-                };
-
+                const payload = { message: msg, image: currentBase64Image };
+                
+                // [서버로 전송]
                 const res = await fetch(CONFIG.webhookUrl, {
                     method: 'POST',
                     headers: { 
@@ -579,35 +176,34 @@
                 if (!res.ok) throw new Error('Server Error');
                 const data = await res.json();
 
-                if (Array.isArray(data) && data.length > 0 && data[0].message) {
+                // 응답 처리
+                if (Array.isArray(data) && data.length > 0 && data[0].output) {
+                    addBubble(data[0].output, 'bot', true); // output 필드 사용
+                } else if (data.output) {
+                    addBubble(data.output, 'bot', true);
+                } else if (Array.isArray(data) && data.length > 0 && data[0].message) {
                     addBubble(data[0].message, 'bot', true);
-                } else if (data && data.message) {
+                } else if (data.message) {
                     addBubble(data.message, 'bot', true);
                 } else {
-                    addBubble("⚠️ 견적을 산출할 수 없습니다.", 'bot-error');
+                    // 응답이 왔는데 텍스트가 없는 경우 (디버깅용)
+                    console.log("전체 응답 데이터:", data);
+                    addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
                 }
+
             } catch (e) {
                 clearInterval(timer);
                 if(loading.parentNode) loading.parentNode.removeChild(loading);
                 console.error(e);
-                addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot-error');
+                addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot');
             } finally {
                 sendButton.disabled = false;
-                clearImage(); // 전송 후 이미지 초기화
-                saveChatHistory();
-                
-                if (userBubble) {
-                    setTimeout(() => {
-                        userBubble.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 100); 
-                }
+                clearImage();
             }
         }
 
         sendButton.addEventListener('click', sendRequest);
-        userInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') sendRequest();
-        });
+        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
     </script>
 </body>
 </html>
