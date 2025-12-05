@@ -1,52 +1,258 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>이미지견적 (실전모드)</title>
+    <title>이미지견적 (실전모드 V2)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans KR', sans-serif; margin: 0; background-color: #f0f2f5; height: 100%; overflow: hidden; letter-spacing: -0.5px; }
-        .chat-wrapper { width: 100%; max-width: 500px; margin: 0 auto; background: #ffffff; display: flex; flex-direction: column; height: 100dvh; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
-        .chat-header { background-color: #4A90E2; color: white; padding: 15px; text-align: center; flex-shrink: 0; z-index: 100; position: relative; }
-        .chat-header h1 { margin: 0; font-size: 1.3em; font-weight: 700; }
-        .chat-container { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px; background-color: #f9fafc; }
-        .chat-bubble { width: fit-content; max-width: 85%; padding: 12px 16px; border-radius: 18px; margin-bottom: 12px; line-height: 1.5; position: relative; font-size: 1.05em; word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .chat-bubble.user { background-color: #4A90E2; color: white; align-self: flex-end; border-bottom-right-radius: 4px; margin-left: auto; }
-        .chat-bubble.bot { background-color: #ffffff; color: #333; align-self: flex-start; border-bottom-left-radius: 4px; margin-right: auto; border: 1px solid #eee; }
-        .chat-bubble.bot-loading-blue { background: #4A90E2; color: white; text-align: center; border-radius: 30px; animation: pulse 1.5s infinite; margin: 10px auto; display: table; min-width: 220px; border: 2px solid white; font-weight: 700;}
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-        
-        /* 견적서 스타일 */
-        .quote-content { padding: 10px; }
-        .quote-title { font-size: 1.2em; font-weight: 800; color: #4A90E2; border-bottom: 2px solid #f0f0f0; margin-bottom: 10px; padding-bottom: 5px; }
-        .item-title { font-weight: 700; color: #222; margin-top: 10px; }
-        .item-detail { color: #555; padding-left: 8px; font-size: 0.95em; }
-        .total-line { font-size: 1.3em; font-weight: 800; color: #e53e3e; margin-top: 20px; border-top: 2px dashed #ddd; padding-top: 10px; text-align: center; }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            margin: 0;
+            background-color: #f0f2f5;
+            height: 100%;
+            overflow: hidden;
+            letter-spacing: -0.5px;
+        }
+
+        .chat-wrapper {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-header {
+            background-color: #4A90E2;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            flex-shrink: 0;
+            z-index: 100;
+            position: relative;
+        }
+
+        .chat-header h1 {
+            margin: 0;
+            font-size: 1.3em;
+            font-weight: 700;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px;
+            background-color: #f9fafc;
+        }
+
+        .chat-bubble {
+            width: fit-content;
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            line-height: 1.5;
+            position: relative;
+            font-size: 1.05em;
+            word-break: break-word;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .chat-bubble.user {
+            background-color: #4A90E2;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+            margin-left: auto;
+        }
+
+        .chat-bubble.bot {
+            background-color: #ffffff;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            margin-right: auto;
+            border: 1px solid #eee;
+        }
+
+        .chat-bubble.bot-loading-blue {
+            background: #4A90E2;
+            color: white;
+            text-align: center;
+            border-radius: 30px;
+            animation: pulse 1.5s infinite;
+            margin: 10px auto;
+            display: table;
+            min-width: 220px;
+            border: 2px solid white;
+            font-weight: 700;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* 견적서 스타일 (카드형 UI 강화) */
+        .quote-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 10px;
+            border: 1px solid #eee;
+        }
+
+        .quote-title {
+            font-size: 1.2em;
+            font-weight: 800;
+            color: #4A90E2;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+        }
+
+        .item-title {
+            font-weight: 700;
+            color: #222;
+            margin-top: 10px;
+            font-size: 1.1em;
+        }
+
+        .item-detail {
+            color: #666;
+            padding-left: 8px;
+            font-size: 0.95em;
+            margin-top: 2px;
+        }
+
+        .item-subtotal {
+            color: #333;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .total-line {
+            font-size: 1.3em;
+            font-weight: 800;
+            color: #e53e3e;
+            margin-top: 20px;
+            border-top: 2px dashed #ddd;
+            padding-top: 10px;
+            text-align: center;
+        }
 
         /* 입력창 스타일 */
-        .chat-input-area { background-color: #fff; padding: 15px; border-top: 1px solid #eee; display: flex; flex-direction: column; flex-shrink: 0; }
-        .input-row { display: flex; align-items: center; width: 100%; }
-        .input-wrapper { position: relative; flex: 1; display: flex; align-items: center; }
-        #userInput { width: 100%; padding: 14px; padding-right: 45px; border: 1px solid #ddd; border-radius: 30px; font-size: 1em; outline: none; background: #f8f9fa; box-sizing: border-box; }
-        .camera-btn { position: absolute; right: 10px; background: none; border: none; cursor: pointer; padding: 5px; }
-        #sendButton { margin-left: 10px; padding: 14px 24px; background-color: #4A90E2; color: white; border: none; border-radius: 30px; font-weight: 700; cursor: pointer; }
-        #preview-container { display: none; margin-bottom: 10px; position: relative; width: fit-content; }
-        #preview-img { max-height: 100px; border-radius: 8px; border: 1px solid #ddd; display: block; }
-        .preview-close { position: absolute; top: -8px; right: -8px; background: #e53e3e; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; }
+        .chat-input-area {
+            background-color: #fff;
+            padding: 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .input-wrapper {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        #userInput {
+            width: 100%;
+            padding: 14px;
+            padding-right: 45px;
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            font-size: 1em;
+            outline: none;
+            background: #f8f9fa;
+            box-sizing: border-box;
+        }
+
+        .camera-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        #sendButton {
+            margin-left: 10px;
+            padding: 14px 24px;
+            background-color: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        #preview-container {
+            display: none;
+            margin-bottom: 10px;
+            position: relative;
+            width: fit-content;
+        }
+
+        #preview-img {
+            max-height: 100px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            display: block;
+        }
+
+        .preview-close {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #e53e3e;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
     </style>
 </head>
+
 <body>
     <div class="chat-wrapper">
         <div class="chat-header">
-            <h1>이미지견적</h1>
+            <h1>이미지견적 V2</h1>
             <p>실전모드(Production)</p>
-            <button onclick="location.reload()" style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
+            <button onclick="location.reload()"
+                style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
         </div>
         <div class="chat-container" id="chatContainer"></div>
-        
+
         <div class="chat-input-area">
             <div id="preview-container">
                 <img id="preview-img" src="" alt="미리보기">
@@ -55,9 +261,15 @@
             <div class="input-row">
                 <div class="input-wrapper">
                     <input type="text" id="userInput" placeholder="사진 또는 내용 입력...">
-                    <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImageSelect(event)">
+                    <input type="file" id="imageInput" accept="image/*" style="display:none;"
+                        onchange="handleImageSelect(event)">
                     <button class="camera-btn" onclick="document.getElementById('imageInput').click()">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
+                            </path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
                     </button>
                 </div>
                 <button id="sendButton">전송</button>
@@ -70,12 +282,23 @@
         // [설정 영역] Production URL 적용 완료
         // =========================================================================
         const CONFIG = {
-            // 사장님 서버 주소 (수정 금지)
             webhookUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test",
-            secretToken: "songil_secret_2025", 
+            secretToken: "songil_secret_2025",
             managerName: "김정헌 실장"
         };
         // =========================================================================
+
+        // [Session Management] UUID 생성 및 로드
+        function getUUID() {
+            let uuid = localStorage.getItem('user_id');
+            if (!uuid) {
+                uuid = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                localStorage.setItem('user_id', uuid);
+            }
+            return uuid;
+        }
+        const currentUserId = getUUID();
+        console.log("Current User ID:", currentUserId);
 
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
@@ -88,9 +311,9 @@
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 const img = new Image();
-                img.onload = function() {
+                img.onload = function () {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     const MAX_WIDTH = 800;
@@ -119,6 +342,7 @@
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
             if (isQuote) {
+                // 견적서인 경우 카드 스타일 적용 (서버에서 HTML을 줄 수도 있지만, 여기서도 감싸줌)
                 bubble.innerHTML = `<div class="quote-content">${message}</div>`;
             } else {
                 bubble.innerHTML = message;
@@ -146,7 +370,7 @@
                 displayMsg = `<img src="${currentBase64Image}" style="max-width:100%; border-radius:8px; display:block; margin-bottom:5px;">` + (msg ? msg : "사진 전송");
             }
             addBubble(displayMsg, 'user');
-            
+
             userInput.value = "";
             sendButton.disabled = true;
 
@@ -159,26 +383,27 @@
 
             try {
                 const payload = { message: msg, image: currentBase64Image };
-                
-                // [서버로 전송]
+
+                // [서버로 전송] 헤더에 x-user-id 추가
                 const res = await fetch(CONFIG.webhookUrl, {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
-                        'x-secret-token': CONFIG.secretToken
+                        'x-secret-token': CONFIG.secretToken,
+                        'x-user-id': currentUserId // Session ID 전송
                     },
                     body: JSON.stringify(payload)
                 });
-                
+
                 clearInterval(timer);
-                if(loading.parentNode) loading.parentNode.removeChild(loading);
+                if (loading.parentNode) loading.parentNode.removeChild(loading);
 
                 if (!res.ok) throw new Error('Server Error');
                 const data = await res.json();
 
                 // 응답 처리
                 if (Array.isArray(data) && data.length > 0 && data[0].output) {
-                    addBubble(data[0].output, 'bot', true); // output 필드 사용
+                    addBubble(data[0].output, 'bot', true);
                 } else if (data.output) {
                     addBubble(data.output, 'bot', true);
                 } else if (Array.isArray(data) && data.length > 0 && data[0].message) {
@@ -186,14 +411,13 @@
                 } else if (data.message) {
                     addBubble(data.message, 'bot', true);
                 } else {
-                    // 응답이 왔는데 텍스트가 없는 경우 (디버깅용)
                     console.log("전체 응답 데이터:", data);
                     addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
                 }
 
             } catch (e) {
                 clearInterval(timer);
-                if(loading.parentNode) loading.parentNode.removeChild(loading);
+                if (loading.parentNode) loading.parentNode.removeChild(loading);
                 console.error(e);
                 addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot');
             } finally {
@@ -206,4 +430,5 @@
         userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
     </script>
 </body>
+
 </html>
