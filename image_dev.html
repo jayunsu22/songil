@@ -214,7 +214,7 @@
             cursor: pointer;
         }
 
-        /* [추가] 다중 이미지 미리보기 및 번호표 스타일 */
+        /* 다중 이미지 미리보기 스타일 */
         #preview-container {
             display: none;
             margin-bottom: 10px;
@@ -222,7 +222,6 @@
             overflow-x: auto;
             white-space: nowrap;
             padding-bottom: 5px;
-            /* 스크롤바 숨김 (선택사항) */
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
         }
@@ -246,7 +245,6 @@
             display: block;
         }
 
-        /* [핵심] 이미지 위 번호표 디자인 */
         .preview-number {
             position: absolute;
             top: 5px;
@@ -298,13 +296,11 @@
         <div class="chat-container" id="chatContainer"></div>
 
         <div class="chat-input-area">
-            <!-- [추가] 다중 이미지 미리보기 영역 -->
             <div id="preview-container"></div>
             
             <div class="input-row">
                 <div class="input-wrapper">
                     <input type="text" id="userInput" placeholder="사진(여러장 가능) 또는 내용 입력...">
-                    <!-- [수정] multiple 속성 추가 -->
                     <input type="file" id="imageInput" accept="image/*" multiple style="display:none;"
                         onchange="handleImageSelect(event)">
                     <button class="camera-btn" onclick="document.getElementById('imageInput').click()">
@@ -322,15 +318,11 @@
     </div>
 
     <script>
-        // =========================================================================
-        // [설정 영역]
-        // =========================================================================
         const CONFIG = {
             webhookUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test",
             secretToken: "songil_secret_2025",
             managerName: "김정헌 실장"
         };
-        // =========================================================================
 
         function getUUID() {
             let uuid = localStorage.getItem('user_id');
@@ -348,17 +340,14 @@
         const sendButton = document.getElementById('sendButton');
         const previewContainer = document.getElementById('preview-container');
 
-        // [추가] 선택된 이미지 관리 (최대 5장)
-        let selectedImages = []; // Array of { file, previewUrl }
+        let selectedImages = []; // { file, previewUrl }
 
         function scrollToBottom() { setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50); }
 
-        // [수정] 다중 이미지 선택 처리
         function handleImageSelect(event) {
             const files = Array.from(event.target.files);
             if (!files.length) return;
 
-            // 최대 5장 제한 체크
             const remainingSlots = 5 - selectedImages.length;
             if (remainingSlots <= 0) {
                 alert("최대 5장까지만 전송 가능합니다.");
@@ -378,26 +367,20 @@
                 };
                 reader.readAsDataURL(file);
             });
-            
-            // 입력창 비워서 같은 파일 다시 선택 가능하게 함
             event.target.value = '';
         }
 
-        // [추가] 이미지 개별 삭제
         function removeImage(index) {
             selectedImages.splice(index, 1);
             renderPreviews();
         }
 
-        // [추가] 미리보기 UI 그리기 (번호표 포함)
         function renderPreviews() {
             previewContainer.innerHTML = '';
-            
             if (selectedImages.length === 0) {
                 previewContainer.style.display = 'none';
                 return;
             }
-
             previewContainer.style.display = 'block';
             
             selectedImages.forEach((item, index) => {
@@ -412,7 +395,7 @@
             });
         }
 
-        // [핵심 기능] 이미지 병합 및 번호표 합성 (Canvas)
+        // [핵심 로직] 이미지를 세로(1열)로 병합하고 워터마크 표시
         async function mergeImages(imageItems) {
             if (imageItems.length === 0) return null;
 
@@ -420,12 +403,11 @@
                 const images = [];
                 let loadedCount = 0;
 
-                // 모든 이미지 로드 대기
                 imageItems.forEach((item, idx) => {
                     const img = new Image();
                     img.crossOrigin = "Anonymous";
                     img.onload = () => {
-                        images[idx] = img; 
+                        images[idx] = img;
                         loadedCount++;
                         if (loadedCount === imageItems.length) {
                             processMerge(images);
@@ -435,83 +417,80 @@
                 });
 
                 function processMerge(imgs) {
-                    // 1장일 때도 번호표(①)를 붙여서 일관성 유지
-                    if (imgs.length === 1) {
-                        const cellWidth = imgs[0].width;
-                        const cellHeight = imgs[0].height;
-                        const canvas = document.createElement('canvas');
-                        // 너무 크면 리사이징 (최대 1200px)
-                        const MAX_SIZE = 1200;
-                        let scale = 1;
-                        if (cellWidth > MAX_SIZE || cellHeight > MAX_SIZE) {
-                            scale = Math.min(MAX_SIZE / cellWidth, MAX_SIZE / cellHeight);
-                        }
-                        canvas.width = cellWidth * scale;
-                        canvas.height = cellHeight * scale;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(imgs[0], 0, 0, canvas.width, canvas.height);
-                        
-                        // 번호표 그리기
-                        drawWatermark(ctx, 1, 0, 0, canvas.width, canvas.height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.8));
-                        return;
-                    }
-
-                    // 2장 이상일 때 격자 병합 (가로 2열 고정)
-                    const cols = 2; 
-                    const rows = Math.ceil(imgs.length / cols);
+                    // 고정 너비 (모바일 최적화)
+                    const cellW = 800;
                     
-                    // 각 셀의 크기 (정사각형 크롭 대신 비율 유지+여백)
-                    const cellW = 800; // 기준 너비
-                    const cellH = 600; // 기준 높이
+                    // 각 이미지의 비율 유지 높이 계산
+                    let totalHeight = 0;
+                    const scaledHeights = imgs.map(img => {
+                        const scale = cellW / img.width;
+                        const h = img.height * scale;
+                        totalHeight += h;
+                        return h; 
+                    });
                     
                     const canvas = document.createElement('canvas');
-                    canvas.width = cellW * cols;
-                    canvas.height = cellH * rows;
+                    canvas.width = cellW;
+                    canvas.height = totalHeight;
                     const ctx = canvas.getContext('2d');
                     
-                    // 흰색 배경
+                    // 배경 흰색
                     ctx.fillStyle = "#ffffff";
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+                    let currentY = 0;
                     imgs.forEach((img, i) => {
-                        const col = i % cols;
-                        const row = Math.floor(i / cols);
-                        const x = col * cellW;
-                        const y = row * cellH;
+                        const h = scaledHeights[i];
+                        
+                        // 이미지 그리기 (꽉 채우기)
+                        ctx.drawImage(img, 0, currentY, cellW, h);
 
-                        // 이미지 비율 유지하며 중앙 배치 (Fit)
-                        const scale = Math.min((cellW - 20) / img.width, (cellH - 20) / img.height);
-                        const w = img.width * scale;
-                        const h = img.height * scale;
-                        const offsetX = (cellW - w) / 2;
-                        const offsetY = (cellH - h) / 2;
+                        // [수정] 번호표 그리기: 이미지 왼쪽 상단 내부에 크고 진하게
+                        drawWatermark(ctx, i + 1, 0, currentY);
+                       
+                       // 구분선 (마지막 이미지 제외)
+                       if (i < imgs.length - 1) {
+                           ctx.beginPath();
+                           ctx.moveTo(0, currentY + h);
+                           ctx.lineTo(cellW, currentY + h);
+                           ctx.strokeStyle = "#ffffff"; 
+                           ctx.lineWidth = 4;
+                           ctx.stroke();
+                       }
 
-                        ctx.drawImage(img, x + offsetX, y + offsetY, w, h);
-
-                        // 번호표 그리기 (각 셀의 왼쪽 위)
-                        drawWatermark(ctx, i + 1, x, y, cellW, cellH);
+                       currentY += h;
                     });
 
                     resolve(canvas.toDataURL('image/jpeg', 0.8));
                 }
 
-                function drawWatermark(ctx, num, x, y, w, h) {
-                    // 번호표 크기 및 위치 계산
-                    const padding = 20;
-                    const radius = 40; 
-                    const circleX = x + padding + radius;
-                    const circleY = y + padding + radius;
+                function drawWatermark(ctx, num, x, y) {
+                    // 번호표 크기 (지름 80px)
+                    const size = 80; 
+                    const padding = 20; // 여백
+                    const circleX = x + padding + (size/2);
+                    const circleY = y + padding + (size/2);
+
+                    // 그림자 효과로 선명도 UP
+                    ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+                    ctx.shadowBlur = 10;
+                    ctx.shadowOffsetX = 2;
+                    ctx.shadowOffsetY = 2;
 
                     ctx.beginPath();
-                    ctx.arc(circleX, circleY, radius, 0, 2 * Math.PI);
-                    ctx.fillStyle = "#e53e3e"; // 빨간색
+                    ctx.arc(circleX, circleY, size/2, 0, 2 * Math.PI);
+                    ctx.fillStyle = "#e53e3e"; // 강렬한 빨간색
                     ctx.fill();
                     
+                    // 흰색 테두리
                     ctx.lineWidth = 4;
                     ctx.strokeStyle = "white";
                     ctx.stroke();
 
+                    // 그림자 끄기 (텍스트는 깔끔하게)
+                    ctx.shadowColor = "transparent";
+
+                    // 숫자
                     ctx.fillStyle = "white";
                     ctx.font = "bold 50px Arial";
                     ctx.textAlign = "center";
@@ -521,12 +500,17 @@
             });
         }
 
-
         function addBubble(message, sender, isQuote = false) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
+            
+            // 견적서 내 이미지 스타일 강제 조정 (가로 꽉 차게)
             if (isQuote) {
-                bubble.innerHTML = `<div class="quote-content">${message}</div>`;
+                // 이미지가 포함된 경우 max-width 제한 해제 느낌으로 처리
+                let content = message;
+                // n8n에서 오는 이미지 태그 스타일 보정
+                content = content.replace(/max-width:100%/g, 'width:100%; max-width:100%; border-radius:12px;');
+                bubble.innerHTML = `<div class="quote-content">${content}</div>`;
             } else {
                 bubble.innerHTML = message;
             }
@@ -548,10 +532,9 @@
             const msg = userInput.value.trim();
             if (!msg && selectedImages.length === 0) return;
 
-            // 1. 사용자 화면에 말풍선 표시
             let displayMsg = msg;
             
-            // 사진이 있으면 첫 번째 사진 썸네일 + 장수 표시
+            // 사용자가 보는 화면엔 첫장만 크게 띄우고 뒤에 +N장 표시
             if (selectedImages.length > 0) {
                 const firstImg = selectedImages[0].previewUrl;
                 let countBadge = selectedImages.length > 1 ? `<span style="background:rgba(0,0,0,0.6); color:white; position:absolute; bottom:5px; right:5px; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold;">+${selectedImages.length - 1}</span>` : "";
@@ -564,14 +547,12 @@
             }
             addBubble(displayMsg, 'user');
 
-            // 2. 입력창 잠금 및 데이터 준비
             userInput.value = "";
-            const imagesToProcess = [...selectedImages]; // 복사본 생성
-            selectedImages = []; // 초기화
-            renderPreviews(); // UI 초기화
+            const imagesToProcess = [...selectedImages];
+            selectedImages = [];
+            renderPreviews();
             sendButton.disabled = true;
 
-            // 3. 로딩 애니메이션
             let sec = 0;
             const loading = addTimerBubble(`견적 계산 중...`);
             const timer = setInterval(() => {
@@ -580,7 +561,6 @@
             }, 1000);
 
             try {
-                // 4. 이미지 병합 (1장으로 만들기 + 번호표 붙이기)
                 let finalImage = null;
                 if (imagesToProcess.length > 0) {
                     finalImage = await mergeImages(imagesToProcess);
@@ -588,10 +568,9 @@
 
                 const payload = { 
                     message: msg, 
-                    image: finalImage // Base64 String
+                    image: finalImage 
                 };
 
-                // 5. API 전송
                 const res = await fetch(CONFIG.webhookUrl, {
                     method: 'POST',
                     headers: {
@@ -608,7 +587,6 @@
                 if (!res.ok) throw new Error('Server Error');
                 const data = await res.json();
 
-                // 6. 봇 응답 표시
                 if (Array.isArray(data) && data.length > 0 && data[0].output) {
                     addBubble(data[0].output, 'bot', true);
                 } else if (data.output) {
