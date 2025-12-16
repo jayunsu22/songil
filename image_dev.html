@@ -1,14 +1,24 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 채팅 앱</title>
+    <!-- Tailwind CSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Inter 폰트 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>이미지견적 (실전모드 V2)</title>
+    <title>이미지견적 (다중이미지 V2)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* 채팅창 높이 설정을 위한 유틸리티 */
+        .chat-container { height: calc(100vh - 4rem); }
+        .message-area { max-height: calc(100% - 6rem); overflow-y: auto; scroll-behavior: smooth; }
+        .scroll-to-bottom { position: sticky; bottom: 0; }
         body {
             font-family: 'Noto Sans KR', sans-serif;
             margin: 0;
@@ -17,7 +27,6 @@
             overflow: hidden;
             letter-spacing: -0.5px;
         }
-
         .chat-wrapper {
             width: 100%;
             max-width: 500px;
@@ -28,7 +37,6 @@
             height: 100dvh;
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
         }
-
         .chat-header {
             background-color: #4A90E2;
             color: white;
@@ -38,13 +46,11 @@
             z-index: 100;
             position: relative;
         }
-
         .chat-header h1 {
             margin: 0;
             font-size: 1.3em;
             font-weight: 700;
         }
-
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -52,7 +58,6 @@
             padding: 20px;
             background-color: #f9fafc;
         }
-
         .chat-bubble {
             width: fit-content;
             max-width: 85%;
@@ -65,7 +70,6 @@
             word-break: break-word;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
-
         .chat-bubble.user {
             background-color: #4A90E2;
             color: white;
@@ -73,7 +77,6 @@
             border-bottom-right-radius: 4px;
             margin-left: auto;
         }
-
         .chat-bubble.bot {
             background-color: #ffffff;
             color: #333;
@@ -82,7 +85,6 @@
             margin-right: auto;
             border: 1px solid #eee;
         }
-
         .chat-bubble.bot-loading-blue {
             background: #4A90E2;
             color: white;
@@ -95,70 +97,17 @@
             border: 2px solid white;
             font-weight: 700;
         }
-
         @keyframes pulse {
             0% {
                 transform: scale(1);
             }
-
             50% {
                 transform: scale(1.02);
             }
-
             100% {
                 transform: scale(1);
             }
         }
-
-        /* 견적서 스타일 (카드형 UI 강화) */
-        .quote-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            margin-bottom: 10px;
-            border: 1px solid #eee;
-        }
-
-        .quote-title {
-            font-size: 1.2em;
-            font-weight: 800;
-            color: #4A90E2;
-            border-bottom: 2px solid #f0f0f0;
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-        }
-
-        .item-title {
-            font-weight: 700;
-            color: #222;
-            margin-top: 10px;
-            font-size: 1.1em;
-        }
-
-        .item-detail {
-            color: #666;
-            padding-left: 8px;
-            font-size: 0.95em;
-            margin-top: 2px;
-        }
-
-        .item-subtotal {
-            color: #333;
-            font-weight: bold;
-            margin-top: 5px;
-        }
-
-        .total-line {
-            font-size: 1.3em;
-            font-weight: 800;
-            color: #e53e3e;
-            margin-top: 20px;
-            border-top: 2px dashed #ddd;
-            padding-top: 10px;
-            text-align: center;
-        }
-
         /* 입력창 스타일 */
         .chat-input-area {
             background-color: #fff;
@@ -168,20 +117,17 @@
             flex-direction: column;
             flex-shrink: 0;
         }
-
         .input-row {
             display: flex;
             align-items: center;
             width: 100%;
         }
-
         .input-wrapper {
             position: relative;
             flex: 1;
             display: flex;
             align-items: center;
         }
-
         #userInput {
             width: 100%;
             padding: 14px;
@@ -193,7 +139,6 @@
             background: #f8f9fa;
             box-sizing: border-box;
         }
-
         .camera-btn {
             position: absolute;
             right: 10px;
@@ -202,7 +147,6 @@
             cursor: pointer;
             padding: 5px;
         }
-
         #sendButton {
             margin-left: 10px;
             padding: 14px 24px;
@@ -213,55 +157,103 @@
             font-weight: 700;
             cursor: pointer;
         }
-
+        /* 다중 이미지 미리보기 스타일 */
         #preview-container {
             display: none;
             margin-bottom: 10px;
-            position: relative;
-            width: fit-content;
+            text-align: left;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 5px;
         }
-
-        #preview-img {
-            max-height: 100px;
+        .preview-item {
+            position: relative;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: top;
+        }
+        .preview-img {
+            height: 90px;
+            width: 90px;
+            object-fit: cover;
             border-radius: 8px;
-            border: 1px solid #ddd;
+            border: 2px solid #ddd;
             display: block;
         }
-
+        .preview-number {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: #e53e3e;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
         .preview-close {
             position: absolute;
-            top: -8px;
-            right: -8px;
-            background: #e53e3e;
+            top: -5px;
+            right: -5px;
+            background: #333;
             color: white;
             border: none;
             border-radius: 50%;
             width: 20px;
             height: 20px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            z-index: 20;
         }
     </style>
 </head>
-
+<body class="bg-gray-50 min-h-screen">
+    <div id="app" class="max-w-md mx-auto shadow-2xl bg-white rounded-lg overflow-hidden my-4">
+        
+        <!-- Header -->
+        <header class="bg-indigo-600 p-4 shadow-md flex justify-between items-center rounded-t-lg">
+            <h1 class="text-xl font-bold text-white">실시간 채팅방</h1>
+            <div id="user-info" class="text-xs text-indigo-200">
+                사용자 ID: <span id="user-id" class="font-mono bg-indigo-700/50 px-2 py-0.5 rounded-full">로딩 중...</span>
+            </div>
+        </header>
 <body>
     <div class="chat-wrapper">
         <div class="chat-header">
             <h1>이미지견적 V2</h1>
-            <p>실전모드(Production)</p>
+            <p>다중 이미지 처리 모드</p>
             <button onclick="location.reload()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
         </div>
         <div class="chat-container" id="chatContainer"></div>
-
+        <!-- Message Area -->
+        <div id="messages" class="message-area p-4 space-y-4">
+            <!-- Messages will be loaded here -->
+            <div id="loading-spinner" class="text-center p-8 text-gray-500">
+                <svg class="animate-spin h-8 w-8 text-indigo-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2">메시지 로딩 중...</p>
         <div class="chat-input-area">
-            <div id="preview-container">
-                <img id="preview-img" src="" alt="미리보기">
-                <button class="preview-close" onclick="clearImage()">×</button>
-            </div>
+            <!-- 다중 이미지 미리보기 영역 -->
+            <div id="preview-container"></div>
+            
             <div class="input-row">
                 <div class="input-wrapper">
-                    <input type="text" id="userInput" placeholder="사진 또는 내용 입력...">
-                    <input type="file" id="imageInput" accept="image/*" style="display:none;"
+                    <input type="text" id="userInput" placeholder="사진(여러장 가능) 또는 내용 입력...">
+                    <!-- multiple 속성 추가 -->
+                    <input type="file" id="imageInput" accept="image/*" multiple style="display:none;"
                         onchange="handleImageSelect(event)">
                     <button class="camera-btn" onclick="document.getElementById('imageInput').click()">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"
@@ -275,20 +267,44 @@
                 <button id="sendButton">전송</button>
             </div>
         </div>
+        <!-- Input Area -->
+        <div class="p-4 border-t border-gray-200">
+            <form id="message-form" class="flex gap-2">
+                <input type="text" id="message-input" placeholder="메시지를 입력하세요..."
+                       class="flex-grow p-3 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm"
+                       required>
+                <button type="submit"
+                        class="bg-indigo-500 text-white p-3 rounded-xl font-semibold hover:bg-indigo-600 transition duration-150 shadow-md flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    전송
+                </button>
+            </form>
+        </div>
+        
     </div>
-
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, onSnapshot, collection, query, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     <script>
-        // =========================================================================
-        // [설정 영역] Production URL 적용 완료
-        // =========================================================================
         const CONFIG = {
             webhookUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test",
             secretToken: "songil_secret_2025",
             managerName: "김정헌 실장"
         };
-        // =========================================================================
-
-        // [Session Management] UUID 생성 및 로드
+        // Firestore 로깅 활성화 (디버깅용)
+        setLogLevel('Debug');
+        // 1. 전역 변수 설정 (Canvas 환경 변수 활용)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chat-app';
+        let firebaseConfig = {};
+        if (typeof __firebase_config !== 'undefined') {
+            try {
+                firebaseConfig = JSON.parse(__firebase_config);
+            } catch (e) {
+                console.error("Firebase config parsing error:", e);
+                // 기본 config 사용
+                firebaseConfig = { apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: "" };
         function getUUID() {
             let uuid = localStorage.getItem('user_id');
             if (!uuid) {
@@ -297,52 +313,298 @@
             }
             return uuid;
         }
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         const currentUserId = getUUID();
         console.log("Current User ID:", currentUserId);
-
+        let db;
+        let auth;
+        let userId = 'loading'; // 초기 사용자 ID
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
-        let currentBase64Image = null;
-
+        const previewContainer = document.getElementById('preview-container');
+        const messagesContainer = document.getElementById('messages');
+        const userIdSpan = document.getElementById('user-id');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        // 선택된 이미지들을 저장할 배열 (최대 5장 제한)
+        let selectedImages = []; // [{ file: File, previewUrl: string }, ...]
+        // 2. Firebase 초기화 및 인증
+        async function initializeAndAuthenticate() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
         function scrollToBottom() { setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50); }
-
+                if (initialAuthToken) {
+                    // 커스텀 토큰 인증 시도
+                    await signInWithCustomToken(auth, initialAuthToken);
+                    console.log("Custom token sign-in successful.");
+                } else {
+                    // 익명 인증 시도
+                    await signInAnonymously(auth);
+                    console.log("Anonymous sign-in successful.");
+                }
         function handleImageSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const img = new Image();
-                img.onload = function () {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    const MAX_WIDTH = 800;
-                    let width = img.width;
-                    let height = img.height;
-                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                    canvas.width = width; canvas.height = height;
-                    ctx.drawImage(img, 0, 0, width, height);
-                    currentBase64Image = canvas.toDataURL('image/jpeg', 0.7);
-                    document.getElementById('preview-img').src = currentBase64Image;
-                    document.getElementById('preview-container').style.display = 'block';
-                    userInput.focus();
+            const files = Array.from(event.target.files);
+            if (!files.length) return;
+                // 인증 상태 변경 감지 및 Firestore 리스너 시작
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdSpan.textContent = userId.substring(0, 8) + '...'; // UI에 일부만 표시
+                        
+                        // 3. 인증 완료 후 데이터 리스너 시작
+                        startChatListener();
+                        
+                        // 4. 폼 전송 이벤트 핸들러 추가
+                        document.getElementById('message-form').addEventListener('submit', handleSendMessage);
+                    } else {
+                        console.error("User is not signed in.");
+                        userIdSpan.textContent = "로그인 실패";
+                    }
+                });
+            // 최대 5장까지만 허용
+            const remainingSlots = 5 - selectedImages.length;
+            if (remainingSlots <= 0) {
+                alert("최대 5장까지만 전송 가능합니다.");
+                return;
+            }
+            } catch (error) {
+                console.error("Firebase Initialization or Authentication Error:", error);
+                userIdSpan.textContent = "오류 발생";
+            const filesToAdd = files.slice(0, remainingSlots);
+            filesToAdd.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    selectedImages.push({
+                        file: file,
+                        previewUrl: e.target.result
+                    });
+                    renderPreviews(); // UI 업데이트
                 };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
+                reader.readAsDataURL(file);
+            });
+            
+            // 입력창 초기화 (같은 파일 다시 선택 가능하게)
+            event.target.value = '';
         }
-
-        function clearImage() {
-            currentBase64Image = null;
-            document.getElementById('imageInput').value = '';
-            document.getElementById('preview-container').style.display = 'none';
+        function removeImage(index) {
+            selectedImages.splice(index, 1);
+            renderPreviews();
         }
-
+        function renderPreviews() {
+            previewContainer.innerHTML = '';
+            
+            if (selectedImages.length === 0) {
+                previewContainer.style.display = 'none';
+                return;
+            }
+            previewContainer.style.display = 'block';
+            
+            selectedImages.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'preview-item';
+                div.innerHTML = `
+                    <div class="preview-number">${index + 1}</div>
+                    <img src="${item.previewUrl}" class="preview-img">
+                    <button class="preview-close" onclick="removeImage(${index})">×</button>
+                `;
+                previewContainer.appendChild(div);
+            });
+        }
+        
+        // 5. 실시간 메시지 리스너
+        function startChatListener() {
+            // Firestore 컬렉션 경로: /artifacts/{appId}/public/data/chat_messages
+            const chatCollectionPath = `/artifacts/${appId}/public/data/chat_messages`;
+            const q = query(collection(db, chatCollectionPath), orderBy('timestamp', 'desc')); // 일단 최신순으로 쿼리
+            // 스냅샷 리스너: 실시간으로 데이터 변경 감지
+            onSnapshot(q, (snapshot) => {
+                loadingSpinner.remove(); // 로딩 스피너 제거
+        // 여러 이미지를 하나의 캔버스에 "번호표 합성"하여 병합하는 함수
+        async function mergeImages(imageItems) {
+            if (imageItems.length === 0) return null;
+            if (imageItems.length === 1) {
+                // 1장일 때도 번호표는 붙여줌 (일관성 위해)
+                return await markImage(imageItems[0].previewUrl, 1);
+            }
+                const fragment = document.createDocumentFragment();
+                let hasNewMessages = false;
+                
+                // 새로운 메시지부터 렌더링
+                snapshot.docChanges().reverse().forEach(change => {
+                    const messageData = change.doc.data();
+                    
+                    if (change.type === "added") {
+                        const messageElement = createMessageElement(messageData, messageData.uid === userId);
+                        fragment.prepend(messageElement); // 새 메시지를 목록 맨 위에 추가
+                        hasNewMessages = true;
+                    } 
+                    // 간단한 채팅 앱이므로 added만 처리하고 전체 목록은 DOM을 비우고 다시 그립니다.
+            return new Promise((resolve) => {
+                const images = [];
+                let loadedCount = 0;
+                // 모든 이미지 로드
+                imageItems.forEach((item, idx) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        images[idx] = img; // 순서 보장
+                        loadedCount++;
+                        if (loadedCount === imageItems.length) {
+                            processMerge(images);
+                        }
+                    };
+                    img.src = item.previewUrl;
+                });
+                
+                // 전체 목록 다시 그리기 (간단한 구현을 위해)
+                if (snapshot.docChanges().length > 0) {
+                     // 이전 메시지 모두 삭제 후 새로 추가
+                    messagesContainer.innerHTML = ''; 
+                function processMerge(imgs) {
+                    // 격자 계산 (1~3장: 가로 일렬, 4장: 2x2, 5장: 2x3 등)
+                    // 여기서는 단순하게 "가로 2열"로 고정하여 세로로 늘어나는 방식 사용 (모바일 보기 편함)
+                    // 예: 3장 -> 2열 2행 (마지막 칸 빈칸)
+                    
+                    snapshot.docs.reverse().forEach(doc => {
+                        const messageData = doc.data();
+                        const messageElement = createMessageElement(messageData, messageData.uid === userId);
+                        messagesContainer.appendChild(messageElement);
+                    const cols = 2; 
+                    const rows = Math.ceil(imgs.length / cols);
+                    
+                    // 기준 너비: 장당 800px로 리사이징 가정
+                    const cellWidth = 800;
+                    const cellHeight = 800; // 정사각형 크롭 혹은 비율 유지하며 채우기 (여기서는 비율 유지 + 패딩)
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = cellWidth * cols;
+                    canvas.height = cellHeight * rows;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 배경 흰색
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    imgs.forEach((img, i) => {
+                        const col = i % cols;
+                        const row = Math.floor(i / cols);
+                        const x = col * cellWidth;
+                        const y = row * cellHeight;
+                        // 이미지 비율 유지하며 중앙 배치 (fit)
+                        const scale = Math.min((cellWidth - 20) / img.width, (cellHeight - 20) / img.height);
+                        const w = img.width * scale;
+                        const h = img.height * scale;
+                        const offsetX = (cellWidth - w) / 2;
+                        const offsetY = (cellHeight - h) / 2;
+                        ctx.drawImage(img, x + offsetX, y + offsetY, w, h);
+                        // 번호표 그리기 (빨간 원 + 흰 숫자)
+                        const num = i + 1;
+                        const circleX = x + 60; // 왼쪽 위 여백
+                        const circleY = y + 60;
+                        const contextFontSize = 80;
+                        ctx.beginPath();
+                        ctx.arc(circleX, circleY, 45, 0, 2 * Math.PI);
+                        ctx.fillStyle = "#e53e3e"; // 빨간색
+                        ctx.fill();
+                        ctx.lineWidth = 4;
+                        ctx.strokeStyle = "white";
+                        ctx.stroke();
+                        ctx.fillStyle = "white";
+                        ctx.font = `bold ${50}px Arial`;
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(num, circleX, circleY + 3); // 살짝 아래 보정
+                    });
+                    // 새 메시지가 추가되면 스크롤을 맨 아래로 이동
+                    if (hasNewMessages) {
+                        scrollToBottom();
+                    }
+                    // 최종 결과 (JPEG 0.7)
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                }
+            });
+        }
+        // 6. 메시지 DOM 요소 생성
+        function createMessageElement(data, isCurrentUser) {
+            const wrapper = document.createElement('div');
+            
+            // 현재 사용자가 보낸 메시지 스타일
+            const alignment = isCurrentUser ? 'justify-end' : 'justify-start';
+            const bgColor = isCurrentUser ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800';
+            const corner = isCurrentUser ? 'rounded-br-none' : 'rounded-bl-none';
+            const timeAlignment = isCurrentUser ? 'text-right' : 'text-left';
+        // 단일 이미지에 번호표만 붙이는 함수
+        function markImage(dataUrl, num) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 1200; // 최대 크기 제한
+                    let w = img.width;
+                    let h = img.height;
+                    
+                    if (w > MAX_SIZE || h > MAX_SIZE) {
+                        const scale = Math.min(MAX_SIZE / w, MAX_SIZE / h);
+                        w *= scale;
+                        h *= scale;
+                    }
+            // 사용자 ID 색상 해싱 (단순화)
+            const hue = (data.uid.split('').reduce((a, b) => a + b.charCodeAt(0), 0) * 137.508) % 360;
+            const userColor = `hsl(${hue}, 70%, 50%)`;
+            
+            // 시간 포맷
+            const time = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '전송 중...';
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+            wrapper.className = `flex ${alignment}`;
+            wrapper.innerHTML = `
+                <div class="max-w-xs md:max-w-md">
+                    <div class="text-xs font-semibold mb-0.5 ${timeAlignment}" style="color: ${isCurrentUser ? 'transparent' : userColor};">
+                        ${data.uid.substring(0, 8)}...
+                    </div>
+                    <div class="p-3 ${bgColor} rounded-xl shadow-md ${corner}">
+                        ${data.text}
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1 ${timeAlignment}">
+                        ${time}
+                    </div>
+                </div>
+            `;
+            return wrapper;
+                    // 번호표
+                    const size = Math.min(w, h) * 0.15; // 이미지 크기의 15%
+                    const x = size * 0.8;
+                    const y = size * 0.8;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, size/2, 0, 2 * Math.PI);
+                    ctx.fillStyle = "#e53e3e";
+                    ctx.fill();
+                    ctx.lineWidth = size * 0.05;
+                    ctx.strokeStyle = "white";
+                    ctx.stroke();
+                    ctx.fillStyle = "white";
+                    ctx.font = `bold ${size * 0.6}px Arial`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(num, x, y + (size * 0.05));
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                };
+                img.src = dataUrl;
+            });
+        }
+        // 7. 메시지 전송 처리
+        async function handleSendMessage(event) {
+            event.preventDefault();
+            const input = document.getElementById('message-input');
+            const messageText = input.value.trim();
+            if (!messageText || !db || !userId) return;
         function addBubble(message, sender, isQuote = false) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
             if (isQuote) {
-                // 견적서인 경우 카드 스타일 적용 (서버에서 HTML을 줄 수도 있지만, 여기서도 감싸줌)
                 bubble.innerHTML = `<div class="quote-content">${message}</div>`;
             } else {
                 bubble.innerHTML = message;
@@ -351,7 +613,9 @@
             scrollToBottom();
             return bubble;
         }
-
+            try {
+                // Firestore 컬렉션 경로: /artifacts/{appId}/public/data/chat_messages
+                const chatCollectionPath = `/artifacts/${appId}/public/data/chat_messages`;
         function addTimerBubble(message) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', 'bot-loading-blue');
@@ -360,48 +624,71 @@
             scrollToBottom();
             return bubble;
         }
-
         async function sendRequest() {
             const msg = userInput.value.trim();
-            if (!msg && !currentBase64Image) return;
-
+            if (!msg && selectedImages.length === 0) return;
+            // 1. 사용자 말풍선 표시
             let displayMsg = msg;
-            if (currentBase64Image) {
-                displayMsg = `<img src="${currentBase64Image}" style="max-width:100%; border-radius:8px; display:block; margin-bottom:5px;">` + (msg ? msg : "사진 전송");
+            
+            // 미리보기용으로 첫 번째 이미지만 보여주거나, "사진 N장" 텍스트 표시
+            if (selectedImages.length > 0) {
+                // 사용자가 보는 화면엔 첫장만 크게 띄우고 뒤에 +N장 표시 (심플하게)
+                const firstImg = selectedImages[0].previewUrl;
+                let countBadge = selectedImages.length > 1 ? `<span style="background:rgba(0,0,0,0.6); color:white; position:absolute; bottom:5px; right:5px; padding:2px 8px; border-radius:10px; font-size:0.8em;">+${selectedImages.length - 1}</span>` : "";
+                
+                await addDoc(collection(db, chatCollectionPath), {
+                    text: messageText,
+                    timestamp: serverTimestamp(), // 서버 타임스탬프 사용
+                    uid: userId,
+                    appId: appId
+                displayMsg = `<div style="position:relative; display:inline-block;">
+                                <img src="${firstImg}" style="max-width:200px; border-radius:8px; display:block;">
+                                ${countBadge}
+                              </div>`;
+                if(msg) displayMsg += `<div style="margin-top:5px;">${msg}</div>`;
             }
             addBubble(displayMsg, 'user');
-
+            // 2. 입력창 잠금 및 초기화
             userInput.value = "";
+            const tempImages = [...selectedImages]; // 복사본 저장
+            selectedImages = [];
+            renderPreviews();
             sendButton.disabled = true;
-
+            // 3. 로딩 표시
             let sec = 0;
             const loading = addTimerBubble(`견적 계산 중...`);
             const timer = setInterval(() => {
                 sec++;
                 loading.innerHTML = `⏳ 견적 계산 중... ${sec}s`;
             }, 1000);
-
             try {
-                const payload = { message: msg, image: currentBase64Image };
-
-                // [서버로 전송] 헤더에 x-user-id 추가
+                // 4. 이미지 병합 처리 (핵심!)
+                let finalImageBase64 = null;
+                if (tempImages.length > 0) {
+                    finalImageBase64 = await mergeImages(tempImages);
+                }
+                const payload = { 
+                    message: msg, 
+                    image: finalImageBase64 // 병합된 1장의 이미지 전송
+                };
+                // 5. 서버 전송
                 const res = await fetch(CONFIG.webhookUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'x-secret-token': CONFIG.secretToken,
-                        'x-user-id': currentUserId // Session ID 전송
+                        'x-user-id': currentUserId
                     },
                     body: JSON.stringify(payload)
                 });
-
+                
+                input.value = ''; // 전송 후 입력창 비우기
+                scrollToBottom();
                 clearInterval(timer);
                 if (loading.parentNode) loading.parentNode.removeChild(loading);
-
                 if (!res.ok) throw new Error('Server Error');
                 const data = await res.json();
-
-                // 응답 처리
+                // 6. 응답 처리
                 if (Array.isArray(data) && data.length > 0 && data[0].output) {
                     addBubble(data[0].output, 'bot', true);
                 } else if (data.output) {
@@ -411,24 +698,30 @@
                 } else if (data.message) {
                     addBubble(data.message, 'bot', true);
                 } else {
-                    console.log("전체 응답 데이터:", data);
                     addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
                 }
-
             } catch (e) {
+                console.error("Error adding document: ", e);
                 clearInterval(timer);
                 if (loading.parentNode) loading.parentNode.removeChild(loading);
                 console.error(e);
                 addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot');
             } finally {
                 sendButton.disabled = false;
-                clearImage();
             }
         }
-
+        // 8. 스크롤 맨 아래로 이동
+        function scrollToBottom() {
+            const messages = document.getElementById('messages');
+            messages.scrollTop = messages.scrollHeight;
+        }
+        // 앱 시작
+        initializeAndAuthenticate();
+        // 초기 로드 시 한 번 스크롤
+        window.addEventListener('load', scrollToBottom);
         sendButton.addEventListener('click', sendRequest);
         userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
     </script>
 </body>
-
+</html>
 </html>
