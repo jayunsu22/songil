@@ -1,3 +1,13 @@
+<!-- 
+    [Updated: 2026-01-03 06:30:57 KST]
+    수정내용:
+    1. [헤더] 가맹점명 연동 (데이터 없을 시 기본값 처리)
+    2. [명함] 하단 명함 레이아웃 개편
+       - 문의: 대표자명 + 직책 + 소셜버튼(블로그/인스타/카톡) 한 줄 배치
+       - 전화번호: 대형 버튼으로 강조
+       - 공유하기: 버튼 추가
+    3. [중복제거] n8n 응답 메시지 내 기존 서명 부분 자동 삭제 로직 추가
+-->
 <!DOCTYPE html>
 <html lang="ko">
 
@@ -558,147 +568,179 @@
 
             let content = message;
 
-            // 견적서 내 이미지 스타일 보정
-            if (isQuote) {
-                content = content.replace(/max-width:100%/g, 'width:100%; max-width:100%; border-radius:12px;');
-            }
+            // [핵심] 가맹점 명함(Footer) 중복 방지 및 통합 로직
+            if (sender === 'bot' && (isQuote || content.includes('견적') || content.includes('금액'))) {
 
-            // [핵심] 가맹점 명함(Footer) 추가 로직
-            if (sender === 'bot' && currentPartner && (isQuote || content.includes('견적') || content.includes('금액'))) {
-                const ceo = currentPartner.ceo_name || '';
-                const pos = currentPartner.position || '';
-                const phone = currentPartner.phone || '';
+                // 1. 기존 n8n 메시지에 포함된 "문의 :" 이하 내용을 잘라냅니다. (중복 방지)
+                // (알립니다! 내용까지만 살리고 그 뒤는 날려버림)
+                const splitPoint = content.indexOf('문의 :');
+                if (splitPoint !== -1) {
+                    content = content.substring(0, splitPoint);
+                }
 
-                const blog = currentPartner.blog_url || '';
-                const insta = currentPartner.insta_url || '';
-                const kakao = currentPartner.kakao_url || '';
+                // 견적서 내 이미지 스타일 보정
+                if (isQuote) {
+                    content = content.replace(/max-width:100%/g, 'width:100%; max-width:100%; border-radius:12px;');
+                }
+
+                // 2. 가맹점 정보가 있으면 사용, 없으면 기본값 (김정헌 실장)
+                const partnerData = currentPartner || {}; // 데이터 없으면 빈 객체
+                const ceo = partnerData.ceo_name || '김정헌';
+                const pos = partnerData.position || '실장';
+                const phone = partnerData.phone || '010-6657-1222';
+
+                const blog = partnerData.blog_url || '';
+                const insta = partnerData.insta_url || '';
+                const kakao = partnerData.kakao_url || '';
+
+                // 3. 통합 명함 HTML 생성
+                // 구조: [문의 : 이름 직책 + 소셜버튼들] (한줄)
+                //       [전화번호 버튼] (왕따시)
+                //       [공유하기 버튼] (기존 유지 확인 - 봇 메시지에는 공유하기가 원래 없었으므로 필요시 추가)
 
                 const footerHtml = `
                     <div style="margin-top: 20px; padding-top: 15px; border-top: 2px dashed #eee; text-align: center;">
                         
-                        <!-- 1. 문의 담당자 -->
-                        <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 1.1em; color: #333;">
-                            문의 : <span style="color:#2c5282;">${ceo} ${pos}</span>
-                        </p>
-                        
-                        <!-- 2. 소셜/상담 버튼 모음 -->
-                        <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
-                            ${blog ? `<a href="${blog}" target="_blank" style="text-decoration: none; font-size: 0.9em; background:#f1f3f5; padding:6px 10px; border-radius:8px; color:#495057;">🏠 블로그</a>` : ''}
-                            ${insta ? `<a href="${insta}" target="_blank" style="text-decoration: none; font-size: 0.9em; background:#fff0f6; padding:6px 10px; border-radius:8px; color:#c02d5b;">📸 인스타</a>` : ''}
-                            ${kakao ? `<a href="${kakao}" target="_blank" style="text-decoration: none; font-size: 0.9em; background:#FEE500; padding:6px 10px; border-radius:8px; color:#3c1e1e; font-weight:bold;">💬 카톡상담</a>` : ''}
+                        <!-- 1. 문의 담당자 + 소셜 아이콘 (한 줄 배치) -->
+                        <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                            <span style="font-weight: bold; font-size: 1.0em; color: #333; margin-right: 5px;">
+                                문의 : ${ceo} ${pos}
+                            </span>
+                            ${blog ? `<a href="${blog}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:#03C75A; padding:4px 8px; border-radius:6px; color:white;">블로그</a>` : ''}
+                            ${insta ? `<a href="${insta}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); padding:4px 8px; border-radius:6px; color:white;">인스타</a>` : ''}
+                            ${kakao ? `<a href="${kakao}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:#FEE500; padding:4px 8px; border-radius:6px; color:#3c1e1e; font-weight:bold;">카톡</a>` : ''}
                         </div>
 
-                        <!-- 3. 대형 전화기 버튼 -->
-                        ${phone ? `
-                        <a href="tel:${phone}" style="display: block; background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%); color: white; text-decoration: none; font-weight: 800; font-size: 1.4em; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(74, 144, 226, 0.3);">
+                        <!-- 2. 대형 전화기 버튼 -->
+                        <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             📞 ${phone}
                         </a>
-                        <p style="margin: 5px 0 0 0; font-size: 0.8em; color: #888;">(터치하면 바로 연결됩니다)</p>
-                        ` : ''}
 
+                         <!-- 3. 견적내용 공유하기 (원래 n8n에 있던 기능이면 삭제되었을 수 있으니 여기서 복구) -->
+                        <button onclick="shareQuote()" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
+                            🔗 견적내용 공유하기
+                        </button>
                     </div>
-                `;
-                content += footerHtml;
-            }
+                    
+                    <script>
+                    function shareQuote() {
+                        if (navigator.share) {
+                            navigator.share({
+                                title: '이미지 견적 결과',
+                                text: '견적 결과를 확인해보세요!',
+                                url: window.location.href
+                            });
+                        } else {
+                            alert('링크가 복사되었습니다!');
+                            navigator.clipboard.writeText(window.location.href);
+                        }
+                    }
+    </script>
+    `;
+    content += footerHtml;
+    }
 
-            bubble.innerHTML = isQuote ? `<div class="quote-content">${content}</div>` : content;
-            chatContainer.appendChild(bubble);
-            scrollToBottom();
-            return bubble;
-        }
+    bubble.innerHTML = isQuote ? `<div class="quote-content">${content}</div>` : content;
+    chatContainer.appendChild(bubble);
+    scrollToBottom();
+    return bubble;
+    }
 
-        function addTimerBubble(message) {
-            const bubble = document.createElement('div');
-            bubble.classList.add('chat-bubble', 'bot-loading-blue');
-            bubble.innerHTML = `⏳ ${message}`;
-            chatContainer.appendChild(bubble);
-            scrollToBottom();
-            return bubble;
-        }
+    function addTimerBubble(message) {
+    const bubble = document.createElement('div');
+    bubble.classList.add('chat-bubble', 'bot-loading-blue');
+    bubble.innerHTML = `⏳ ${message}`;
+    chatContainer.appendChild(bubble);
+    scrollToBottom();
+    return bubble;
+    }
 
-        async function sendRequest() {
-            const msg = userInput.value.trim();
-            if (!msg && selectedImages.length === 0) return;
+    async function sendRequest() {
+    const msg = userInput.value.trim();
+    if (!msg && selectedImages.length === 0) return;
 
-            let displayMsg = msg;
+    let displayMsg = msg;
 
-            // 사용자가 보는 화면엔 첫장만 크게 띄우고 뒤에 +N장 표시
-            if (selectedImages.length > 0) {
-                const firstImg = selectedImages[0].previewUrl;
-                let countBadge = selectedImages.length > 1 ? `<span style="background:rgba(0,0,0,0.6); color:white; position:absolute; bottom:5px; right:5px; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold;">+${selectedImages.length - 1}</span>` : "";
+    // 사용자가 보는 화면엔 첫장만 크게 띄우고 뒤에 +N장 표시
+    if (selectedImages.length > 0) {
+    const firstImg = selectedImages[0].previewUrl;
+    let countBadge = selectedImages.length > 1 ? `<span
+        style="background:rgba(0,0,0,0.6); color:white; position:absolute; bottom:5px; right:5px; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold;">+${selectedImages.length
+        - 1}</span>` : "";
 
-                displayMsg = `<div style="position:relative; display:inline-block;">
-                                <img src="${firstImg}" style="max-width:200px; max-height:200px; border-radius:8px; display:block; border:1px solid #ddd;">
-                                ${countBadge}
-                              </div>`;
-                if (msg) displayMsg += `<div style="margin-top:8px;">${msg}</div>`;
-            }
-            addBubble(displayMsg, 'user');
+    displayMsg = `<div style="position:relative; display:inline-block;">
+        <img src="${firstImg}"
+            style="max-width:200px; max-height:200px; border-radius:8px; display:block; border:1px solid #ddd;">
+        ${countBadge}
+    </div>`;
+    if (msg) displayMsg += `<div style="margin-top:8px;">${msg}</div>`;
+    }
+    addBubble(displayMsg, 'user');
 
-            userInput.value = "";
-            const imagesToProcess = [...selectedImages];
-            selectedImages = [];
-            renderPreviews();
-            sendButton.disabled = true;
+    userInput.value = "";
+    const imagesToProcess = [...selectedImages];
+    selectedImages = [];
+    renderPreviews();
+    sendButton.disabled = true;
 
-            let sec = 0;
-            const loading = addTimerBubble(`견적 계산 중...`);
-            const timer = setInterval(() => {
-                sec++;
-                loading.innerHTML = `⏳ 견적 계산 중... ${sec}s`;
-            }, 1000);
+    let sec = 0;
+    const loading = addTimerBubble(`견적 계산 중...`);
+    const timer = setInterval(() => {
+    sec++;
+    loading.innerHTML = `⏳ 견적 계산 중... ${sec}s`;
+    }, 1000);
 
-            try {
-                let finalImage = null;
-                if (imagesToProcess.length > 0) {
-                    finalImage = await mergeImages(imagesToProcess);
-                }
+    try {
+    let finalImage = null;
+    if (imagesToProcess.length > 0) {
+    finalImage = await mergeImages(imagesToProcess);
+    }
 
-                const payload = {
-                    message: msg,
-                    image: finalImage
-                };
+    const payload = {
+    message: msg,
+    image: finalImage
+    };
 
-                const res = await fetch(CONFIG.estimateUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-secret-token': CONFIG.secretToken,
-                        'x-user-id': currentUserId
-                    },
-                    body: JSON.stringify(payload)
-                });
+    const res = await fetch(CONFIG.estimateUrl, {
+    method: 'POST',
+    headers: {
+    'Content-Type': 'application/json',
+    'x-secret-token': CONFIG.secretToken,
+    'x-user-id': currentUserId
+    },
+    body: JSON.stringify(payload)
+    });
 
-                clearInterval(timer);
-                if (loading.parentNode) loading.parentNode.removeChild(loading);
+    clearInterval(timer);
+    if (loading.parentNode) loading.parentNode.removeChild(loading);
 
-                if (!res.ok) throw new Error('Server Error');
-                const data = await res.json();
+    if (!res.ok) throw new Error('Server Error');
+    const data = await res.json();
 
-                if (Array.isArray(data) && data.length > 0 && data[0].output) {
-                    addBubble(data[0].output, 'bot', true);
-                } else if (data.output) {
-                    addBubble(data.output, 'bot', true);
-                } else if (Array.isArray(data) && data.length > 0 && data[0].message) {
-                    addBubble(data[0].message, 'bot', true);
-                } else if (data.message) {
-                    addBubble(data.message, 'bot', true);
-                } else {
-                    addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
-                }
+    if (Array.isArray(data) && data.length > 0 && data[0].output) {
+    addBubble(data[0].output, 'bot', true);
+    } else if (data.output) {
+    addBubble(data.output, 'bot', true);
+    } else if (Array.isArray(data) && data.length > 0 && data[0].message) {
+    addBubble(data[0].message, 'bot', true);
+    } else if (data.message) {
+    addBubble(data.message, 'bot', true);
+    } else {
+    addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
+    }
 
-            } catch (e) {
-                clearInterval(timer);
-                if (loading.parentNode) loading.parentNode.removeChild(loading);
-                console.error(e);
-                addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot');
-            } finally {
-                sendButton.disabled = false;
-            }
-        }
+    } catch (e) {
+    clearInterval(timer);
+    if (loading.parentNode) loading.parentNode.removeChild(loading);
+    console.error(e);
+    addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot');
+    } finally {
+    sendButton.disabled = false;
+    }
+    }
 
-        sendButton.addEventListener('click', sendRequest);
-        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
+    sendButton.addEventListener('click', sendRequest);
+    userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
     </script>
 </body>
 
