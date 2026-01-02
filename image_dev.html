@@ -353,13 +353,13 @@
                     currentPartner = data; // 데이터 저장
 
                     // 1. 헤더 텍스트 변경
-                    // 데이터가 있으면 '[업체명] 1분견적', 없으면 기본값 유지
-                    const pName = data.partner_name ? data.partner_name : '이미지견적 V2';
-                    document.getElementById('header-title').textContent = `${pName} 1분견적`;
+                    const pName = data.partner_name || '';
+                    const titleText = pName ? `${pName} 1분견적` : '1분견적';
+                    document.getElementById('header-title').textContent = titleText;
 
-                    // 2. 상단 링크 버튼 생성 (SNS 등)
-                    const linksDiv = document.getElementById('partner-links');
-                    linksDiv.innerHTML = '';
+                    // 2. 상단 링크 버튼 (여기서는 헤더 깔끔를 위해 숨김 처리하거나 원하시면 유지)
+                    // 현재 디자인 요청상 하단에 집중하는 게 좋아보이므로 상단은 비워둠 (선택사항)
+                    document.getElementById('partner-links').innerHTML = '';
 
                     if (data.insta_url) {
                         linksDiv.innerHTML += `<a href="${data.insta_url}" target="_blank" style="color:white; text-decoration:underline;">인스타</a>`;
@@ -565,29 +565,37 @@
 
             // [핵심] 가맹점 명함(Footer) 추가 로직
             if (sender === 'bot' && currentPartner && (isQuote || content.includes('견적') || content.includes('금액'))) {
-                // 데이터 안전하게 가져오기 (없으면 빈칸)
                 const ceo = currentPartner.ceo_name || '';
                 const pos = currentPartner.position || '';
                 const phone = currentPartner.phone || '';
+
                 const blog = currentPartner.blog_url || '';
+                const insta = currentPartner.insta_url || '';
+                const kakao = currentPartner.kakao_url || '';
 
                 const footerHtml = `
-                    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px dashed #eee; text-align: center;">
-                        <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 1.05em; color: #444;">
+                    <div style="margin-top: 20px; padding-top: 15px; border-top: 2px dashed #eee; text-align: center;">
+                        
+                        <!-- 1. 문의 담당자 -->
+                        <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 1.1em; color: #333;">
                             문의 : <span style="color:#2c5282;">${ceo} ${pos}</span>
                         </p>
                         
+                        <!-- 2. 소셜/상담 버튼 모음 -->
+                        <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
+                            ${blog ? `<a href="${blog}" target="_blank" style="text-decoration: none; font-size: 0.9em; background:#f1f3f5; padding:6px 10px; border-radius:8px; color:#495057;">🏠 블로그</a>` : ''}
+                            ${insta ? `<a href="${insta}" target="_blank" style="text-decoration: none; font-size: 0.9em; background:#fff0f6; padding:6px 10px; border-radius:8px; color:#c02d5b;">📸 인스타</a>` : ''}
+                            ${kakao ? `<a href="${kakao}" target="_blank" style="text-decoration: none; font-size: 0.9em; background:#FEE500; padding:6px 10px; border-radius:8px; color:#3c1e1e; font-weight:bold;">💬 카톡상담</a>` : ''}
+                        </div>
+
+                        <!-- 3. 대형 전화기 버튼 -->
                         ${phone ? `
-                        <a href="tel:${phone}" style="display: block; background: #f7fafc; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 10px; border-radius: 12px; margin-bottom: 8px;">
+                        <a href="tel:${phone}" style="display: block; background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%); color: white; text-decoration: none; font-weight: 800; font-size: 1.4em; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(74, 144, 226, 0.3);">
                             📞 ${phone}
                         </a>
+                        <p style="margin: 5px 0 0 0; font-size: 0.8em; color: #888;">(터치하면 바로 연결됩니다)</p>
                         ` : ''}
 
-                        ${blog ? `
-                        <a href="${blog}" target="_blank" style="display: inline-block; color: #666; text-decoration: none; font-size: 0.9em; margin-top: 5px; background:#f0f0f0; padding:5px 10px; border-radius:15px;">
-                            🏠 블로그 방문하기
-                        </a>
-                        ` : ''}
                     </div>
                 `;
                 content += footerHtml;
