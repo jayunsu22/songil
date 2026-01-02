@@ -222,11 +222,15 @@
             overflow-x: auto;
             white-space: nowrap;
             padding-bottom: 5px;
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
         }
+
         #preview-container::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
+            display: none;
+            /* Chrome, Safari, Opera */
         }
 
         .preview-item {
@@ -260,7 +264,7 @@
             align-items: center;
             justify-content: center;
             border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             z-index: 10;
         }
 
@@ -280,7 +284,7 @@
             justify-content: center;
             font-size: 14px;
             z-index: 20;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
     </style>
 </head>
@@ -288,8 +292,15 @@
 <body>
     <div class="chat-wrapper">
         <div class="chat-header">
-            <h1>이미지견적 V2</h1>
-            <p>실전모드(Production)</p>
+            <h1 id="header-title">이미지견적 V2</h1>
+            <p id="header-subtitle">실전모드(Production)</p>
+
+            <!-- 가맹점 소셜 링크 영역 -->
+            <div id="partner-links"
+                style="margin-top: 10px; display: flex; justify-content: center; gap: 15px; font-size: 0.9em;">
+                <!-- 자바스크립트가 여기에 링크를 채워넣습니다 -->
+            </div>
+
             <button onclick="location.reload()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
         </div>
@@ -297,7 +308,7 @@
 
         <div class="chat-input-area">
             <div id="preview-container"></div>
-            
+
             <div class="input-row">
                 <div class="input-wrapper">
                     <input type="text" id="userInput" placeholder="사진(여러장 가능) 또는 내용 입력...">
@@ -319,10 +330,54 @@
 
     <script>
         const CONFIG = {
-            webhookUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test",
+            estimateUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test", // 견적 요청용
+            partnerUrl: "https://primary-production-a6fa.up.railway.app/webhook/partner-info", // 가맹점 정보 조회용
             secretToken: "songil_secret_2025",
-            managerName: "김정헌 실장"
+            managerName: "김정헌 실장" // 기본값
         };
+
+        // [New] URL에서 code 파라미터 읽어서 가맹점 정보 가져오기
+        async function loadPartnerInfo() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+
+            // 코드가 없으면 기본 모드로 동작
+            if (!code) return;
+
+            try {
+                // n8n에 가맹점 정보 요청
+                const res = await fetch(`${CONFIG.partnerUrl}?code=${code}`);
+                const data = await res.json();
+
+                if (data.success === "true") {
+                    // 1. 헤더 텍스트 변경
+                    document.getElementById('header-title').textContent = data.partner_name;
+                    document.getElementById('header-subtitle').textContent = `대표: ${data.ceo_name}`;
+
+                    // 2. 링크 버튼 생성
+                    const linksDiv = document.getElementById('partner-links');
+                    linksDiv.innerHTML = ''; // 초기화
+
+                    if (data.blog_url) {
+                        linksDiv.innerHTML += `<a href="${data.blog_url}" target="_blank" style="color:white; text-decoration:underline;">블로그</a>`;
+                    }
+                    if (data.insta_url) {
+                        linksDiv.innerHTML += `<a href="${data.insta_url}" target="_blank" style="color:white; text-decoration:underline;">인스타</a>`;
+                    }
+                    if (data.kakao_url) {
+                        linksDiv.innerHTML += `<a href="${data.kakao_url}" target="_blank" style="color:#FEE500; font-weight:bold; text-decoration:none; padding:2px 5px; border-radius:4px; color:#3c1e1e;">카톡상담</a>`;
+                    }
+                    if (data.phone) {
+                        linksDiv.innerHTML += `<a href="tel:${data.phone}" style="color:white; text-decoration:none;">📞전화</a>`;
+                    }
+                }
+            } catch (e) {
+                console.error("가맹점 정보 로딩 실패:", e);
+            }
+        }
+
+        // 페이지 로드 시 실행
+        loadPartnerInfo();
 
         function getUUID() {
             let uuid = localStorage.getItem('user_id');
@@ -358,7 +413,7 @@
 
             filesToAdd.forEach(file => {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     selectedImages.push({
                         file: file,
                         previewUrl: e.target.result
@@ -382,7 +437,7 @@
                 return;
             }
             previewContainer.style.display = 'block';
-            
+
             selectedImages.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'preview-item';
@@ -419,21 +474,21 @@
                 function processMerge(imgs) {
                     // 고정 너비 (모바일 최적화)
                     const cellW = 800;
-                    
+
                     // 각 이미지의 비율 유지 높이 계산
                     let totalHeight = 0;
                     const scaledHeights = imgs.map(img => {
                         const scale = cellW / img.width;
                         const h = img.height * scale;
                         totalHeight += h;
-                        return h; 
+                        return h;
                     });
-                    
+
                     const canvas = document.createElement('canvas');
                     canvas.width = cellW;
                     canvas.height = totalHeight;
                     const ctx = canvas.getContext('2d');
-                    
+
                     // 배경 흰색
                     ctx.fillStyle = "#ffffff";
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -441,24 +496,24 @@
                     let currentY = 0;
                     imgs.forEach((img, i) => {
                         const h = scaledHeights[i];
-                        
+
                         // 이미지 그리기 (꽉 채우기)
                         ctx.drawImage(img, 0, currentY, cellW, h);
 
                         // [수정] 번호표 그리기: 이미지 왼쪽 상단 내부에 크고 진하게
                         drawWatermark(ctx, i + 1, 0, currentY);
-                       
-                       // 구분선 (마지막 이미지 제외)
-                       if (i < imgs.length - 1) {
-                           ctx.beginPath();
-                           ctx.moveTo(0, currentY + h);
-                           ctx.lineTo(cellW, currentY + h);
-                           ctx.strokeStyle = "#ffffff"; 
-                           ctx.lineWidth = 4;
-                           ctx.stroke();
-                       }
 
-                       currentY += h;
+                        // 구분선 (마지막 이미지 제외)
+                        if (i < imgs.length - 1) {
+                            ctx.beginPath();
+                            ctx.moveTo(0, currentY + h);
+                            ctx.lineTo(cellW, currentY + h);
+                            ctx.strokeStyle = "#ffffff";
+                            ctx.lineWidth = 4;
+                            ctx.stroke();
+                        }
+
+                        currentY += h;
                     });
 
                     resolve(canvas.toDataURL('image/jpeg', 0.8));
@@ -466,10 +521,10 @@
 
                 function drawWatermark(ctx, num, x, y) {
                     // 번호표 크기 (지름 80px)
-                    const size = 80; 
+                    const size = 80;
                     const padding = 20; // 여백
-                    const circleX = x + padding + (size/2);
-                    const circleY = y + padding + (size/2);
+                    const circleX = x + padding + (size / 2);
+                    const circleY = y + padding + (size / 2);
 
                     // 그림자 효과로 선명도 UP
                     ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
@@ -478,10 +533,10 @@
                     ctx.shadowOffsetY = 2;
 
                     ctx.beginPath();
-                    ctx.arc(circleX, circleY, size/2, 0, 2 * Math.PI);
+                    ctx.arc(circleX, circleY, size / 2, 0, 2 * Math.PI);
                     ctx.fillStyle = "#e53e3e"; // 강렬한 빨간색
                     ctx.fill();
-                    
+
                     // 흰색 테두리
                     ctx.lineWidth = 4;
                     ctx.strokeStyle = "white";
@@ -495,7 +550,7 @@
                     ctx.font = "bold 50px Arial";
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
-                    ctx.fillText(num, circleX, circleY + 4); 
+                    ctx.fillText(num, circleX, circleY + 4);
                 }
             });
         }
@@ -503,7 +558,7 @@
         function addBubble(message, sender, isQuote = false) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
-            
+
             // 견적서 내 이미지 스타일 강제 조정 (가로 꽉 차게)
             if (isQuote) {
                 // 이미지가 포함된 경우 max-width 제한 해제 느낌으로 처리
@@ -533,17 +588,17 @@
             if (!msg && selectedImages.length === 0) return;
 
             let displayMsg = msg;
-            
+
             // 사용자가 보는 화면엔 첫장만 크게 띄우고 뒤에 +N장 표시
             if (selectedImages.length > 0) {
                 const firstImg = selectedImages[0].previewUrl;
                 let countBadge = selectedImages.length > 1 ? `<span style="background:rgba(0,0,0,0.6); color:white; position:absolute; bottom:5px; right:5px; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold;">+${selectedImages.length - 1}</span>` : "";
-                
+
                 displayMsg = `<div style="position:relative; display:inline-block;">
                                 <img src="${firstImg}" style="max-width:200px; max-height:200px; border-radius:8px; display:block; border:1px solid #ddd;">
                                 ${countBadge}
                               </div>`;
-                if(msg) displayMsg += `<div style="margin-top:8px;">${msg}</div>`;
+                if (msg) displayMsg += `<div style="margin-top:8px;">${msg}</div>`;
             }
             addBubble(displayMsg, 'user');
 
@@ -566,12 +621,12 @@
                     finalImage = await mergeImages(imagesToProcess);
                 }
 
-                const payload = { 
-                    message: msg, 
-                    image: finalImage 
+                const payload = {
+                    message: msg,
+                    image: finalImage
                 };
 
-                const res = await fetch(CONFIG.webhookUrl, {
+                const res = await fetch(CONFIG.estimateUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
