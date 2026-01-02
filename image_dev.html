@@ -352,8 +352,10 @@
                 if (data.success === "true") {
                     currentPartner = data; // 데이터 저장
 
-                    // 1. 헤더 텍스트 변경 (업체명 1분견적)
-                    document.getElementById('header-title').textContent = `${data.partner_name} 1분견적`;
+                    // 1. 헤더 텍스트 변경
+                    // 데이터가 있으면 '[업체명] 1분견적', 없으면 기본값 유지
+                    const pName = data.partner_name ? data.partner_name : '이미지견적 V2';
+                    document.getElementById('header-title').textContent = `${pName} 1분견적`;
 
                     // 2. 상단 링크 버튼 생성 (SNS 등)
                     const linksDiv = document.getElementById('partner-links');
@@ -562,15 +564,30 @@
             }
 
             // [핵심] 가맹점 명함(Footer) 추가 로직
-            // 봇이 보낸 메시지이고, 가맹점 정보가 있으며, '견적' 관련 내용이면 하단에 명함 부착
             if (sender === 'bot' && currentPartner && (isQuote || content.includes('견적') || content.includes('금액'))) {
+                // 데이터 안전하게 가져오기 (없으면 빈칸)
+                const ceo = currentPartner.ceo_name || '';
+                const pos = currentPartner.position || '';
+                const phone = currentPartner.phone || '';
+                const blog = currentPartner.blog_url || '';
+
                 const footerHtml = `
-                    <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ddd; font-size: 0.9em; color: #555;">
-                        <p style="margin: 0; font-weight: bold;">문의 : ${currentPartner.ceo_name} ${currentPartner.position}</p>
-                        <div style="margin-top: 5px;">
-                            ${currentPartner.blog_url ? `<a href="${currentPartner.blog_url}" target="_blank" style="color: #4A90E2; text-decoration: none; margin-right: 10px;">🏠 블로그 방문하기</a>` : ''}
-                            ${currentPartner.phone ? `<a href="tel:${currentPartner.phone}" style="color: #333; text-decoration: none; font-weight:bold;">📞 ${currentPartner.phone}</a>` : ''}
-                        </div>
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px dashed #eee; text-align: center;">
+                        <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 1.05em; color: #444;">
+                            문의 : <span style="color:#2c5282;">${ceo} ${pos}</span>
+                        </p>
+                        
+                        ${phone ? `
+                        <a href="tel:${phone}" style="display: block; background: #f7fafc; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 10px; border-radius: 12px; margin-bottom: 8px;">
+                            📞 ${phone}
+                        </a>
+                        ` : ''}
+
+                        ${blog ? `
+                        <a href="${blog}" target="_blank" style="display: inline-block; color: #666; text-decoration: none; font-size: 0.9em; margin-top: 5px; background:#f0f0f0; padding:5px 10px; border-radius:15px;">
+                            🏠 블로그 방문하기
+                        </a>
+                        ` : ''}
                     </div>
                 `;
                 content += footerHtml;
