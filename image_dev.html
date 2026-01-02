@@ -293,9 +293,9 @@
     <div class="chat-wrapper">
         <div class="chat-header">
             <h1 id="header-title">이미지견적 V2</h1>
-            <p id="header-subtitle">실전모드(Production)</p>
+            <!-- 부제목 제거하고 업체명을 헤더 타이틀에 통합 -->
 
-            <!-- 가맹점 소셜 링크 영역 -->
+            <!-- 가맹점 소셜 링크 영역 (상단) -->
             <div id="partner-links"
                 style="margin-top: 10px; display: flex; justify-content: center; gap: 15px; font-size: 0.9em;">
                 <!-- 자바스크립트가 여기에 링크를 채워넣습니다 -->
@@ -336,39 +336,34 @@
             managerName: "김정헌 실장" // 기본값
         };
 
+        let currentPartner = null; // 가맹점 정보 저장용
+
         // [New] URL에서 code 파라미터 읽어서 가맹점 정보 가져오기
         async function loadPartnerInfo() {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
 
-            // 코드가 없으면 기본 모드로 동작
             if (!code) return;
 
             try {
-                // n8n에 가맹점 정보 요청
                 const res = await fetch(`${CONFIG.partnerUrl}?code=${code}`);
                 const data = await res.json();
 
                 if (data.success === "true") {
-                    // 1. 헤더 텍스트 변경
-                    document.getElementById('header-title').textContent = data.partner_name;
-                    document.getElementById('header-subtitle').textContent = `대표: ${data.ceo_name}`;
+                    currentPartner = data; // 데이터 저장
 
-                    // 2. 링크 버튼 생성
+                    // 1. 헤더 텍스트 변경 (업체명 1분견적)
+                    document.getElementById('header-title').textContent = `${data.partner_name} 1분견적`;
+
+                    // 2. 상단 링크 버튼 생성 (SNS 등)
                     const linksDiv = document.getElementById('partner-links');
-                    linksDiv.innerHTML = ''; // 초기화
+                    linksDiv.innerHTML = '';
 
-                    if (data.blog_url) {
-                        linksDiv.innerHTML += `<a href="${data.blog_url}" target="_blank" style="color:white; text-decoration:underline;">블로그</a>`;
-                    }
                     if (data.insta_url) {
                         linksDiv.innerHTML += `<a href="${data.insta_url}" target="_blank" style="color:white; text-decoration:underline;">인스타</a>`;
                     }
                     if (data.kakao_url) {
                         linksDiv.innerHTML += `<a href="${data.kakao_url}" target="_blank" style="color:#FEE500; font-weight:bold; text-decoration:none; padding:2px 5px; border-radius:4px; color:#3c1e1e;">카톡상담</a>`;
-                    }
-                    if (data.phone) {
-                        linksDiv.innerHTML += `<a href="tel:${data.phone}" style="color:white; text-decoration:none;">📞전화</a>`;
                     }
                 }
             } catch (e) {
@@ -559,16 +554,29 @@
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
 
-            // 견적서 내 이미지 스타일 강제 조정 (가로 꽉 차게)
+            let content = message;
+
+            // 견적서 내 이미지 스타일 보정
             if (isQuote) {
-                // 이미지가 포함된 경우 max-width 제한 해제 느낌으로 처리
-                let content = message;
-                // n8n에서 오는 이미지 태그 스타일 보정
                 content = content.replace(/max-width:100%/g, 'width:100%; max-width:100%; border-radius:12px;');
-                bubble.innerHTML = `<div class="quote-content">${content}</div>`;
-            } else {
-                bubble.innerHTML = message;
             }
+
+            // [핵심] 가맹점 명함(Footer) 추가 로직
+            // 봇이 보낸 메시지이고, 가맹점 정보가 있으며, '견적' 관련 내용이면 하단에 명함 부착
+            if (sender === 'bot' && currentPartner && (isQuote || content.includes('견적') || content.includes('금액'))) {
+                const footerHtml = `
+                    <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ddd; font-size: 0.9em; color: #555;">
+                        <p style="margin: 0; font-weight: bold;">문의 : ${currentPartner.ceo_name} ${currentPartner.position}</p>
+                        <div style="margin-top: 5px;">
+                            ${currentPartner.blog_url ? `<a href="${currentPartner.blog_url}" target="_blank" style="color: #4A90E2; text-decoration: none; margin-right: 10px;">🏠 블로그 방문하기</a>` : ''}
+                            ${currentPartner.phone ? `<a href="tel:${currentPartner.phone}" style="color: #333; text-decoration: none; font-weight:bold;">📞 ${currentPartner.phone}</a>` : ''}
+                        </div>
+                    </div>
+                `;
+                content += footerHtml;
+            }
+
+            bubble.innerHTML = isQuote ? `<div class="quote-content">${content}</div>` : content;
             chatContainer.appendChild(bubble);
             scrollToBottom();
             return bubble;
