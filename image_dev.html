@@ -631,9 +631,14 @@
                     finalImage = await mergeImages(imagesToProcess);
                 }
 
+                // [수정] 현재 접속한 가맹점 코드(code)를 함께 전송
+                const urlParams = new URLSearchParams(window.location.search);
+                const pCode = urlParams.get('code') || '';
+
                 const payload = {
                     message: msg,
-                    image: finalImage
+                    image: finalImage,
+                    partner_code: pCode // n8n에서 이 코드로 업체를 식별합니다
                 };
 
                 const res = await fetch(CONFIG.estimateUrl, {
