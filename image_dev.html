@@ -1,13 +1,10 @@
 <!-- 
-    [Updated: 2026-01-03 06:36:01 KST]
+    [Updated: 2026-01-12 21:00:00 KST]
     수정내용:
-    1. [헤더] 가맹점명 연동 (데이터 없을 시 기본값 처리)
-    2. [명함] 하단 명함 레이아웃 개편
-       - 문의: 대표자명 + 직책 + 소셜버튼(블로그/인스타/카톡) 한 줄 배치
-       - 전화번호: 대형 버튼으로 강조
-       - 공유하기: 버튼 추가
-    3. [중복제거] n8n 응답 메시지 내 기존 서명 부분 자동 삭제 로직 추가 (문의 : ~ 이하 삭제)
-    4. [버그수정] 이미지 업로드 및 전체 로직 최적화
+    1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
+    2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
+    3. [스크롤개선] 새 견적 도착 시 화면이 맨 아래로 튀지 않고, 사용자가 보낸 요청 위치(결과물 시작점)를 유지하도록 개선
+       - 'scrollIntoView' 로직을 사용자 메시지 기준으로 변경
 -->
 <!DOCTYPE html>
 <html lang="ko">
@@ -256,7 +253,7 @@
             <!-- 가맹점 소셜 링크 영역 (공백 유지, 하단 명함에 집중) -->
             <div id="partner-links" style="margin-top: 10px;"></div>
 
-            <button onclick="location.reload()"
+            <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
         </div>
         <div class="chat-container" id="chatContainer"></div>
@@ -292,6 +289,7 @@
         };
 
         let currentPartner = null; // 가맹점 정보 저장용
+        let chatHistory = []; // 채팅 기록 메모리 저장
 
         // [New] URL에서 code 파라미터 읽어서 가맹점 정보 가져오기
         async function loadPartnerInfo() {
@@ -322,6 +320,33 @@
 
         // 페이지 로드 시 실행
         loadPartnerInfo();
+
+        // [New] 채팅 기록 불러오기 (v2_chat_history)
+        function loadChatHistory() {
+            const saved = localStorage.getItem('v2_chat_history');
+            if (saved) {
+                try {
+                    chatHistory = JSON.parse(saved);
+                    // 간혹 배열이 아닌 경우 (null 등) 예외처리
+                    if (!Array.isArray(chatHistory)) chatHistory = [];
+
+                    chatHistory.forEach(item => {
+                        addBubble(item.message, item.sender, item.isQuote, false); // false = 저장 안 함 (이미 했으니)
+                    });
+                    // 마지막으로 스크롤 이동
+                    setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 100);
+                } catch (e) {
+                    console.error("History parse error", e);
+                }
+            }
+        }
+
+        // [New] 채팅 초기화 버튼 기능
+        function resetChat() {
+            if (!confirm("모든 대화 내용을 삭제하고 새로 시작하시겠습니까?")) return;
+            localStorage.removeItem('v2_chat_history');
+            location.reload();
+        }
 
         function getUUID() {
             let uuid = localStorage.getItem('user_id');
@@ -499,19 +524,18 @@
             });
         }
 
-        function addBubble(message, sender, isQuote = false) {
+        // [New] save=true 파라미터 추가하여 기록 저장 제어
+        function addBubble(message, sender, isQuote = false, save = true) {
             const bubble = document.createElement('div');
             bubble.classList.add('chat-bubble', sender);
 
             let content = message;
 
             // [추가] 중복 서명 제거 로직
-            // 봇이 보내는 메시지에서 '문의 :' 뒤에 나오는 내용은 n8n 기본 서명이므로 삭제
             if (sender === 'bot') {
-                // 견적서 관련 메시지라면
                 if (isQuote || content.includes('견적') || content.includes('금액')) {
-                    const splitPoint = content.indexOf('문의 : n8n'); // n8n에서 보내는 서명 특징 찾기 (혹은 '문의 :' 만으로)
-                    // 만약 정확한 문구를 모른다면 '문의 :'를 기준으로 자릅니다.
+                    // [중요] 사용자가 요청한대로 "문의 :" 뒷부분은 n8n이 보내는 가짜 서명이므로 제거
+                    // (단, n8n이 '담당 :' (투명문자 포함)으로 보낼 때는 이게 작동 안 할 수 있지만, 안전장치로 유지)
                     const safeSplit = content.split('문의 :')[0];
                     if (safeSplit && safeSplit.length < content.length) {
                         content = safeSplit;
@@ -525,7 +549,10 @@
             }
 
             // [핵심] 가맹점 명함(Footer) 추가 로직
-            if (sender === 'bot' && (isQuote || content.includes('견적') || content.includes('금액'))) {
+            // n8n 메시지 내에 '📞'나 '담당' 같은 키워드가 이미 있다면 프론트에서 명함을 붙이지 않음.
+            // (n8n 코드가 명함을 포함하도록 수정되었으므로, 여기서는 그게 실패했을 때의 백업 역할만 함)
+            const hasSignature = content.includes('담당\u200B :') || content.includes('담당 :') || content.includes('📞');
+            if (!hasSignature && sender === 'bot' && (isQuote || content.includes('견적') || content.includes('금액'))) {
 
                 // 가맹점 정보 없으면 기본값 (김정헌 실장)
                 const partnerData = currentPartner || {};
@@ -539,8 +566,6 @@
 
                 const footerHtml = `
                     <div style="margin-top: 20px; padding-top: 15px; border-top: 2px dashed #eee; text-align: center;">
-                        
-                        <!-- 1. 문의 담당자 + 소셜 아이콘 (한 줄 배치) -->
                         <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
                             <span style="font-weight: bold; font-size: 1.0em; color: #333; margin-right: 5px;">
                                 문의 : ${ceo} ${pos}
@@ -549,13 +574,9 @@
                             ${insta ? `<a href="${insta}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); padding:4px 8px; border-radius:6px; color:white;">인스타</a>` : ''}
                             ${kakao ? `<a href="${kakao}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:#FEE500; padding:4px 8px; border-radius:6px; color:#3c1e1e; font-weight:bold;">카톡</a>` : ''}
                         </div>
-
-                        <!-- 2. 대형 전화기 버튼 -->
                         <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             📞 ${phone}
                         </a>
-
-                         <!-- 3. 견적내용 공유하기 -->
                         <button onclick="shareQuote()" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
                             🔗 견적내용 공유하기
                         </button>
@@ -566,7 +587,13 @@
 
             bubble.innerHTML = isQuote ? `<div class="quote-content">${content}</div>` : content;
             chatContainer.appendChild(bubble);
-            scrollToBottom();
+
+            // [저장] 새로운 메시지면 로컬스토리지에 저장 (save가 true일 때만)
+            if (save) {
+                chatHistory.push({ message: content, sender: sender, isQuote: isQuote });
+                localStorage.setItem('v2_chat_history', JSON.stringify(chatHistory));
+            }
+
             return bubble;
         }
 
@@ -610,7 +637,12 @@
                              </div>`;
                 if (msg) displayMsg += `<div style="margin-top:8px;">${msg}</div>`;
             }
-            addBubble(displayMsg, 'user');
+
+            // [중요] 사용자가 보낸 말풍선 생성 및 '위치 저장'
+            const userBubble = addBubble(displayMsg, 'user');
+
+            // 사용자가 보낸 직후에는 일단 맨 아래로 스크롤 (내가 쓴 건 봐야 하니까)
+            scrollToBottom();
 
             userInput.value = "";
             const imagesToProcess = [...selectedImages];
@@ -669,11 +701,19 @@
                     addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
                 }
 
+                // [핵심] 봇 응답이 온 후, 스크롤을 맨 아래가 아닌 '사용자가 보낸 메시지' 위치로 부드럽게 이동
+                // 이렇게 하면 결과물의 시작점부터 볼 수 있음
+                // 약간의 딜레이 후 이동 (DOM 렌더링 시간 고려)
+                setTimeout(() => {
+                    userBubble.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+
             } catch (e) {
                 clearInterval(timer);
                 if (loading.parentNode) loading.parentNode.removeChild(loading);
                 console.error(e);
                 addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot');
+                scrollToBottom();
             } finally {
                 sendButton.disabled = false;
             }
@@ -681,7 +721,12 @@
 
         sendButton.addEventListener('click', sendRequest);
         userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
+
+        // 페이지 로드 시 기존 기록 복원
+        loadChatHistory();
+
     </script>
 </body>
 
 </html>
+<!-- [Updated: 2026-01-12 21:00:00 KST] End -->
