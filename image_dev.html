@@ -740,11 +740,56 @@
             }
         }
 
+        // [New] 퀵 메뉴(버튼식 견적) 키워드 정의
+        const QUICK_KEYWORDS = [
+            "30평 아파트 전체", "40평 빌라 전체", "방문3, 화장실문2",
+            "현관문1", "문틀 7개", "문짝 3개", "중문 1개",
+            "터닝도어 2개", "샤시2", "시스템샤시3",
+            "시스템샤시 2m 3개", "샤시2중창 5m 3개", "갈바 5m",
+            "실리콘재시공 30m", "천장몰딩 30평", "몰딩 20평",
+            "걸레받이 30평", "싱크대 2.4m", "싱크대하부장 3m",
+            "붙박이장 10자", "수납장 1개", "신발장 1개", "등박스 10m",
+            "가벽 10m", "알판 5m", "웨인스코팅 10m",
+            "아치게이트 2개", "아트월 1면", "냉장고장 1개",
+            "신발장문짝 2개"
+        ];
+
+        // 퀵 메뉴 버튼 표시 함수
+        function showQuickButtons() {
+            const container = document.createElement('div');
+            container.className = 'quick-reply-container';
+            container.style.cssText = "margin: 10px 0; padding: 10px; text-align: center;";
+
+            QUICK_KEYWORDS.forEach(keyword => {
+                const btn = document.createElement('button');
+                btn.className = 'quick-reply-btn';
+                btn.innerText = keyword;
+                btn.onclick = () => {
+                    // 텍스트 입력창에 넣고 바로 전송
+                    userInput.value = keyword;
+                    sendRequest();
+                };
+                container.appendChild(btn);
+            });
+
+            // 채팅창에 추가
+            chatContainer.appendChild(container);
+            scrollToBottom();
+        }
+
         sendButton.addEventListener('click', sendRequest);
         userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
 
-        // 페이지 로드 시 기존 기록 복원
+        // 페이지 로드 시 기존 기록 복원 및 퀵 버튼 표시
         loadChatHistory();
+
+        // [New] 초기 로딩 완료 후 퀵 버튼 표시 (약간의 딜레이 후)
+        setTimeout(() => {
+            // 이미 퀵 버튼이 있는지 확인 후 없으면 추가 (중복 방지)
+            if (!document.querySelector('.quick-reply-container')) {
+                showQuickButtons();
+            }
+        }, 500);
 
     </script>
 </body>
