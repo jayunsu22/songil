@@ -593,16 +593,17 @@
                             <span style="font-weight: bold; font-size: 1.0em; color: #333; margin-right: 5px;">
                                 문의 : ${ceo} ${pos}
                             </span>
-                            ${blog ? `<a href="${blog}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:#03C75A; padding:4px 8px; border-radius:6px; color:white;">블로그</a>` : ''}
-                            ${insta ? `<a href="${insta}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); padding:4px 8px; border-radius:6px; color:white;">인스타</a>` : ''}
-                            ${kakao ? `<a href="${kakao}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:#FEE500; padding:4px 8px; border-radius:6px; color:#3c1e1e; font-weight:bold;">카톡</a>` : ''}
+                            ${blog ? `<a href="${blog}" target="_blank" style="display:inline-block; padding:2px 6px; background:#03C75A; color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">블</a>` : ''}
+                            ${insta ? `<a href="${insta}" target="_blank" style="display:inline-block; padding:2px 6px; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">인</a>` : ''}
+                            ${kakao ? `<a href="${kakao}" target="_blank" style="display:inline-block; padding:2px 6px; background:#FEE500; color:#3c1e1e; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">카</a>` : ''}
                         </div>
                         <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             📞 ${phone}
                         </a>
-                        <button onclick="shareQuote()" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
+                        ${(!content.includes('견적 제공이 되지 않는') && !content.includes('견적을 산출할 수 없습니다')) ?
+                        `<button onclick="shareQuote()" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
                             🔗 견적내용 공유하기
-                        </button>
+                        </button>` : ''}
                     </div>
                 `;
                 content += footerHtml;
