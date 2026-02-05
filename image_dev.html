@@ -649,7 +649,10 @@
             if (!msg && selectedImages.length === 0) return;
 
             // [New] 일일 무료 견적 3회 제한 (이미지 포함 시)
-            if (selectedImages.length > 0) {
+            // 단, URL 파라미터에 'admin=true'가 있거나, 해시값에 #admin이 있으면 제한 무시
+            const isManager = window.location.href.includes('admin=true') || window.location.hash.includes('#admin');
+
+            if (!isManager && selectedImages.length > 0) {
                 const today = new Date().toISOString().split('T')[0];
                 const key = 'daily_quote_v1';
                 const stored = JSON.parse(localStorage.getItem(key)) || { date: today, count: 0 };
@@ -772,7 +775,7 @@
             "시스템샤시 2m 3개", "샤시2중창 5m 3개", "갈바 5m",
             "실리콘재시공 30m", "천장몰딩 30평", "몰딩 20평",
             "걸레받이 30평", "싱크대 2.4m", "싱크대하부장 3m",
-            "붙박이장 10자", "수납장 1개", "신발장 1개", "등박스 10m",
+            "붙박이장 2세트", "수납장 ", "신발장 1개", "등박스 10m",
             "가벽 10m", "알판 5m", "웨인스코팅 10m",
             "아치게이트 2개", "아트월 1면", "냉장고장 1개",
             "신발장문짝 2개"
