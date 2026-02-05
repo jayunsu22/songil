@@ -1,10 +1,12 @@
 <!-- 
-    [Updated: 2026-01-12 21:00:00 KST]
+    [Updated: 2026-02-05 22:50:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
     3. [스크롤개선] 새 견적 도착 시 화면이 맨 아래로 튀지 않고, 사용자가 보낸 요청 위치(결과물 시작점)를 유지하도록 개선
        - 'scrollIntoView' 로직을 사용자 메시지 기준으로 변경
+    4. [관리자모드] URL에 'admin=true' 또는 '#admin' 포함 시 일일 3회 제한 무시 (테스트용)
+    5. [전송안정화] 이미지 용량 초과 방지를 위해 병합 시 압축률 조정 (0.8 -> 0.5)
 -->
 <!DOCTYPE html>
 <html lang="ko">
@@ -508,7 +510,8 @@
                         currentY += h;
                     });
 
-                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    // [수정] 용량 초과 방지를 위해 품질을 0.5로 낮춤
+                    resolve(canvas.toDataURL('image/jpeg', 0.5));
                 }
 
                 function drawWatermark(ctx, num, x, y) {
@@ -593,16 +596,17 @@
                             <span style="font-weight: bold; font-size: 1.0em; color: #333; margin-right: 5px;">
                                 문의 : ${ceo} ${pos}
                             </span>
-                            ${blog ? `<a href="${blog}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:#03C75A; padding:4px 8px; border-radius:6px; color:white;">블로그</a>` : ''}
-                            ${insta ? `<a href="${insta}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); padding:4px 8px; border-radius:6px; color:white;">인스타</a>` : ''}
-                            ${kakao ? `<a href="${kakao}" target="_blank" style="text-decoration: none; font-size: 0.85em; background:#FEE500; padding:4px 8px; border-radius:6px; color:#3c1e1e; font-weight:bold;">카톡</a>` : ''}
+                            ${blog ? `<a href="${blog}" target="_blank" style="display:inline-block; padding:2px 6px; background:#03C75A; color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">블</a>` : ''}
+                            ${insta ? `<a href="${insta}" target="_blank" style="display:inline-block; padding:2px 6px; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">인</a>` : ''}
+                            ${kakao ? `<a href="${kakao}" target="_blank" style="display:inline-block; padding:2px 6px; background:#FEE500; color:#3c1e1e; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">카</a>` : ''}
                         </div>
                         <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             📞 ${phone}
                         </a>
-                        <button onclick="shareQuote()" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
+                        ${(!content.includes('견적 제공이 되지 않는') && !content.includes('견적을 산출할 수 없습니다')) ?
+                        `<button onclick="shareQuote()" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
                             🔗 견적내용 공유하기
-                        </button>
+                        </button>` : ''}
                     </div>
                 `;
                 content += footerHtml;
@@ -648,7 +652,10 @@
             if (!msg && selectedImages.length === 0) return;
 
             // [New] 일일 무료 견적 3회 제한 (이미지 포함 시)
-            if (selectedImages.length > 0) {
+            // 단, URL 파라미터에 'admin=true'가 있거나, 해시값에 #admin이 있으면 제한 무시
+            const isManager = window.location.href.includes('admin=true') || window.location.hash.includes('#admin');
+
+            if (!isManager && selectedImages.length > 0) {
                 const today = new Date().toISOString().split('T')[0];
                 const key = 'daily_quote_v1';
                 const stored = JSON.parse(localStorage.getItem(key)) || { date: today, count: 0 };
@@ -771,7 +778,7 @@
             "시스템샤시 2m 3개", "샤시2중창 5m 3개", "갈바 5m",
             "실리콘재시공 30m", "천장몰딩 30평", "몰딩 20평",
             "걸레받이 30평", "싱크대 2.4m", "싱크대하부장 3m",
-            "붙박이장 10자", "수납장 1개", "신발장 1개", "등박스 10m",
+            "붙박이장 2세트", "수납장 ", "신발장 1개", "등박스 10m",
             "가벽 10m", "알판 5m", "웨인스코팅 10m",
             "아치게이트 2개", "아트월 1면", "냉장고장 1개",
             "신발장문짝 2개"
