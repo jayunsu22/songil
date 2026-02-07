@@ -466,8 +466,8 @@
                 });
 
                 function processMerge(imgs) {
-                    // 고정 너비 (모바일 최적화)
-                    const cellW = 800;
+                    // 고정 너비 (모바일 최적화) - 전송 안정성을 위해 600px로 조정
+                    const cellW = 600;
 
                     // 각 이미지의 비율 유지 높이 계산
                     let totalHeight = 0;
@@ -510,8 +510,8 @@
                         currentY += h;
                     });
 
-                    // [수정] 용량 초과 방지를 위해 품질을 0.5로 낮춤
-                    resolve(canvas.toDataURL('image/jpeg', 0.5));
+                    // [수정] 용량 초과 방지를 위해 품질 조정 (크기 줄였으니 품질 0.6)
+                    resolve(canvas.toDataURL('image/jpeg', 0.6));
                 }
 
                 function drawWatermark(ctx, num, x, y) {
@@ -705,13 +705,15 @@
                 if (imagesToProcess.length > 0) {
                     finalImage = await mergeImages(imagesToProcess);
 
-                    // [New] 카운트 차감 (이미지 변환 성공 후)
-                    const today = new Date().toISOString().split('T')[0];
-                    const key = 'daily_quote_v1';
-                    let stored = JSON.parse(localStorage.getItem(key)) || { date: today, count: 0 };
-                    if (stored.date !== today) stored = { date: today, count: 0 };
-                    stored.count++;
-                    localStorage.setItem(key, JSON.stringify(stored));
+                    // [New] 카운트 차감 (이미지 변환 성공 후) - 관리자는 차감 안 함
+                    if (!isManager) {
+                        const today = new Date().toISOString().split('T')[0];
+                        const key = 'daily_quote_v1';
+                        let stored = JSON.parse(localStorage.getItem(key)) || { date: today, count: 0 };
+                        if (stored.date !== today) stored = { date: today, count: 0 };
+                        stored.count++;
+                        localStorage.setItem(key, JSON.stringify(stored));
+                    }
                 }
 
                 // [수정] 현재 접속한 가맹점 코드(code)를 함께 전송
