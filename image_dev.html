@@ -661,8 +661,8 @@
                 const stored = JSON.parse(localStorage.getItem(key)) || { date: today, count: 0 };
                 const curCount = (stored.date === today) ? stored.count : 0;
 
-                if (curCount >= 3) {
-                    addBubble("🚫 <b>일일 무료 견적 횟수(3회) 초과</b><br><br>과도한 AI 비용 발생 방지를 위해 이미지 견적은 하루 3회로 제한됩니다.<br>내일 다시 이용해 주시거나, 텍스트로 문의해 주세요! 🙏", 'bot');
+                if (curCount >= 100) {
+                    addBubble("🚫 <b>일일 무료 견적 횟수(100회) 초과</b><br><br>과도한 AI 비용 발생 방지를 위해 이미지 견적은 하루 3회로 제한됩니다.<br>내일 다시 이용해 주시거나, 텍스트로 문의해 주세요! 🙏", 'bot');
                     return;
                 }
             }
