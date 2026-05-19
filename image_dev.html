@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-19 11:20:00 KST]
+    [Updated: 2026-05-19 11:25:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -281,7 +281,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 11:20</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 11:25</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -580,9 +580,17 @@
                     }
 
                     // 에어테이블 대신 프론트엔드에서 안내 문구 직접 주입! (타이틀 바로 아래에)
-                    const noticeStr = isUnmeasuredSink 
-                        ? "📌 정확한 견적을 위해 하단 버튼에서 싱크대 길이를 선택해 주세요."
-                        : "📌 정확한 견적을 위해 하단 버튼에서 샤시 종류와 길이를 선택해 주세요.";
+                    let noticeStr = "";
+                    if (isUnmeasuredSink) {
+                        noticeStr = "📌 정확한 견적을 위해 하단 버튼에서 싱크대 길이를 선택해 주세요.";
+                    } else if (isUnmeasuredSash) {
+                        let base = cleanName.replace('1세트', '').trim();
+                        if (base === '샤시' || base === '샤시(단창)') {
+                            noticeStr = "📌 정확한 견적을 위해 하단 버튼에서 샤시 종류를 먼저 선택해 주세요.";
+                        } else {
+                            noticeStr = `📌 정확한 견적을 위해 하단 버튼에서 길이를 선택해 주세요.`;
+                        }
+                    }
                     
                     const noticeDiv = document.createElement('div');
                     noticeDiv.style.cssText = "color: #e53e3e; font-weight: bold; margin-top: 10px; margin-bottom: 5px; font-size: 0.95em;";
@@ -606,35 +614,58 @@
 
             if (needsOptions.length === 0) return;
 
-            // 옵션 버튼 리스트 구성
+            // 옵션 버튼 리스트 구성 (오브젝트 배열: {text: 버튼표시명, value: 실제전송값})
             let buttonOptions = [];
-            if (needsOptions.some(i => i.includes('싱크대'))) {
-                buttonOptions.push("싱크대 3m", "싱크대 4m", "싱크대 5m");
+            
+            const sinkItem = needsOptions.find(i => i.includes('싱크대'));
+            if (sinkItem) {
+                let base = sinkItem.replace('1세트', '').trim();
+                buttonOptions.push({text: "1~2m", value: `${base} 2m`});
+                buttonOptions.push({text: "2~3m", value: `${base} 3m`});
+                buttonOptions.push({text: "3~4m", value: `${base} 4m`});
+                buttonOptions.push({text: "4~5m", value: `${base} 5m`});
+                buttonOptions.push({text: "5~6m", value: `${base} 6m`});
             }
-            if (needsOptions.some(i => i.includes('샤시'))) {
-                buttonOptions.push("일반샤시", "시스템샤시", "상가샤시");
+            
+            const sashItem = needsOptions.find(i => i.includes('샤시'));
+            if (sashItem) {
+                let base = sashItem.replace('1세트', '').trim();
+                if (base === '샤시' || base === '샤시(단창)') {
+                    // 1단계: 종류 선택
+                    buttonOptions.push({text: "일반샤시", value: "일반샤시"});
+                    buttonOptions.push({text: "시스템샤시", value: "시스템샤시"});
+                    buttonOptions.push({text: "상가샤시", value: "상가샤시"});
+                } else {
+                    // 2단계: 길이 선택 (이미 종류가 정해졌을 때)
+                    buttonOptions.push({text: "1~2m", value: `${base} 2m`});
+                    buttonOptions.push({text: "3~4m", value: `${base} 4m`});
+                    buttonOptions.push({text: "5~6m", value: `${base} 6m`});
+                    buttonOptions.push({text: "7~8m", value: `${base} 8m`});
+                    buttonOptions.push({text: "9~10m", value: `${base} 10m`});
+                }
             }
+            
             if (buttonOptions.length === 0) return;
 
             // 동적 버튼 컨테이너 생성
             const btnContainer = document.createElement('div');
             btnContainer.className = "dynamic-options-container";
-            btnContainer.style.cssText = "margin-top: 10px; margin-bottom: 15px; text-align: center; background: #f8f9fa; padding: 10px; border-radius: 12px; border: 1px dashed #ced4da;";
-            btnContainer.innerHTML = `<div style="font-size:0.85em; color:#e17055; font-weight:bold; margin-bottom:8px;">💡 아래 옵션을 선택해 견적을 완성하세요</div>`;
+            btnContainer.style.cssText = "margin-top: 10px; margin-bottom: 15px; text-align: center; background: #f8f9fa; padding: 12px; border-radius: 12px; border: 1px dashed #ced4da;";
+            btnContainer.innerHTML = `<div style="font-size:0.9em; color:#e17055; font-weight:bold; margin-bottom:12px;">💡 아래 옵션을 선택해 견적을 완성하세요</div>`;
 
-            // 버튼 생성
+            // 버튼 생성 (모바일 최적화: 세로 블록 배치)
             buttonOptions.forEach(opt => {
                 const btn = document.createElement('button');
                 btn.className = 'quick-reply-btn dynamic-btn';
-                btn.innerText = opt;
-                btn.style.cssText = "margin: 3px; padding: 6px 12px; background: #4A90E2; color: white; border: none; border-radius: 15px; font-size: 0.9em; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);";
+                btn.innerText = opt.text;
+                btn.style.cssText = "display: block; width: 100%; margin-bottom: 8px; padding: 12px; background: #4A90E2; color: white; border: none; border-radius: 8px; font-size: 1.05em; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); box-sizing: border-box;";
                 
                 btn.onclick = () => {
                     let finalInput = "";
                     if (confirmedItems.length > 0) {
                         finalInput = confirmedItems.join(", ") + ", ";
                     }
-                    finalInput += opt;
+                    finalInput += opt.value;
                     
                     const userInput = document.getElementById('userInput');
                     userInput.value = finalInput;
@@ -943,4 +974,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-19 11:20:00 KST] End -->
+<!-- [Updated: 2026-05-19 11:25:00 KST] End -->
