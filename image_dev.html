@@ -289,8 +289,8 @@
 
             <div class="input-row">
                 <div class="input-wrapper">
-                    <input type="text" id="userInput" placeholder="사진(여러장 가능) 또는 내용 입력...">
-                    <input type="file" id="imageInput" accept="image/*" multiple style="display:none;"
+                    <input type="text" id="userInput" placeholder="사진 첨부 또는 견적 내용 입력...">
+                    <input type="file" id="imageInput" accept="image/*" style="display:none;"
                         onchange="handleImageSelect(event)">
                     <button class="camera-btn" onclick="document.getElementById('imageInput').click()">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"
@@ -563,12 +563,15 @@
                 const text = titleDiv.innerText || titleDiv.textContent;
                 let itemName = text.replace('🔹', '').trim();
                 
+                // 앞에 붙은 뱃지 기호(❶, 1. 등) 제거
+                let cleanName = itemName.replace(/^[^가-힣a-zA-Z]+/, '').trim();
+                
                 // 싱크대나 샤시가 1세트로 임의 고정되어 넘어온 경우
-                const isUnmeasuredSink = itemName.includes('싱크대') && itemName.includes('1세트');
-                const isUnmeasuredSash = itemName.includes('샤시') && itemName.includes('1세트');
+                const isUnmeasuredSink = cleanName.includes('싱크대') && cleanName.includes('1세트');
+                const isUnmeasuredSash = cleanName.includes('샤시') && cleanName.includes('1세트');
 
                 if (isUnmeasuredSink || isUnmeasuredSash) {
-                    needsOptions.push(itemName.split(' ')[0]); // "싱크대" 또는 "샤시(단창)"
+                    needsOptions.push(cleanName); // 통째로 넣어서 나중에 some()에서 정확히 매칭되도록 함
                     
                     // 에어테이블 대신 프론트엔드에서 안내 문구 직접 주입!
                     const descDiv = titleDiv.nextElementSibling?.nextElementSibling; 
@@ -584,7 +587,7 @@
                     }
                 } else {
                     // 옵션 선택이 필요 없는 확정 품목들 (예: 방문)
-                    confirmedItems.push(itemName);
+                    confirmedItems.push(cleanName);
                 }
             });
 
