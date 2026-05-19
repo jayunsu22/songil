@@ -281,7 +281,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 11:10</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 11:15</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -399,25 +399,20 @@
             const files = Array.from(event.target.files);
             if (!files.length) return;
 
-            const remainingSlots = 5 - selectedImages.length;
-            if (remainingSlots <= 0) {
-                alert("최대 5장까지만 전송 가능합니다.");
-                return;
-            }
+            // [New] 다중 견적 보류 (1장만 업로드 가능하도록 강제)
+            // 기존에 선택된 이미지가 있다면 지우고 새로 선택한 1장만 덮어씀
+            selectedImages = []; 
 
-            const filesToAdd = files.slice(0, remainingSlots);
-
-            filesToAdd.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    selectedImages.push({
-                        file: file,
-                        previewUrl: e.target.result
-                    });
-                    renderPreviews(); // UI 갱신
-                };
-                reader.readAsDataURL(file);
-            });
+            const file = files[0];
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                selectedImages.push({
+                    file: file,
+                    previewUrl: e.target.result
+                });
+                renderPreviews(); // UI 갱신
+            };
+            reader.readAsDataURL(file);
             event.target.value = '';
         }
 
