@@ -709,7 +709,7 @@
                             const userInput = document.getElementById('userInput');
                             userInput.value = finalInput;
                             btnContainer.style.display = 'none';
-                            sendRequest(); // 즉시 전송
+                            sendRequest(true); // 즉시 전송 (동적 버튼 플래그)
                         }
                     };
                     buttonsWrapper.appendChild(btn);
@@ -838,9 +838,12 @@
             }
         }
 
-        async function sendRequest() {
+        // [New] 마지막으로 성공적으로 변환된 이미지를 보관하는 변수 (동적 버튼 클릭 시 재사용)
+        let lastUploadedImage = null;
+
+        async function sendRequest(isFromDynamicBtn = false) {
             const msg = userInput.value.trim();
-            if (!msg && selectedImages.length === 0) return;
+            if (!msg && selectedImages.length === 0 && !isFromDynamicBtn) return;
 
             // [New] 일일 무료 견적 3회 제한 (이미지 포함 시)
             // 단, URL 파라미터에 'admin=true'가 있거나, 해시값에 #admin이 있으면 제한 무시
@@ -895,6 +898,7 @@
                 let finalImage = null;
                 if (imagesToProcess.length > 0) {
                     finalImage = await mergeImages(imagesToProcess);
+                    lastUploadedImage = finalImage; // 마지막 이미지 저장
 
                     // [New] 카운트 차감 (이미지 변환 성공 후) - 관리자는 차감 안 함
                     if (!isManager) {
@@ -905,6 +909,10 @@
                         stored.count++;
                         localStorage.setItem(key, JSON.stringify(stored));
                     }
+                } else if (isFromDynamicBtn && lastUploadedImage) {
+                    // [핵심] 동적 버튼(길이 선택)으로 자동 전송 시, 이전에 올렸던 이미지를 
+                    // 다시 페이로드에 태워서 n8n으로 보냅니다. (이래야 에어테이블 최종 견적에 이미지가 저장됨)
+                    finalImage = lastUploadedImage;
                 }
 
                 // [수정] 현재 접속한 가맹점 코드(code)를 함께 전송
