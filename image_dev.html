@@ -281,6 +281,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 11:10</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -701,8 +702,18 @@
 
             // [저장] 새로운 메시지면 로컬스토리지에 저장 (save가 true일 때만)
             if (save) {
-                chatHistory.push({ message: content, sender: sender, isQuote: isQuote });
-                localStorage.setItem('v2_chat_history', JSON.stringify(chatHistory));
+                // 이미지 base64 데이터가 로컬스토리지 용량을 초과하여 에러(멈춤 현상)를 발생시키는 것 방지
+                let saveContent = content;
+                if (saveContent.includes('data:image')) {
+                    saveContent = saveContent.replace(/src="data:image[^"]+"/g, 'src="" alt="[이미지 만료]"');
+                }
+                chatHistory.push({ message: saveContent, sender: sender, isQuote: isQuote });
+                
+                try {
+                    localStorage.setItem('v2_chat_history', JSON.stringify(chatHistory));
+                } catch (e) {
+                    console.warn("로컬스토리지 용량 초과:", e);
+                }
             }
 
             // [New] 챗봇의 견적서 출력 시 동적 버튼 처리
