@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-19 15:00:00 KST]
+    [Updated: 2026-05-19 15:10:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -281,7 +281,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 15:00</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 15:10</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -1048,7 +1048,14 @@
                     btn.className = 'quick-reply-btn';
                     btn.innerText = keyword;
                     btn.onclick = () => {
-                        userInput.value = keyword;
+                        let sendText = keyword;
+                        
+                        // [꼼수] AI가 수량(개)과 단위(m)를 헷갈려하거나 DB에 없는 품목을 처리할 수 있도록 몰래 텍스트 변환
+                        if (keyword === "시스템샤시 2m 3개") sendText = "시스템샤시 2m (수량: 3개)";
+                        if (keyword === "샤시2중창 5m 3개") sendText = "샤시2중창 5m (수량: 3개)";
+                        if (keyword === "갈바 5m") sendText = "상가샤시(한쪽시공) 5m";
+
+                        userInput.value = sendText;
                         container.remove();
                         sendRequest();
                     };
@@ -1139,7 +1146,12 @@
                                 measureStr = " 3m";
                             }
                             
-                            requestTexts.push(`${key}${measureStr} ${value}개`);
+                            // [꼼수] AI가 단위(m)와 수량(개)을 헷갈리지 않도록 포맷 변경
+                            if (measureStr) {
+                                requestTexts.push(`${key}${measureStr} (수량: ${value}개)`);
+                            } else {
+                                requestTexts.push(`${key} ${value}개`);
+                            }
                         }
                         const finalRequest = requestTexts.join(", ");
                         
