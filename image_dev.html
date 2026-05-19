@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-19 14:00:00 KST]
+    [Updated: 2026-05-19 15:00:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -281,7 +281,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 14:00</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 15:00</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -945,6 +945,20 @@
             }
         }
 
+        // [New] 이전 버전에 있던 자주 사용 견적 키워드
+        const QUICK_KEYWORDS = [
+            "30평 아파트 전체", "40평 빌라 전체", "방문3, 화장실문2",
+            "현관문1", "문틀 7개", "문짝 3개", "중문 1개",
+            "터닝도어 2개", "샤시2", "시스템샤시3",
+            "시스템샤시 2m 3개", "샤시2중창 5m 3개", "갈바 5m",
+            "실리콘재시공 30m", "천장몰딩 30평", "몰딩 20평",
+            "걸레받이 30평", "싱크대 2.4m", "싱크대하부장 3m",
+            "붙박이장 2세트", "수납장 ", "신발장 1개", "등박스 10m",
+            "가벽 10m", "알판 5m", "웨인스코팅 10m",
+            "아치게이트 2개", "아트월 1면", "냉장고장 1개",
+            "신발장문짝 2개"
+        ];
+
         // [New] B2B 업자용 퀵 메뉴 (카테고리 + 장바구니 방식)
         const B2B_CATEGORIES = [
             {
@@ -961,6 +975,7 @@
             }
         ];
 
+        let mainTab = 0; // 0: 자주 사용 견적(선택만), 1: 품목별 선택(장바구니)
         let b2bCart = {}; // 장바구니 상태 저장 (예: { "방문": 2 })
         let currentB2BTab = 0; // 현재 활성화된 카테고리 탭
 
@@ -993,7 +1008,7 @@
             if (!container) {
                 container = document.createElement('div');
                 container.className = 'quick-reply-container';
-                // 아래쪽 패딩을 넉넉히 주어 장바구니 버튼이 가리지 않도록 함
+                // 아래쪽 패딩을 넉넉히 주어 장바구니 버튼이 가리지 않도록 함 (초기값)
                 container.style.cssText = "margin: 10px 0; padding: 15px; text-align: center; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: relative; padding-bottom: 70px;";
                 chatContainer.appendChild(container);
                 isFirstRender = true;
@@ -1001,99 +1016,146 @@
 
             container.innerHTML = ''; // 기존 내용 초기화 후 다시 그리기
 
-            // 1. 카테고리 탭 렌더링
-            const tabsDiv = document.createElement('div');
-            tabsDiv.style.cssText = "display: flex; justify-content: space-around; margin-bottom: 15px; border-bottom: 2px solid #eee;";
+            // [New] 최상단 메인 탭 (자주 사용 견적 vs 품목별 다중 선택)
+            const mainTabsDiv = document.createElement('div');
+            mainTabsDiv.style.cssText = "display: flex; margin-bottom: 15px; background: #f0f2f5; border-radius: 8px; padding: 4px;";
             
-            B2B_CATEGORIES.forEach((cat, index) => {
-                const tab = document.createElement('div');
-                tab.innerText = cat.name;
-                tab.style.cssText = `padding: 10px; font-weight: bold; font-size: 0.95em; cursor: pointer; border-bottom: 3px solid ${index === currentB2BTab ? '#4A90E2' : 'transparent'}; color: ${index === currentB2BTab ? '#4A90E2' : '#888'}; flex: 1; transition: all 0.2s;`;
-                tab.onclick = () => {
-                    currentB2BTab = index;
-                    showQuickButtons(); // 탭 변경 시 리렌더링
-                };
-                tabsDiv.appendChild(tab);
-            });
-            container.appendChild(tabsDiv);
+            const tab1 = document.createElement('div');
+            tab1.innerText = "⭐ 자주 사용 견적";
+            tab1.style.cssText = `flex: 1; padding: 10px; font-weight: bold; font-size: 0.9em; border-radius: 6px; cursor: pointer; transition: 0.2s; ${mainTab === 0 ? 'background: white; color: #4A90E2; box-shadow: 0 2px 4px rgba(0,0,0,0.05);' : 'color: #888;'}`;
+            tab1.onclick = () => { mainTab = 0; showQuickButtons(); };
 
-            // 2. 활성화된 탭의 아이템 버튼 렌더링
-            const itemsDiv = document.createElement('div');
-            itemsDiv.style.cssText = "display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;";
-            
-            B2B_CATEGORIES[currentB2BTab].items.forEach(item => {
-                const btn = document.createElement('button');
-                btn.className = 'quick-reply-btn';
+            const tab2 = document.createElement('div');
+            tab2.innerText = "🛒 품목별 선택";
+            tab2.style.cssText = `flex: 1; padding: 10px; font-weight: bold; font-size: 0.9em; border-radius: 6px; cursor: pointer; transition: 0.2s; ${mainTab === 1 ? 'background: white; color: #4A90E2; box-shadow: 0 2px 4px rgba(0,0,0,0.05);' : 'color: #888;'}`;
+            tab2.onclick = () => { mainTab = 1; showQuickButtons(); };
+
+            mainTabsDiv.appendChild(tab1);
+            mainTabsDiv.appendChild(tab2);
+            container.appendChild(mainTabsDiv);
+
+            if (mainTab === 0) {
+                // ----------------------------------------------------
+                // [왼쪽 탭] 자주 사용 견적 (누르면 바로 전송)
+                // ----------------------------------------------------
+                container.style.paddingBottom = "15px"; // 하단 장바구니 버튼이 없으므로 여백 축소
                 
-                // 장바구니에 담겨 있다면 색상 반전 및 수량 뱃지 표시
-                const count = b2bCart[item] || 0;
-                if (count > 0) {
-                    btn.style.backgroundColor = '#4A90E2';
-                    btn.style.color = 'white';
-                    btn.innerHTML = `${item} <span style="background:#e53e3e; color:white; border-radius:50%; width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; font-size:0.8em; font-weight:bold; margin-left:5px;">${count}</span>`;
-                } else {
-                    btn.innerText = item;
-                }
-
-                btn.onclick = () => {
-                    if (!b2bCart[item]) b2bCart[item] = 0;
-                    b2bCart[item]++; // 수량 증가
-                    showQuickButtons(); // 누를 때마다 화면 즉시 갱신
-                };
-                itemsDiv.appendChild(btn);
-            });
-            container.appendChild(itemsDiv);
-
-            // 3. 총 수량 계산 및 플로팅 장바구니 버튼 렌더링
-            const totalItems = Object.values(b2bCart).reduce((a, b) => a + b, 0);
-            if (totalItems > 0) {
-                // 버튼 영역 (초기화 + 견적내기)
-                const bottomActionDiv = document.createElement('div');
-                bottomActionDiv.style.cssText = "position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); width: 90%; display: flex; gap: 10px;";
+                const itemsDiv = document.createElement('div');
+                itemsDiv.style.cssText = "display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;";
                 
-                // [New] 2) 견적초기화 버튼 (다른색)
-                const resetBtn = document.createElement('button');
-                resetBtn.innerHTML = `🔄 초기화`;
-                resetBtn.style.cssText = "flex: 1; padding: 14px; background: #e74c3c; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.05em; cursor: pointer; box-shadow: 0 4px 10px rgba(231, 76, 60, 0.4);";
-                resetBtn.onclick = () => {
-                    // 3) 초기화 버튼 누르면 모든 내역 사라짐
-                    b2bCart = {};
-                    showQuickButtons();
-                };
+                QUICK_KEYWORDS.forEach(keyword => {
+                    const btn = document.createElement('button');
+                    btn.className = 'quick-reply-btn';
+                    btn.innerText = keyword;
+                    btn.onclick = () => {
+                        userInput.value = keyword;
+                        container.remove();
+                        sendRequest();
+                    };
+                    itemsDiv.appendChild(btn);
+                });
+                container.appendChild(itemsDiv);
 
-                // 견적 전송 버튼
-                const submitBtn = document.createElement('button');
-                submitBtn.innerHTML = `🛒 총 ${totalItems}개 견적내기`;
-                submitBtn.style.cssText = "flex: 2; padding: 14px; background: linear-gradient(135deg, #4A90E2, #357ABD); color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.05em; cursor: pointer; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.4);";
+            } else {
+                // ----------------------------------------------------
+                // [오른쪽 탭] 품목별 다중 선택 (장바구니 담기)
+                // ----------------------------------------------------
+                container.style.paddingBottom = "70px"; // 하단 장바구니 버튼용 여백 복구
+
+                // 1. 카테고리 서브 탭 렌더링
+                const subTabsDiv = document.createElement('div');
+                subTabsDiv.style.cssText = "display: flex; justify-content: space-around; margin-bottom: 15px; border-bottom: 2px solid #eee;";
                 
-                submitBtn.onclick = () => {
-                    // 장바구니 내용을 텍스트로 합치기
-                    const requestTexts = [];
-                    for (const [key, value] of Object.entries(b2bCart)) {
-                        // 4) 싱크대는 7m, 샤시는 3m 기준으로 산출
-                        let measureStr = "";
-                        if (key.includes("싱크대")) {
-                            measureStr = " 7m";
-                        } else if (key.includes("샤시")) {
-                            measureStr = " 3m";
-                        }
-                        
-                        requestTexts.push(`${key}${measureStr} ${value}개`);
+                B2B_CATEGORIES.forEach((cat, index) => {
+                    const subTab = document.createElement('div');
+                    subTab.innerText = cat.name;
+                    subTab.style.cssText = `padding: 10px; font-weight: bold; font-size: 0.95em; cursor: pointer; border-bottom: 3px solid ${index === currentB2BTab ? '#4A90E2' : 'transparent'}; color: ${index === currentB2BTab ? '#4A90E2' : '#888'}; flex: 1; transition: all 0.2s;`;
+                    subTab.onclick = () => {
+                        currentB2BTab = index;
+                        showQuickButtons(); // 탭 변경 시 리렌더링
+                    };
+                    subTabsDiv.appendChild(subTab);
+                });
+                container.appendChild(subTabsDiv);
+
+                // 2. 활성화된 탭의 아이템 버튼 렌더링
+                const itemsDiv = document.createElement('div');
+                itemsDiv.style.cssText = "display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;";
+                
+                B2B_CATEGORIES[currentB2BTab].items.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = 'quick-reply-btn';
+                    
+                    // 장바구니에 담겨 있다면 색상 반전 및 수량 뱃지 표시
+                    const count = b2bCart[item] || 0;
+                    if (count > 0) {
+                        btn.style.backgroundColor = '#4A90E2';
+                        btn.style.color = 'white';
+                        btn.innerHTML = `${item} <span style="background:#e53e3e; color:white; border-radius:50%; width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; font-size:0.8em; font-weight:bold; margin-left:5px;">${count}</span>`;
+                    } else {
+                        btn.innerText = item;
                     }
-                    const finalRequest = requestTexts.join(", ");
-                    
-                    userInput.value = finalRequest; // 입력창에 넣기
-                    
-                    // 전송 후 장바구니 초기화 및 메뉴 닫힘 처리
-                    b2bCart = {};
-                    container.remove();
-                    
-                    sendRequest(); // 실제 전송 트리거
-                };
 
-                bottomActionDiv.appendChild(resetBtn);
-                bottomActionDiv.appendChild(submitBtn);
-                container.appendChild(bottomActionDiv);
+                    btn.onclick = () => {
+                        if (!b2bCart[item]) b2bCart[item] = 0;
+                        b2bCart[item]++; // 수량 증가
+                        showQuickButtons(); // 누를 때마다 화면 즉시 갱신
+                    };
+                    itemsDiv.appendChild(btn);
+                });
+                container.appendChild(itemsDiv);
+
+                // 3. 총 수량 계산 및 플로팅 장바구니 버튼 렌더링
+                const totalItems = Object.values(b2bCart).reduce((a, b) => a + b, 0);
+                if (totalItems > 0) {
+                    // 버튼 영역 (초기화 + 견적내기)
+                    const bottomActionDiv = document.createElement('div');
+                    bottomActionDiv.style.cssText = "position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); width: 90%; display: flex; gap: 10px;";
+                    
+                    // 견적초기화 버튼 (다른색)
+                    const resetBtn = document.createElement('button');
+                    resetBtn.innerHTML = `🔄 초기화`;
+                    resetBtn.style.cssText = "flex: 1; padding: 14px; background: #e74c3c; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.05em; cursor: pointer; box-shadow: 0 4px 10px rgba(231, 76, 60, 0.4);";
+                    resetBtn.onclick = () => {
+                        // 초기화 버튼 누르면 모든 내역 사라짐
+                        b2bCart = {};
+                        showQuickButtons();
+                    };
+
+                    // 견적 전송 버튼
+                    const submitBtn = document.createElement('button');
+                    submitBtn.innerHTML = `🛒 총 ${totalItems}개 견적내기`;
+                    submitBtn.style.cssText = "flex: 2; padding: 14px; background: linear-gradient(135deg, #4A90E2, #357ABD); color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.05em; cursor: pointer; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.4);";
+                    
+                    submitBtn.onclick = () => {
+                        // 장바구니 내용을 텍스트로 합치기
+                        const requestTexts = [];
+                        for (const [key, value] of Object.entries(b2bCart)) {
+                            // 싱크대는 7m, 샤시는 3m 기준으로 산출
+                            let measureStr = "";
+                            if (key.includes("싱크대")) {
+                                measureStr = " 7m";
+                            } else if (key.includes("샤시")) {
+                                measureStr = " 3m";
+                            }
+                            
+                            requestTexts.push(`${key}${measureStr} ${value}개`);
+                        }
+                        const finalRequest = requestTexts.join(", ");
+                        
+                        userInput.value = finalRequest; // 입력창에 넣기
+                        
+                        // 전송 후 장바구니 초기화 및 메뉴 닫힘 처리
+                        b2bCart = {};
+                        container.remove();
+                        
+                        sendRequest(); // 실제 전송 트리거
+                    };
+
+                    bottomActionDiv.appendChild(resetBtn);
+                    bottomActionDiv.appendChild(submitBtn);
+                    container.appendChild(bottomActionDiv);
+                }
             }
 
             // 최초 렌더링 시에만 스크롤 맨 아래로 이동
