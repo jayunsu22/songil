@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-19 10:35:00 KST]
+    [Updated: 2026-05-19 11:20:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -281,7 +281,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 11:15</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 11:20</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -569,18 +569,35 @@
                 if (isUnmeasuredSink || isUnmeasuredSash) {
                     needsOptions.push(cleanName); // 통째로 넣어서 나중에 some()에서 정확히 매칭되도록 함
                     
-                    // 에어테이블 대신 프론트엔드에서 안내 문구 직접 주입!
-                    const descDiv = titleDiv.nextElementSibling?.nextElementSibling; 
-                    if (descDiv && descDiv.classList.contains('item-detail')) {
-                        const noticeStr = isUnmeasuredSink 
-                            ? "📌 정확한 견적을 위해 하단 버튼에서 싱크대 길이를 선택해 주세요."
-                            : "📌 정확한 견적을 위해 하단 버튼에서 샤시 종류와 길이를 선택해 주세요.";
-                        
-                        const noticeDiv = document.createElement('div');
-                        noticeDiv.style.cssText = "color: #e53e3e; font-weight: bold; margin-top: 5px;";
-                        noticeDiv.innerText = noticeStr;
-                        descDiv.appendChild(noticeDiv);
+                    // [New] 아직 정확한 견적이 아니므로, 타이틀 아래의 소계 및 설명 숨기기
+                    let nextEl = titleDiv.nextElementSibling;
+                    while (nextEl && !nextEl.classList.contains('item-title')) {
+                        // 공통 설명(알립니다!) 영역 직전까지만 숨김 처리
+                        if (nextEl.innerText && nextEl.innerText.includes('알립니다!')) break;
+                        if (nextEl.innerText && nextEl.innerText.includes('예상견적')) break;
+                        nextEl.style.display = 'none';
+                        nextEl = nextEl.nextElementSibling;
                     }
+
+                    // 에어테이블 대신 프론트엔드에서 안내 문구 직접 주입! (타이틀 바로 아래에)
+                    const noticeStr = isUnmeasuredSink 
+                        ? "📌 정확한 견적을 위해 하단 버튼에서 싱크대 길이를 선택해 주세요."
+                        : "📌 정확한 견적을 위해 하단 버튼에서 샤시 종류와 길이를 선택해 주세요.";
+                    
+                    const noticeDiv = document.createElement('div');
+                    noticeDiv.style.cssText = "color: #e53e3e; font-weight: bold; margin-top: 10px; margin-bottom: 5px; font-size: 0.95em;";
+                    noticeDiv.innerText = noticeStr;
+                    
+                    // 타이틀 바로 다음에 삽입
+                    titleDiv.parentNode.insertBefore(noticeDiv, titleDiv.nextSibling);
+
+                    // 전체 예상견적 영역도 숨기기 (아직 견적이 미완성이므로)
+                    const divs = bubble.querySelectorAll('div');
+                    divs.forEach(d => {
+                        if (d.innerText && d.innerText.includes('예상견적:')) {
+                            d.style.display = 'none';
+                        }
+                    });
                 } else {
                     // 옵션 선택이 필요 없는 확정 품목들 (예: 방문)
                     confirmedItems.push(cleanName);
@@ -926,4 +943,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-19 10:35:00 KST] End -->
+<!-- [Updated: 2026-05-19 11:20:00 KST] End -->
