@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-19 11:35:00 KST]
+    [Updated: 2026-05-19 11:48:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -281,7 +281,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 11:35</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 11:48</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -605,10 +605,10 @@
                     titleDiv.parentNode.insertBefore(noticeDiv, titleDiv.nextSibling);
 
                     // 전체 예상견적 영역도 숨기기 (아직 견적이 미완성이므로)
-                    const divs = bubble.querySelectorAll('div');
-                    divs.forEach(d => {
-                        if (d.innerText && d.innerText.includes('예상견적:')) {
-                            d.style.display = 'none';
+                    // 버그 수정: 전체 bubble을 숨기지 않도록 직계 자식 노드만 검사
+                    Array.from(titleDiv.parentNode.children).forEach(child => {
+                        if (child.innerText && (child.innerText.includes('예상견적:') || child.innerText.includes('총액:'))) {
+                            child.style.display = 'none';
                         }
                     });
                 } else {
@@ -1026,4 +1026,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-19 11:35:00 KST] End -->
+<!-- [Updated: 2026-05-19 11:48:00 KST] End -->
