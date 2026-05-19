@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-19 12:28:00 KST]
+    [Updated: 2026-05-19 13:05:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -281,7 +281,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 12:28</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 13:05</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -578,6 +578,12 @@
 
             if (needsOptions.length === 0) return;
 
+            // [New] 견적서 안에 이미지가 있다면 에어테이블 이미지 링크를 몰래 저장합니다. (B방법 핵심)
+            const imgTag = bubble.querySelector('img');
+            if (imgTag && imgTag.src) {
+                lastAirtableImageUrl = imgTag.src;
+            }
+
             // [핵심] 옵션 선택이 필요하다면, 1단계에서 임시로 생성된 전체 견적 말풍선을 아예 숨겨버립니다!
             bubble.style.display = 'none';
 
@@ -671,7 +677,7 @@
                             const userInput = document.getElementById('userInput');
                             userInput.value = finalInput;
                             btnContainer.style.display = 'none';
-                            sendRequest(); // 즉시 전송
+                            sendRequest(true); // 즉시 전송 (동적 버튼 플래그)
                         }
                     };
                     buttonsWrapper.appendChild(btn);
@@ -800,9 +806,12 @@
             }
         }
 
-        async function sendRequest() {
+        // [New] 첫 번째 견적에서 에어테이블이 만들어준 이미지 URL을 보관하는 변수 (B방법 핵심)
+        let lastAirtableImageUrl = "";
+
+        async function sendRequest(isFromDynamicBtn = false) {
             const msg = userInput.value.trim();
-            if (!msg && selectedImages.length === 0) return;
+            if (!msg && selectedImages.length === 0 && !isFromDynamicBtn) return;
 
             // [New] 일일 무료 견적 3회 제한 (이미지 포함 시)
             // 단, URL 파라미터에 'admin=true'가 있거나, 해시값에 #admin이 있으면 제한 무시
@@ -857,6 +866,7 @@
                 let finalImage = null;
                 if (imagesToProcess.length > 0) {
                     finalImage = await mergeImages(imagesToProcess);
+                    lastAirtableImageUrl = ""; // 새 이미지를 올리면 기존 URL 초기화
 
                     // [New] 카운트 차감 (이미지 변환 성공 후) - 관리자는 차감 안 함
                     if (!isManager) {
@@ -875,9 +885,16 @@
 
                 const payload = {
                     message: msg,
-                    image: finalImage,
                     partner_code: pCode // n8n에서 이 코드로 업체를 식별합니다
                 };
+
+                // 원본 사진이 있으면 payload.image 에 넣고, 
+                // 길이 선택 버튼을 누른 거라면 사진 대신 payload.imageUrl 에 링크만 넣습니다.
+                if (finalImage) {
+                    payload.image = finalImage;
+                } else if (isFromDynamicBtn && lastAirtableImageUrl) {
+                    payload.imageUrl = lastAirtableImageUrl;
+                }
 
                 const res = await fetch(CONFIG.estimateUrl, {
                     method: 'POST',
@@ -980,4 +997,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-19 12:28:00 KST] End -->
+<!-- [Updated: 2026-05-19 13:05:00 KST] End -->
