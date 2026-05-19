@@ -6,7 +6,7 @@
     3. [스크롤개선] 새 견적 도착 시 화면이 맨 아래로 튀지 않고, 사용자가 보낸 요청 위치(결과물 시작점)를 유지하도록 개선
        - 'scrollIntoView' 로직을 사용자 메시지 기준으로 변경
     4. [관리자모드] URL에 'admin=true' 또는 '#admin' 포함 시 일일 3회 제한 무시 (테스트용)
-    5. [전송안정화] 이미지 용 용량 초과 방지를 위해 병합 시 압축률 조정 (0.8 -> 0.5)
+    5. [전송안정화] 이미지 용량 초과 방지를 위해 병합 시 압축률 조정 (0.8 -> 0.5)
     6. [동적옵션] 에어테이블 대신 프론트엔드에서 품목(싱크대, 샤시 등)에 따른 옵션 버튼과 📌 안내 문구를 동적으로 생성하여 띄워주는 로직 추가.
 -->
 <!DOCTYPE html>
@@ -605,10 +605,10 @@
                     titleDiv.parentNode.insertBefore(noticeDiv, titleDiv.nextSibling);
 
                     // 전체 예상견적 영역도 숨기기 (아직 견적이 미완성이므로)
-                    // 버그 수정: 전체 bubble을 숨기지 않도록 직계 자식 노드만 검사
-                    Array.from(titleDiv.parentNode.children).forEach(child => {
-                        if (child.innerText && (child.innerText.includes('예상견적:') || child.innerText.includes('총액:'))) {
-                            child.style.display = 'none';
+                    const divs = bubble.querySelectorAll('div');
+                    divs.forEach(d => {
+                        if (d.innerText && d.innerText.includes('예상견적:')) {
+                            d.style.display = 'none';
                         }
                     });
                 } else {
