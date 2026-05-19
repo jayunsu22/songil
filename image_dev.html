@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-02-05 22:50:00 KST]
+    [Updated: 2026-05-19 10:35:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -7,6 +7,7 @@
        - 'scrollIntoView' 로직을 사용자 메시지 기준으로 변경
     4. [관리자모드] URL에 'admin=true' 또는 '#admin' 포함 시 일일 3회 제한 무시 (테스트용)
     5. [전송안정화] 이미지 용량 초과 방지를 위해 병합 시 압축률 조정 (0.8 -> 0.5)
+    6. [동적옵션] 에어테이블 대신 프론트엔드에서 품목(싱크대, 샤시 등)에 따른 옵션 버튼과 📌 안내 문구를 동적으로 생성하여 띄워주는 로직 추가.
 -->
 <!DOCTYPE html>
 <html lang="ko">
@@ -550,6 +551,86 @@
             });
         }
 
+        // [New] 동적 옵션 버튼 및 안내 문구 주입 로직
+        function processDynamicOptions(bubble) {
+            const itemTitles = bubble.querySelectorAll('.item-title');
+            if (!itemTitles || itemTitles.length === 0) return;
+
+            let confirmedItems = [];
+            let needsOptions = [];
+
+            itemTitles.forEach(titleDiv => {
+                const text = titleDiv.innerText || titleDiv.textContent;
+                let itemName = text.replace('🔹', '').trim();
+                
+                // 싱크대나 샤시가 1세트로 임의 고정되어 넘어온 경우
+                const isUnmeasuredSink = itemName.includes('싱크대') && itemName.includes('1세트');
+                const isUnmeasuredSash = itemName.includes('샤시') && itemName.includes('1세트');
+
+                if (isUnmeasuredSink || isUnmeasuredSash) {
+                    needsOptions.push(itemName.split(' ')[0]); // "싱크대" 또는 "샤시(단창)"
+                    
+                    // 에어테이블 대신 프론트엔드에서 안내 문구 직접 주입!
+                    const descDiv = titleDiv.nextElementSibling?.nextElementSibling; 
+                    if (descDiv && descDiv.classList.contains('item-detail')) {
+                        const noticeStr = isUnmeasuredSink 
+                            ? "📌 정확한 견적을 위해 하단 버튼에서 싱크대 길이를 선택해 주세요."
+                            : "📌 정확한 견적을 위해 하단 버튼에서 샤시 종류와 길이를 선택해 주세요.";
+                        
+                        const noticeDiv = document.createElement('div');
+                        noticeDiv.style.cssText = "color: #e53e3e; font-weight: bold; margin-top: 5px;";
+                        noticeDiv.innerText = noticeStr;
+                        descDiv.appendChild(noticeDiv);
+                    }
+                } else {
+                    // 옵션 선택이 필요 없는 확정 품목들 (예: 방문)
+                    confirmedItems.push(itemName);
+                }
+            });
+
+            if (needsOptions.length === 0) return;
+
+            // 옵션 버튼 리스트 구성
+            let buttonOptions = [];
+            if (needsOptions.some(i => i.includes('싱크대'))) {
+                buttonOptions.push("싱크대 3m", "싱크대 4m", "싱크대 5m");
+            }
+            if (needsOptions.some(i => i.includes('샤시'))) {
+                buttonOptions.push("일반샤시", "시스템샤시", "상가샤시");
+            }
+            if (buttonOptions.length === 0) return;
+
+            // 동적 버튼 컨테이너 생성
+            const btnContainer = document.createElement('div');
+            btnContainer.className = "dynamic-options-container";
+            btnContainer.style.cssText = "margin-top: 10px; margin-bottom: 15px; text-align: center; background: #f8f9fa; padding: 10px; border-radius: 12px; border: 1px dashed #ced4da;";
+            btnContainer.innerHTML = `<div style="font-size:0.85em; color:#e17055; font-weight:bold; margin-bottom:8px;">💡 아래 옵션을 선택해 견적을 완성하세요</div>`;
+
+            // 버튼 생성
+            buttonOptions.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'quick-reply-btn dynamic-btn';
+                btn.innerText = opt;
+                btn.style.cssText = "margin: 3px; padding: 6px 12px; background: #4A90E2; color: white; border: none; border-radius: 15px; font-size: 0.9em; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);";
+                
+                btn.onclick = () => {
+                    let finalInput = "";
+                    if (confirmedItems.length > 0) {
+                        finalInput = confirmedItems.join(", ") + ", ";
+                    }
+                    finalInput += opt;
+                    
+                    const userInput = document.getElementById('userInput');
+                    userInput.value = finalInput;
+                    userInput.focus();
+                };
+                btnContainer.appendChild(btn);
+            });
+
+            // 챗봇 말풍선 바로 아래에 버튼 그룹 추가
+            bubble.parentNode.insertBefore(btnContainer, bubble.nextSibling);
+        }
+
         // [New] save=true 파라미터 추가하여 기록 저장 제어
         function addBubble(message, sender, isQuote = false, save = true) {
             const bubble = document.createElement('div');
@@ -619,6 +700,15 @@
             if (save) {
                 chatHistory.push({ message: content, sender: sender, isQuote: isQuote });
                 localStorage.setItem('v2_chat_history', JSON.stringify(chatHistory));
+            }
+
+            // [New] 챗봇의 견적서 출력 시 동적 버튼 처리
+            if (sender === 'bot' && isQuote) {
+                // DOM 렌더링 후 처리되도록 약간 지연
+                setTimeout(() => {
+                    processDynamicOptions(bubble);
+                    scrollToBottom();
+                }, 50);
             }
 
             return bubble;
@@ -827,4 +917,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-01-12 21:00:00 KST] End -->
+<!-- [Updated: 2026-05-19 10:35:00 KST] End -->
