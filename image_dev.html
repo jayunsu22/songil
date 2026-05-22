@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-22 20:34:00 KST]
+    [Updated: 2026-05-22 21:05:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -9,6 +9,7 @@
     5. [전송안정화] 이미지 용 용량 초과 방지를 위해 병합 시 압축률 조정 (0.8 -> 0.5)
     6. [동적옵션] 에어테이블 대신 프론트엔드에서 품목(싱크대, 샤시 등)에 따른 옵션 버튼과 📌 안내 문구를 동적으로 생성하여 띄워주는 로직 추가.
     7. [UI개선] 접속 시 환영 메시지 자동 출력 및 간편견적 탭 즉시 노출
+    8. [UI버그수정] 견적 진행 중이거나 동적 옵션 선택 창이 떴을 때 하단 '간편견적 열기' 버튼 숨김 처리
 -->
 <!DOCTYPE html>
 <html lang="ko">
@@ -282,7 +283,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-22 20:34</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-22 21:05</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -580,6 +581,10 @@
 
             if (needsOptions.length === 0) return;
 
+            // [Fix] 옵션 선택 중에는 '간편견적 열기' 버튼이 불필요하므로 제거
+            const existingBtn = document.querySelector('.open-quick-quote-btn');
+            if (existingBtn) existingBtn.remove();
+
             // [New] 견적서 안에 이미지가 있다면 에어테이블 이미지 링크를 몰래 저장합니다. (B방법 핵심)
             const imgTag = bubble.querySelector('img');
             if (imgTag && imgTag.src) {
@@ -814,6 +819,12 @@
         async function sendRequest(isFromDynamicBtn = false) {
             const msg = userInput.value.trim();
             if (!msg && selectedImages.length === 0 && !isFromDynamicBtn) return;
+
+            // [Fix] 견적 계산이 시작되면 기존에 떠있던 간편견적 버튼들을 숨김 처리
+            const existingBtn = document.querySelector('.open-quick-quote-btn');
+            if (existingBtn) existingBtn.remove();
+            const existingMenu = document.querySelector('.quick-reply-container');
+            if (existingMenu) existingMenu.remove();
 
             // [New] 일일 무료 견적 3회 제한 (이미지 포함 시)
             // 단, URL 파라미터에 'admin=true'가 있거나, 해시값에 #admin이 있으면 제한 무시
@@ -1203,4 +1214,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-22 20:34:00 KST] End -->
+<!-- [Updated: 2026-05-22 21:05:00 KST] End -->
