@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-19 15:10:00 KST]
+    [Updated: 2026-05-22 20:34:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -8,6 +8,7 @@
     4. [관리자모드] URL에 'admin=true' 또는 '#admin' 포함 시 일일 3회 제한 무시 (테스트용)
     5. [전송안정화] 이미지 용 용량 초과 방지를 위해 병합 시 압축률 조정 (0.8 -> 0.5)
     6. [동적옵션] 에어테이블 대신 프론트엔드에서 품목(싱크대, 샤시 등)에 따른 옵션 버튼과 📌 안내 문구를 동적으로 생성하여 띄워주는 로직 추가.
+    7. [UI개선] 접속 시 환영 메시지 자동 출력 및 간편견적 탭 즉시 노출
 -->
 <!DOCTYPE html>
 <html lang="ko">
@@ -15,7 +16,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>이미지견적 (실전모드 V2)</title>
+    <title>대박난손길 1분견적</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -281,7 +282,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-19 15:10</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-22 20:34</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -334,8 +335,9 @@
 
                     // 1. 헤더 텍스트 변경
                     const pName = data.partner_name || '';
-                    const titleText = pName ? `${pName} 1분견적` : '1분견적';
+                    const titleText = pName ? `${pName} 1분견적` : '대박난손길 1분견적';
                     document.getElementById('header-title').textContent = titleText;
+                    document.title = titleText; // 브라우저 타이틀 태그도 동기화
 
                     // 상단 링크 영역은 의도적으로 비움
                     document.getElementById('partner-links').innerHTML = '';
@@ -1179,16 +1181,26 @@
         sendButton.addEventListener('click', sendRequest);
         userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
 
-        // 페이지 로드 시 기존 기록 복원 및 퀵 버튼 표시
+        // 페이지 로드 시 기존 기록 복원
         loadChatHistory();
 
-        // [New] 1) 초기 로딩 완료 후 '간편견적 열기' 버튼 생성
-        setTimeout(() => {
-            addOpenQuickQuoteButton();
-        }, 500);
+        // [New] 첫 접속 (대화 기록 없음) 시 환영 인사 및 간편메뉴 즉시 표시
+        if (chatHistory.length === 0) {
+            const welcomeMsg = `안녕하세요 1분 견적입니다<br>견적 항목을 선택하시면<br>1분안에 견적을 내드릴께요.<br>사진을 직접 찍으셔서 올리셔도<br>1분이면 견적 ok 입니다`;
+            addBubble(welcomeMsg, 'bot', false, false); // 저장 안함 (새로고침시 매번 뜨도록)
+            
+            setTimeout(() => {
+                showQuickButtons(); // 버튼이 아닌 바로 탭 메뉴 펼치기
+            }, 300);
+        } else {
+            // 대화 기록이 있을 경우 기존처럼 '간편견적 열기' 버튼만 표시
+            setTimeout(() => {
+                addOpenQuickQuoteButton();
+            }, 500);
+        }
 
     </script>
 </body>
 
 </html>
-<!-- [Updated: 2026-05-19 13:25:00 KST] End -->
+<!-- [Updated: 2026-05-22 20:34:00 KST] End -->
