@@ -1,6 +1,6 @@
 <!-- 
 
-    [Updated: 2026-05-27 18:36:00 KST]
+    [Updated: 2026-05-27 18:55:00 KST]
 
     수정내용:
 
@@ -744,7 +744,95 @@
 
         }
 
-    </style>
+
+        /* 엑셀 표 스타일 레이아웃 (스샷2 형태 구현) */
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            background: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        }
+
+        .excel-table tr {
+            border-bottom: 1px solid #cbd5e1;
+        }
+
+        .excel-table tr:last-child {
+            border-bottom: none;
+        }
+
+        .excel-label {
+            width: 90px;
+            font-weight: 700;
+            text-align: center;
+            vertical-align: middle;
+            border-right: 1px solid #cbd5e1;
+            padding: 12px 8px;
+            font-size: 0.88em;
+            line-height: 1.4;
+            word-break: keep-all;
+        }
+
+        /* 분류별 파스텔톤 배경색 및 글자색 */
+        .excel-label.orange { background-color: #fff3e0; color: #e65100; }
+        .excel-label.blue { background-color: #e3f2fd; color: #0d47a1; }
+        .excel-label.teal { background-color: #e0f2f1; color: #004d40; }
+        .excel-label.purple { background-color: #f3e5f5; color: #4a148c; }
+        .excel-label.indigo { background-color: #e8eaf6; color: #1a237e; }
+
+        .excel-value-container {
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .excel-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #edf2f7;
+            cursor: pointer;
+            font-size: 0.92em;
+            transition: all 0.2s;
+            background: white;
+            color: #333;
+            text-align: left;
+        }
+
+        .excel-item-row:last-child {
+            border-bottom: none;
+        }
+
+        .excel-item-row:hover {
+            background-color: #f8fafc;
+        }
+
+        .excel-item-row.active {
+            background-color: #ebf8ff;
+            color: #2b6cb0;
+            font-weight: bold;
+        }
+
+        .excel-item-badge {
+            background: #e53e3e;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75em;
+            font-weight: bold;
+            margin-left: 6px;
+            box-shadow: 0 1px 3px rgba(229, 62, 62, 0.3);
+            flex-shrink: 0;
+        }
+        </style>
 
 </head>
 
@@ -770,7 +858,7 @@
 
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
 
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-27 18:36</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-27 18:55</div>
 
         </div>
 
@@ -2789,180 +2877,1778 @@
             // 2. 메인 탭 내용 렌더링
 
             if (mainTab === 0) {
+                // 1) 아파트/빌라 전체견적 엑셀 표
+                const table1 = document.createElement('table');
+                table1.className = 'excel-table';
+                
+                const tr1 = document.createElement('tr');
+                
+                const tdLabel1 = document.createElement('td');
+                tdLabel1.className = 'excel-label orange';
+                tdLabel1.innerHTML = '아파트/빌라<br>전체견적';
+                
+                const tdValue1 = document.createElement('td');
+                tdValue1.className = 'excel-value-container';
+                
+                APARTMENT_SIZES.forEach(size => {
+                    const row = document.createElement('div');
+                    row.className = 'excel-item-row';
+                    row.innerText = `${size.replace(" 아파트", "")} 전체견적`;
+                    
+                    bindClickEffect(row, () => {
+                        userInput.value = `${size} 전체 견적 내주세요.`;
+                        modal.remove();
+                        sendRequest();
+                    });
+                    tdValue1.appendChild(row);
+                });
+                
+                tr1.appendChild(tdLabel1);
+                tr1.appendChild(tdValue1);
+                table1.appendChild(tr1);
+                bodyContainer.appendChild(table1);
+
+                // 2) 평형별 세부 품목 엑셀 표
+                const sizeRanges = [
+                    { label: "20평형 세부품목", sizeText: "20평", key: "20", colorClass: "blue" },
+                    { label: "30평형 세부품목", sizeText: "30평", key: "30", colorClass: "teal" },
+                    { label: "40평형 세부품목", sizeText: "40평", key: "40", colorClass: "purple" },
+                    { label: "50평형 세부품목", sizeText: "50평", key: "50", colorClass: "indigo" }
+                ];
+
+                sizeRanges.forEach(range => {
+                    const table = document.createElement('table');
+                    table.className = 'excel-table';
+                    
+                    const tr = document.createElement('tr');
+                    
+                    const tdLabel = document.createElement('td');
+                    tdLabel.className = `excel-label ${range.colorClass}`;
+                    tdLabel.innerHTML = range.label.replace(" 세부품목", "<br>세부품목");
+                    
+                    const tdValue = document.createElement('td');
+                    tdValue.className = 'excel-value-container';
+                    
+                    const filteredItems = SIZE_ITEMS.filter(item => item.label.startsWith(range.sizeText));
+                    
+                    filteredItems.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'excel-item-row';
+                        
+                        const matchItem = b2bCart.find(c => c.name === item.name);
+                        const count = matchItem ? matchItem.count : 0;
+                        
+                        if (count > 0) {
+                            row.classList.add('active');
+                            row.innerHTML = `<span>${item.label}</span> <span class="excel-item-badge">${count}</span>`;
+                        } else {
+                            row.innerText = item.label;
+                        }
+                        
+                        bindClickEffect(row, () => {
+                            addCartItem(item.name, item.label, "", 1);
+                        });
+                        tdValue.appendChild(row);
+                    });
+                    
+                    tr.appendChild(tdLabel);
+                    tr.appendChild(tdValue);
+                    table.appendChild(tr);
+                    bodyContainer.appendChild(table);
+                });
+            }
+
+            } else if (mainTab === 1) {
 
                 // ----------------------------------------------------
 
-                // [평형별 탭] - 전체견적 상단 통합 분리 + 세부 평형 카드 렌더링
+                // [품목별 탭]
 
                 // ----------------------------------------------------
 
                 
 
-                // 2-1. 최상단 단독 카드: 아파트/빌라 전체견적
+                // 2-1. 서브 카테고리 탭 (2개: 도어/샤시, 싱크/가구/기타)
 
-                const packageCard = document.createElement('div');
+                const subTabsDiv = document.createElement('div');
 
-                packageCard.className = 'size-group-card accent-orange';
+                subTabsDiv.style.cssText = "display: flex; justify-content: space-around; margin-bottom: 12px; border-bottom: 2px solid #eee;";
+
+                
+
+                ITEM_CATEGORIES.forEach((cat, index) => {
+
+                    const subTab = document.createElement('div');
+
+                    subTab.innerText = cat.name;
+
+                    subTab.style.cssText = `padding: 8px; font-weight: bold; font-size: 0.9em; cursor: pointer; border-bottom: 3px solid ${index === currentB2BTab ? '#4A90E2' : 'transparent'}; color: ${index === currentB2BTab ? '#4A90E2' : '#888'}; flex: 1; transition: all 0.2s; text-align: center;`;
+
+                    subTab.onclick = () => {
+
+                        subTab.classList.add('click-effect');
+
+                        setTimeout(() => {
+
+                            currentB2BTab = index;
+
+                            showQuickButtons();
+
+                        }, 100);
+
+                    };
+
+                    subTabsDiv.appendChild(subTab);
+
+                });
+
+                bodyContainer.appendChild(subTabsDiv);
 
 
 
-                const packageHeader = document.createElement('div');
+                // 2-2. 활성화된 탭의 아이템 버튼 렌더링 (분류별 그룹화 적용)
+                const activeCat = ITEM_CATEGORIES[currentB2BTab];
+                
+                activeCat.groups.forEach(group => {
+                    const table = document.createElement('table');
+                    table.className = 'excel-table';
+                    
+                    const tr = document.createElement('tr');
+                    
+                    // 그룹 악센트에 따른 컬러 클래스 매핑
+                    let colorClass = "blue";
+                    if (group.accent === "accent-teal") colorClass = "teal";
+                    if (group.accent === "accent-purple") colorClass = "purple";
+                    if (group.accent === "accent-indigo") colorClass = "indigo";
+                    
+                    const tdLabel = document.createElement('td');
+                    tdLabel.className = `excel-label ${colorClass}`;
+                    tdLabel.innerHTML = group.title.replace(" ", "<br>");
+                    
+                    const tdValue = document.createElement('td');
+                    tdValue.className = 'excel-value-container';
+                    
+                    group.items.forEach(item => {
+                        const rowWrapper = document.createElement('div');
+                        rowWrapper.style.cssText = "position: relative; width: 100%;";
 
-                packageHeader.className = 'size-group-header';
+                        const row = document.createElement('div');
+                        row.className = 'excel-item-row';
+                        
+                        // 장바구니 개수 세기
+                        const matchItems = b2bCart.filter(c => c.name === item.name);
+                        const totalCount = matchItems.reduce((acc, cur) => acc + cur.count, 0);
 
-                packageHeader.innerHTML = `<span style="font-weight:700; color:#d9480f;">⚡ [아파트/빌라 전체견적] (즉시 발송)</span>`;
+                        if (totalCount > 0) {
+                            row.classList.add('active');
+                            row.innerHTML = `<span>${item.label}</span> <span class="excel-item-badge">${totalCount}</span>`;
+                        } else {
+                            row.innerText = item.label;
+                        }
 
-                packageCard.appendChild(packageHeader);
+                        bindClickEffect(row, () => {
+                            // 드롭다운 옵션 처리
+                            if (item.type.includes('-dropdown')) {
+                                const oldForm = document.querySelector('.dropdown-select-form');
+                                if (oldForm) oldForm.remove();
+
+                                const selectForm = document.createElement('div');
+                                selectForm.className = 'dropdown-select-form';
+                                selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;";
+
+                                const titleSpan = document.createElement('span');
+                                titleSpan.style.cssText = "font-size: 0.85em; font-weight: bold; color: #4A90E2;";
+                                
+                                const selectEl = document.createElement('select');
+                                selectEl.style.cssText = "padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; font-size: 0.95em; outline: none; background: white;";
+
+                                // 옵션 구성
+                                if (item.type === 'door-dropdown' || item.type === 'furniture-dropdown') {
+                                    titleSpan.innerText = `⚙️ ${item.label} 수량 선택:`;
+                                    for (let i = 1; i <= 7; i++) {
+                                        const opt = document.createElement('option');
+                                        opt.value = `${i}개`;
+                                        opt.innerText = `문짝 ${i}개`;
+                                        if (i === 1) opt.selected = true;
+                                        selectEl.appendChild(opt);
+                                    }
+                                } else if (item.type === 'sink-dropdown') {
+                                    titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
+                                    const ranges = ["1~2m", "3~4m", "5~6m", "7~8m", "9~10m", "11~12m"];
+                                    ranges.forEach(r => {
+                                        const opt = document.createElement('option');
+                                        opt.value = r;
+                                        opt.innerText = r;
+                                        selectEl.appendChild(opt);
+                                    });
+                                } else if (item.type === 'wood-dropdown') {
+                                    titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
+                                    for (let i = 2; i <= 10; i++) {
+                                        const opt = document.createElement('option');
+                                        opt.value = `${i}m`;
+                                        opt.innerText = `${i}m`;
+                                        selectEl.appendChild(opt);
+                                    }
+                                } else if (item.type === 'room-dropdown') {
+                                    titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
+                                    for (let i = 1; i <= 10; i++) {
+                                        const opt = document.createElement('option');
+                                        opt.value = `${i}m`;
+                                        opt.innerText = `${i}m`;
+                                        selectEl.appendChild(opt);
+                                    }
+                                }
+
+                                const addBtn = document.createElement('button');
+                                addBtn.innerText = "장바구니 담기";
+                                addBtn.style.cssText = "padding: 10px; background: #4A90E2; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: inherit;";
+                                
+                                bindClickEffect(addBtn, () => {
+                                    const selectedVal = selectEl.value;
+                                    addCartItem(item.name, item.label, selectedVal, 1);
+                                    selectForm.remove();
+                                });
+
+                                selectForm.appendChild(titleSpan);
+                                selectForm.appendChild(selectEl);
+                                selectForm.appendChild(addBtn);
+
+                                rowWrapper.appendChild(selectForm);
+                            } else {
+                                addCartItem(item.name, item.label, "", 1);
+                            }
+                        });
+                        
+                        rowWrapper.appendChild(row);
+                        tdValue.appendChild(rowWrapper);
+                    });
+                    
+                    tr.appendChild(tdLabel);
+                    tr.appendChild(tdValue);
+                    table.appendChild(tr);
+                    bodyContainer.appendChild(table);
+                });
+                
+
+            } else {
+
+                    // 옵션 선택이 필요 없는 확정 품목들 (예: 방문)
+
+                    confirmedItems.push(cleanName);
+
+                }
+
+            });
 
 
 
-                const packageButtonsDiv = document.createElement('div');
-
-                packageButtonsDiv.style.cssText = "display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start;";
+            if (needsOptions.length === 0) return;
 
 
 
-                APARTMENT_SIZES.forEach(size => {
+            // [Fix] 옵션 선택 중에는 '간편견적 열기' 버튼이 불필요하므로 제거
+
+            const existingBtn = document.querySelector('.open-quick-quote-btn');
+
+            if (existingBtn) existingBtn.remove();
+
+
+
+            // [New] 견적서 안에 이미지가 있다면 에어테이블 이미지 링크를 몰래 저장합니다. (B방법 핵심)
+
+            const imgTag = bubble.querySelector('img');
+
+            if (imgTag && imgTag.src) {
+
+                lastAirtableImageUrl = imgTag.src;
+
+            }
+
+
+
+            // [핵심] 옵션 선택이 필요하다면, 1단계에서 임시로 생성된 전체 견적 말풍선을 아예 숨겨버립니다!
+
+            bubble.style.display = 'none';
+
+
+
+            // 동적 버튼 컨테이너 생성
+
+            const btnContainer = document.createElement('div');
+
+            btnContainer.className = "dynamic-options-container";
+
+            btnContainer.style.cssText = "margin-top: 10px; margin-bottom: 15px; text-align: center; background: #f8f9fa; padding: 12px; border-radius: 12px; border: 1px dashed #ced4da;";
+
+            
+
+            const titleDivUI = document.createElement('div');
+
+            titleDivUI.style.cssText = "font-size:0.9em; color:#e17055; font-weight:bold; margin-bottom:12px;";
+
+            btnContainer.appendChild(titleDivUI);
+
+
+
+            const buttonsWrapper = document.createElement('div');
+
+            btnContainer.appendChild(buttonsWrapper);
+
+
+
+            let step = 1;
+
+            let currentSashBase = "";
+
+            let currentSinkBase = "";
+
+            let activeCategory = "";
+
+
+
+            const sinkItem = needsOptions.find(i => i.includes('싱크대'));
+
+            const sashItem = needsOptions.find(i => i.includes('샤시'));
+
+
+
+            if (sinkItem) {
+
+                activeCategory = "sink";
+
+                currentSinkBase = sinkItem.replace('1세트', '').trim();
+
+                if (currentSinkBase !== '싱크대') {
+
+                    step = 2;
+
+                }
+
+            } else if (sashItem) {
+
+                activeCategory = "sash";
+
+                currentSashBase = sashItem.replace('1세트', '').trim();
+
+                if (currentSashBase !== '샤시' && currentSashBase !== '샤시(단창)') {
+
+                    step = 2;
+
+                }
+
+            }
+
+
+
+            function renderButtons() {
+
+                buttonsWrapper.innerHTML = '';
+
+                let currentOptions = [];
+
+
+
+                if (activeCategory === "sink") {
+
+                    if (step === 1) {
+
+                        titleDivUI.innerText = "💡 시공 범위를 먼저 선택해 주세요";
+
+                        currentOptions.push({text: "싱크대 상하부장 전체시공", value: "싱크대"});
+
+                        currentOptions.push({text: "싱크대 상부장만 시공", value: "싱크대상부장"});
+
+                        currentOptions.push({text: "싱크대 하부장만 시공", value: "싱크대하부장"});
+
+                    } else if (step === 2) {
+
+                        titleDivUI.innerText = `💡 길이를 선택해 견적을 완성하세요`;
+
+                        currentOptions.push({text: "3~4m", value: `${currentSinkBase} 4m`});
+
+                        currentOptions.push({text: "5~6m", value: `${currentSinkBase} 6m`});
+
+                        currentOptions.push({text: "7~8m", value: `${currentSinkBase} 8m`});
+
+                        currentOptions.push({text: "9~10m", value: `${currentSinkBase} 10m`});
+
+                        currentOptions.push({text: "11~12m", value: `${currentSinkBase} 12m`});
+
+                    }
+
+                } else if (activeCategory === "sash") {
+
+                    if (step === 1) {
+
+                        titleDivUI.innerText = "💡 샤시 종류를 먼저 선택해 주세요";
+
+                        currentOptions.push({text: "일반샤시", value: "샤시(단창)"});
+
+                        currentOptions.push({text: "시스템샤시", value: "시스템샤시"});
+
+                        currentOptions.push({text: "상가샤시", value: "상가샤시"});
+
+                    } else if (step === 2) {
+
+                        titleDivUI.innerText = `💡 길이를 선택해 견적을 완성하세요`;
+
+                        currentOptions.push({text: "1~2m", value: `${currentSashBase} 2m`});
+
+                        currentOptions.push({text: "3~4m", value: `${currentSashBase} 4m`});
+
+                        currentOptions.push({text: "5~6m", value: `${currentSashBase} 6m`});
+
+                        currentOptions.push({text: "7~8m", value: `${currentSashBase} 8m`});
+
+                        currentOptions.push({text: "9~10m", value: `${currentSashBase} 10m`});
+
+                    }
+
+                }
+
+
+
+                currentOptions.forEach(opt => {
 
                     const btn = document.createElement('button');
 
-                    btn.className = 'quick-reply-btn';
+                    btn.className = 'quick-reply-btn dynamic-btn';
 
-                    btn.innerText = `${size.replace(" 아파트", "")} 전체견적`;
+                    btn.innerText = opt.text;
 
-                    btn.style.borderColor = '#e17055';
-
-                    btn.style.color = '#e17055';
-
-                    btn.style.background = 'white';
-
-
-
-                    bindClickEffect(btn, () => {
-
-                        userInput.value = `${size} 전체 견적 내주세요.`;
-
-                        modal.remove();
-
-                        sendRequest();
-
-                    });
-
-                    packageButtonsDiv.appendChild(btn);
-
-                });
-
-                packageCard.appendChild(packageButtonsDiv);
-
-                bodyContainer.appendChild(packageCard);
-
-
-
-                // 2-2. 아래에 평형대별 세부 품목 카드 렌더링 (헤더 간소화, 즉시전송 버튼 제거)
-
-                const sizeRanges = [
-
-                    { label: "20평형", sizeText: "20평", key: "20", accent: "accent-blue" },
-
-                    { label: "30평형", sizeText: "30평", key: "30", accent: "accent-teal" },
-
-                    { label: "40평형", sizeText: "40평", key: "40", accent: "accent-purple" },
-
-                    { label: "50평형", sizeText: "50평", key: "50", accent: "accent-indigo" }
-
-                ];
-
-
-
-                sizeRanges.forEach(range => {
-
-                    const groupCard = document.createElement('div');
-
-                    groupCard.className = `size-group-card ${range.accent}`;
-
-
-
-                    const header = document.createElement('div');
-
-                    header.className = 'size-group-header';
+                    btn.style.cssText = "display: block; width: 100%; margin-bottom: 8px; padding: 12px; background: #4A90E2; color: white; border: none; border-radius: 8px; font-size: 1.05em; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); box-sizing: border-box;";
 
                     
 
-                    const titleSpan = document.createElement('span');
+                    btn.onclick = () => {
 
-                    titleSpan.style.cssText = "font-size: 0.98em; font-weight: 700; color: #1a202c;";
+                        if (step === 1) {
 
-                    titleSpan.innerText = `📋 [${range.label}] 세부 품목 선택`;
+                            if (activeCategory === "sink") currentSinkBase = opt.value;
 
-                    header.appendChild(titleSpan);
+                            if (activeCategory === "sash") currentSashBase = opt.value;
 
-                    groupCard.appendChild(header);
+                            step = 2;
 
-
-
-                    const buttonsDiv = document.createElement('div');
-
-                    buttonsDiv.style.cssText = "display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start;";
-
-
-
-                    const filteredItems = SIZE_ITEMS.filter(item => item.label.startsWith(range.sizeText));
-
-                    
-
-                    filteredItems.forEach(item => {
-
-                        const btn = document.createElement('button');
-
-                        btn.className = 'quick-reply-btn';
-
-                        btn.style.margin = '0';
-
-
-
-                        const matchItem = b2bCart.find(c => c.name === item.name);
-
-                        const count = matchItem ? matchItem.count : 0;
-
-
-
-                        if (count > 0) {
-
-                            btn.style.backgroundColor = '#4A90E2';
-
-                            btn.style.color = 'white';
-
-                            btn.style.borderColor = '#4A90E2';
-
-                            btn.innerHTML = `${item.label} <span style="background:#e53e3e; color:white; border-radius:50%; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; font-size:0.75em; font-weight:bold; margin-left:3px;">${count}</span>`;
+                            renderButtons();
 
                         } else {
 
-                            btn.innerText = item.label;
+                            let finalInput = "";
+
+                            if (confirmedItems.length > 0) {
+
+                                finalInput = confirmedItems.join(", ") + ", ";
+
+                            }
+
+                            finalInput += opt.value;
+
+                            
+
+                            const userInput = document.getElementById('userInput');
+
+                            userInput.value = finalInput;
+
+                            btnContainer.style.display = 'none';
+
+                            sendRequest(true); // 즉시 전송 (동적 버튼 플래그)
 
                         }
 
+                    };
 
+                    buttonsWrapper.appendChild(btn);
 
-                        bindClickEffect(btn, () => {
+                });
 
-                            addCartItem(item.name, item.label, "", 1);
-
-                        });
-
-                        buttonsDiv.appendChild(btn);
-
-                    });
+            }
 
 
 
-                    groupCard.appendChild(buttonsDiv);
+            renderButtons();
 
-                    bodyContainer.appendChild(groupCard);
+
+
+            // 챗봇 말풍선 바로 아래에 버튼 그룹 추가
+
+            bubble.parentNode.insertBefore(btnContainer, bubble.nextSibling);
+
+        }
+
+
+
+        // [New] save=true 파라미터 추가하여 기록 저장 제어
+
+        function addBubble(message, sender, isQuote = false, save = true) {
+
+            const bubble = document.createElement('div');
+
+            bubble.classList.add('chat-bubble', sender);
+
+
+
+            let content = message;
+
+
+
+            // [추가] 중복 서명 제거 로직
+
+            if (sender === 'bot') {
+
+                if (isQuote || content.includes('견적') || content.includes('금액')) {
+
+                    // [중요] 사용자가 요청한대로 "문의 :" 뒷부분은 n8n이 보내는 가짜 서명이므로 제거
+
+                    // (단, n8n이 '담당 :' (투명문자 포함)으로 보낼 때는 이게 작동 안 할 수 있지만, 안전장치로 유지)
+
+                    const safeSplit = content.split('문의 :')[0];
+
+                    if (safeSplit && safeSplit.length < content.length) {
+
+                        content = safeSplit;
+
+                    }
+
+                }
+
+            }
+
+
+
+            // 견적서 내 이미지 스타일 보정
+
+            if (isQuote) {
+
+                content = content.replace(/max-width:100%/g, 'width:100%; max-width:100%; border-radius:12px;');
+
+            }
+
+
+
+            // [핵심] 가맹점 명함(Footer) 추가 로직
+
+            // n8n 메시지 내에 '📞'나 '담당' 같은 키워드가 이미 있다면 프론트에서 명함을 붙이지 않음.
+
+            // (n8n 코드가 명함을 포함하도록 수정되었으므로, 여기서는 그게 실패했을 때의 백업 역할만 함)
+
+            const hasSignature = content.includes('담당\u200B :') || content.includes('담당 :') || content.includes('📞');
+
+            if (!hasSignature && sender === 'bot' && (isQuote || content.includes('견적') || content.includes('금액'))) {
+
+
+
+                // 가맹점 정보 없으면 기본값 (김정헌 실장)
+
+                const partnerData = currentPartner || {};
+
+                const ceo = partnerData.ceo_name || '김정헌';
+
+                const pos = partnerData.position || '실장';
+
+                const phone = partnerData.phone || '010-6657-1222';
+
+
+
+                const blog = partnerData.blog_url || '';
+
+                const insta = partnerData.insta_url || '';
+
+                const kakao = partnerData.kakao_url || '';
+
+
+
+                const footerHtml = `
+
+                    <div style="margin-top: 20px; padding-top: 15px; border-top: 2px dashed #eee; text-align: center;">
+
+                        <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+
+                            <span style="font-weight: bold; font-size: 1.0em; color: #333; margin-right: 5px;">
+
+                                문의 : ${ceo} ${pos}
+
+                            </span>
+
+                            ${blog ? `<a href="${blog}" target="_blank" style="display:inline-block; padding:2px 6px; background:#03C75A; color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">블</a>` : ''}
+
+                            ${insta ? `<a href="${insta}" target="_blank" style="display:inline-block; padding:2px 6px; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">인</a>` : ''}
+
+                            ${kakao ? `<a href="${kakao}" target="_blank" style="display:inline-block; padding:2px 6px; background:#FEE500; color:#3c1e1e; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">카</a>` : ''}
+
+                        </div>
+
+                        <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+
+                            📞 ${phone}
+
+                        </a>
+
+                        ${(!content.includes('견적 제공이 되지 않는') && !content.includes('견적을 산출할 수 없습니다')) ?
+
+                        `<button onclick="shareQuote()" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
+
+                            🔗 견적내용 공유하기
+
+                        </button>` : ''}
+
+                    </div>
+
+                `;
+
+                content += footerHtml;
+
+            }
+
+
+
+            bubble.innerHTML = isQuote ? `<div class="quote-content">${content}</div>` : content;
+
+            chatContainer.appendChild(bubble);
+
+
+
+            // [저장] 새로운 메시지면 로컬스토리지에 저장 (save가 true일 때만)
+
+            if (save) {
+
+                // 이미지 base64 데이터가 로컬스토리지 용량을 초과하여 에러(멈춤 현상)를 발생시키는 것 방지
+
+                let saveContent = content;
+
+                if (saveContent.includes('data:image')) {
+
+                    saveContent = saveContent.replace(/src="data:image[^"]+"/g, 'src="" alt="[이미지 만료]"');
+
+                }
+
+                chatHistory.push({ message: saveContent, sender: sender, isQuote: isQuote });
+
+                
+
+                try {
+
+                    localStorage.setItem('v2_chat_history', JSON.stringify(chatHistory));
+
+                } catch (e) {
+
+                    console.warn("로컬스토리지 용량 초과:", e);
+
+                }
+
+            }
+
+
+
+            // [New] 챗봇의 견적서 출력 시 동적 버튼 처리
+
+            if (sender === 'bot' && isQuote) {
+
+                // DOM 렌더링 후 처리되도록 약간 지연
+
+                setTimeout(() => {
+
+                    processDynamicOptions(bubble);
+
+                    scrollToBottom();
+
+                }, 50);
+
+            }
+
+
+
+            return bubble;
+
+        }
+
+
+
+        function addTimerBubble(message) {
+
+            const bubble = document.createElement('div');
+
+            bubble.classList.add('chat-bubble', 'bot-loading-blue');
+
+            bubble.innerHTML = `⏳ ${message}`;
+
+            chatContainer.appendChild(bubble);
+
+            scrollToBottom();
+
+            return bubble;
+
+        }
+
+
+
+        // 공유하기 기능 함수
+
+        function shareQuote() {
+
+            if (navigator.share) {
+
+                navigator.share({
+
+                    title: '이미지 견적 결과',
+
+                    text: '견적 결과를 확인해보세요!',
+
+                    url: window.location.href
+
+                });
+
+            } else {
+
+                alert('링크가 복사되었습니다!');
+
+                navigator.clipboard.writeText(window.location.href);
+
+            }
+
+        }
+
+
+
+        // [New] 첫 번째 견적에서 에어테이블이 만들어준 이미지 URL을 보관하는 변수 (B방법 핵심)
+
+        let lastAirtableImageUrl = "";
+
+
+
+        async function sendRequest(isFromDynamicBtn = false) {
+
+            const msg = userInput.value.trim();
+
+            if (!msg && selectedImages.length === 0 && !isFromDynamicBtn) return;
+
+
+
+            // [Fix] 견적 계산이 시작되면 기존에 떠있던 간편견적 버튼들을 숨김 처리
+
+            const existingBtn = document.querySelector('.open-quick-quote-btn');
+
+            if (existingBtn) existingBtn.remove();
+
+            const existingMenu = document.querySelector('.quick-reply-container');
+
+            if (existingMenu) existingMenu.remove();
+
+
+
+            // [New] 일일 무료 견적 3회 제한 (이미지 포함 시)
+
+            // 단, URL 파라미터에 'admin=true'가 있거나, 해시값에 #admin이 있으면 제한 무시
+
+            const isManager = window.location.href.includes('admin=true') || window.location.hash.includes('#admin');
+
+
+
+            if (!isManager && selectedImages.length > 0) {
+
+                const today = new Date().toISOString().split('T')[0];
+
+                const key = 'daily_quote_v1';
+
+                const stored = JSON.parse(localStorage.getItem(key)) || { date: today, count: 0 };
+
+                const curCount = (stored.date === today) ? stored.count : 0;
+
+
+
+                if (curCount >= 100) {
+
+                    addBubble("🚫 <b>일일 무료 견적 횟수(100회) 초과</b><br><br>과도한 AI 비용 발생 방지를 위해 이미지 견적은 하루 3회로 제한됩니다.<br>내일 다시 이용해 주시거나, 텍스트로 문의해 주세요! 🙏", 'bot');
+
+                    return;
+
+                }
+
+            }
+
+
+
+            let displayMsg = msg;
+
+
+
+            // 사용자가 보는 화면엔 첫장만 크게 띄우고 뒤에 +N장 표시
+
+            if (selectedImages.length > 0) {
+
+                const firstImg = selectedImages[0].previewUrl;
+
+                let countBadge = selectedImages.length > 1 ? `<span style="background:rgba(0,0,0,0.6); color:white; position:absolute; bottom:5px; right:5px; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold;">+${selectedImages.length - 1}</span>` : "";
+
+
+
+                displayMsg = `<div style="position:relative; display:inline-block;">
+
+                               <img src="${firstImg}" style="max-width:200px; max-height:200px; border-radius:8px; display:block; border:1px solid #ddd;">
+
+                               ${countBadge}
+
+                             </div>`;
+
+                if (msg) displayMsg += `<div style="margin-top:8px;">${msg}</div>`;
+
+            }
+
+
+
+            // [중요] 사용자가 보낸 말풍선 생성 및 '위치 저장'
+
+            const userBubble = addBubble(displayMsg, 'user');
+
+
+
+            // 사용자가 보낸 직후에는 일단 맨 아래로 스크롤 (내가 쓴 건 봐야 하니까)
+
+            scrollToBottom();
+
+
+
+            userInput.value = "";
+
+            const imagesToProcess = [...selectedImages];
+
+            selectedImages = [];
+
+            renderPreviews();
+
+            sendButton.disabled = true;
+
+
+
+            let sec = 0;
+
+            const loading = addTimerBubble(`견적 계산 중...`);
+
+            const timer = setInterval(() => {
+
+                sec++;
+
+                loading.innerHTML = `⏳ 견적 계산 중... ${sec}s`;
+
+            }, 1000);
+
+
+
+            try {
+
+                let finalImage = null;
+
+                if (imagesToProcess.length > 0) {
+
+                    finalImage = await mergeImages(imagesToProcess);
+
+                    lastAirtableImageUrl = ""; // 새 이미지를 올리면 기존 URL 초기화
+
+
+
+                    // [New] 카운트 차감 (이미지 변환 성공 후) - 관리자는 차감 안 함
+
+                    if (!isManager) {
+
+                        const today = new Date().toISOString().split('T')[0];
+
+                        const key = 'daily_quote_v1';
+
+                        let stored = JSON.parse(localStorage.getItem(key)) || { date: today, count: 0 };
+
+                        if (stored.date !== today) stored = { date: today, count: 0 };
+
+                        stored.count++;
+
+                        localStorage.setItem(key, JSON.stringify(stored));
+
+                    }
+
+                }
+
+
+
+                // [수정] 현재 접속한 가맹점 코드(code)를 함께 전송
+
+                const urlParams = new URLSearchParams(window.location.search);
+
+                const pCode = urlParams.get('code') || '';
+
+
+
+                const payload = {
+
+                    message: msg,
+
+                    partner_code: pCode // n8n에서 이 코드로 업체를 식별합니다
+
+                };
+
+
+
+                // 원본 사진이 있으면 payload.image 에 넣고, 
+
+                // 길이 선택 버튼을 누른 거라면 사진 대신 payload.imageUrl 에 링크만 넣습니다.
+
+                if (finalImage) {
+
+                    payload.image = finalImage;
+
+                } else if (isFromDynamicBtn && lastAirtableImageUrl) {
+
+                    payload.imageUrl = lastAirtableImageUrl;
+
+                }
+
+
+
+                const res = await fetch(CONFIG.estimateUrl, {
+
+                    method: 'POST',
+
+                    headers: {
+
+                        'Content-Type': 'application/json',
+
+                        'x-secret-token': CONFIG.secretToken,
+
+                        'x-user-id': currentUserId
+
+                    },
+
+                    body: JSON.stringify(payload)
 
                 });
 
 
+
+                clearInterval(timer);
+
+                if (loading.parentNode) loading.parentNode.removeChild(loading);
+
+
+
+                if (!res.ok) throw new Error('Server Error');
+
+                const data = await res.json();
+
+
+
+                if (Array.isArray(data) && data.length > 0 && data[0].output) {
+
+                    addBubble(data[0].output, 'bot', true);
+
+                } else if (data.output) {
+
+                    addBubble(data.output, 'bot', true);
+
+                } else if (Array.isArray(data) && data.length > 0 && data[0].message) {
+
+                    addBubble(data[0].message, 'bot', true);
+
+                } else if (data.message) {
+
+                    addBubble(data.message, 'bot', true);
+
+                } else {
+
+                    addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
+
+                }
+
+
+
+                // [New] 1) 견적이 산출되고 나면 그다음에 버튼으로[간편견적 열기] 버튼 생성
+
+                addOpenQuickQuoteButton();
+
+
+
+                // [핵심] 봇 응답이 온 후, 스크롤을 맨 아래가 아닌 '사용자가 보낸 메시지' 위치로 부드럽게 이동
+
+                // 이렇게 하면 결과물의 시작점부터 볼 수 있음
+
+                // 약간의 딜레이 후 이동 (DOM 렌더링 시간 고려)
+
+                setTimeout(() => {
+
+                    userBubble.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                }, 100);
+
+
+
+            } catch (e) {
+
+                clearInterval(timer);
+
+                if (loading.parentNode) loading.parentNode.removeChild(loading);
+
+                console.error(e);
+
+                addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot');
+
+                scrollToBottom();
+
+            } finally {
+
+                sendButton.disabled = false;
+
+            }
+
+        }
+
+
+
+        sendButton.addEventListener('click', sendRequest);
+
+        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
+
+
+
+        // ----------------------------------------------------
+
+        // [New] B2B 간편견적 시스템 고도화 데이터 구조 정의
+
+        // ----------------------------------------------------
+
+
+
+        // 1. 평형별 탭 데이터
+
+        const APARTMENT_SIZES = ["20평 아파트", "30평 아파트", "40평 아파트", "50평 아파트"];
+
+        const SIZE_ITEMS = [
+
+            { label: "20평 몰딩", name: "몰딩 20평" },
+
+            { label: "20평 크라운몰딩", name: "크라운몰딩 20평" },
+
+            { label: "20평 걸레받이", name: "걸레받이 20평" },
+
+            { label: "20평 싱크대 전체", name: "싱크대 20평" },
+
+            { label: "20평 싱크대 상부장", name: "싱크대 상부장 20평" },
+
+            { label: "20평 싱크대 하부장", name: "싱크대 하부장 20평" },
+
+
+
+            { label: "30평 몰딩", name: "몰딩 30평" },
+
+            { label: "30평 크라운몰딩", name: "크라운몰딩 30평" },
+
+            { label: "30평 걸레받이", name: "걸레받이 30평" },
+
+            { label: "30평 싱크대 전체", name: "싱크대 30평" },
+
+            { label: "30평 싱크대 상부장", name: "싱크대 상부장 30평" },
+
+            { label: "30평 싱크대 하부장", name: "싱크대 하부장 30평" },
+
+
+
+            { label: "40평 몰딩", name: "몰딩 40평" },
+
+            { label: "40평 크라운몰딩", name: "크라운몰딩 40평" },
+
+            { label: "40평 걸레받이", name: "걸레받이 40평" },
+
+            { label: "40평 싱크대 전체", name: "싱크대 40평" },
+
+            { label: "40평 싱크대 상부장", name: "싱크대 상부장 40평" },
+
+            { label: "40평 싱크대 하부장", name: "싱크대 하부장 40평" },
+
+
+
+            { label: "50평 몰딩", name: "몰딩 50평" },
+
+            { label: "50평 크라운몰딩", name: "크라운몰딩 50평" },
+
+            { label: "50평 걸레받이", name: "걸레받이 50평" },
+
+            { label: "50평 싱크대 전체", name: "싱크대 50평" },
+
+            { label: "50평 싱크대 상부장", name: "싱크대 상부장 50평" },
+
+            { label: "50평 싱크대 하부장", name: "싱크대 하부장 50평" }
+
+        ];
+
+
+
+        // 2. 품목별 탭 데이터
+
+        const ITEM_CATEGORIES = [
+
+            {
+
+                name: "도어/샤시",
+
+                groups: [
+
+                    {
+
+                        title: "🚪 문/도어류",
+
+                        accent: "accent-blue",
+
+                        items: [
+
+                            { label: "방문 시공", name: "방문", type: "door-dropdown" },
+
+                            { label: "화장실문 시공", name: "화장실문", type: "door-dropdown" },
+
+                            { label: "문짝만 시공", name: "문짝", type: "door-dropdown" },
+
+                            { label: "문틀만 시공", name: "문틀", type: "door-dropdown" },
+
+                            { label: "중문틀 시공", name: "중문틀", type: "door-dropdown" },
+
+                            { label: "중문문짝 시공", name: "중문문짝", type: "door-dropdown" },
+
+                            { label: "선반문 시공", name: "선반문", type: "door-dropdown" },
+
+                            { label: "방화문 시공", name: "방화문", type: "door-dropdown" },
+
+                            { label: "터닝도어 시공", name: "터닝도어", type: "door-dropdown" },
+
+                            { label: "설비가마문 시공", name: "설비가마문", type: "door-dropdown" },
+
+                            { label: "세탁실문 시공", name: "세탁실문", type: "door-dropdown" },
+
+                            { label: "중문 전체시공", name: "중문", type: "door-dropdown" },
+
+                            { label: "콧구멍 시공", name: "콧구멍", type: "door-dropdown" },
+
+                            
+
+                            { label: "아치문틀 1m", name: "아치 1m", type: "click" },
+
+                            { label: "아치문틀 2m", name: "아치 2m", type: "click" },
+
+                            { label: "아치문틀 3m", name: "아치 3m", type: "click" },
+
+                            { label: "아치문틀 4m", name: "아치 4m", type: "click" },
+
+                            { label: "아치문틀 5m", name: "아치 5m", type: "click" },
+
+                            { label: "2연동 중문 시공", name: "중문(2연동)", type: "click" },
+
+                            { label: "3연동 중문 시공", name: "중문(3연동)", type: "click" }
+
+                        ]
+
+                    },
+
+                    {
+
+                        title: "🪟 샤시류",
+
+                        accent: "accent-teal",
+
+                        items: [
+
+                            { label: "일반샤시 1m 단창", name: "샤시(단창) 1m", type: "click" },
+
+                            { label: "일반샤시 2m 단창", name: "샤시(단창) 2m", type: "click" },
+
+                            { label: "일반샤시 3m 단창", name: "샤시(단창) 3m", type: "click" },
+
+                            { label: "일반샤시 4m 단창", name: "샤시(단창) 4m", type: "click" },
+
+                            { label: "일반샤시 5m 단창", name: "샤시(단창) 5m", type: "click" },
+
+                            
+
+                            { label: "일반샤시 1m 2중창", name: "샤시(2중창) 1m", type: "click" },
+
+                            { label: "일반샤시 2m 2중창", name: "샤시(2중창) 2m", type: "click" },
+
+                            { label: "일반샤시 3m 2중창", name: "샤시(2중창) 3m", type: "click" },
+
+                            { label: "일반샤시 4m 2중창", name: "샤시(2중창) 4m", type: "click" },
+
+                            { label: "일반샤시 5m 2중창", name: "샤시(2중창) 5m", type: "click" },
+
+ 
+
+                            { label: "시스템샤시 1m", name: "시스템샤시 1m", type: "click" },
+
+                            { label: "시스템샤시 2m", name: "시스템샤시 2m", type: "click" },
+
+                            { label: "시스템샤시 3m", name: "시스템샤시 3m", type: "click" },
+
+                            { label: "시스템샤시 4m", name: "시스템샤시 4m", type: "click" },
+
+                            { label: "시스템샤시 5m", name: "시스템샤시 5m", type: "click" },
+
+ 
+
+                            { label: "상가샤시 1m 한쪽면", name: "상가샤시(한쪽시공) 1m", type: "click" },
+
+                            { label: "상가샤시 2m 한쪽면", name: "상가샤시(한쪽시공) 2m", type: "click" },
+
+                            { label: "상가샤시 3m 한쪽면", name: "상가샤시(한쪽시공) 3m", type: "click" },
+
+ 
+
+                            { label: "상가샤시 1m 양쪽면", name: "상가샤시(양쪽시공) 1m", type: "click" },
+
+                            { label: "상가샤시 2m 양쪽면", name: "상가샤시(양쪽시공) 2m", type: "click" },
+
+                            { label: "상가샤시 3m 양쪽면", name: "상가샤시(양쪽시공) 3m", type: "click" },
+
+ 
+
+                            { label: "폴딩도어샤시 1m", name: "폴딩도어샤시 1m", type: "click" },
+
+                            { label: "폴딩도어샤시 2m", name: "폴딩도어샤시 2m", type: "click" },
+
+                            { label: "폴딩도어샤시 3m", name: "폴딩도어샤시 3m", type: "click" },
+
+                            { label: "폴딩도어샤시 4m", name: "폴딩도어샤시 4m", type: "click" }
+
+                        ]
+
+                    }
+
+                ]
+
+            },
+
+            {
+
+                name: "싱크/가구/기타",
+
+                groups: [
+
+                    {
+
+                        title: "🍳 싱크대/가구류",
+
+                        accent: "accent-purple",
+
+                        items: [
+
+                            { label: "싱크대 전체시공", name: "싱크대", type: "sink-dropdown" },
+
+                            { label: "싱크대 상부장만", name: "싱크대 상부장", type: "sink-dropdown" },
+
+                            { label: "싱크대 하부장만", name: "싱크대 하부장", type: "sink-dropdown" },
+
+                            { label: "신발장 전체시공", name: "신발장", type: "furniture-dropdown" },
+
+                            { label: "신발장 문틀만", name: "신발장틀", type: "furniture-dropdown" },
+
+                            { label: "신발장 문짝만", name: "신발장문짝", type: "furniture-dropdown" },
+
+                            { label: "붙박이장 전체시공", name: "붙박이장", type: "furniture-dropdown" },
+
+                            { label: "붙박이장 문짝만", name: "붙박이장문짝", type: "furniture-dropdown" },
+
+                            { label: "수납장 전체시공", name: "수납장", type: "furniture-dropdown" },
+
+                            { label: "수납장 문틀만", name: "수납장틀", type: "furniture-dropdown" },
+
+                            { label: "수납장 문짝만", name: "수납장문짝", type: "furniture-dropdown" },
+
+                            { label: "냉장고장 전체시공", name: "냉장고장", type: "furniture-dropdown" },
+
+                            { label: "냉장고장 문틀만", name: "냉장고장틀", type: "furniture-dropdown" },
+
+                            { label: "냉장고장 문짝만", name: "냉장고장문짝", type: "furniture-dropdown" },
+
+                            { label: "화장대 시공", name: "화장대", type: "click" }
+
+                        ]
+
+                    },
+
+                    {
+
+                        title: "🪵 목공/기타류",
+
+                        accent: "accent-indigo",
+
+                        items: [
+
+                            { label: "가벽 시공", name: "가벽", type: "wood-dropdown" },
+
+                            { label: "알판 시공", name: "알판", type: "wood-dropdown" },
+
+                            { label: "등박스 시공", name: "등박스", type: "wood-dropdown" },
+
+                            { label: "웨인스코팅 시공", name: "웨인스코팅", type: "wood-dropdown" },
+
+                            { label: "룸박스 시공", name: "룸박스", type: "room-dropdown" },
+
+                            { label: "아트월 시공", name: "아트월", type: "click" },
+
+                            { label: "중간알판 시공", name: "중간알판", type: "click" },
+
+                            { label: "몰딩 시공", name: "몰딩", type: "click" },
+
+                            { label: "크라운몰딩 시공", name: "크라운몰딩", type: "click" },
+
+                            { label: "걸레받이 시공", name: "걸레받이", type: "click" },
+
+                            { label: "크라운걸레받이", name: "크라운걸레받이", type: "click" }
+
+                        ]
+
+                    }
+
+                ]
+
+            }
+
+        ];
+
+
+
+        let mainTab = 0; // 0: 평형별, 1: 품목별, 2: 사진견적
+
+        let b2bCart = []; // 장바구니 배열: [{ id, name, label, option, count }]
+
+        let currentB2BTab = 0; // 품목별 탭 내부 서브 탭 (0: 도어/샤시, 1: 싱크/가구/기타)
+
+
+
+        // 간편견적 열기 버튼 생성 함수
+
+        function addOpenQuickQuoteButton() {
+
+            const existingMenu = document.querySelector('.quick-reply-container');
+
+            if (existingMenu) existingMenu.remove();
+
+            const existingBtn = document.querySelector('.open-quick-quote-btn');
+
+            if (existingBtn) existingBtn.remove();
+
+
+
+            const btn = document.createElement('button');
+
+            btn.className = 'quick-reply-btn open-quick-quote-btn';
+
+            btn.innerHTML = '🛠️ 간편견적 열기';
+
+            btn.style.cssText = "display: block; width: 90%; margin: 15px auto; padding: 14px; background: #2c3e50; color: white; border-radius: 8px; font-weight: bold; font-size: 1.05em; cursor: pointer; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+
+            
+
+            btn.onclick = () => {
+
+                btn.classList.add('click-effect');
+
+                setTimeout(() => {
+
+                    btn.remove();
+
+                    showQuickButtons();
+
+                }, 150);
+
+            };
+
+            
+
+            chatContainer.appendChild(btn);
+
+        }
+
+
+
+        // 클릭 효과 바인딩 헬퍼 함수
+
+        function bindClickEffect(element, callback) {
+
+            element.addEventListener('click', (e) => {
+
+                element.classList.add('click-effect');
+
+                element.addEventListener('animationend', function handler() {
+
+                    element.classList.remove('click-effect');
+
+                    element.removeEventListener('animationend', handler);
+
+                });
+
+                if (callback) callback(e);
+
+            });
+
+        }
+
+
+
+        // 장바구니 아이템 추가 함수 (동일 품목 7개 제한 및 5종류 제한 구현)
+
+        function addCartItem(name, label, option = "", count = 1) {
+
+            // 1. 종류 수 검증
+
+            const existingIndex = b2bCart.findIndex(item => item.name === name && item.option === option);
+
+            
+
+            if (existingIndex === -1) {
+
+                // 새로운 종류를 추가하려고 할 때, 이미 5종류를 초과하는지 체크
+
+                const uniqueTypes = new Set(b2bCart.map(item => `${item.name}-${item.option}`)).size;
+
+                if (uniqueTypes >= 5) {
+
+                    alert("⚠️ 종류 제한: AI의 정확한 견적을 위해 한 번에 최대 5가지 품목까지만 담을 수 있습니다.\n5가지를 먼저 견적 내시고 추가로 진행해 주세요!");
+
+                    return false;
+
+                }
+
+                
+
+                b2bCart.push({
+
+                    id: 'cart_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+
+                    name: name,
+
+                    label: label,
+
+                    option: option,
+
+                    count: count
+
+                });
+
+            } else {
+
+                // 기존 항목 수량 추가
+
+                const newCount = b2bCart[existingIndex].count + count;
+
+                if (newCount > 7) {
+
+                    alert(`⚠️ 수량 제한: '${label}' 품목은 한 번에 최대 7개까지만 선택할 수 있습니다.`);
+
+                    b2bCart[existingIndex].count = 7; // 최대 7개 고정
+
+                } else {
+
+                    b2bCart[existingIndex].count = newCount;
+
+                }
+
+            }
+
+
+
+            // 장바구니 영역에 펄스 애니메이션 적용
+
+            setTimeout(() => {
+
+                const cartContainerUI = document.querySelector('.floating-cart-list');
+
+                if (cartContainerUI) {
+
+                    cartContainerUI.classList.add('pulse-effect');
+
+                    cartContainerUI.addEventListener('animationend', function handler() {
+
+                        cartContainerUI.classList.remove('pulse-effect');
+
+                        cartContainerUI.removeEventListener('animationend', handler);
+
+                    });
+
+                }
+
+            }, 50);
+
+
+
+            showQuickButtons();
+
+            return true;
+
+        }
+
+
+
+        // 장바구니 아이템 삭제 함수
+
+        function removeCartItem(id) {
+
+            b2bCart = b2bCart.filter(item => item.id !== id);
+
+            showQuickButtons();
+
+        }
+
+
+
+        // 퀵 메뉴(장바구니) 표시 함수 (전체화면 모달화 및 이중스크롤 제거)
+
+        function showQuickButtons() {
+
+            // 1. 모달 전체 오버레이 컨테이너 생성 및 복원
+
+            let modal = document.querySelector('.quick-quote-modal');
+
+            let isFirstRender = false;
+
+
+
+            if (!modal) {
+
+                modal = document.createElement('div');
+
+                modal.className = 'quick-quote-modal';
+
+                
+
+                // 모달 뼈대 HTML 구조 생성
+
+                modal.innerHTML = `
+
+                    <div class="quick-quote-modal-content">
+
+                        <!-- 모달 헤더 -->
+
+                        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #edf2f7; background:#ffffff;">
+
+                            <span style="font-weight:bold; font-size:1.15em; color:#1a202c; display:flex; align-items:center; gap:6px;">
+
+                                🛠️ 1분 간편견적 선택
+
+                            </span>
+
+                            <button class="modal-close-btn" style="background:none; border:none; font-size:1.7em; font-weight:bold; cursor:pointer; color:#a0aec0; padding:5px; line-height:1; transition:color 0.2s;">&times;</button>
+
+                        </div>
+
+                        <!-- 모달 스크롤 바디 -->
+
+                        <div class="quick-quote-modal-body" id="modalBody"></div>
+
+                    </div>
+
+                `;
+
+                
+
+                document.body.appendChild(modal);
+
+                isFirstRender = true;
+
+
+
+                // 닫기 버튼 이벤트 연결
+
+                const closeBtn = modal.querySelector('.modal-close-btn');
+
+                closeBtn.onmouseover = () => { closeBtn.style.color = '#e53e3e'; };
+
+                closeBtn.onmouseout = () => { closeBtn.style.color = '#a0aec0'; };
+
+                
+
+                bindClickEffect(closeBtn, () => {
+
+                    modal.remove();
+
+                    addOpenQuickQuoteButton(); // 하단에 열기 버튼 다시 띄우기
+
+                });
+
+
+
+                // 모달 바깥 어두운 영역 클릭 시 닫기
+
+                modal.onclick = (e) => {
+
+                    if (e.target === modal) {
+
+                        modal.remove();
+
+                        addOpenQuickQuoteButton();
+
+                    }
+
+                };
+
+            }
+
+
+
+            const bodyContainer = modal.querySelector('#modalBody');
+
+            bodyContainer.innerHTML = ''; // 기존 내용 초기화
+
+
+
+            // 💡 상단 힌트 메시지 박스 생성 (평형별, 품목별 탭에서만 노출)
+
+            if (mainTab !== 2) {
+
+                const hintDiv = document.createElement('div');
+
+                hintDiv.style.cssText = "background: #e7f1ff; border: 1px solid #b3d7ff; color: #0056b3; font-size: 0.82em; font-weight: bold; border-radius: 8px; padding: 10px 12px; margin-bottom: 15px; text-align: left; line-height: 1.45; display: flex; align-items: flex-start; gap: 6px;";
+
+                hintDiv.innerHTML = `
+
+                    <span style="font-size:1.1em; line-height:1;">💡</span>
+
+                    <span>품목 버튼을 누르면 장바구니에 담기며, 여러 번 누르면 수량이 추가됩니다. (최대 7개)</span>
+
+                `;
+
+                bodyContainer.appendChild(hintDiv);
+
+            }
+
+
+
+            // 1. 최상단 메인 탭 (평형별, 품목별, 사진견적)
+
+            const mainTabsDiv = document.createElement('div');
+
+            mainTabsDiv.style.cssText = "display: flex; margin-bottom: 15px; background: #f0f2f5; border-radius: 8px; padding: 4px;";
+
+            
+
+            const mainTabsConfig = [
+
+                { label: "🏠 평형별", index: 0 },
+
+                { label: "🛒 품목별", index: 1 },
+
+                { label: "📸 사진견적", index: 2 }
+
+            ];
+
+
+
+            mainTabsConfig.forEach(t => {
+
+                const tab = document.createElement('div');
+
+                tab.innerText = t.label;
+
+                tab.style.cssText = `flex: 1; padding: 10px; font-weight: bold; font-size: 0.9em; border-radius: 6px; cursor: pointer; transition: 0.2s; text-align: center; ${mainTab === t.index ? 'background: white; color: #4A90E2; box-shadow: 0 2px 4px rgba(0,0,0,0.05);' : 'color: #888;'}`;
+
+                tab.onclick = () => {
+
+                    tab.classList.add('click-effect');
+
+                    setTimeout(() => {
+
+                        mainTab = t.index;
+
+                        showQuickButtons();
+
+                    }, 100);
+
+                };
+
+                mainTabsDiv.appendChild(tab);
+
+            });
+
+            mainTabsDiv.className = 'main-tabs-container';
+
+            bodyContainer.appendChild(mainTabsDiv);
+
+
+
+            // 2. 메인 탭 내용 렌더링
+
+            if (mainTab === 0) {
+                // 1) 아파트/빌라 전체견적 엑셀 표
+                const table1 = document.createElement('table');
+                table1.className = 'excel-table';
+                
+                const tr1 = document.createElement('tr');
+                
+                const tdLabel1 = document.createElement('td');
+                tdLabel1.className = 'excel-label orange';
+                tdLabel1.innerHTML = '아파트/빌라<br>전체견적';
+                
+                const tdValue1 = document.createElement('td');
+                tdValue1.className = 'excel-value-container';
+                
+                APARTMENT_SIZES.forEach(size => {
+                    const row = document.createElement('div');
+                    row.className = 'excel-item-row';
+                    row.innerText = `${size.replace(" 아파트", "")} 전체견적`;
+                    
+                    bindClickEffect(row, () => {
+                        userInput.value = `${size} 전체 견적 내주세요.`;
+                        modal.remove();
+                        sendRequest();
+                    });
+                    tdValue1.appendChild(row);
+                });
+                
+                tr1.appendChild(tdLabel1);
+                tr1.appendChild(tdValue1);
+                table1.appendChild(tr1);
+                bodyContainer.appendChild(table1);
+
+                // 2) 평형별 세부 품목 엑셀 표
+                const sizeRanges = [
+                    { label: "20평형 세부품목", sizeText: "20평", key: "20", colorClass: "blue" },
+                    { label: "30평형 세부품목", sizeText: "30평", key: "30", colorClass: "teal" },
+                    { label: "40평형 세부품목", sizeText: "40평", key: "40", colorClass: "purple" },
+                    { label: "50평형 세부품목", sizeText: "50평", key: "50", colorClass: "indigo" }
+                ];
+
+                sizeRanges.forEach(range => {
+                    const table = document.createElement('table');
+                    table.className = 'excel-table';
+                    
+                    const tr = document.createElement('tr');
+                    
+                    const tdLabel = document.createElement('td');
+                    tdLabel.className = `excel-label ${range.colorClass}`;
+                    tdLabel.innerHTML = range.label.replace(" 세부품목", "<br>세부품목");
+                    
+                    const tdValue = document.createElement('td');
+                    tdValue.className = 'excel-value-container';
+                    
+                    const filteredItems = SIZE_ITEMS.filter(item => item.label.startsWith(range.sizeText));
+                    
+                    filteredItems.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'excel-item-row';
+                        
+                        const matchItem = b2bCart.find(c => c.name === item.name);
+                        const count = matchItem ? matchItem.count : 0;
+                        
+                        if (count > 0) {
+                            row.classList.add('active');
+                            row.innerHTML = `<span>${item.label}</span> <span class="excel-item-badge">${count}</span>`;
+                        } else {
+                            row.innerText = item.label;
+                        }
+                        
+                        bindClickEffect(row, () => {
+                            addCartItem(item.name, item.label, "", 1);
+                        });
+                        tdValue.appendChild(row);
+                    });
+                    
+                    tr.appendChild(tdLabel);
+                    tr.appendChild(tdValue);
+                    table.appendChild(tr);
+                    bodyContainer.appendChild(table);
+                });
+            }
 
             } else if (mainTab === 1) {
 
@@ -3568,5 +5254,5 @@
 
 </html>
 
-<!-- [Updated: 2026-05-27 18:36:00 KST] End -->
+<!-- [Updated: 2026-05-27 18:55:00 KST] End -->
 
