@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-27 19:25:00 KST]
+    [Updated: 2026-05-27 19:28:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -459,94 +459,6 @@
             box-shadow: 0 1px 3px rgba(229, 62, 62, 0.3);
             flex-shrink: 0;
         }
-    
-        /* 엑셀 표 스타일 레이아웃 (스샷2 형태 구현) */
-        .excel-table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 20px;
-            background: #ffffff;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
-        }
-
-        .excel-table tr {
-            border-bottom: 1px solid #cbd5e1;
-        }
-
-        .excel-table tr:last-child {
-            border-bottom: none;
-        }
-
-        .excel-label {
-            width: 90px;
-            font-weight: 700;
-            text-align: center;
-            vertical-align: middle;
-            border-right: 1px solid #cbd5e1;
-            padding: 12px 8px;
-            font-size: 0.88em;
-            line-height: 1.4;
-            word-break: keep-all;
-        }
-
-        /* 분류별 파스텔톤 배경색 및 글자색 */
-        .excel-label.orange { background-color: #fff3e0; color: #e65100; }
-        .excel-label.blue { background-color: #e3f2fd; color: #0d47a1; }
-        .excel-label.teal { background-color: #e0f2f1; color: #004d40; }
-        .excel-label.purple { background-color: #f3e5f5; color: #4a148c; }
-        .excel-label.indigo { background-color: #e8eaf6; color: #1a237e; }
-
-        .excel-value-container {
-            padding: 0;
-            vertical-align: top;
-        }
-
-        .excel-item-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            border-bottom: 1px solid #edf2f7;
-            cursor: pointer;
-            font-size: 0.92em;
-            transition: all 0.2s;
-            background: white;
-            color: #333;
-            text-align: left;
-        }
-
-        .excel-item-row:last-child {
-            border-bottom: none;
-        }
-
-        .excel-item-row:hover {
-            background-color: #f8fafc;
-        }
-
-        .excel-item-row.active {
-            background-color: #ebf8ff;
-            color: #2b6cb0;
-            font-weight: bold;
-        }
-
-        .excel-item-badge {
-            background: #e53e3e;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75em;
-            font-weight: bold;
-            margin-left: 6px;
-            box-shadow: 0 1px 3px rgba(229, 62, 62, 0.3);
-            flex-shrink: 0;
-        }
         </style>
 </head>
 
@@ -560,7 +472,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-27 19:25</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-27 19:28</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -1797,7 +1709,7 @@
                     table.appendChild(tr);
                     bodyContainer.appendChild(table);
                 });
-            } else {
+            }} else {
                 // ----------------------------------------------------
                 // [사진견적 탭]
                 // ----------------------------------------------------
@@ -1960,4 +1872,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-27 19:25:00 KST] End -->
+<!-- [Updated: 2026-05-27 19:28:00 KST] End -->
