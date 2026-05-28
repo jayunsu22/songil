@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-27 19:30:00 KST]
+    [Updated: 2026-05-28 09:30:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -459,7 +459,48 @@
             box-shadow: 0 1px 3px rgba(229, 62, 62, 0.3);
             flex-shrink: 0;
         }
-        </style>
+
+        /* [New] 개별 품목 수량 조작 컨트롤러 스타일 */
+        .excel-qty-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .qty-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            border: 1px solid #cbd5e1;
+            background: white;
+            color: #4A90E2;
+            font-size: 1.1em;
+            padding: 0;
+            line-height: 1;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .qty-btn:hover {
+            background-color: #f1f5f9;
+        }
+
+        .qty-btn.remove {
+            border-color: #feb2b2;
+            background: #fff5f5;
+            color: #e53e3e;
+            font-size: 0.85em;
+        }
+
+        .qty-btn.remove:hover {
+            background-color: #fed7d7;
+        }
+                </style>
 </head>
 
 <body>
@@ -472,7 +513,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-27 19:30</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-28 09:30</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -1392,6 +1433,108 @@
             b2bCart = b2bCart.filter(item => item.id !== id);
             showQuickButtons();
         }
+        // [New] 특정 품목(name)의 수량 1 감소 함수
+        function decreaseCartItemQuantity(name) {
+            const idx = b2bCart.map(item => item.name).lastIndexOf(name);
+            if (idx !== -1) {
+                if (b2bCart[idx].count > 1) {
+                    b2bCart[idx].count -= 1;
+                } else {
+                    b2bCart.splice(idx, 1);
+                }
+                showQuickButtons();
+            }
+        }
+
+        // [New] 특정 품목(name)의 수량 1 증가 함수 (7개 제한 적용)
+        function increaseCartItemQuantity(name, label) {
+            const idx = b2bCart.map(item => item.name).lastIndexOf(name);
+            if (idx !== -1) {
+                const currentItem = b2bCart[idx];
+                if (currentItem.count >= 7) {
+                    alert(`⚠️ 수량 제한: '${label}' 품목은 한 번에 최대 7개까지만 선택할 수 있습니다.`);
+                    return;
+                }
+                currentItem.count += 1;
+                showQuickButtons();
+            }
+        }
+
+        // [New] 특정 품목(name)에 해당하는 모든 장바구니 아이템 일괄 삭제 함수
+        function clearCartItemsByName(name) {
+            b2bCart = b2bCart.filter(item => item.name !== name);
+            showQuickButtons();
+        }
+
+        // [New] 품목별 탭 드롭다운 폼 오픈 함수
+        function openDropdownForm(item, rowWrapper) {
+            const oldForm = document.querySelector('.dropdown-select-form');
+            if (oldForm) oldForm.remove();
+
+            const selectForm = document.createElement('div');
+            selectForm.className = 'dropdown-select-form';
+            selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;";
+
+            const titleSpan = document.createElement('span');
+            titleSpan.style.cssText = "font-size: 0.85em; font-weight: bold; color: #4A90E2;";
+            
+            const selectEl = document.createElement('select');
+            selectEl.style.cssText = "padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; font-size: 0.95em; outline: none; background: white;";
+
+            // 옵션 구성
+            if (item.type === 'door-dropdown' || item.type === 'furniture-dropdown') {
+                titleSpan.innerText = `⚙️ ${item.label} 수량 선택:`;
+                for (let i = 1; i <= 7; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = `${i}개`;
+                    opt.innerText = `문짝 ${i}개`;
+                    if (i === 1) opt.selected = true;
+                    selectEl.appendChild(opt);
+                }
+            } else if (item.type === 'sink-dropdown') {
+                titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
+                const ranges = ["1~2m", "3~4m", "5~6m", "7~8m", "9~10m", "11~12m"];
+                ranges.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r;
+                    opt.innerText = r;
+                    selectEl.appendChild(opt);
+                });
+            } else if (item.type === 'wood-dropdown') {
+                titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
+                for (let i = 2; i <= 10; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = `${i}m`;
+                    opt.innerText = `${i}m`;
+                    selectEl.appendChild(opt);
+                }
+            } else if (item.type === 'room-dropdown') {
+                titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
+                for (let i = 1; i <= 10; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = `${i}m`;
+                    opt.innerText = `${i}m`;
+                    selectEl.appendChild(opt);
+                }
+            }
+
+            const addBtn = document.createElement('button');
+            addBtn.innerText = "장바구니 담기";
+            addBtn.style.cssText = "padding: 10px; background: #4A90E2; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: inherit;";
+            
+            bindClickEffect(addBtn, () => {
+                const selectedVal = selectEl.value;
+                addCartItem(item.name, item.label, selectedVal, 1);
+                selectForm.remove();
+            });
+
+            selectForm.appendChild(titleSpan);
+            selectForm.appendChild(selectEl);
+            selectForm.appendChild(addBtn);
+
+            rowWrapper.appendChild(selectForm);
+        }
+        
 
         // 퀵 메뉴(장바구니) 표시 함수 (전체화면 모달화 및 이중스크롤 제거)
         function showQuickButtons() {
@@ -1443,16 +1586,7 @@
             const bodyContainer = modal.querySelector('#modalBody');
             bodyContainer.innerHTML = ''; // 기존 내용 초기화
 
-            // 💡 상단 힌트 메시지 박스 생성 (평형별, 품목별 탭에서만 노출)
-            if (mainTab !== 2) {
-                const hintDiv = document.createElement('div');
-                hintDiv.style.cssText = "background: #e7f1ff; border: 1px solid #b3d7ff; color: #0056b3; font-size: 0.82em; font-weight: bold; border-radius: 8px; padding: 10px 12px; margin-bottom: 15px; text-align: left; line-height: 1.45; display: flex; align-items: flex-start; gap: 6px;";
-                hintDiv.innerHTML = `
-                    <span style="font-size:1.1em; line-height:1;">💡</span>
-                    <span>품목 버튼을 누르면 장바구니에 담기며, 여러 번 누르면 수량이 추가됩니다. (최대 7개)</span>
-                `;
-                bodyContainer.appendChild(hintDiv);
-            }
+            // 💡 상단 힌트 메시지 박스 제거됨
 
             // 1. 최상단 메인 탭 (평형별, 품목별, 사진견적)
             const mainTabsDiv = document.createElement('div');
@@ -1540,19 +1674,43 @@
                         const row = document.createElement('div');
                         row.className = 'excel-item-row';
                         
-                        const matchItem = b2bCart.find(c => c.name === item.name);
-                        const count = matchItem ? matchItem.count : 0;
+                        const matchItems = b2bCart.filter(c => c.name === item.name);
+                        const count = matchItems.reduce((acc, cur) => acc + cur.count, 0);
                         
                         if (count > 0) {
                             row.classList.add('active');
-                            row.innerHTML = `<span>${item.label}</span> <span class="excel-item-badge">${count}</span>`;
+                            row.innerHTML = `
+                                <span>${item.label}</span>
+                                <div class="excel-qty-control">
+                                    <button class="qty-btn minus">-</button>
+                                    <span class="excel-item-badge">${count}</span>
+                                    <button class="qty-btn plus">+</button>
+                                    <button class="qty-btn remove">&times;</button>
+                                </div>
+                            `;
+                            
+                            const minusBtn = row.querySelector('.qty-btn.minus');
+                            const plusBtn = row.querySelector('.qty-btn.plus');
+                            const removeBtn = row.querySelector('.qty-btn.remove');
+                            
+                            bindClickEffect(minusBtn, (e) => {
+                                e.stopPropagation();
+                                decreaseCartItemQuantity(item.name);
+                            });
+                            bindClickEffect(plusBtn, (e) => {
+                                e.stopPropagation();
+                                increaseCartItemQuantity(item.name, item.label);
+                            });
+                            bindClickEffect(removeBtn, (e) => {
+                                e.stopPropagation();
+                                clearCartItemsByName(item.name);
+                            });
                         } else {
                             row.innerText = item.label;
+                            bindClickEffect(row, () => {
+                                addCartItem(item.name, item.label, "", 1);
+                            });
                         }
-                        
-                        bindClickEffect(row, () => {
-                            addCartItem(item.name, item.label, "", 1);
-                        });
                         tdValue.appendChild(row);
                     });
                     
@@ -1596,7 +1754,6 @@
                     
                     const tr = document.createElement('tr');
                     
-                    // 그룹 악센트에 따른 컬러 클래스 매핑
                     let colorClass = "blue";
                     if (group.accent === "accent-teal") colorClass = "teal";
                     if (group.accent === "accent-purple") colorClass = "purple";
@@ -1616,89 +1773,57 @@
                         const row = document.createElement('div');
                         row.className = 'excel-item-row';
                         
-                        // 장바구니 개수 세기
                         const matchItems = b2bCart.filter(c => c.name === item.name);
                         const totalCount = matchItems.reduce((acc, cur) => acc + cur.count, 0);
 
                         if (totalCount > 0) {
                             row.classList.add('active');
-                            row.innerHTML = `<span>${item.label}</span> <span class="excel-item-badge">${totalCount}</span>`;
+                            row.innerHTML = `
+                                <span class="qty-item-name-btn" style="cursor: pointer; flex: 1; text-align: left;">${item.label}</span>
+                                <div class="excel-qty-control">
+                                    <button class="qty-btn minus">-</button>
+                                    <span class="excel-item-badge">${totalCount}</span>
+                                    <button class="qty-btn plus">+</button>
+                                    <button class="qty-btn remove">&times;</button>
+                                </div>
+                            `;
+
+                            const nameBtn = row.querySelector('.qty-item-name-btn');
+                            bindClickEffect(nameBtn, (e) => {
+                                e.stopPropagation();
+                                if (item.type.includes('-dropdown')) {
+                                    openDropdownForm(item, rowWrapper);
+                                } else {
+                                    addCartItem(item.name, item.label, "", 1);
+                                }
+                            });
+
+                            const minusBtn = row.querySelector('.qty-btn.minus');
+                            const plusBtn = row.querySelector('.qty-btn.plus');
+                            const removeBtn = row.querySelector('.qty-btn.remove');
+
+                            bindClickEffect(minusBtn, (e) => {
+                                e.stopPropagation();
+                                decreaseCartItemQuantity(item.name);
+                            });
+                            bindClickEffect(plusBtn, (e) => {
+                                e.stopPropagation();
+                                increaseCartItemQuantity(item.name, item.label);
+                            });
+                            bindClickEffect(removeBtn, (e) => {
+                                e.stopPropagation();
+                                clearCartItemsByName(item.name);
+                            });
                         } else {
                             row.innerText = item.label;
-                        }
-
-                        bindClickEffect(row, () => {
-                            // 드롭다운 옵션 처리
-                            if (item.type.includes('-dropdown')) {
-                                const oldForm = document.querySelector('.dropdown-select-form');
-                                if (oldForm) oldForm.remove();
-
-                                const selectForm = document.createElement('div');
-                                selectForm.className = 'dropdown-select-form';
-                                selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;";
-
-                                const titleSpan = document.createElement('span');
-                                titleSpan.style.cssText = "font-size: 0.85em; font-weight: bold; color: #4A90E2;";
-                                
-                                const selectEl = document.createElement('select');
-                                selectEl.style.cssText = "padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; font-size: 0.95em; outline: none; background: white;";
-
-                                // 옵션 구성
-                                if (item.type === 'door-dropdown' || item.type === 'furniture-dropdown') {
-                                    titleSpan.innerText = `⚙️ ${item.label} 수량 선택:`;
-                                    for (let i = 1; i <= 7; i++) {
-                                        const opt = document.createElement('option');
-                                        opt.value = `${i}개`;
-                                        opt.innerText = `문짝 ${i}개`;
-                                        if (i === 1) opt.selected = true;
-                                        selectEl.appendChild(opt);
-                                    }
-                                } else if (item.type === 'sink-dropdown') {
-                                    titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
-                                    const ranges = ["1~2m", "3~4m", "5~6m", "7~8m", "9~10m", "11~12m"];
-                                    ranges.forEach(r => {
-                                        const opt = document.createElement('option');
-                                        opt.value = r;
-                                        opt.innerText = r;
-                                        selectEl.appendChild(opt);
-                                    });
-                                } else if (item.type === 'wood-dropdown') {
-                                    titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
-                                    for (let i = 2; i <= 10; i++) {
-                                        const opt = document.createElement('option');
-                                        opt.value = `${i}m`;
-                                        opt.innerText = `${i}m`;
-                                        selectEl.appendChild(opt);
-                                    }
-                                } else if (item.type === 'room-dropdown') {
-                                    titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
-                                    for (let i = 1; i <= 10; i++) {
-                                        const opt = document.createElement('option');
-                                        opt.value = `${i}m`;
-                                        opt.innerText = `${i}m`;
-                                        selectEl.appendChild(opt);
-                                    }
+                            bindClickEffect(row, () => {
+                                if (item.type.includes('-dropdown')) {
+                                    openDropdownForm(item, rowWrapper);
+                                } else {
+                                    addCartItem(item.name, item.label, "", 1);
                                 }
-
-                                const addBtn = document.createElement('button');
-                                addBtn.innerText = "장바구니 담기";
-                                addBtn.style.cssText = "padding: 10px; background: #4A90E2; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: inherit;";
-                                
-                                bindClickEffect(addBtn, () => {
-                                    const selectedVal = selectEl.value;
-                                    addCartItem(item.name, item.label, selectedVal, 1);
-                                    selectForm.remove();
-                                });
-
-                                selectForm.appendChild(titleSpan);
-                                selectForm.appendChild(selectEl);
-                                selectForm.appendChild(addBtn);
-
-                                rowWrapper.appendChild(selectForm);
-                            } else {
-                                addCartItem(item.name, item.label, "", 1);
-                            }
-                        });
+                            });
+                        }
                         
                         rowWrapper.appendChild(row);
                         tdValue.appendChild(rowWrapper);
@@ -1709,7 +1834,7 @@
                     table.appendChild(tr);
                     bodyContainer.appendChild(table);
                 });
-            } // else if (mainTab === 1) 블록 닫기
+                        } // else if (mainTab === 1) 블록 닫기
             else {
                 // ----------------------------------------------------
                 // [사진견적 탭]
