@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-28 14:15:00 KST]
+    [Updated: 2026-05-28 14:20:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -612,7 +612,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-28 14:15</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-28 14:20</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -1575,17 +1575,17 @@
             showQuickButtons();
         }
 
-        // [New] 품목별 탭 드롭다운 폼 오픈 함수 (트리거 박스와 담기버튼을 없애고 드롭다운 목록만 열어 한번에 선택하여 장바구니에 담는 방식으로 개편)
+        // [New] 품목별 탭 드롭다운 폼 오픈 함수 (트리거 박스와 담기버튼을 없애고 드롭다운 목록만 열어 한번에 선택하여 장바구니에 담는 방식으로 개편, 우측 상단 닫기버튼 추가)
         function openDropdownForm(item, rowWrapper) {
             const oldForm = document.querySelector('.dropdown-select-form');
             if (oldForm) oldForm.remove();
 
             const selectForm = document.createElement('div');
             selectForm.className = 'dropdown-select-form';
-            selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;";
+            selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; position: relative;";
 
             const titleSpan = document.createElement('span');
-            titleSpan.style.cssText = "font-size: 0.85em; font-weight: bold; color: #4A90E2;";
+            titleSpan.style.cssText = "font-size: 0.85em; font-weight: bold; color: #4A90E2; padding-right: 25px;";
             
             let optionList = [];
             let titleText = "";
@@ -1615,6 +1615,19 @@
             }
             titleSpan.innerText = titleText;
             selectForm.appendChild(titleSpan);
+
+            // 우측 상단 X 닫기 버튼 추가
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'dropdown-close-btn';
+            closeBtn.innerHTML = '✕';
+            closeBtn.style.cssText = "position: absolute; right: 12px; top: 10px; background: none; border: none; font-size: 1.15em; font-weight: bold; cursor: pointer; color: #a0aec0; padding: 4px; line-height: 1; transition: color 0.2s; font-family: sans-serif;";
+            closeBtn.onmouseover = () => { closeBtn.style.color = '#e53e3e'; };
+            closeBtn.onmouseout = () => { closeBtn.style.color = '#a0aec0'; };
+            bindClickEffect(closeBtn, (e) => {
+                e.stopPropagation();
+                selectForm.remove();
+            });
+            selectForm.appendChild(closeBtn);
 
             // 커스텀 드롭다운 옵션 목록 직접 렌더링 (트리거박스 없이 즉시 활성화)
             const optionsListDiv = document.createElement('div');
@@ -2075,4 +2088,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-28 14:15:00 KST] End -->
+<!-- [Updated: 2026-05-28 14:20:00 KST] End -->
