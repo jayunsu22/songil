@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-28 09:40:00 KST]
+    [Updated: 2026-05-28 13:50:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -460,6 +460,21 @@
             flex-shrink: 0;
         }
 
+        .excel-check-badge {
+            background: #48bb78;
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05em;
+            font-weight: bold;
+            box-shadow: 0 1px 3px rgba(72, 187, 120, 0.3);
+            flex-shrink: 0;
+        }
+
         /* [New] 개별 품목 수량 조작 컨트롤러 스타일 */
         .excel-qty-control {
             display: flex;
@@ -500,6 +515,90 @@
         .qty-btn.remove:hover {
             background-color: #fed7d7;
         }
+
+        /* [New] 커스텀 드롭다운 스타일 */
+        .custom-dropdown {
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .custom-dropdown-trigger {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1.0em;
+            font-weight: 500;
+            color: #333;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+
+        .custom-dropdown-trigger:hover {
+            border-color: #4A90E2;
+        }
+
+        .custom-dropdown-trigger .arrow {
+            font-size: 0.8em;
+            color: #888;
+            transition: transform 0.2s;
+        }
+
+        .custom-dropdown.open .custom-dropdown-trigger .arrow {
+            transform: rotate(180deg);
+        }
+
+        .custom-dropdown-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #4A90E2;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 4px;
+            display: none;
+            box-sizing: border-box;
+        }
+
+        .custom-dropdown.open .custom-dropdown-options {
+            display: block;
+        }
+
+        .custom-dropdown-option {
+            padding: 12px 14px;
+            font-size: 0.95em;
+            color: #333;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            border-bottom: 1px solid #f1f5f9;
+            text-align: left;
+        }
+
+        .custom-dropdown-option:last-child {
+            border-bottom: none;
+        }
+
+        .custom-dropdown-option:hover {
+            background: #ebf8ff;
+            color: #2b6cb0;
+            font-weight: bold;
+        }
+
+        .custom-dropdown-option.selected {
+            background: #ebf8ff;
+            color: #2b6cb0;
+            font-weight: bold;
+        }
                 </style>
 </head>
 
@@ -513,7 +612,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-28 09:40</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-28 13:50</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -1346,7 +1445,7 @@
         let b2bCart = []; // 장바구니 배열: [{ id, name, label, option, count }]
         let currentB2BTab = 0; // 품목별 탭 내부 서브 탭 (0: 도어/샤시, 1: 싱크/가구/기타)
 
-        // 간편견적 열기 버튼 생성 함수
+        // 간편견적 열기 버튼 생성 함수 (닫기 버그 해결: 스크롤 하단 파묻힘을 예방하기 위해 chat-input-area 위에 고정 삽입)
         function addOpenQuickQuoteButton() {
             const existingMenu = document.querySelector('.quick-reply-container');
             if (existingMenu) existingMenu.remove();
@@ -1356,7 +1455,7 @@
             const btn = document.createElement('button');
             btn.className = 'quick-reply-btn open-quick-quote-btn';
             btn.innerHTML = '🛠️ 간편견적 열기';
-            btn.style.cssText = "display: block; width: 90%; margin: 15px auto; padding: 14px; background: #2c3e50; color: white; border-radius: 8px; font-weight: bold; font-size: 1.05em; cursor: pointer; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+            btn.style.cssText = "display: block; width: 90%; margin: 10px auto; padding: 14px; background: #2c3e50; color: white; border-radius: 8px; font-weight: bold; font-size: 1.05em; cursor: pointer; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
             
             btn.onclick = () => {
                 btn.classList.add('click-effect');
@@ -1366,7 +1465,12 @@
                 }, 150);
             };
             
-            chatContainer.appendChild(btn);
+            const inputArea = document.querySelector('.chat-input-area');
+            if (inputArea) {
+                inputArea.parentNode.insertBefore(btn, inputArea);
+            } else {
+                chatContainer.appendChild(btn);
+            }
         }
 
         // 클릭 효과 바인딩 헬퍼 함수
@@ -1381,38 +1485,33 @@
             });
         }
 
-        // 장바구니 아이템 추가 함수 (동일 품목 7개 제한 및 5종류 제한 구현)
+        // 장바구니 아이템 추가 함수 (수량 1개 한정 고정 및 토스트 메시지 알림)
         function addCartItem(name, label, option = "", count = 1) {
-            // 1. 종류 수 검증
-            const existingIndex = b2bCart.findIndex(item => item.name === name && item.option === option);
+            const existingIndex = b2bCart.findIndex(item => item.name === name);
             
-            if (existingIndex === -1) {
-                // 새로운 종류를 추가하려고 할 때, 이미 5종류를 초과하는지 체크
-                const uniqueTypes = new Set(b2bCart.map(item => `${item.name}-${item.option}`)).size;
-                if (uniqueTypes >= 5) {
-                    alert("⚠️ 종류 제한: AI의 정확한 견적을 위해 한 번에 최대 5가지 품목까지만 담을 수 있습니다.\n5가지를 먼저 견적 내시고 추가로 진행해 주세요!");
-                    return false;
-                }
-                
-                b2bCart.push({
-                    id: 'cart_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                    name: name,
-                    label: label,
-                    option: option,
-                    count: count
-                });
-            } else {
-                // 기존 항목 수량 추가
-                const newCount = b2bCart[existingIndex].count + count;
-                if (newCount > 7) {
-                    alert(`⚠️ 수량 제한: '${label}' 품목은 한 번에 최대 7개까지만 선택할 수 있습니다.`);
-                    b2bCart[existingIndex].count = 7; // 최대 7개 고정
-                } else {
-                    b2bCart[existingIndex].count = newCount;
-                }
+            if (existingIndex !== -1) {
+                // 이미 동일 품목이 담겨있으면 옵션을 갱신 (수량은 1개 고정)
+                b2bCart[existingIndex].option = option;
+                showToast(`🛒 ${label} 품목이 갱신되었습니다.`);
+                showQuickButtons();
+                return true;
             }
 
-            // 장바구니 영역에 펄스 애니메이션 적용
+            if (b2bCart.length >= 5) {
+                alert("⚠️ 종류 제한: AI의 정확한 견적을 위해 한 번에 최대 5가지 품목까지만 담을 수 있습니다.\n5가지를 먼저 견적 내시고 추가로 진행해 주세요!");
+                return false;
+            }
+            
+            b2bCart.push({
+                id: 'cart_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                name: name,
+                label: label,
+                option: option,
+                count: 1 // 무조건 1개 고정
+            });
+
+            showToast(`🛒 ${label} 1개 품목을 장바구니에 담았습니다.`);
+
             setTimeout(() => {
                 const cartContainerUI = document.querySelector('.floating-cart-list');
                 if (cartContainerUI) {
@@ -1433,31 +1532,41 @@
             b2bCart = b2bCart.filter(item => item.id !== id);
             showQuickButtons();
         }
-        // [New] 특정 품목(name)의 수량 1 감소 함수
-        function decreaseCartItemQuantity(name) {
-            const idx = b2bCart.map(item => item.name).lastIndexOf(name);
-            if (idx !== -1) {
-                if (b2bCart[idx].count > 1) {
-                    b2bCart[idx].count -= 1;
-                } else {
-                    b2bCart.splice(idx, 1);
-                }
-                showQuickButtons();
-            }
+        // [New] 세련된 토스트 알림 표시 함수
+        function showToast(message) {
+            let toast = document.querySelector('.toast-notification');
+            if (toast) toast.remove();
+
+            toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.innerText = message;
+            toast.style.cssText = "position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.85); color: white; padding: 12px 24px; border-radius: 30px; font-size: 0.92em; font-weight: bold; z-index: 100000; opacity: 0; transition: opacity 0.3s, bottom 0.3s; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.25); white-space: nowrap;";
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.bottom = '110px';
+            }, 50);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.bottom = '100px';
+                setTimeout(() => {
+                    if (toast.parentNode) toast.parentNode.removeChild(toast);
+                }, 300);
+            }, 2000);
         }
 
-        // [New] 특정 품목(name)의 수량 1 증가 함수 (7개 제한 적용)
+        // [New] 특정 품목(name)의 수량 1 감소 함수 (1개 제한이므로 삭제와 동일하게 필터링)
+        function decreaseCartItemQuantity(name) {
+            b2bCart = b2bCart.filter(item => item.name !== name);
+            showQuickButtons();
+        }
+
+        // [New] 특정 품목(name)의 수량 1 증가 함수 (1개 제한이므로 미작동)
         function increaseCartItemQuantity(name, label) {
-            const idx = b2bCart.map(item => item.name).lastIndexOf(name);
-            if (idx !== -1) {
-                const currentItem = b2bCart[idx];
-                if (currentItem.count >= 7) {
-                    alert(`⚠️ 수량 제한: '${label}' 품목은 한 번에 최대 7개까지만 선택할 수 있습니다.`);
-                    return;
-                }
-                currentItem.count += 1;
-                showQuickButtons();
-            }
+            // 1개 제한이므로 아무것도 하지 않음
         }
 
         // [New] 특정 품목(name)에 해당하는 모든 장바구니 아이템 일괄 삭제 함수
@@ -1466,73 +1575,120 @@
             showQuickButtons();
         }
 
-        // [New] 품목별 탭 드롭다운 폼 오픈 함수
+        // [New] 품목별 탭 드롭다운 폼 오픈 함수 (커스텀 드롭다운 방식 도입 및 open으로 즉시 펼침)
         function openDropdownForm(item, rowWrapper) {
             const oldForm = document.querySelector('.dropdown-select-form');
             if (oldForm) oldForm.remove();
 
             const selectForm = document.createElement('div');
             selectForm.className = 'dropdown-select-form';
-            selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;";
+            selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; position: relative;";
 
             const titleSpan = document.createElement('span');
             titleSpan.style.cssText = "font-size: 0.85em; font-weight: bold; color: #4A90E2;";
             
-            const selectEl = document.createElement('select');
-            selectEl.style.cssText = "padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; font-size: 0.95em; outline: none; background: white;";
+            let optionList = [];
+            let titleText = "";
 
             // 옵션 구성
             if (item.type === 'door-dropdown' || item.type === 'furniture-dropdown') {
-                titleSpan.innerText = `⚙️ ${item.label} 수량 선택:`;
+                titleText = `⚙️ ${item.label} 수량 선택:`;
                 for (let i = 1; i <= 7; i++) {
-                    const opt = document.createElement('option');
-                    opt.value = `${i}개`;
-                    opt.innerText = `문짝 ${i}개`;
-                    if (i === 1) opt.selected = true;
-                    selectEl.appendChild(opt);
+                    optionList.push({ value: `${i}개`, text: `문짝 ${i}개` });
                 }
             } else if (item.type === 'sink-dropdown') {
-                titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
+                titleText = `⚙️ ${item.label} 길이 선택:`;
                 const ranges = ["1~2m", "3~4m", "5~6m", "7~8m", "9~10m", "11~12m"];
                 ranges.forEach(r => {
-                    const opt = document.createElement('option');
-                    opt.value = r;
-                    opt.innerText = r;
-                    selectEl.appendChild(opt);
+                    optionList.push({ value: r, text: r });
                 });
             } else if (item.type === 'wood-dropdown') {
-                titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
+                titleText = `⚙️ ${item.label} 길이 선택:`;
                 for (let i = 2; i <= 10; i++) {
-                    const opt = document.createElement('option');
-                    opt.value = `${i}m`;
-                    opt.innerText = `${i}m`;
-                    selectEl.appendChild(opt);
+                    optionList.push({ value: `${i}m`, text: `${i}m` });
                 }
             } else if (item.type === 'room-dropdown') {
-                titleSpan.innerText = `⚙️ ${item.label} 길이 선택:`;
+                titleText = `⚙️ ${item.label} 길이 선택:`;
                 for (let i = 1; i <= 10; i++) {
-                    const opt = document.createElement('option');
-                    opt.value = `${i}m`;
-                    opt.innerText = `${i}m`;
-                    selectEl.appendChild(opt);
+                    optionList.push({ value: `${i}m`, text: `${i}m` });
                 }
             }
+            titleSpan.innerText = titleText;
+            selectForm.appendChild(titleSpan);
 
+            // 커스텀 드롭다운 껍데기 생성
+            const dropdownContainer = document.createElement('div');
+            dropdownContainer.className = 'custom-dropdown open'; // 단계를 줄이기 위해 open 기본값으로 펼침!
+
+            const triggerDiv = document.createElement('div');
+            triggerDiv.className = 'custom-dropdown-trigger';
+            
+            const triggerText = document.createElement('span');
+            triggerText.innerText = optionList[0].text;
+            
+            const triggerArrow = document.createElement('span');
+            triggerArrow.className = 'arrow';
+            triggerArrow.innerText = '▼';
+            
+            triggerDiv.appendChild(triggerText);
+            triggerDiv.appendChild(triggerArrow);
+            dropdownContainer.appendChild(triggerDiv);
+
+            const optionsListDiv = document.createElement('div');
+            optionsListDiv.className = 'custom-dropdown-options';
+
+            let selectedValue = optionList[0].value;
+
+            optionList.forEach((opt, idx) => {
+                const optDiv = document.createElement('div');
+                optDiv.className = 'custom-dropdown-option';
+                if (idx === 0) optDiv.classList.add('selected');
+                optDiv.innerText = opt.text;
+                optDiv.setAttribute('data-value', opt.value);
+
+                optDiv.onclick = (e) => {
+                    e.stopPropagation();
+                    selectedValue = opt.value;
+                    triggerText.innerText = opt.text;
+                    
+                    optionsListDiv.querySelectorAll('.custom-dropdown-option').forEach(o => o.classList.remove('selected'));
+                    optDiv.classList.add('selected');
+                    dropdownContainer.classList.remove('open');
+
+                    // 선택 즉시 장바구니에 담기 (단계 단축 핵심)
+                    addCartItem(item.name, item.label, selectedValue, 1);
+                    selectForm.remove();
+                };
+                optionsListDiv.appendChild(optDiv);
+            });
+            dropdownContainer.appendChild(optionsListDiv);
+
+            triggerDiv.onclick = (e) => {
+                e.stopPropagation();
+                dropdownContainer.classList.toggle('open');
+            };
+
+            selectForm.appendChild(dropdownContainer);
+
+            // [보조] 장바구니 직접 담기 버튼 (기존 유지)
             const addBtn = document.createElement('button');
             addBtn.innerText = "장바구니 담기";
-            addBtn.style.cssText = "padding: 10px; background: #4A90E2; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: inherit;";
+            addBtn.style.cssText = "padding: 12px; background: #4A90E2; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 1.0em; margin-top: 10px;";
             
             bindClickEffect(addBtn, () => {
-                const selectedVal = selectEl.value;
-                addCartItem(item.name, item.label, selectedVal, 1);
+                addCartItem(item.name, item.label, selectedValue, 1);
                 selectForm.remove();
             });
-
-            selectForm.appendChild(titleSpan);
-            selectForm.appendChild(selectEl);
             selectForm.appendChild(addBtn);
 
             rowWrapper.appendChild(selectForm);
+
+            // 문서 외부 클릭 시 드롭다운 닫기
+            const closeDropdown = () => {
+                dropdownContainer.classList.remove('open');
+                document.removeEventListener('click', closeDropdown);
+            };
+            document.addEventListener('click', closeDropdown);
         }
         
 
@@ -1607,6 +1763,10 @@
                     setTimeout(() => {
                         mainTab = t.index;
                         showQuickButtons();
+                        if (t.index === 2) {
+                            const imgInput = document.getElementById('imageInput');
+                            if (imgInput) imgInput.click();
+                        }
                     }, 100);
                 };
                 mainTabsDiv.appendChild(tab);
@@ -1682,25 +1842,13 @@
                             row.innerHTML = `
                                 <span>${item.label}</span>
                                 <div class="excel-qty-control">
-                                    <button class="qty-btn minus">-</button>
-                                    <span class="excel-item-badge">${count}</span>
-                                    <button class="qty-btn plus">+</button>
+                                    <span class="excel-check-badge">✓</span>
                                     <button class="qty-btn remove">&times;</button>
                                 </div>
                             `;
                             
-                            const minusBtn = row.querySelector('.qty-btn.minus');
-                            const plusBtn = row.querySelector('.qty-btn.plus');
                             const removeBtn = row.querySelector('.qty-btn.remove');
                             
-                            bindClickEffect(minusBtn, (e) => {
-                                e.stopPropagation();
-                                decreaseCartItemQuantity(item.name);
-                            });
-                            bindClickEffect(plusBtn, (e) => {
-                                e.stopPropagation();
-                                increaseCartItemQuantity(item.name, item.label);
-                            });
                             bindClickEffect(removeBtn, (e) => {
                                 e.stopPropagation();
                                 clearCartItemsByName(item.name);
@@ -1781,9 +1929,7 @@
                             row.innerHTML = `
                                 <span class="qty-item-name-btn" style="cursor: pointer; flex: 1; text-align: left;">${item.label}</span>
                                 <div class="excel-qty-control">
-                                    <button class="qty-btn minus">-</button>
-                                    <span class="excel-item-badge">${totalCount}</span>
-                                    <button class="qty-btn plus">+</button>
+                                    <span class="excel-check-badge">✓</span>
                                     <button class="qty-btn remove">&times;</button>
                                 </div>
                             `;
@@ -1798,18 +1944,8 @@
                                 }
                             });
 
-                            const minusBtn = row.querySelector('.qty-btn.minus');
-                            const plusBtn = row.querySelector('.qty-btn.plus');
                             const removeBtn = row.querySelector('.qty-btn.remove');
 
-                            bindClickEffect(minusBtn, (e) => {
-                                e.stopPropagation();
-                                decreaseCartItemQuantity(item.name);
-                            });
-                            bindClickEffect(plusBtn, (e) => {
-                                e.stopPropagation();
-                                increaseCartItemQuantity(item.name, item.label);
-                            });
                             bindClickEffect(removeBtn, (e) => {
                                 e.stopPropagation();
                                 clearCartItemsByName(item.name);
@@ -1890,11 +2026,10 @@
                     row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: white; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 8px; font-size: 0.9em; box-shadow: 0 1px 2px rgba(0,0,0,0.02);";
                     
                     const optText = item.option ? ` (${item.option})` : "";
-                    const countBadge = item.count > 1 ? ` x${item.count}` : "";
                     
                     const infoSpan = document.createElement('span');
                     infoSpan.style.cssText = "font-weight: 500; color: #334155; display: inline-flex; align-items: center;";
-                    infoSpan.innerHTML = `<span style="color:#4A90E2; font-weight:bold; margin-right:5px;">•</span> ${item.label}${optText}<span style="color:#e53e3e; font-weight:bold; font-size:0.9em; margin-left:5px;">${countBadge}</span>`;
+                    infoSpan.innerHTML = `<span style="color:#4A90E2; font-weight:bold; margin-right:5px;">•</span> ${item.label}${optText}`;
                     
                     const deleteBtn = document.createElement('button');
                     deleteBtn.innerHTML = "×";
@@ -1928,8 +2063,7 @@
                 });
 
                 const submitBtn = document.createElement('button');
-                const totalQuantity = b2bCart.reduce((acc, cur) => acc + cur.count, 0);
-                submitBtn.innerHTML = `🛒 ${totalQuantity}개 견적내기`;
+                submitBtn.innerHTML = `🛒 ${b2bCart.length}개 견적내기`;
                 submitBtn.style.cssText = "flex: 1.6; padding: 14px; background: linear-gradient(135deg, #4A90E2, #357ABD); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 0.98em; cursor: pointer; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);";
                 
                 bindClickEffect(submitBtn, () => {
@@ -1944,15 +2078,10 @@
                             } else if (item.name === "가벽" || item.name === "알판" || item.name === "등박스" || item.name === "웨인스코팅" || item.name === "룸박스") {
                                 text = `${item.name} ${item.option}`;
                             } else {
-                                let numStr = item.option.replace(/[^0-9]/g, "");
-                                text = `${item.name} ${numStr} (수량: ${item.count}개)`;
+                                text = `${item.name} ${item.option}`;
                             }
                         } else {
-                            if (item.name.includes("샤시") || item.name.includes("아치")) {
-                                text = `${item.name} (수량: ${item.count}개)`;
-                            } else {
-                                text = `${item.name} ${item.count}개`;
-                            }
+                            text = item.label;
                         }
                         if (text) requestTexts.push(text);
                     });
@@ -1998,4 +2127,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-28 09:40:00 KST] End -->
+<!-- [Updated: 2026-05-28 13:50:00 KST] End -->
