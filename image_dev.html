@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-28 20:30:00 KST]
+    [Updated: 2026-05-28 20:50:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -670,7 +670,7 @@
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
             <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트:
-                05-28 20:30</div>
+                05-28 20:50</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -1537,16 +1537,16 @@
         }
 
         // 장바구니 아이템 추가 함수 (수량 1개 한정 고정 및 토스트 메시지 알림)
-        function addCartItem(name, label, option = "", count = 1) {
+        function addCartItem(name, label, option = "", count = 1, cartIndex = 1) {
             // 다중 추가가 허용되는 품목(계속 쌓임) 정의
             const isMultiAllow = (name === "신발장" || name === "붙박이장" || name === "수납장");
 
-            const existingIndex = b2bCart.findIndex(item => item.name === name);
+            const existingIndex = b2bCart.findIndex(item => item.name === name && item.cartIndex === cartIndex);
 
-            // 다중 추가가 허용되지 않는 품목이고 이미 동일 품목이 있으면 옵션을 갱신 (수량은 1개 고정)
-            if (!isMultiAllow && existingIndex !== -1) {
+            // 이미 동일 슬롯이 존재하면 옵션을 갱신 (수량은 1개 고정)
+            if (existingIndex !== -1) {
                 b2bCart[existingIndex].option = option;
-                showToast(`🛒 ${label} 품목이 갱신되었습니다.`);
+                showToast(`🛒 ${label} 옵션이 갱신되었습니다.`);
                 showQuickButtons();
                 return true;
             }
@@ -1559,14 +1559,15 @@
             }
 
             b2bCart.push({
-                id: 'cart_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                id: 'cart_' + name + '_' + cartIndex + '_' + Date.now(),
                 name: name,
                 label: label,
                 option: option,
-                count: 1 // 무조건 1개 고정
+                count: 1, // 무조건 1개 고정
+                cartIndex: cartIndex
             });
 
-            showToast(`🛒 ${label} 1개 품목을 장바구니에 담았습니다.`);
+            showToast(`🛒 ${label} 품목을 장바구니에 담았습니다.`);
 
             setTimeout(() => {
                 const cartContainerUI = document.querySelector('.floating-cart-list');
@@ -1583,9 +1584,26 @@
             return true;
         }
 
-        // 장바구니 아이템 삭제 함수
+        // 장바구니 아이템 삭제 함수 (삭제 후 뒤쪽 슬롯을 앞으로 한 칸씩 당김)
         function removeCartItem(id) {
-            b2bCart = b2bCart.filter(item => item.id !== id);
+            const targetItem = b2bCart.find(item => item.id === id);
+            if (targetItem) {
+                const name = targetItem.name;
+                const cartIndex = targetItem.cartIndex;
+                
+                b2bCart = b2bCart.filter(item => item.id !== id);
+                
+                const isMultiAllow = (name === "신발장" || name === "붙박이장" || name === "수납장");
+                if (isMultiAllow && cartIndex) {
+                    b2bCart.forEach(item => {
+                        if (item.name === name && item.cartIndex > cartIndex) {
+                            item.cartIndex -= 1;
+                            const baseLabel = name === "신발장" ? "신발장 전체시공" : (name === "붙박이장" ? "붙박이장 전체시공" : "수납장 전체시공");
+                            item.label = (item.cartIndex === 1) ? baseLabel : `${baseLabel}(${item.cartIndex})`;
+                        }
+                    });
+                }
+            }
             showQuickButtons();
         }
         // [New] 세련된 토스트 알림 표시 함수
@@ -1631,8 +1649,22 @@
             showQuickButtons();
         }
 
+        // [New] 특정 슬롯(name, cartIndex)에 해당하는 장바구니 아이템 삭제 함수 (삭제 후 뒤쪽 슬롯을 앞으로 한 칸씩 당김)
+        function clearCartItemBySlot(name, cartIndex) {
+            b2bCart = b2bCart.filter(item => !(item.name === name && item.cartIndex === cartIndex));
+            
+            b2bCart.forEach(item => {
+                if (item.name === name && item.cartIndex > cartIndex) {
+                    item.cartIndex -= 1;
+                    const baseLabel = name === "신발장" ? "신발장 전체시공" : (name === "붙박이장" ? "붙박이장 전체시공" : "수납장 전체시공");
+                    item.label = (item.cartIndex === 1) ? baseLabel : `${baseLabel}(${item.cartIndex})`;
+                }
+            });
+            showQuickButtons();
+        }
+
         // [New] 품목별 탭 드롭다운 폼 오픈 함수 (트리거 박스와 담기버튼을 없애고 드롭다운 목록만 열어 한번에 선택하여 장바구니에 담는 방식으로 개편, 우측 상단 닫기버튼 추가)
-        function openDropdownForm(item, rowWrapper) {
+        function openDropdownForm(item, rowWrapper, cartIndex = 1, currentLabel = "") {
             const oldForm = document.querySelector('.dropdown-select-form');
             if (oldForm) oldForm.remove();
 
@@ -1646,8 +1678,9 @@
             let optionList = [];
             let titleText = "";
 
+            if (!currentLabel) currentLabel = item.label;
             // 옵션 구성
-            titleText = `⚙️ ${item.label} 옵션 선택:`;
+            titleText = `⚙️ ${currentLabel} 옵션 선택:`;
             
             // 1. 문/도어류
             if (item.name === "방문") {
@@ -1748,7 +1781,7 @@
                 optDiv.onclick = (e) => {
                     e.stopPropagation();
                     // 선택 즉시 1개 장바구니에 담기 (원터치 완료)
-                    addCartItem(item.name, item.label, opt.value, 1);
+                    addCartItem(item.name, currentLabel, opt.value, 1, cartIndex);
                     selectForm.remove();
                 };
                 optionsListDiv.appendChild(optDiv);
@@ -1997,54 +2030,66 @@
                             lastSubHeader = item.sub;
                         }
 
-                        const rowWrapper = document.createElement('div');
-                        rowWrapper.style.cssText = "position: relative; width: 100%;";
+                        const isMultiAllow = (item.name === "신발장" || item.name === "붙박이장" || item.name === "수납장");
+                        const limit = (item.name === "신발장") ? 2 : (isMultiAllow ? 5 : 1);
 
-                        const row = document.createElement('div');
-                        row.className = 'excel-item-row';
-
-                        const matchItems = b2bCart.filter(c => c.name === item.name);
-                        const totalCount = matchItems.reduce((acc, cur) => acc + cur.count, 0);
-
-                        if (totalCount > 0) {
-                            row.classList.add('active');
-                            row.innerHTML = `
-                                <span class="qty-item-name-btn" style="cursor: pointer; flex: 1; text-align: left;">${item.label}</span>
-                                <div class="excel-qty-control">
-                                    <span class="excel-check-badge">✓</span>
-                                    <button class="qty-btn remove">&times;</button>
-                                </div>
-                            `;
-
-                            const nameBtn = row.querySelector('.qty-item-name-btn');
-                            bindClickEffect(nameBtn, (e) => {
-                                e.stopPropagation();
-                                if (item.type.includes('-dropdown')) {
-                                    openDropdownForm(item, rowWrapper);
-                                } else {
-                                    addCartItem(item.name, item.label, "", 1);
+                        for (let slotIndex = 1; slotIndex <= limit; slotIndex++) {
+                            // 다중 슬롯 노출 여부 판단
+                            if (slotIndex > 1) {
+                                const prevSlotExists = b2bCart.some(c => c.name === item.name && c.cartIndex === (slotIndex - 1));
+                                if (!prevSlotExists) {
+                                    break; // 이전 슬롯이 장바구니에 없으면 다음 추가 슬롯은 표시하지 않음
                                 }
-                            });
+                            }
 
-                            const removeBtn = row.querySelector('.qty-btn.remove');
+                            const rowWrapper = document.createElement('div');
+                            rowWrapper.style.cssText = "position: relative; width: 100%; margin-bottom: 4px;";
 
-                            bindClickEffect(removeBtn, (e) => {
-                                e.stopPropagation();
-                                clearCartItemsByName(item.name);
-                            });
-                        } else {
-                            row.innerText = item.label;
-                            bindClickEffect(row, () => {
-                                if (item.type.includes('-dropdown')) {
-                                    openDropdownForm(item, rowWrapper);
-                                } else {
-                                    addCartItem(item.name, item.label, "", 1);
-                                }
-                            });
+                            const row = document.createElement('div');
+                            row.className = 'excel-item-row';
+
+                            const currentLabel = (slotIndex === 1) ? item.label : `${item.label}(${slotIndex})`;
+                            const slotItem = b2bCart.find(c => c.name === item.name && c.cartIndex === slotIndex);
+
+                            if (slotItem) {
+                                row.classList.add('active');
+                                const displayOption = slotItem.option ? ` [${slotItem.option}]` : "";
+                                row.innerHTML = `
+                                    <span class="qty-item-name-btn" style="cursor: pointer; flex: 1; text-align: left;">${currentLabel}${displayOption}</span>
+                                    <div class="excel-qty-control">
+                                        <span class="excel-check-badge">✓</span>
+                                        <button class="qty-btn remove">&times;</button>
+                                    </div>
+                                `;
+
+                                const nameBtn = row.querySelector('.qty-item-name-btn');
+                                bindClickEffect(nameBtn, (e) => {
+                                    e.stopPropagation();
+                                    if (item.type.includes('-dropdown')) {
+                                        openDropdownForm(item, rowWrapper, slotIndex, currentLabel);
+                                    } else {
+                                        addCartItem(item.name, currentLabel, "", 1, slotIndex);
+                                    }
+                                });
+
+                                const removeBtn = row.querySelector('.qty-btn.remove');
+                                bindClickEffect(removeBtn, (e) => {
+                                    e.stopPropagation();
+                                    clearCartItemBySlot(item.name, slotIndex);
+                                });
+                            } else {
+                                row.innerText = currentLabel;
+                                bindClickEffect(row, () => {
+                                    if (item.type.includes('-dropdown')) {
+                                        openDropdownForm(item, rowWrapper, slotIndex, currentLabel);
+                                    } else {
+                                        addCartItem(item.name, currentLabel, "", 1, slotIndex);
+                                    }
+                                });
+                            }
+                            rowWrapper.appendChild(row);
+                            tdValue.appendChild(rowWrapper);
                         }
-
-                        rowWrapper.appendChild(row);
-                        tdValue.appendChild(rowWrapper);
                     });
 
                     tr.appendChild(tdLabel);
@@ -2217,4 +2262,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-28 20:30:00 KST] End -->
+<!-- [Updated: 2026-05-28 20:50:00 KST] End -->
