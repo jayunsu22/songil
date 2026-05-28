@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-28 16:40:00 KST]
+    [Updated: 2026-05-28 20:10:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -670,7 +670,7 @@
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
             <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트:
-                05-28 16:40</div>
+                05-28 20:10</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -1538,17 +1538,22 @@
 
         // 장바구니 아이템 추가 함수 (수량 1개 한정 고정 및 토스트 메시지 알림)
         function addCartItem(name, label, option = "", count = 1) {
+            // 다중 추가가 허용되는 품목(계속 쌓임) 정의
+            const isMultiAllow = (name === "신발장" || name === "붙박이장" || name === "수납장");
+
             const existingIndex = b2bCart.findIndex(item => item.name === name);
 
-            if (existingIndex !== -1) {
-                // 이미 동일 품목이 담겨있으면 옵션을 갱신 (수량은 1개 고정)
+            // 다중 추가가 허용되지 않는 품목이고 이미 동일 품목이 있으면 옵션을 갱신 (수량은 1개 고정)
+            if (!isMultiAllow && existingIndex !== -1) {
                 b2bCart[existingIndex].option = option;
                 showToast(`🛒 ${label} 품목이 갱신되었습니다.`);
                 showQuickButtons();
                 return true;
             }
 
-            if (b2bCart.length >= 5) {
+            // 종류 제한 체크 (고유한 품목 종류가 5종류 이상인 경우 제한)
+            const uniqueNames = new Set(b2bCart.map(item => item.name));
+            if (!uniqueNames.has(name) && uniqueNames.size >= 5) {
                 alert("⚠️ 종류 제한: AI의 정확한 견적을 위해 한 번에 최대 5가지 품목까지만 담을 수 있습니다.\n5가지를 먼저 견적 내시고 추가로 진행해 주세요!");
                 return false;
             }
@@ -1569,7 +1574,7 @@
                     cartContainerUI.classList.add('pulse-effect');
                     cartContainerUI.addEventListener('animationend', function handler() {
                         cartContainerUI.classList.remove('pulse-effect');
-                        cartContainerUI.removeEventListener('animationend', handler);
+                        cartContainerUI.addEventListener('animationend', handler); // 기존 락 방지용 리스너는 일괄 등록되어 있으므로 정상 작동함
                     });
                 }
             }, 50);
@@ -2101,11 +2106,19 @@
                     b2bCart.forEach(item => {
                         let text = "";
                         if (item.option) {
-                            if (item.name.includes("싱크대")) {
+                            // 범위형 옵션 최댓값(뒷숫자) 추출 대상 품목 정의
+                            const rangeItems = ["싱크대", "신발장", "붙박이장", "수납장", "냉장고장", "가벽", "알판", "등박스", "웨인스코팅", "중간알판", "룸박스"];
+                            const isRangeItem = rangeItems.some(k => item.name.includes(k) || k.includes(item.name));
+
+                            if (isRangeItem && item.option.includes("~")) {
+                                // 예: "길이 3~4m" -> split('~')[1] -> "4m" 추출
                                 let mVal = item.option.split("~")[1] || item.option;
+                                mVal = mVal.trim();
+                                // 혹시 "m" 단위가 누락된 경우 붙여서 보냄
+                                if (!mVal.toLowerCase().includes("m") && !mVal.includes("미터")) {
+                                    mVal += "m";
+                                }
                                 text = `${item.name} ${mVal}`;
-                            } else if (item.name === "가벽" || item.name === "알판" || item.name === "등박스" || item.name === "웨인스코팅" || item.name === "룸박스") {
-                                text = `${item.name} ${item.option}`;
                             } else {
                                 text = `${item.name} ${item.option}`;
                             }
@@ -2156,4 +2169,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-28 16:40:00 KST] End -->
+<!-- [Updated: 2026-05-28 20:10:00 KST] End -->
