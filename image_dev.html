@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-28 13:50:00 KST]
+    [Updated: 2026-05-28 14:15:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -612,7 +612,7 @@
 
             <button onclick="resetChat()"
                 style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-28 13:50</div>
+            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">업데이트: 05-28 14:15</div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
@@ -1575,14 +1575,14 @@
             showQuickButtons();
         }
 
-        // [New] 품목별 탭 드롭다운 폼 오픈 함수 (커스텀 드롭다운 방식 도입 및 open으로 즉시 펼침)
+        // [New] 품목별 탭 드롭다운 폼 오픈 함수 (트리거 박스와 담기버튼을 없애고 드롭다운 목록만 열어 한번에 선택하여 장바구니에 담는 방식으로 개편)
         function openDropdownForm(item, rowWrapper) {
             const oldForm = document.querySelector('.dropdown-select-form');
             if (oldForm) oldForm.remove();
 
             const selectForm = document.createElement('div');
             selectForm.className = 'dropdown-select-form';
-            selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; position: relative;";
+            selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;";
 
             const titleSpan = document.createElement('span');
             titleSpan.style.cssText = "font-size: 0.85em; font-weight: bold; color: #4A90E2;";
@@ -1616,79 +1616,27 @@
             titleSpan.innerText = titleText;
             selectForm.appendChild(titleSpan);
 
-            // 커스텀 드롭다운 껍데기 생성
-            const dropdownContainer = document.createElement('div');
-            dropdownContainer.className = 'custom-dropdown open'; // 단계를 줄이기 위해 open 기본값으로 펼침!
-
-            const triggerDiv = document.createElement('div');
-            triggerDiv.className = 'custom-dropdown-trigger';
-            
-            const triggerText = document.createElement('span');
-            triggerText.innerText = optionList[0].text;
-            
-            const triggerArrow = document.createElement('span');
-            triggerArrow.className = 'arrow';
-            triggerArrow.innerText = '▼';
-            
-            triggerDiv.appendChild(triggerText);
-            triggerDiv.appendChild(triggerArrow);
-            dropdownContainer.appendChild(triggerDiv);
-
+            // 커스텀 드롭다운 옵션 목록 직접 렌더링 (트리거박스 없이 즉시 활성화)
             const optionsListDiv = document.createElement('div');
             optionsListDiv.className = 'custom-dropdown-options';
+            optionsListDiv.style.cssText = "display: block; position: static; box-shadow: none; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 250px; overflow-y: auto; background: white; margin-top: 4px; box-sizing: border-box;";
 
-            let selectedValue = optionList[0].value;
-
-            optionList.forEach((opt, idx) => {
+            optionList.forEach(opt => {
                 const optDiv = document.createElement('div');
                 optDiv.className = 'custom-dropdown-option';
-                if (idx === 0) optDiv.classList.add('selected');
                 optDiv.innerText = opt.text;
-                optDiv.setAttribute('data-value', opt.value);
 
                 optDiv.onclick = (e) => {
                     e.stopPropagation();
-                    selectedValue = opt.value;
-                    triggerText.innerText = opt.text;
-                    
-                    optionsListDiv.querySelectorAll('.custom-dropdown-option').forEach(o => o.classList.remove('selected'));
-                    optDiv.classList.add('selected');
-                    dropdownContainer.classList.remove('open');
-
-                    // 선택 즉시 장바구니에 담기 (단계 단축 핵심)
-                    addCartItem(item.name, item.label, selectedValue, 1);
+                    // 선택 즉시 1개 장바구니에 담기 (원터치 완료)
+                    addCartItem(item.name, item.label, opt.value, 1);
                     selectForm.remove();
                 };
                 optionsListDiv.appendChild(optDiv);
             });
-            dropdownContainer.appendChild(optionsListDiv);
 
-            triggerDiv.onclick = (e) => {
-                e.stopPropagation();
-                dropdownContainer.classList.toggle('open');
-            };
-
-            selectForm.appendChild(dropdownContainer);
-
-            // [보조] 장바구니 직접 담기 버튼 (기존 유지)
-            const addBtn = document.createElement('button');
-            addBtn.innerText = "장바구니 담기";
-            addBtn.style.cssText = "padding: 12px; background: #4A90E2; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 1.0em; margin-top: 10px;";
-            
-            bindClickEffect(addBtn, () => {
-                addCartItem(item.name, item.label, selectedValue, 1);
-                selectForm.remove();
-            });
-            selectForm.appendChild(addBtn);
-
+            selectForm.appendChild(optionsListDiv);
             rowWrapper.appendChild(selectForm);
-
-            // 문서 외부 클릭 시 드롭다운 닫기
-            const closeDropdown = () => {
-                dropdownContainer.classList.remove('open');
-                document.removeEventListener('click', closeDropdown);
-            };
-            document.addEventListener('click', closeDropdown);
         }
         
 
@@ -2127,4 +2075,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-28 13:50:00 KST] End -->
+<!-- [Updated: 2026-05-28 14:15:00 KST] End -->
