@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-28 20:50:00 KST]
+    [Updated: 2026-05-29 22:45:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -9,6 +9,7 @@
     6. [간편견적개편] 평형별 / 품목별 / 사진견적 3대 탭으로 개편
     7. [장바구니고도화] 품목별 개별 삭제(X) 버튼 및 가구/목공 상세 드롭다운 옵션 선택을 통한 동일 품목 다중 추가(다른 규격 지원) 기능 구현
     8. [UX개선] 클릭 피드백 바운스 효과 및 수량 누적 안내 힌트 메시지 적용, 품목당 최대 수량 7개 제한
+    9. [선택옵션개선] 선택된 세부 옵션(예: [샤시 2세트])이 메인 품목명 아래에 서브 텍스트(↳ 선택: 옵션)로 깔끔하게 떨어지도록 UI 레이아웃 개선
 -->
 <!DOCTYPE html>
 <html lang="ko">
@@ -2053,10 +2054,13 @@
 
                             if (slotItem) {
                                 row.classList.add('active');
-                                const displayOption = slotItem.option ? ` [${slotItem.option}]` : "";
+                                const optionSubtext = slotItem.option ? `<span style="font-size: 0.82em; color: #4A90E2; display: block; font-weight: normal; margin-top: 2px; line-height: 1.2;">↳ 선택: ${slotItem.option}</span>` : "";
                                 row.innerHTML = `
-                                    <span class="qty-item-name-btn" style="cursor: pointer; flex: 1; text-align: left;">${currentLabel}${displayOption}</span>
-                                    <div class="excel-qty-control">
+                                    <span class="qty-item-name-btn" style="cursor: pointer; flex: 1; text-align: left; display: flex; flex-direction: column; justify-content: center; padding: 2px 0;">
+                                        <span style="display: block; line-height: 1.3;">${currentLabel}</span>
+                                        ${optionSubtext}
+                                    </span>
+                                    <div class="excel-qty-control" style="display: flex; align-items: center; align-self: center;">
                                         <span class="excel-check-badge">✓</span>
                                         <button class="qty-btn remove">&times;</button>
                                     </div>
