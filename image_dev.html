@@ -1139,7 +1139,7 @@
                             📞 ${phone}
                         </a>
                         ${(!content.includes('견적 제공이 되지 않는') && !content.includes('견적을 산출할 수 없습니다')) ?
-                        `<button onclick="shareQuote()" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
+                        `<button onclick="shareQuote(this)" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
                             🔗 견적내용 공유하기
                         </button>` : ''}
                     </div>
@@ -1187,17 +1187,141 @@
             return bubble;
         }
 
-        // 공유하기 기능 함수
-        function shareQuote() {
-            if (navigator.share) {
+        // 견적서 HTML을 카톡 공유용 깔끔한 텍스트로 변환하는 함수
+        function getQuoteText(quoteContainer) {
+            let lines = [];
+            
+            // 1. 타이틀 & 견적 ID
+            const titleEl = quoteContainer.querySelector('.quote-title');
+            if (titleEl) {
+                const text = titleEl.textContent.trim().replace(/\s+/g, ' ');
+                lines.push(`📋 ${text}`);
+            } else {
+                lines.push(`📋 [대박난손길 1분 간편 견적서]`);
+            }
+            lines.push(`━━━━━━━━━━━━━━━━━━━━`);
+            
+            // 2. 품목별 상세 내용
+            const childNodes = quoteContainer.querySelectorAll('.item-title, .item-detail, .item-notification');
+            let hasItems = false;
+            childNodes.forEach(el => {
+                const text = el.textContent.trim().replace(/\s+/g, ' ');
+                if (el.classList.contains('item-title')) {
+                    if (hasItems) lines.push('');
+                    lines.push(`${text}`);
+                    hasItems = true;
+                } else if (el.classList.contains('item-detail')) {
+                    lines.push(`   ${text}`);
+                } else if (el.classList.contains('item-notification')) {
+                    lines.push(`   ${text}`);
+                }
+            });
+            
+            lines.push(`━━━━━━━━━━━━━━━━━━━━`);
+            
+            // 3. 합계 금액
+            const totalEl = quoteContainer.querySelector('.total-line');
+            if (totalEl) {
+                lines.push(`${totalEl.textContent.trim()}`);
+                lines.push(`━━━━━━━━━━━━━━━━━━━━`);
+            }
+            
+            // 4. 공통 공지사항
+            const commonTitleEl = quoteContainer.querySelector('.common-title');
+            const commonDetailEl = quoteContainer.querySelector('.common-detail');
+            if (commonTitleEl && commonDetailEl) {
+                lines.push(`📢 ${commonTitleEl.textContent.replace('!', '').trim()}`);
+                // <br>태그를 줄바꿈으로 변환하고 HTML 태그 제거
+                const detailText = commonDetailEl.innerHTML
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .replace(/<[^>]+>/g, '')
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0)
+                    .join('\n');
+                lines.push(detailText);
+                lines.push(`━━━━━━━━━━━━━━━━━━━━`);
+            }
+            
+            // 5. 담당자 연락처
+            let contactInfo = "";
+            const spans = quoteContainer.querySelectorAll('span');
+            spans.forEach(span => {
+                if (span.textContent.includes('문의 :')) {
+                    contactInfo = span.textContent.trim().replace(/\s+/g, ' ');
+                }
+            });
+            
+            const telEl = quoteContainer.querySelector('a[href^="tel:"]');
+            if (telEl) {
+                const telNumber = telEl.textContent.trim().replace(/\s+/g, ' ');
+                if (contactInfo) {
+                    lines.push(`👤 ${contactInfo}`);
+                    lines.push(`📞 연락처: ${telNumber.replace('📞', '').trim()}`);
+                } else {
+                    lines.push(`📞 연락처: ${telNumber}`);
+                }
+            } else if (contactInfo) {
+                lines.push(`👤 ${contactInfo}`);
+            }
+            
+            lines.push(`━━━━━━━━━━━━━━━━━━━━`);
+            lines.push(`⚡ 대박난손길 1분 간편견적 서비스`);
+            
+            return lines.join('\n');
+        }
+
+        // 공유하기 기능 함수 (클립보드 복사 우회법 적용)
+        function shareQuote(buttonEl) {
+            const target = buttonEl || (window.event ? window.event.target : null);
+            const quoteContainer = target ? target.closest('.quote-content') : document.querySelector('.quote-content');
+            if (!quoteContainer) {
+                alert('견적서 내용을 찾을 수 없습니다.');
+                return;
+            }
+            
+            const formattedText = getQuoteText(quoteContainer);
+            
+            // 안전한 복사 함수 (HTTP 환경 및 모바일 인앱 브라우저 호환)
+            function copyToClipboard(text) {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    return navigator.clipboard.writeText(text);
+                } else {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed";
+                    textArea.style.opacity = "0";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        const successful = document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        return successful ? Promise.resolve() : Promise.reject();
+                    } catch (err) {
+                        document.body.removeChild(textArea);
+                        return Promise.reject(err);
+                    }
+                }
+            }
+
+            // 모바일이고 navigator.share를 지원하는 경우 공유하기 창을 띄움
+            if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
                 navigator.share({
-                    title: '이미지 견적 결과',
-                    text: '견적 결과를 확인해보세요!',
-                    url: window.location.href
+                    title: '대박난손길 견적 결과',
+                    text: formattedText
+                }).catch(() => {
+                    // 공유하기 창을 닫거나 에러 시 클립보드로 복사 진행
+                    copyToClipboard(formattedText).then(() => {
+                        alert('견적서 텍스트가 클립보드에 복사되었습니다!\n원하는 곳(카톡 등)에 붙여넣기(Ctrl+V) 하세요.');
+                    });
                 });
             } else {
-                alert('링크가 복사되었습니다!');
-                navigator.clipboard.writeText(window.location.href);
+                copyToClipboard(formattedText).then(() => {
+                    alert('견적서 텍스트가 클립보드에 복사되었습니다!\n원하는 곳(카톡 등)에 붙여넣기(Ctrl+V) 하세요.');
+                }).catch(() => {
+                    alert('복사에 실패했습니다. 견적 내용을 직접 마우스 드래그로 복사해 주세요.');
+                });
             }
         }
 
@@ -2266,4 +2390,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-28 20:50:00 KST] End -->
+<!-- [Updated: 2026-05-29 22:45:00 KST] End -->
