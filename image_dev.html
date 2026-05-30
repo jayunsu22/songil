@@ -57,9 +57,6 @@
             margin: 0;
             font-size: 1.3em;
             font-weight: 700;
-            text-align: left;
-            padding-left: 5px;
-            padding-right: 120px;
         }
 
         .chat-container {
@@ -684,9 +681,11 @@
             <!-- 가맹점 소셜 링크 영역 (공백 유지, 하단 명함에 집중) -->
             <div id="partner-links" style="margin-top: 10px;"></div>
 
-            <button onclick="resetChat()"
-                style="position:absolute; right:15px; top:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">🔄새로고침</button>
-            <div style="position:absolute; right:15px; top:45px; font-size:0.75em; color:rgba(255,255,255,0.8);">05-29 22:45</div>
+            <div style="position:absolute; right:15px; top:12px; display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                <button onclick="resetChat()"
+                    style="background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer; font-size:0.85em; font-family:inherit;">🔄새로고침</button>
+                <div style="font-size:0.75em; color:rgba(255,255,255,0.8); padding-right:2px;">05-31 07:00</div>
+            </div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
 
