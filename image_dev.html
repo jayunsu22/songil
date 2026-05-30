@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-05-31 06:40:00 KST]
+    [Updated: 2026-05-31 06:50:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -10,7 +10,7 @@
     7. [장바구니고도화] 품목별 개별 삭제(X) 버튼 및 가구/목공 상세 드롭다운 옵션 선택을 통한 동일 품목 다중 추가(다른 규격 지원) 기능 구현
     8. [UX개선] 클릭 피드백 바운스 효과 및 수량 누적 안내 힌트 메시지 적용, 품목당 최대 수량 7개 제한
     9. [선택옵션개선] 선택된 세부 옵션(예: [샤시 2세트])이 메인 품목명 아래에 서브 텍스트(↳ 선택: 옵션)로 깔끔하게 떨어지도록 UI 레이아웃 개선
-    10. [인트로개선] 첫 진입 시 노출되는 밋밋한 텍스트 환영 인사를 스마트폰 Mockup과 다이어그램이 들어간 고해상도 HTML 인트로 카드로 개편 (메인 탭버튼은 제외하여 심플화)
+    10. [인트로개선] 첫 진입 시 모달이 자동 팝업되어 인트로 카드가 가려지는 현상 제거 (간편견적 열기 버튼만 상시 띄우기) 및 스마트폰 Mockup 내부 이미지를 요리하는 사진에서 전문적인 견적/업무 테마의 고해상도 사진으로 교체
 -->
 <!DOCTYPE html>
 <html lang="ko">
@@ -2413,7 +2413,7 @@
     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 135px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 15px; box-sizing: border-box; margin-bottom: 20px;">
         <div style="position: relative; width: 65px; height: 110px; border: 2.5px solid #2d3748; border-radius: 10px; background: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.06); overflow: hidden; flex-shrink: 0; box-sizing: border-box;">
             <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 26px; height: 4px; background: #2d3748; border-bottom-left-radius: 2.5px; border-bottom-right-radius: 2.5px; z-index: 10;"></div>
-            <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=100&auto=format&fit=crop" style="width: 100%; height: 100%; object-fit: cover;" alt="인테리어">
+            <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=100&auto=format&fit=crop" style="width: 100%; height: 100%; object-fit: cover;" alt="견적업무">
             <div style="position: absolute; inset: 5px; border: 1px dashed rgba(255,255,255,0.7); border-radius: 2.5px; pointer-events: none;"></div>
         </div>
 
@@ -2459,7 +2459,7 @@
             welcomeBubble.classList.add('welcome-card-bubble');
 
             setTimeout(() => {
-                showQuickButtons();
+                addOpenQuickQuoteButton();
             }, 300);
         } else {
             setTimeout(() => {
@@ -2471,4 +2471,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-05-31 06:40:00 KST] End -->
+<!-- [Updated: 2026-05-31 06:50:00 KST] End -->
