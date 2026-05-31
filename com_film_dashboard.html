@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>단가 관리 대시보드</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="com_film_style.css">
+</head>
+<body>
+    <div id="toast" class="toast"></div>
+
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div style="display:flex; flex-direction:column; align-items:center;">
+            <div class="loader"></div>
+            <p style="color:white; font-weight:600; font-size:15px;">데이터를 불러오는 중입니다...</p>
+        </div>
+    </div>
+
+    <!-- 일반 저장 확인 모달 -->
+    <div id="saveModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <p id="saveModalMsg">현재 내용을<br>저장하시겠습니까?</p>
+            <div class="modal-btns">
+                <button class="modal-btn-cancel" onclick="closeSaveModal(false)">취소</button>
+                <button class="modal-btn-confirm" onclick="closeSaveModal(true)">저장하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 닫기 시 변경사항 확인 모달 -->
+    <div id="closeModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <p>변경된 내용이 있습니다.<br>현재 내용을 저장하시겠습니까?</p>
+            <div class="modal-btns" style="flex-direction: column; gap: 10px;">
+                <button class="modal-btn-confirm" onclick="handleCloseModal('save')" style="width:100%;">저장합니다 (저장 후 닫기)</button>
+                <button class="modal-btn-cancel" onclick="handleCloseModal('discard')" style="width:100%; background:#fee2e2; color:#ef4444; border:none;">저장 안 함 (취소 후 닫기)</button>
+                <button class="modal-btn-cancel" onclick="handleCloseModal('cancel')" style="width:100%;">취소 (계속 수정하기)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-container" id="dashboardContent">
+        <!-- 헤더 -->
+        <div class="dashboard-header">
+            <button id="logoutBtn" class="logout-btn">연결 해제</button>
+            <h1 class="company-name" id="companyName">VIP 인테리어</h1>
+            <div class="service-period" id="servicePeriod">2025/7/1 ~ 2027/6/30</div>
+        </div>
+
+        <!-- 탭 메뉴 -->
+        <div class="main-tabs">
+            <div class="tab-wrapper">
+                <button class="tab-btn active" data-target="tab-info">기본정보 / SNS</button>
+                <button class="tab-btn" data-target="tab-price">단가 설정</button>
+            </div>
+        </div>
+
+        <!-- 탭 1: 기본정보 -->
+        <div id="tab-info" class="tab-content active">
+            
+            <div class="form-row">
+                <div class="form-label">1분 견적주소</div>
+                <div class="form-value">
+                    <div class="row-flex">
+                        <input type="text" id="quoteUrl" class="readonly-input" value="https://1film.co.kr/p_001" readonly>
+                        <button class="action-btn" onclick="window.open(document.getElementById('quoteUrl').value, '_blank')">열기</button>
+                        <button class="action-btn" onclick="copyToClipboard('quoteUrl')">복사</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-label">담당자</div>
+                <div class="form-value">
+                    <div class="row-flex">
+                        <input type="text" id="mgrName" value="김정헌">
+                        <button class="action-btn">수정</button>
+                    </div>
+                    <div class="row-flex">
+                        <input type="text" id="mgrTitle" value="실장">
+                        <button class="action-btn">수정</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-label">전화번호</div>
+                <div class="form-value">
+                    <div class="row-flex">
+                        <input type="tel" id="mgrPhone" value="010-6657-1222">
+                        <button class="action-btn">수정</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-label">페이지 제목</div>
+                <div class="form-value">
+                    <div class="row-flex">
+                        <input type="text" id="pageTitle" value="섬세한 손길의 1분 견적">
+                        <button class="action-btn">수정</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-label">
+                    <span>홈페이지</span>
+                    <button class="toggle-btn">감추기</button>
+                </div>
+                <div class="form-value">
+                    <div class="row-flex">
+                        <input type="text" id="urlHome" value="https://1film.co.kr/p_001">
+                        <button class="action-btn">수정</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-label">
+                    <span>블로그</span>
+                    <button class="toggle-btn">표시중</button>
+                </div>
+                <div class="form-value">
+                    <div class="row-flex">
+                        <input type="text" id="urlBlog" value="https://1film.co.kr/p_001">
+                        <button class="action-btn">수정</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-label">
+                    <span>인스타그램</span>
+                    <button class="toggle-btn">표시중</button>
+                </div>
+                <div class="form-value">
+                    <div class="row-flex">
+                        <input type="text" id="urlInsta" value="https://1film.co.kr/p_001">
+                        <button class="action-btn">수정</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-label">
+                    <span>오픈채팅</span>
+                    <button class="toggle-btn">표시중</button>
+                </div>
+                <div class="form-value">
+                    <div class="row-flex">
+                        <input type="text" id="urlKakao" value="https://1film.co.kr/p_001">
+                        <button class="action-btn">수정</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-label">견적서 공통 안내문구</div>
+                <div class="form-value">
+                    <div class="row-flex">
+                        <textarea id="quoteNotice" style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;" placeholder="견적서 하단에 공통으로 보여질 안내문구를 입력하세요."></textarea>
+                        <button class="action-btn">수정</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 탭 2: 단가 설정 -->
+        <div id="tab-price" class="tab-content">
+            
+            <!-- 공통 자재비 단가 -->
+            <div class="price-header-card">
+                <div>
+                    <div class="price-header-title">공통 자재비 단가 (1m 기준)</div>
+                    <div class="price-header-val" id="globalMaterialPriceTxt">9,000원</div>
+                    <div id="globalMaterialPriceEditWrap" class="calc-input-wrap" style="display:none; width:160px; margin-top:8px;">
+                        <button class="stepper-btn" onclick="stepGlobalValue(-500)">-</button>
+                        <input type="number" id="globalMaterialPriceInput" value="9000">
+                        <button class="stepper-btn" onclick="stepGlobalValue(500)">+</button>
+                    </div>
+                </div>
+                <button class="action-btn" id="editGlobalPriceBtn">수정</button>
+            </div>
+
+            <div id="priceListContainer">
+                <!-- 아코디언 항목들이 여기에 렌더링 됨 -->
+            </div>
+
+        </div>
+    </div>
+
+    <script src="com_film_app.js"></script>
+</body>
+</html>
