@@ -136,6 +136,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('globalMaterialPriceTxt').textContent = `${globalMaterialPrice.toLocaleString()}원`;
             document.getElementById('globalMaterialPriceInput').value = globalMaterialPrice;
             
+            // 가맹점 기본정보 매핑
+            if (data.partnerName) document.getElementById('companyName').textContent = data.partnerName;
+            if (data.contractPeriod) document.getElementById('servicePeriod').textContent = data.contractPeriod;
+            if (data.quoteUrl) document.getElementById('quoteUrl').value = data.quoteUrl;
+            if (data.ceoName) document.getElementById('mgrName').value = data.ceoName;
+            if (data.position) document.getElementById('mgrTitle').value = data.position;
+            if (data.phone) document.getElementById('mgrPhone').value = data.phone;
+            if (data.notice) document.getElementById('quoteNotice').value = data.notice;
+            if (data.homeUrl) document.getElementById('urlHome').value = data.homeUrl;
+            if (data.blogUrl) document.getElementById('urlBlog').value = data.blogUrl;
+            if (data.instaUrl) document.getElementById('urlInsta').value = data.instaUrl;
+            if (data.kakaoUrl) document.getElementById('urlKakao').value = data.kakaoUrl;
+            
             mockItems = data.items || []; // 서버에서 받아온 아이템 리스트
 
             renderAccordionList(mockItems);
