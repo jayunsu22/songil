@@ -201,12 +201,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (data.blogUrl) document.getElementById('urlBlog').value = data.blogUrl;
             if (data.instaUrl) document.getElementById('urlInsta').value = data.instaUrl;
             if (data.kakaoUrl) document.getElementById('urlKakao').value = data.kakaoUrl;
-            
             mockItems = data.items || []; // 서버에서 받아온 아이템 리스트
-            mockInquiries = data.inquiries || []; // 서버에서 받아온 견적 문의 리스트
 
             renderAccordionList(mockItems);
-            renderInquiryList(mockInquiries);
             loading.style.display = 'none';
             content.style.display = 'block';
 
@@ -323,75 +320,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             el.dataset.originalQty = item.materialQty;
             el.dataset.originalDesc = item.desc;
         });
-    }
-
-    function renderInquiryList(inquiries) {
-        const container = document.getElementById('inquiryListContainer');
-        if (!container) return;
-        container.innerHTML = '';
-
-        if (inquiries.length === 0) {
-            container.innerHTML = `
-                <div style="text-align:center; color:var(--text-muted); padding:40px 20px; font-weight:600; font-size:14px;">
-                    접수된 견적 문의가 없습니다.
-                </div>
-            `;
-            return;
-        }
-
-        inquiries.forEach(item => {
-            const card = document.createElement('div');
-            card.className = 'inquiry-card';
-
-            card.innerHTML = `
-                <div class="inquiry-card-header">
-                    <span class="inquiry-id">ID: ${item.quoteId || '임시'}</span>
-                    <span class="inquiry-date">${formatInquiryDate(item.requestDate)}</span>
-                </div>
-                <div class="inquiry-card-body">
-                    <div class="inquiry-customer-info">
-                        <div class="info-row">
-                            <span class="info-label">견적 품목</span>
-                            <span class="info-val">${item.requestItems || '품목명 없음'}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">총 견적액</span>
-                            <span class="info-val price-val">${item.totalAmount || '산출 불가'}</span>
-                        </div>
-                    </div>
-                    
-                    ${item.imageUrl ? `
-                        <div class="inquiry-image-box" onclick="window.open('${item.imageUrl}', '_blank')">
-                            <img src="${item.imageUrl}" alt="첨부 이미지" title="클릭하시면 큰 이미지로 볼 수 있습니다.">
-                        </div>
-                    ` : ''}
-                    
-                    ${item.detailText ? `
-                        <div class="inquiry-detail-box">
-                            <div class="detail-title">상세 산출내역</div>
-                            <div class="detail-content">${item.detailText}</div>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-            container.appendChild(card);
-        });
-    }
-
-    function formatInquiryDate(dateStr) {
-        if (!dateStr) return '';
-        try {
-            const d = new Date(dateStr);
-            if (isNaN(d.getTime())) return dateStr;
-            const yy = String(d.getFullYear()).slice(-2);
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            const hh = String(d.getHours()).padStart(2, '0');
-            const min = String(d.getMinutes()).padStart(2, '0');
-            return `${yy}-${mm}-${dd} ${hh}:${min}`;
-        } catch (e) {
-            return dateStr;
-        }
     }
 
     window.stepValue = function(id, type, delta) {
