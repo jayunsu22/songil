@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
 
                     <div id="sub-desc-${item.id}" class="sub-tab-content">
-                        <textarea id="desc-${item.id}" style="width:100%; height:120px; padding:16px; border:1px solid var(--border-color); border-radius:12px; background:var(--accent-light); font-size:16px; font-family:inherit; outline:none; resize:none;">${item.desc}</textarea>
+                        <textarea id="desc-${item.id}" style="width:100%; height:240px; padding:16px; border:1px solid var(--border-color); border-radius:12px; background:var(--accent-light); font-size:16px; font-family:inherit; outline:none; resize:none;">${item.desc}</textarea>
                         <div class="btn-group">
                             <button class="btn-close" onclick="closeAccordionPrompt('${item.id}')">닫기</button>
                             <button class="btn-cancel" onclick="resetDesc('${item.id}')">취소</button>
