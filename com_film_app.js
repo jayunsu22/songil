@@ -38,14 +38,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (document.getElementById('dashboardContent')) {
         if (!partnerId) {
-            window.location.href = 'index.html';
+            window.location.href = 'dashboard_index.html';
             return;
         }
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
             if(confirm("기기에서 연결을 해제하시겠습니까?")) {
                 localStorage.removeItem('partner_id');
-                window.location.href = 'index.html';
+                window.location.href = 'dashboard_index.html';
             }
         });
 
@@ -396,6 +396,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="accordion-price" id="header-total-${item.id}">${grandTotal.toLocaleString()}원</div>
                 </div>
                 <div class="accordion-body" id="body-${item.id}">
+                    <div style="color:var(--danger); font-size:14px; font-weight:700; margin-bottom:14px;">
+                        견적산출기준: ${item.calcBasis || `1${item.unit || '개'} 시공시 견적입니다.`}
+                    </div>
                     <div class="sub-tabs">
                         <button class="sub-tab-btn active" onclick="switchSubTab(event, '${item.id}', 'price')">금액 변경</button>
                         <button class="sub-tab-btn" onclick="switchSubTab(event, '${item.id}', 'desc')">설명 변경</button>
@@ -406,16 +409,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="calc-label">m당 인건비 단가</div>
                             <div class="calc-input-wrap">
                                 <button class="stepper-btn" onclick="stepValue('${item.id}', 'labor', -1000)">-</button>
-                                <input type="number" id="labor-unit-${item.id}" value="${item.laborUnit}" oninput="calcTotal('${item.id}')">
+                                <input type="text" id="labor-unit-${item.id}" value="${Number(item.laborUnit).toLocaleString()}" oninput="formatLaborInput(this); calcTotal('${item.id}')">
                                 <button class="stepper-btn" onclick="stepValue('${item.id}', 'labor', 1000)">+</button>
                             </div>
                         </div>
                         <div class="calc-row">
                             <div class="calc-label">자재 소모량(m)</div>
                             <div class="calc-input-wrap">
-                                <button class="stepper-btn" onclick="stepValue('${item.id}', 'qty', -1)">-</button>
-                                <input type="number" id="material-qty-${item.id}" value="${item.materialQty}" oninput="calcTotal('${item.id}')">
-                                <button class="stepper-btn" onclick="stepValue('${item.id}', 'qty', 1)">+</button>
+                                <button class="stepper-btn" onclick="stepValue('${item.id}', 'qty', -0.5)">-</button>
+                                <input type="number" id="material-qty-${item.id}" value="${item.materialQty}" readonly>
+                                <button class="stepper-btn" onclick="stepValue('${item.id}', 'qty', 0.5)">+</button>
                             </div>
                         </div>
                         <div class="calc-row">
@@ -456,15 +459,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    window.formatLaborInput = function(el) {
+        let cleanVal = el.value.replace(/\D/g, '');
+        if (cleanVal === '') {
+            el.value = '';
+            return;
+        }
+        el.value = Number(cleanVal).toLocaleString();
+    }
+
     window.stepValue = function(id, type, delta) {
         let inputEl;
         if (type === 'labor') inputEl = document.getElementById(`labor-unit-${id}`);
         else if (type === 'qty') inputEl = document.getElementById(`material-qty-${id}`);
         
         if (inputEl) {
-            let val = Number(inputEl.value) + delta;
-            if (val < 0) val = 0;
-            inputEl.value = val;
+            let val;
+            if (type === 'labor') {
+                let currentVal = Number(inputEl.value.replace(/,/g, ''));
+                val = currentVal + delta;
+                if (val < 0) val = 0;
+                inputEl.value = Number(val).toLocaleString();
+            } else if (type === 'qty') {
+                let currentVal = Number(inputEl.value);
+                val = currentVal + delta;
+                if (val < 1.0) val = 1.0;
+                if (val > 10.0) val = 10.0;
+                inputEl.value = Number(val.toFixed(1));
+            }
             calcTotal(id);
         }
     }
@@ -492,7 +514,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const qtyInput = document.getElementById(`material-qty-${id}`);
         if (!laborInput || !qtyInput) return;
 
-        const laborUnit = Number(laborInput.value);
+        const laborUnit = Number(laborInput.value.replace(/,/g, ''));
         const materialQty = Number(qtyInput.value);
         
         const laborTotal = laborUnit * materialQty;
@@ -511,7 +533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.resetCalc = function(id) {
         const el = document.getElementById(`body-${id}`).parentElement;
-        document.getElementById(`labor-unit-${id}`).value = el.dataset.originalLabor;
+        document.getElementById(`labor-unit-${id}`).value = Number(el.dataset.originalLabor).toLocaleString();
         document.getElementById(`material-qty-${id}`).value = el.dataset.originalQty;
         calcTotal(id);
         showToast('변경 내용이 취소되었습니다.');
@@ -526,12 +548,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     let closingId = null;
     window.closeAccordionPrompt = function(id) {
         const el = document.getElementById(`body-${id}`).parentElement;
-        const currentLabor = document.getElementById(`labor-unit-${id}`).value;
+        const currentLabor = document.getElementById(`labor-unit-${id}`).value.replace(/,/g, '');
         const currentQty = document.getElementById(`material-qty-${id}`).value;
         const currentDesc = document.getElementById(`desc-${id}`).value;
         
-        if (currentLabor === String(el.dataset.originalLabor) && 
-            currentQty === String(el.dataset.originalQty) && 
+        if (Number(currentLabor) === Number(el.dataset.originalLabor) && 
+            Number(currentQty) === Number(el.dataset.originalQty) && 
             currentDesc === el.dataset.originalDesc) {
             toggleAccordion(id);
             return;
@@ -549,7 +571,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             toggleAccordion(closingId);
         } else if (action === 'discard') {
             const el = document.getElementById(`body-${closingId}`).parentElement;
-            document.getElementById(`labor-unit-${closingId}`).value = el.dataset.originalLabor;
+            document.getElementById(`labor-unit-${closingId}`).value = Number(el.dataset.originalLabor).toLocaleString();
             document.getElementById(`material-qty-${closingId}`).value = el.dataset.originalQty;
             document.getElementById(`desc-${closingId}`).value = el.dataset.originalDesc;
             calcTotal(closingId);
@@ -574,7 +596,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function executeSave(id) {
         const el = document.getElementById(`body-${id}`).parentElement;
-        const laborUnit = document.getElementById(`labor-unit-${id}`).value;
+        const laborUnit = Number(document.getElementById(`labor-unit-${id}`).value.replace(/,/g, ''));
         const materialQty = document.getElementById(`material-qty-${id}`).value;
         const desc = document.getElementById(`desc-${id}`).value;
         
