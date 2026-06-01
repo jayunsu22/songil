@@ -368,6 +368,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById(`labor-total-${id}`).textContent = `${laborTotal.toLocaleString()}원`;
         document.getElementById(`material-total-${id}`).textContent = `${materialTotal.toLocaleString()}원`;
         document.getElementById(`grand-total-${id}`).textContent = `${grandTotal.toLocaleString()}원`;
+
+        const headerTotal = document.getElementById(`header-total-${id}`);
+        if (headerTotal) {
+            headerTotal.textContent = `${grandTotal.toLocaleString()}원`;
+        }
     }
 
     window.resetCalc = function(id) {
