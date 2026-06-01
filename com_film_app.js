@@ -150,6 +150,118 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('업체명이 업데이트 되었습니다.');
         });
 
+        async function savePartnerField(payload, successMessage) {
+            try {
+                const response = await fetch(WEBHOOK_POST_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        partnerId: partnerId,
+                        type: 'partner',
+                        partnerRecordId: partnerRecordId,
+                        ...payload
+                    })
+                });
+                if (!response.ok) {
+                    throw new Error('네트워크 응답 오류');
+                }
+                showToast(successMessage, 'success');
+            } catch (error) {
+                showToast('서버 저장에 실패했습니다.', 'error');
+            }
+        }
+
+        document.getElementById('editMgrNameBtn').addEventListener('click', () => {
+            const val = document.getElementById('mgrName').value.trim();
+            savePartnerField({ ceoName: val }, '담당자 이름이 업데이트 되었습니다.');
+        });
+
+        document.getElementById('editMgrTitleBtn').addEventListener('click', () => {
+            const val = document.getElementById('mgrTitle').value.trim();
+            savePartnerField({ position: val }, '담당자 직책이 업데이트 되었습니다.');
+        });
+
+        document.getElementById('editMgrPhoneBtn').addEventListener('click', () => {
+            const val = document.getElementById('mgrPhone').value.trim();
+            savePartnerField({ phone: val }, '전화번호가 업데이트 되었습니다.');
+        });
+
+        document.getElementById('editQuoteNoticeBtn').addEventListener('click', () => {
+            const val = document.getElementById('quoteNotice').value.trim();
+            savePartnerField({ notice: val }, '견적서 공통 안내문구가 업데이트 되었습니다.');
+        });
+
+        document.getElementById('editPageTitleBtn').addEventListener('click', () => {
+            const val = document.getElementById('pageTitle').value.trim();
+            localStorage.setItem('saved_page_title_' + partnerId, val);
+            showToast('페이지 제목이 업데이트 되었습니다.', 'success');
+        });
+
+        // SNS 주소 수정 버튼 공통 핸들러
+        function handleSnsEdit(typeSuffix, bodyKey, storageKeyPrefix, displayName) {
+            const inputEl = document.getElementById(`url${typeSuffix}`);
+            const toggleBtn = document.getElementById(`toggle${typeSuffix}Btn`);
+            const val = inputEl.value.trim();
+            const fullStorageKey = storageKeyPrefix + partnerId;
+
+            localStorage.setItem(fullStorageKey, val);
+
+            if (toggleBtn.classList.contains('active')) {
+                savePartnerField({ [bodyKey]: val }, `${displayName} 주소가 업데이트 되었습니다.`);
+            } else {
+                showToast(`${displayName} 주소가 로컬에 저장되었습니다.\n(감추기 상태에서는 고객 견적서에 노출되지 않습니다.)`, 'success');
+            }
+        }
+
+        document.getElementById('editUrlHomeBtn').addEventListener('click', () => {
+            handleSnsEdit('Home', 'homeUrl', 'saved_url_home_', '홈페이지');
+        });
+        document.getElementById('editUrlBlogBtn').addEventListener('click', () => {
+            handleSnsEdit('Blog', 'blogUrl', 'saved_url_blog_', '블로그');
+        });
+        document.getElementById('editUrlInstaBtn').addEventListener('click', () => {
+            handleSnsEdit('Insta', 'instaUrl', 'saved_url_insta_', '인스타그램');
+        });
+        document.getElementById('editUrlKakaoBtn').addEventListener('click', () => {
+            handleSnsEdit('Kakao', 'kakaoUrl', 'saved_url_kakao_', '오픈채팅');
+        });
+
+        // SNS 토글 버튼 공통 핸들러
+        async function handleSnsToggle(typeSuffix, bodyKey, storageKeyPrefix, displayName) {
+            const inputEl = document.getElementById(`url${typeSuffix}`);
+            const toggleBtn = document.getElementById(`toggle${typeSuffix}Btn`);
+            const val = inputEl.value.trim();
+            const fullStorageKey = storageKeyPrefix + partnerId;
+
+            if (toggleBtn.classList.contains('active')) {
+                toggleBtn.classList.remove('active');
+                toggleBtn.textContent = '감추기';
+                await savePartnerField({ [bodyKey]: '' }, `${displayName} 링크를 감추기 처리했습니다.`);
+            } else {
+                if (!val) {
+                    showToast('주소를 먼저 입력한 뒤 표시해 주세요.', 'error');
+                    return;
+                }
+                toggleBtn.classList.add('active');
+                toggleBtn.textContent = '표시중';
+                localStorage.setItem(fullStorageKey, val);
+                await savePartnerField({ [bodyKey]: val }, `${displayName} 링크를 표시중으로 변경했습니다.`);
+            }
+        }
+
+        document.getElementById('toggleHomeBtn').addEventListener('click', () => {
+            handleSnsToggle('Home', 'homeUrl', 'saved_url_home_', '홈페이지');
+        });
+        document.getElementById('toggleBlogBtn').addEventListener('click', () => {
+            handleSnsToggle('Blog', 'blogUrl', 'saved_url_blog_', '블로그');
+        });
+        document.getElementById('toggleInstaBtn').addEventListener('click', () => {
+            handleSnsToggle('Insta', 'instaUrl', 'saved_url_insta_', '인스타그램');
+        });
+        document.getElementById('toggleKakaoBtn').addEventListener('click', () => {
+            handleSnsToggle('Kakao', 'kakaoUrl', 'saved_url_kakao_', '오픈채팅');
+        });
+
         window.stepGlobalValue = function(delta) {
             let val = Number(globalPriceInput.value) + delta;
             if (val < 0) val = 0;
@@ -197,10 +309,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (data.position) document.getElementById('mgrTitle').value = data.position;
             if (data.phone) document.getElementById('mgrPhone').value = data.phone;
             if (data.notice) document.getElementById('quoteNotice').value = data.notice;
-            if (data.homeUrl) document.getElementById('urlHome').value = data.homeUrl;
-            if (data.blogUrl) document.getElementById('urlBlog').value = data.blogUrl;
-            if (data.instaUrl) document.getElementById('urlInsta').value = data.instaUrl;
-            if (data.kakaoUrl) document.getElementById('urlKakao').value = data.kakaoUrl;
+
+            // 페이지 제목 로컬스토리지 매핑
+            document.getElementById('pageTitle').value = localStorage.getItem('saved_page_title_' + partnerId) || '섬세한 손길의 1분 견적';
+
+            function setupSnsField(typeSuffix, serverUrl, storageKeyPrefix) {
+                const inputEl = document.getElementById(`url${typeSuffix}`);
+                const toggleBtn = document.getElementById(`toggle${typeSuffix}Btn`);
+                const fullStorageKey = storageKeyPrefix + partnerId;
+
+                if (serverUrl) {
+                    localStorage.setItem(fullStorageKey, serverUrl);
+                    inputEl.value = serverUrl;
+                    toggleBtn.classList.add('active');
+                    toggleBtn.textContent = '표시중';
+                } else {
+                    const savedUrl = localStorage.getItem(fullStorageKey) || '';
+                    inputEl.value = savedUrl;
+                    toggleBtn.classList.remove('active');
+                    toggleBtn.textContent = '감추기';
+                }
+            }
+
+            setupSnsField('Home', data.homeUrl, 'saved_url_home_');
+            setupSnsField('Blog', data.blogUrl, 'saved_url_blog_');
+            setupSnsField('Insta', data.instaUrl, 'saved_url_insta_');
+            setupSnsField('Kakao', data.kakaoUrl, 'saved_url_kakao_');
             mockItems = data.items || []; // 서버에서 받아온 아이템 리스트
 
             renderAccordionList(mockItems);
