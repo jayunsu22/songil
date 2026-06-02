@@ -498,13 +498,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return numA - numB;
             });
 
+            const getSortWeight = (name) => {
+                if (name.includes('크라운몰딩')) return 2;
+                if (name.includes('몰딩')) return 1;
+                if (name.includes('걸레받이')) return 3;
+                if (name.includes('싱크대 전체') || name.includes('싱크대전체')) return 4;
+                if (name.includes('싱크대 상부장') || name.includes('싱크대상부장')) return 5;
+                if (name.includes('싱크대 하부장') || name.includes('싱크대하부장')) return 6;
+                return 999;
+            };
+
             sortedKeys.forEach(groupKey => {
                 const headerEl = document.createElement('div');
                 headerEl.className = 'category-group-title';
                 headerEl.innerHTML = `<span class="group-badge">${groupKey}</span><span class="group-name">평형 패키지 품목</span>`;
                 container.appendChild(headerEl);
 
-                groups[groupKey].forEach(item => {
+                // Sort items in this group
+                const sortedGroupItems = groups[groupKey].sort((a, b) => {
+                    return getSortWeight(a.name) - getSortWeight(b.name);
+                });
+
+                sortedGroupItems.forEach(item => {
                     renderItem(item);
                 });
             });
