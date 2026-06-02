@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let globalMaterialPrice = 9000; 
     let mockItems = []; // 서버에서 받아올 빈 배열
     let partnerRecordId = '';
-    let currentPriceCategory = 'door';
+    let currentPriceCategory = 'pyeong';
     let mockInquiries = [];
 
     function showToast(message, type = 'success') {
@@ -360,18 +360,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 카테고리 필터링 적용
         const filteredItems = items.filter(item => {
             const cat = (item.category || '').trim();
-            if (currentPriceCategory === 'door') {
+            if (currentPriceCategory === 'pyeong') {
+                return cat === '평형별';
+            } else if (currentPriceCategory === 'door') {
                 return cat === '도어';
             } else if (currentPriceCategory === 'shassi') {
                 return cat === '샤시';
-            } else if (currentPriceCategory === 'molding') {
-                return cat === '몰딩' || cat === '걸레받이';
             } else if (currentPriceCategory === 'furniture') {
                 return cat === '가구';
-            } else if (currentPriceCategory === 'pyeong') {
-                return cat === '평형별';
             } else if (currentPriceCategory === 'sink_etc') {
-                return cat === '싱크대' || cat === '기타' || (cat !== '도어' && cat !== '샤시' && cat !== '몰딩' && cat !== '걸레받이' && cat !== '가구' && cat !== '평형별');
+                return cat === '싱크대' || cat === '기타' || cat === '몰딩' || cat === '걸레받이' || (cat !== '도어' && cat !== '샤시' && cat !== '가구' && cat !== '평형별');
             }
             return false;
         });
@@ -385,7 +383,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        filteredItems.forEach(item => {
+        function renderItem(item) {
             const isPyeong = (item.category || '').trim() === '평형별';
             
             let qtyVal = item.materialQty;
@@ -483,7 +481,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             `;
             container.appendChild(el);
-        });
+        }
+
+        if (currentPriceCategory === 'pyeong') {
+            const groups = {};
+            filteredItems.forEach(item => {
+                const match = item.name.match(/(\d+평)/);
+                const groupName = match ? match[1] : '기타';
+                if (!groups[groupName]) groups[groupName] = [];
+                groups[groupName].push(item);
+            });
+
+            const sortedKeys = Object.keys(groups).sort((a, b) => {
+                const numA = parseInt(a) || 999;
+                const numB = parseInt(b) || 999;
+                return numA - numB;
+            });
+
+            sortedKeys.forEach(groupKey => {
+                const headerEl = document.createElement('div');
+                headerEl.className = 'category-group-title';
+                headerEl.innerHTML = `<span class="group-badge">${groupKey}</span><span class="group-name">평형 패키지 품목</span>`;
+                container.appendChild(headerEl);
+
+                groups[groupKey].forEach(item => {
+                    renderItem(item);
+                });
+            });
+        } else {
+            filteredItems.forEach(item => {
+                renderItem(item);
+            });
+        }
     }
 
     window.formatLaborInput = function(el) {

@@ -508,7 +508,7 @@ body {
 /* Price Category Tabs (Chips style) */
 .price-category-tabs {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     overflow-x: auto;
     padding: 0 4px 16px 4px;
     margin-bottom: 8px;
@@ -524,7 +524,7 @@ body {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     color: var(--text-muted);
-    padding: 10px 16px;
+    padding: 8px 12px;
     border-radius: 20px;
     font-size: 13px;
     font-weight: 700;
@@ -664,4 +664,31 @@ body {
 
 .inquiry-image-box img:hover {
     transform: scale(1.02);
+}
+
+/* Pyeong Group Section Headers */
+.category-group-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 28px 4px 14px 4px;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-main);
+}
+.category-group-title:first-of-type {
+    margin-top: 12px;
+}
+.group-badge {
+    background: #eff6ff;
+    color: var(--primary-blue);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 800;
+    border: 1.5px solid #dbeafe;
+}
+.group-name {
+    color: var(--text-main);
+    font-weight: 700;
 }
