@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (globalPriceEditWrap.style.display === 'none') {
                 globalPriceTxt.style.display = 'none';
                 globalPriceEditWrap.style.display = 'flex';
+                globalPriceInput.value = globalMaterialPrice; // Populate input with current price
                 globalPriceInput.focus();
                 editGlobalBtn.textContent = '저장';
                 editGlobalBtn.style.background = 'var(--text-main)';
@@ -86,22 +87,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 let newPrice = Number(globalPriceInput.value);
                 if (newPrice < 0) newPrice = 0;
                 
-                // 실제 저장 API 호출
-                try {
-                    await fetch(WEBHOOK_POST_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            partnerId: partnerId,
-                            type: 'global',
-                            globalMaterialPrice: newPrice
-                        })
-                    });
-                } catch (error) {
-                    showToast('서버 저장에 실패했습니다.', 'error');
-                    return;
-                }
-
+                // Optimistic UI Update: update values immediately
+                const originalPrice = globalMaterialPrice;
                 globalMaterialPrice = newPrice;
                 globalPriceTxt.textContent = newPrice.toLocaleString() + '원';
                 
@@ -113,7 +100,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 mockItems.forEach(item => calcTotal(item.id));
                 
-                showToast('공통 자재비 단가가 업데이트 되었습니다.');
+                // Async API Call to save
+                try {
+                    const response = await fetch(WEBHOOK_POST_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            partnerId: partnerId,
+                            type: 'global',
+                            globalMaterialPrice: newPrice
+                        })
+                    });
+                    if (!response.ok) throw new Error('서버 응답 오류');
+                    showToast('공통 자재비 단가가 업데이트 되었습니다.');
+                } catch (error) {
+                    // Rollback to original price on failure
+                    globalMaterialPrice = originalPrice;
+                    globalPriceTxt.textContent = originalPrice.toLocaleString() + '원';
+                    mockItems.forEach(item => calcTotal(item.id));
+                    showToast('서버 저장에 실패했습니다. 기존 단가로 롤백됩니다.', 'error');
+                }
             }
         });
 
