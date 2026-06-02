@@ -1498,6 +1498,7 @@
                 if (loading.parentNode) loading.parentNode.removeChild(loading);
                 console.error(e);
                 addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot');
+                addOpenQuickQuoteButton();
                 scrollToBottom();
             } finally {
                 sendButton.disabled = false;
