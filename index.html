@@ -1152,10 +1152,12 @@
                         <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             📞 ${phone}
                         </a>
-                        ${(!content.includes('견적 제공이 되지 않는') && !content.includes('견적을 산출할 수 없습니다')) ?
+                        ${/* 견적내용 공유하기 버튼 임시 주석 처리
+                        (!content.includes('견적 제공이 되지 않는') && !content.includes('견적을 산출할 수 없습니다')) ?
                         `<button onclick="shareQuote(this)" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
                             🔗 견적내용 공유하기
-                        </button>` : ''}
+                        </button>` : ''
+                        */ ''}
                     </div>
                 `;
                 content += footerHtml;
@@ -1185,7 +1187,9 @@
                 // DOM 렌더링 후 처리되도록 약간 지연
                 setTimeout(() => {
                     processDynamicOptions(bubble);
-                    scrollToBottom();
+                    if (!save) {
+                        scrollToBottom();
+                    }
                 }, 50);
             }
 
@@ -1471,26 +1475,29 @@
                 if (!res.ok) throw new Error('Server Error');
                 const data = await res.json();
 
+                let botBubble = null;
                 if (Array.isArray(data) && data.length > 0 && data[0].output) {
-                    addBubble(data[0].output, 'bot', true);
+                    botBubble = addBubble(data[0].output, 'bot', true);
                 } else if (data.output) {
-                    addBubble(data.output, 'bot', true);
+                    botBubble = addBubble(data.output, 'bot', true);
                 } else if (Array.isArray(data) && data.length > 0 && data[0].message) {
-                    addBubble(data[0].message, 'bot', true);
+                    botBubble = addBubble(data[0].message, 'bot', true);
                 } else if (data.message) {
-                    addBubble(data.message, 'bot', true);
+                    botBubble = addBubble(data.message, 'bot', true);
                 } else {
-                    addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
+                    botBubble = addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
                 }
 
                 // [New] 1) 견적이 산출되고 나면 그다음에 버튼으로[간편견적 열기] 버튼 생성
                 addOpenQuickQuoteButton();
 
-                // [핵심] 봇 응답이 온 후, 스크롤을 맨 아래가 아닌 '사용자가 보낸 메시지' 위치로 부드럽게 이동
-                // 이렇게 하면 결과물의 시작점부터 볼 수 있음
+                // [핵심] 봇 응답이 온 후, 스크롤을 맨 아래가 아닌 견적 산출 내역의 윗부분(botBubble)으로 부드럽게 이동
                 // 약간의 딜레이 후 이동 (DOM 렌더링 시간 고려)
                 setTimeout(() => {
-                    userBubble.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    const targetBubble = botBubble || userBubble;
+                    if (targetBubble) {
+                        targetBubble.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
                 }, 100);
 
             } catch (e) {
@@ -1547,7 +1554,7 @@
         // 2. 품목별 탭 데이터
         const ITEM_CATEGORIES = [
             {
-                name: "도어/샤시",
+                name: "도어",
                 groups: [
                     {
                         title: "🚪 문/도어류",
@@ -1572,7 +1579,12 @@
                             { label: "아치문틀 너비 2~3m", name: "아치 3m", type: "click", sub: "아치문틀" },
                             { label: "아치문틀 너비 4~5m", name: "아치 5m", type: "click", sub: "아치문틀" }
                         ]
-                    },
+                    }
+                ]
+            },
+            {
+                name: "샤시",
+                groups: [
                     {
                         title: "🪟 샤시류",
                         accent: "accent-teal",
@@ -1600,7 +1612,6 @@
                             { label: "상가샤시 4~5m 양쪽면", name: "상가샤시(양쪽시공) 5m", type: "click", sub: "상가샤시 (양쪽면)" },
                             { label: "상가샤시 6~7m 양쪽면", name: "상가샤시(양쪽시공) 7m", type: "click", sub: "상가샤시 (양쪽면)" },
                             { label: "상가샤시 8~9m 양쪽면", name: "상가샤시(양쪽시공) 9m", type: "click", sub: "상가샤시 (양쪽면)" }
-
                         ]
                     }
                 ]
@@ -1654,7 +1665,7 @@
 
         let mainTab = 0; // 0: 평형별, 1: 품목별, 2: 사진견적
         let b2bCart = []; // 장바구니 배열: [{ id, name, label, option, count }]
-        let currentB2BTab = 0; // 품목별 탭 내부 서브 탭 (0: 도어/샤시, 1: 싱크/가구/기타)
+        let currentB2BTab = 0; // 품목별 탭 내부 서브 탭 (0: 도어, 1: 샤시, 2: 싱크/가구/기타)
 
         // 간편견적 열기 버튼 생성 함수 (닫기 버그 해결: 스크롤 하단 파묻힘을 예방하기 위해 chat-input-area 위에 고정 삽입)
         function addOpenQuickQuoteButton() {
@@ -1997,6 +2008,24 @@
                         addOpenQuickQuoteButton();
                     }
                 };
+
+                // 스크롤 이벤트 바인딩 (장바구니 플로팅 버튼 자동 페이드 아웃/인 처리)
+                const modalBody = modal.querySelector('#modalBody');
+                if (modalBody) {
+                    modalBody.onscroll = () => {
+                        const badge = modal.querySelector('.floating-cart-badge');
+                        if (badge) {
+                            const threshold = 80;
+                            if (modalBody.scrollHeight - modalBody.scrollTop - modalBody.clientHeight < threshold) {
+                                badge.style.opacity = '0';
+                                badge.style.pointerEvents = 'none';
+                            } else {
+                                badge.style.opacity = '1';
+                                badge.style.pointerEvents = 'auto';
+                            }
+                        }
+                    };
+                }
             }
 
             const bodyContainer = modal.querySelector('#modalBody');
@@ -2401,6 +2430,59 @@
             // 최초 렌더링 시 모달 바디 스크롤 영역을 맨 위로 초기화
             if (isFirstRender) {
                 bodyContainer.scrollTop = 0;
+            }
+
+            // 장바구니 플로팅 배지/버튼 생성 및 제어 (B2B 품목별/평형별 탭 전용)
+            const contentDiv = modal.querySelector('.quick-quote-modal-content');
+            if (contentDiv) {
+                const existingBadge = contentDiv.querySelector('.floating-cart-badge');
+                if (existingBadge) existingBadge.remove();
+
+                if (mainTab !== 2 && b2bCart.length > 0) {
+                    const badge = document.createElement('div');
+                    badge.className = 'floating-cart-badge';
+                    badge.innerHTML = `🛒 장바구니 ${b2bCart.length}개`;
+                    badge.style.cssText = `
+                        position: absolute;
+                        right: 20px;
+                        bottom: 20px;
+                        background: #ff4757;
+                        color: white;
+                        padding: 10px 16px;
+                        border-radius: 30px;
+                        font-weight: bold;
+                        font-size: 0.9em;
+                        box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4);
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        z-index: 10000;
+                        transition: opacity 0.25s ease, transform 0.2s ease, background-color 0.2s ease;
+                        border: 2px solid white;
+                    `;
+                    badge.onmouseover = () => {
+                        badge.style.background = '#ff6b81';
+                        badge.style.transform = 'scale(1.05)';
+                    };
+                    badge.onmouseout = () => {
+                        badge.style.background = '#ff4757';
+                        badge.style.transform = 'scale(1)';
+                    };
+                    bindClickEffect(badge, () => {
+                        const modalBody = modal.querySelector('#modalBody');
+                        if (modalBody) {
+                            modalBody.scrollTo({ top: modalBody.scrollHeight, behavior: 'smooth' });
+                        }
+                    });
+                    contentDiv.appendChild(badge);
+
+                    // 스크롤 포지션 즉시 수동 체크
+                    const modalBody = modal.querySelector('#modalBody');
+                    if (modalBody && modalBody.onscroll) {
+                        modalBody.onscroll();
+                    }
+                }
             }
         }
 
