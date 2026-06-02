@@ -1152,12 +1152,10 @@
                         <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             📞 ${phone}
                         </a>
-                        ${/* 견적내용 공유하기 버튼 임시 주석 처리
-                        (!content.includes('견적 제공이 되지 않는') && !content.includes('견적을 산출할 수 없습니다')) ?
+                        ${(false && !content.includes('견적 제공이 되지 않는') && !content.includes('견적을 산출할 수 없습니다')) ?
                         `<button onclick="shareQuote(this)" style="display: inline-block; background: #f1f3f5; color: #495057; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; cursor: pointer;">
                             🔗 견적내용 공유하기
-                        </button>` : ''
-                        */ ''}
+                        </button>` : ''}
                     </div>
                 `;
                 content += footerHtml;
