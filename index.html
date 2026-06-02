@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-06-02 16:00:00 KST]
+    [Updated: 2026-06-03 05:35:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -972,9 +972,9 @@
                 // 앞에 붙은 뱃지 기호(❶, 1. 등) 제거
                 let cleanName = itemName.replace(/^[^가-힣a-zA-Z]+/, '').trim();
 
-                // 싱크대나 샤시가 1세트로 임의 고정되어 넘어온 경우
-                const isUnmeasuredSink = cleanName.includes('싱크대') && cleanName.includes('1세트');
-                const isUnmeasuredSash = cleanName.includes('샤시') && cleanName.includes('1세트');
+                // 싱크대나 샤시가 1세트로 임의 고정되어 넘어온 경우 (단, 평형별 패키지 품목은 제외)
+                const isUnmeasuredSink = cleanName.includes('싱크대') && cleanName.includes('1세트') && !cleanName.includes('평');
+                const isUnmeasuredSash = cleanName.includes('샤시') && cleanName.includes('1세트') && !cleanName.includes('평');
 
                 if (isUnmeasuredSink || isUnmeasuredSash) {
                     needsOptions.push(cleanName); // 통째로 넣어서 나중에 some()에서 정확히 매칭되도록 함
@@ -2609,4 +2609,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-06-02 16:00:00 KST] End -->
+<!-- [Updated: 2026-06-03 05:35:00 KST] End -->
