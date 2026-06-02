@@ -1,5 +1,5 @@
 <!-- 
-    [Updated: 2026-06-02 10:28:00 KST]
+    [Updated: 2026-06-02 11:15:00 KST]
     수정내용:
     1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
     2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
@@ -684,7 +684,7 @@
             <div style="position:absolute; right:15px; top:12px; display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
                 <button onclick="resetChat()"
                     style="background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px; cursor:pointer; font-size:0.85em; font-family:inherit;">🔄새로고침</button>
-                <div style="font-size:0.75em; color:rgba(255,255,255,0.8); padding-right:2px;">06-02 10:28</div>
+                <div style="font-size:0.75em; color:rgba(255,255,255,0.8); padding-right:2px;">06-02 11:15</div>
             </div>
         </div>
         <div class="chat-container" id="chatContainer"></div>
@@ -727,7 +727,10 @@
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
 
-            if (!code) return;
+            if (!code) {
+                renderWelcomeIfNeeded();
+                return;
+            }
 
             try {
                 const res = await fetch(`${CONFIG.partnerUrl}?code=${code}`);
@@ -747,6 +750,8 @@
                 }
             } catch (e) {
                 console.error("가맹점 정보 로딩 실패:", e);
+            } finally {
+                renderWelcomeIfNeeded();
             }
         }
 
@@ -2487,11 +2492,31 @@
         // 페이지 로드 시 기존 기록 복원
         loadChatHistory();
 
-        // 첫 접속 시 환영 인사 및 간편메뉴 자동 표시
-        if (chatHistory.length === 0) {
-            const welcomeMsg = `
+        // 첫 접속 시 환영 인사 및 간편메뉴 자동 표시 (가맹점 정보 획득 완료 후 실행)
+        function renderWelcomeIfNeeded() {
+            if (chatHistory.length === 0) {
+                if (document.querySelector('.welcome-card-bubble')) return;
+
+                const partnerData = currentPartner || {};
+                const ceo = partnerData.ceo_name || '김정헌';
+                const pos = partnerData.position || '실장';
+                const phone = partnerData.phone || '010-6657-1222';
+
+                const blog = partnerData.blog_url || '';
+                const insta = partnerData.insta_url || '';
+                const kakao = partnerData.kakao_url || '';
+
+                const socialHtml = (blog || insta || kakao) ? `
+                    <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; margin-top: 4px;">
+                        ${blog ? `<a href="${blog}" target="_blank" style="display:inline-block; padding:2px 6px; background:#03C75A; color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">블</a>` : ''}
+                        ${insta ? `<a href="${insta}" target="_blank" style="display:inline-block; padding:2px 6px; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">인</a>` : ''}
+                        ${kakao ? `<a href="${kakao}" target="_blank" style="display:inline-block; padding:2px 6px; background:#FEE500; color:#3c1e1e; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">카</a>` : ''}
+                    </div>
+                ` : '';
+
+                const welcomeMsg = `
 <div class="intro-card" style="text-align: center; font-family: sans-serif; padding: 5px 0; width: 100%; box-sizing: border-box;">
-    <h2 style="font-size: 1.5em; font-weight: 800; color: #1a202c; margin: 10px 0 5px; letter-spacing: -0.5px;">어떤 견적이든 OK!</h2>
+    <h2 style="font-size: 1.5em; font-weight: 800; color: #1a202c; margin: 10px 0 5px; letter-spacing: -0.5px;">필름견적 한번에 OK!</h2>
     <p style="font-size: 0.95em; color: #4a5568; line-height: 1.5; margin: 0 0 15px;">
         평형별, 품목별, 사진견적까지<br>
         <strong style="color: #4A90E2; font-weight: 800;">1분이내 견적 OK!</strong>
@@ -2515,7 +2540,7 @@
     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 135px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 15px; box-sizing: border-box; margin-bottom: 20px;">
         <div style="position: relative; width: 65px; height: 110px; border: 2.5px solid #2d3748; border-radius: 10px; background: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.06); overflow: hidden; flex-shrink: 0; box-sizing: border-box;">
             <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 26px; height: 4px; background: #2d3748; border-bottom-left-radius: 2.5px; border-bottom-right-radius: 2.5px; z-index: 10;"></div>
-            <img src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400&q=80&auto=format&fit=crop" style="width: 100%; height: 100%; object-fit: cover;" alt="견적업무">
+            <img src="https://images.unsplash.com/photo-1507537297725-24a1c029d3ca?w=400&q=80&auto=format&fit=crop" style="width: 100%; height: 100%; object-fit: cover;" alt="견적상담">
             <div style="position: absolute; inset: 5px; border: 1px dashed rgba(255,255,255,0.7); border-radius: 2.5px; pointer-events: none;"></div>
         </div>
 
@@ -2550,23 +2575,25 @@
     </div>
 
     <div style="background: #fff; border: 1px solid #edf2f7; border-radius: 10px; padding: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); display: inline-block; width: 100%; box-sizing: border-box;">
-        <span style="font-size: 0.9em; font-weight: bold; color: #4a5568; display: block; margin-bottom: 6px;">문의 : 김정현 실장</span>
-        <a href="tel:010-6657-1222" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 220px; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-weight: bold; color: #2d3748; text-decoration: none; font-size: 0.95em; box-sizing: border-box; outline: none;">
-            📞 010-6657-1222
+        <span style="font-size: 0.9em; font-weight: bold; color: #4a5568; display: block; margin-bottom: 6px;">담당 : ${ceo} ${pos}</span>
+        ${socialHtml}
+        <a href="tel:${phone}" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 220px; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-weight: bold; color: #2d3748; text-decoration: none; font-size: 0.95em; box-sizing: border-box; outline: none;">
+            📞 ${phone}
         </a>
     </div>
 </div>
 `;
-            const welcomeBubble = addBubble(welcomeMsg, 'bot', false, false);
-            welcomeBubble.classList.add('welcome-card-bubble');
+                const welcomeBubble = addBubble(welcomeMsg, 'bot', false, false);
+                welcomeBubble.classList.add('welcome-card-bubble');
 
-            setTimeout(() => {
-                addOpenQuickQuoteButton();
-            }, 300);
-        } else {
-            setTimeout(() => {
-                addOpenQuickQuoteButton();
-            }, 500);
+                setTimeout(() => {
+                    addOpenQuickQuoteButton();
+                }, 300);
+            } else {
+                setTimeout(() => {
+                    addOpenQuickQuoteButton();
+                }, 500);
+            }
         }
 
         // [New] 이벤트 위임을 통한 공유하기 버튼 클릭 감지 보장 (백엔드 onclick 누락 방어)
@@ -2582,4 +2609,4 @@
 </body>
 
 </html>
-<!-- [Updated: 2026-06-02 10:28:00 KST] End -->
+<!-- [Updated: 2026-06-02 11:15:00 KST] End -->
