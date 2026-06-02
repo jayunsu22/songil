@@ -368,8 +368,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return cat === '몰딩' || cat === '걸레받이';
             } else if (currentPriceCategory === 'furniture') {
                 return cat === '가구';
+            } else if (currentPriceCategory === 'pyeong') {
+                return cat === '평형별';
             } else if (currentPriceCategory === 'sink_etc') {
-                return cat === '싱크대' || cat === '기타' || (cat !== '도어' && cat !== '샤시' && cat !== '몰딩' && cat !== '걸레받이' && cat !== '가구');
+                return cat === '싱크대' || cat === '기타' || (cat !== '도어' && cat !== '샤시' && cat !== '몰딩' && cat !== '걸레받이' && cat !== '가구' && cat !== '평형별');
             }
             return false;
         });
@@ -384,12 +386,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         filteredItems.forEach(item => {
-            const laborTotal = item.laborUnit * item.materialQty;
-            const materialTotal = globalMaterialPrice * item.materialQty;
+            const isPyeong = (item.category || '').trim() === '평형별';
+            
+            let qtyVal = item.materialQty;
+            if (isPyeong) {
+                qtyVal = item.packageLength;
+                if (!qtyVal || qtyVal === 0) {
+                    // Fallback: extract number from calcBasis, e.g. "걸레받이길이 70m 기준입니다" -> 70
+                    const match = (item.calcBasis || '').match(/(\d+)\s*m/i);
+                    if (match) {
+                        qtyVal = Number(match[1]);
+                    } else {
+                        // Fallback by name
+                        if (item.name.includes('20평')) qtyVal = item.name.includes('싱크대') ? 6 : 70;
+                        else if (item.name.includes('30평')) qtyVal = item.name.includes('싱크대') ? 10 : 100;
+                        else if (item.name.includes('40평')) qtyVal = item.name.includes('싱크대') ? 12 : 130;
+                        else if (item.name.includes('50평')) qtyVal = item.name.includes('싱크대') ? 14 : 160;
+                        else qtyVal = 70;
+                    }
+                }
+            }
+
+            const qtyMultiplier = isPyeong ? (qtyVal * item.materialQty) : item.materialQty;
+
+            const laborTotal = item.laborUnit * qtyMultiplier;
+            const materialTotal = globalMaterialPrice * qtyMultiplier;
             const grandTotal = laborTotal + materialTotal;
 
             const el = document.createElement('div');
             el.className = 'accordion-item';
+            el.dataset.category = item.category;
+            el.dataset.staticFactor = item.materialQty;
+            el.dataset.originalLabor = item.laborUnit;
+            el.dataset.originalQty = qtyVal;
+            el.dataset.originalDesc = item.desc;
+
             el.innerHTML = `
                 <div class="accordion-header" onclick="toggleAccordion('${item.id}')">
                     <div class="accordion-title">${item.name}</div>
@@ -414,19 +445,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </div>
                         </div>
                         <div class="calc-row">
-                            <div class="calc-label">자재 소모량(m)</div>
+                            <div class="calc-label">${isPyeong ? '설정 길이(m)' : '자재 소모량(m)'}</div>
                             <div class="calc-input-wrap">
-                                <button class="stepper-btn" onclick="stepValue('${item.id}', 'qty', -0.5)">-</button>
-                                <input type="number" id="material-qty-${item.id}" value="${item.materialQty}" readonly>
-                                <button class="stepper-btn" onclick="stepValue('${item.id}', 'qty', 0.5)">+</button>
+                                <button class="stepper-btn" onclick="stepValue('${item.id}', '${isPyeong ? 'length' : 'qty'}', ${isPyeong ? -1 : -0.5})">-</button>
+                                <input type="number" id="material-qty-${item.id}" value="${qtyVal}" readonly>
+                                <button class="stepper-btn" onclick="stepValue('${item.id}', '${isPyeong ? 'length' : 'qty'}', ${isPyeong ? 1 : 0.5})">+</button>
                             </div>
                         </div>
                         <div class="calc-row">
-                            <div class="calc-label">인건비<span>(인건비 단가 x 자재 소모량)</span></div>
+                            <div class="calc-label">인건비<span>(${isPyeong ? '인건비 단가 x (설정 길이 x 자재소모량)' : '인건비 단가 x 자재 소모량'})</span></div>
                             <div class="calc-val" id="labor-total-${item.id}">${laborTotal.toLocaleString()}원</div>
                         </div>
                         <div class="calc-row">
-                            <div class="calc-label">자재비<span>(자재비 단가 x 자재 소모량)</span></div>
+                            <div class="calc-label">자재비<span>(${isPyeong ? '공통 자재비 단가 x (설정 길이 x 자재소모량)' : '자재비 단가 x 자재 소모량'})</span></div>
                             <div class="calc-val" id="material-total-${item.id}">${materialTotal.toLocaleString()}원</div>
                         </div>
                         <div class="calc-row total-row">
@@ -452,10 +483,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             `;
             container.appendChild(el);
-            
-            el.dataset.originalLabor = item.laborUnit;
-            el.dataset.originalQty = item.materialQty;
-            el.dataset.originalDesc = item.desc;
         });
     }
 
@@ -471,7 +498,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.stepValue = function(id, type, delta) {
         let inputEl;
         if (type === 'labor') inputEl = document.getElementById(`labor-unit-${id}`);
-        else if (type === 'qty') inputEl = document.getElementById(`material-qty-${id}`);
+        else if (type === 'qty' || type === 'length') inputEl = document.getElementById(`material-qty-${id}`);
         
         if (inputEl) {
             let val;
@@ -486,6 +513,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (val < 1.0) val = 1.0;
                 if (val > 10.0) val = 10.0;
                 inputEl.value = Number(val.toFixed(1));
+            } else if (type === 'length') {
+                let currentVal = Number(inputEl.value);
+                val = currentVal + delta;
+                if (val < 1) val = 1;
+                if (val > 999) val = 999;
+                inputEl.value = Number(val.toFixed(0));
             }
             calcTotal(id);
         }
@@ -514,11 +547,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const qtyInput = document.getElementById(`material-qty-${id}`);
         if (!laborInput || !qtyInput) return;
 
+        const el = document.getElementById(`body-${id}`).parentElement;
+        const isPyeong = (el.dataset.category || '').trim() === '평형별';
+        const staticFactor = Number(el.dataset.staticFactor || 0);
+
         const laborUnit = Number(laborInput.value.replace(/,/g, ''));
-        const materialQty = Number(qtyInput.value);
+        const inputVal = Number(qtyInput.value);
         
-        const laborTotal = laborUnit * materialQty;
-        const materialTotal = globalMaterialPrice * materialQty;
+        const qtyMultiplier = isPyeong ? (inputVal * staticFactor) : inputVal;
+        
+        const laborTotal = laborUnit * qtyMultiplier;
+        const materialTotal = globalMaterialPrice * qtyMultiplier;
         const grandTotal = laborTotal + materialTotal;
         
         document.getElementById(`labor-total-${id}`).textContent = `${laborTotal.toLocaleString()}원`;
@@ -597,22 +636,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function executeSave(id) {
         const el = document.getElementById(`body-${id}`).parentElement;
         const laborUnit = Number(document.getElementById(`labor-unit-${id}`).value.replace(/,/g, ''));
-        const materialQty = document.getElementById(`material-qty-${id}`).value;
+        const inputVal = document.getElementById(`material-qty-${id}`).value;
         const desc = document.getElementById(`desc-${id}`).value;
+        
+        const isPyeong = (el.dataset.category || '').trim() === '평형별';
+        
+        const payload = {
+            partnerId: partnerId,
+            type: 'item',
+            itemId: id,
+            laborUnit: laborUnit,
+            desc: desc
+        };
+        
+        if (isPyeong) {
+            payload.packageLength = Number(inputVal);
+        } else {
+            payload.materialQty = Number(inputVal);
+        }
         
         // 실제 저장 API 호출
         try {
             await fetch(WEBHOOK_POST_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    partnerId: partnerId,
-                    type: 'item',
-                    itemId: id,
-                    laborUnit: laborUnit,
-                    materialQty: materialQty,
-                    desc: desc
-                })
+                body: JSON.stringify(payload)
             });
         } catch (error) {
             showToast('서버 저장에 실패했습니다.', 'error');
@@ -620,10 +668,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         el.dataset.originalLabor = laborUnit;
-        el.dataset.originalQty = materialQty;
+        el.dataset.originalQty = inputVal;
         el.dataset.originalDesc = desc;
         
-        const grandTotal = (Number(laborUnit) * Number(materialQty)) + (globalMaterialPrice * Number(materialQty));
+        const staticFactor = Number(el.dataset.staticFactor || 0);
+        const qtyMultiplier = isPyeong ? (Number(inputVal) * staticFactor) : Number(inputVal);
+        
+        const grandTotal = (Number(laborUnit) * qtyMultiplier) + (globalMaterialPrice * qtyMultiplier);
         document.getElementById(`header-total-${id}`).textContent = `${grandTotal.toLocaleString()}원`;
 
         showToast('에어테이블에 정상적으로 적용되었습니다.', 'success');
