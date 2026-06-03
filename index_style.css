@@ -648,23 +648,22 @@ body {
             font-weight: bold;
         }
 
-        /* [New] 헤더 새로고침 버튼 스타일 */
+        /* [New] 헤더 새로고침 버튼 스타일 (원형 아이콘 전용) */
         .header-refresh-btn {
             display: flex;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
             background: rgba(255, 255, 255, 0.18);
             border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
             cursor: pointer;
-            font-size: 0.82em;
-            font-weight: 500;
-            font-family: inherit;
             transition: all 0.2s ease;
             outline: none;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 0;
         }
 
         .header-refresh-btn:hover {
