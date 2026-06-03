@@ -27,22 +27,23 @@
 
 <body>
     <div class="chat-wrapper">
-        <div class="chat-header">
-            <h1 id="header-title">이미지견적 V2</h1>
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-header">
+                <h1 id="header-title">이미지견적 V2</h1>
 
-            <!-- 가맹점 소셜 링크 영역 (공백 유지, 하단 명함에 집중) -->
-            <div id="partner-links" style="margin-top: 10px;"></div>
+                <!-- 가맹점 소셜 링크 영역 (공백 유지, 하단 명함에 집중) -->
+                <div id="partner-links" style="margin-top: 10px;"></div>
 
-            <div style="position:absolute; right:15px; top:12px;">
-                <button onclick="resetChat()" class="header-refresh-btn" title="새로 대화하기">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M23 4v6h-6"></path>
-                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                    </svg>
-                </button>
+                <div style="position:absolute; right:15px; top:12px;">
+                    <button onclick="resetChat()" class="header-refresh-btn" title="새로 대화하기">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 4v6h-6"></path>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
-        <div class="chat-container" id="chatContainer"></div>
 
         <div class="chat-input-area">
             <div id="preview-container"></div>
