@@ -6,6 +6,7 @@ const CONFIG = {
         };
 
         let currentPartner = null; // 가맹점 정보 저장용
+        let currentPartnerCode = ''; // 가맹점 코드 저장용 (200 Rewrite 대응)
         let chatHistory = []; // 채팅 기록 메모리 저장
 
         // [New] URL에서 code 파라미터 읽어서 가맹점 정보 가져오기
@@ -26,6 +27,8 @@ const CONFIG = {
                 renderWelcomeIfNeeded();
                 return;
             }
+
+            currentPartnerCode = code; // 가맹점 코드 전역 변수에 저장
 
             try {
                 const res = await fetch(`${CONFIG.partnerUrl}?code=${code}`);
@@ -741,8 +744,7 @@ const CONFIG = {
                 }
 
                 // [수정] 현재 접속한 가맹점 코드(code)를 함께 전송
-                const urlParams = new URLSearchParams(window.location.search);
-                const pCode = urlParams.get('code') || '';
+                const pCode = currentPartnerCode || '';
 
                 const payload = {
                     message: msg,
