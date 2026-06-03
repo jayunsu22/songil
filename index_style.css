@@ -19,13 +19,15 @@ body {
         }
 
         .chat-header {
-            background-color: #4A90E2;
+            background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
             color: white;
-            padding: 15px;
+            padding: 16px 15px;
             text-align: center;
             flex-shrink: 0;
             z-index: 100;
             position: relative;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .chat-header h1 {
@@ -644,4 +646,43 @@ body {
             background: #ebf8ff;
             color: #2b6cb0;
             font-weight: bold;
+        }
+
+        /* [New] 헤더 새로고침 버튼 스타일 */
+        .header-refresh-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.82em;
+            font-weight: 500;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            outline: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .header-refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-refresh-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .header-refresh-btn svg {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .header-refresh-btn:hover svg {
+            transform: rotate(180deg);
         }

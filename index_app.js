@@ -39,7 +39,7 @@ const CONFIG = {
 
                     // 1. 헤더 텍스트 변경
                     const pName = data.partner_name || '';
-                    const titleText = pName ? `${pName} 1분견적` : '대박난손길 1분견적';
+                    const titleText = pName ? `${pName} 1분견적` : '인테리어필름 1분견적';
                     document.getElementById('header-title').textContent = titleText;
                     document.title = titleText; // 브라우저 타이틀 태그도 동기화
 
