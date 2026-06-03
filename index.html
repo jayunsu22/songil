@@ -711,6 +711,9 @@
         </div>
     </div>
 
+    <!-- 가맹점 단축 주소 매핑용 외부 설정 파일 로드 -->
+    <script src="partners.js"></script>
+
     <script>
         const CONFIG = {
             estimateUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test", // 견적 요청용
@@ -730,12 +733,8 @@
             // [New] URL 경로(Pathname)를 기반으로 가맹점 코드 매핑 (200 Rewrite 대응)
             if (!code) {
                 const path = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
-                const PARTNER_MAPPING = {
-                    'jhyun': 'p_001',
-                    'semo': 'p_002',
-                    'songil': 'p_003'
-                };
-                if (PARTNER_MAPPING[path]) {
+                // 외부 partners.js 파일에 정의된 PARTNER_MAPPING 객체를 참조합니다.
+                if (typeof PARTNER_MAPPING !== 'undefined' && PARTNER_MAPPING[path]) {
                     code = PARTNER_MAPPING[path];
                 }
             }
