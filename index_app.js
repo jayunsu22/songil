@@ -1900,3 +1900,17 @@ const CONFIG = {
                 shareQuote(btn);
             }
         });
+
+        // [New] 카카오톡 인앱 브라우저에서 target="_blank" 링크 클릭 시 외부 브라우저(새창)로 열기 강제화
+        document.addEventListener('click', function(e) {
+            const anchor = e.target.closest('a');
+            if (anchor && anchor.href && anchor.target === '_blank') {
+                if (anchor.href.startsWith('http')) {
+                    const userAgent = navigator.userAgent.toLowerCase();
+                    if (userAgent.includes('kakaotalk')) {
+                        e.preventDefault();
+                        window.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(anchor.href);
+                    }
+                }
+            }
+        });
