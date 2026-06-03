@@ -1,0 +1,647 @@
+body {
+            font-family: 'Noto Sans KR', sans-serif;
+            margin: 0;
+            background-color: #f0f2f5;
+            height: 100%;
+            overflow: hidden;
+            letter-spacing: -0.5px;
+        }
+
+        .chat-wrapper {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-header {
+            background-color: #4A90E2;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            flex-shrink: 0;
+            z-index: 100;
+            position: relative;
+        }
+
+        .chat-header h1 {
+            margin: 0;
+            font-size: 1.3em;
+            font-weight: 700;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px;
+            background-color: #f9fafc;
+        }
+
+        /* [New] 퀵 메뉴 버튼 스타일 (스샷2 디자인 적용) */
+        .quick-reply-btn {
+            background-color: #ffffff;
+            border: 1px solid #4A90E2;
+            color: #4A90E2;
+            padding: 8px 14px;
+            margin: 4px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            font-family: 'Noto Sans KR', sans-serif;
+            transition: all 0.2s ease;
+            display: inline-block;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .quick-reply-btn:hover {
+            background-color: #e7f1ff;
+            /* 마우스 오버 시 연한 하늘색 배경 */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-bubble {
+            width: fit-content;
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            line-height: 1.5;
+            position: relative;
+            font-size: 1.05em;
+            word-break: break-word;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .chat-bubble.user {
+            background-color: #4A90E2;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+            margin-left: auto;
+        }
+
+        .chat-bubble.bot {
+            background-color: #ffffff;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            margin-right: auto;
+            border: 1px solid #eee;
+        }
+
+        .chat-bubble.bot.welcome-card-bubble {
+            width: calc(100% - 10px) !important;
+            max-width: 95% !important;
+            margin-left: 5px !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+            border: 1px solid #edf2f7 !important;
+            border-radius: 16px !important;
+            padding: 16px !important;
+            box-sizing: border-box;
+            background: white !important;
+        }
+
+        .chat-bubble.bot-loading-blue {
+            background: #4A90E2;
+            color: white;
+            text-align: center;
+            border-radius: 30px;
+            animation: pulse 1.5s infinite;
+            margin: 10px auto;
+            display: table;
+            min-width: 220px;
+            border: 2px solid white;
+            font-weight: 700;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* 입력창 스타일 */
+        .chat-input-area {
+            background-color: #fff;
+            padding: 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .input-wrapper {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        #userInput {
+            width: 100%;
+            padding: 14px;
+            padding-right: 45px;
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            font-size: 1em;
+            outline: none;
+            background: #f8f9fa;
+            box-sizing: border-box;
+        }
+
+        .camera-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        #sendButton {
+            margin-left: 10px;
+            padding: 14px 24px;
+            background-color: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* 다중 이미지 미리보기 스타일 */
+        #preview-container {
+            display: none;
+            margin-bottom: 10px;
+            text-align: left;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 5px;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        #preview-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .preview-item {
+            position: relative;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: top;
+        }
+
+        .preview-img {
+            height: 90px;
+            width: 90px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            display: block;
+        }
+
+        .preview-number {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: #e53e3e;
+            color: white;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 12px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        .preview-close {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            z-index: 20;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* [New] 클릭 피드백 및 바운스 효과 애니메이션 */
+        @keyframes scaleClick {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(0.92);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .click-effect {
+            animation: scaleClick 0.15s ease-out !important;
+        }
+
+        @keyframes pulseBg {
+            0% {
+                background-color: rgba(74, 144, 226, 0.1);
+            }
+
+            50% {
+                background-color: rgba(74, 144, 226, 0.3);
+            }
+
+            100% {
+                background-color: rgba(74, 144, 226, 0.1);
+            }
+        }
+
+        .pulse-effect {
+            animation: pulseBg 0.6s ease-out;
+        }
+
+        /* [New] 견적서 말풍선 가로폭 확대 (설명 가독성 확보) */
+        .chat-bubble.bot:has(.quote-content) {
+            width: calc(100% - 10px) !important;
+            max-width: 95% !important;
+            margin-left: 5px !important;
+            box-sizing: border-box;
+        }
+
+        .chat-bubble.bot .quote-content {
+            width: 100% !important;
+        }
+
+        /* [New] 간편견적 전체화면 모달 (Glassmorphism & 단일 스크롤) */
+        .quick-quote-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100dvh;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 9999;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .quick-quote-modal-content {
+            width: 100%;
+            max-width: 500px;
+            height: 85vh;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+            position: relative;
+        }
+
+        /* 모달 내 스크롤 영역 */
+        .quick-quote-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 15px;
+            padding-bottom: 30px;
+        }
+
+        /* [New] 평형별 카드 그룹화 UI */
+        .size-group-card {
+            border: 1px solid #edf2f7;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 16px;
+            margin-bottom: 20px;
+            text-align: left;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            border-top: 3px solid #cbd5e1;
+            /* 기본 상단 바 */
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .size-group-card.accent-orange {
+            border-top-color: #f6ad55;
+            background: #fffaf5;
+            border-color: #ffe8cc;
+        }
+
+        .size-group-card.accent-blue {
+            border-top-color: #4299e1;
+        }
+
+        .size-group-card.accent-green {
+            border-top-color: #48bb78;
+        }
+
+        .size-group-card.accent-purple {
+            border-top-color: #9f7aea;
+        }
+
+        .size-group-card.accent-teal {
+            border-top-color: #38b2ac;
+        }
+
+        .size-group-card.accent-indigo {
+            border-top-color: #667eea;
+        }
+
+        .size-group-header {
+            font-size: 0.95em;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #edf2f7;
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            letter-spacing: -0.3px;
+        }
+
+        /* 엑셀 표 스타일 레이아웃 (스샷2 형태 구현) */
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            background: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        }
+
+        .excel-table tr {
+            border-bottom: 1px solid #cbd5e1;
+        }
+
+        .excel-table tr:last-child {
+            border-bottom: none;
+        }
+
+        .excel-label {
+            width: 95px;
+            font-weight: 700;
+            text-align: center;
+            vertical-align: middle;
+            border-right: 1px solid #cbd5e1;
+            padding: 12px 6px;
+            font-size: 1.0em;
+            line-height: 1.4;
+            word-break: keep-all;
+        }
+
+        /* 분류별 파스텔톤 배경색 및 글자색 */
+        .excel-label.orange {
+            background-color: #fff3e0;
+            color: #e65100;
+        }
+
+        .excel-label.blue {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+        }
+
+        .excel-label.teal {
+            background-color: #e0f2f1;
+            color: #004d40;
+        }
+
+        .excel-label.purple {
+            background-color: #f3e5f5;
+            color: #4a148c;
+        }
+
+        .excel-label.indigo {
+            background-color: #e8eaf6;
+            color: #1a237e;
+        }
+
+        .excel-value-container {
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .excel-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #edf2f7;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.2s;
+            background: white;
+            color: #333;
+            text-align: left;
+        }
+
+        .excel-item-row:last-child {
+            border-bottom: none;
+        }
+
+        .excel-item-row:hover {
+            background-color: #f8fafc;
+        }
+
+        .excel-item-row.active {
+            background-color: #ebf8ff;
+            color: #2b6cb0;
+            font-weight: bold;
+        }
+
+        .excel-item-badge {
+            background: #e53e3e;
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05em;
+            font-weight: bold;
+            margin-left: 6px;
+            box-shadow: 0 1px 3px rgba(229, 62, 62, 0.3);
+            flex-shrink: 0;
+        }
+
+        .excel-check-badge {
+            background: #48bb78;
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05em;
+            font-weight: bold;
+            box-shadow: 0 1px 3px rgba(72, 187, 120, 0.3);
+            flex-shrink: 0;
+        }
+
+        /* [New] 개별 품목 수량 조작 컨트롤러 스타일 */
+        .excel-qty-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .qty-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            border: 1px solid #cbd5e1;
+            background: white;
+            color: #4A90E2;
+            font-size: 1.3em;
+            padding: 0;
+            line-height: 1;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .qty-btn:hover {
+            background-color: #f1f5f9;
+        }
+
+        .qty-btn.remove {
+            border-color: #feb2b2;
+            background: #fff5f5;
+            color: #e53e3e;
+            font-size: 1.1em;
+        }
+
+        .qty-btn.remove:hover {
+            background-color: #fed7d7;
+        }
+
+        /* [New] 커스텀 드롭다운 스타일 */
+        .custom-dropdown {
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .custom-dropdown-trigger {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1.0em;
+            font-weight: 500;
+            color: #333;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+
+        .custom-dropdown-trigger:hover {
+            border-color: #4A90E2;
+        }
+
+        .custom-dropdown-trigger .arrow {
+            font-size: 0.8em;
+            color: #888;
+            transition: transform 0.2s;
+        }
+
+        .custom-dropdown.open .custom-dropdown-trigger .arrow {
+            transform: rotate(180deg);
+        }
+
+        .custom-dropdown-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #4A90E2;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 4px;
+            display: none;
+            box-sizing: border-box;
+        }
+
+        .custom-dropdown.open .custom-dropdown-options {
+            display: block;
+        }
+
+        .custom-dropdown-option {
+            padding: 12px 14px;
+            font-size: 0.95em;
+            color: #333;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            border-bottom: 1px solid #f1f5f9;
+            text-align: left;
+        }
+
+        .custom-dropdown-option:last-child {
+            border-bottom: none;
+        }
+
+        .custom-dropdown-option:hover {
+            background: #ebf8ff;
+            color: #2b6cb0;
+            font-weight: bold;
+        }
+
+        .custom-dropdown-option.selected {
+            background: #ebf8ff;
+            color: #2b6cb0;
+            font-weight: bold;
+        }
