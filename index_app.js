@@ -429,7 +429,7 @@ const CONFIG = {
             // [핵심] 가맹점 명함(Footer) 추가 로직
             // n8n 메시지 내에 '📞'나 '담당' 같은 키워드가 이미 있다면 프론트에서 명함을 붙이지 않음.
             // (n8n 코드가 명함을 포함하도록 수정되었으므로, 여기서는 그게 실패했을 때의 백업 역할만 함)
-            const hasSignature = content.includes('담당\u200B :') || content.includes('담당 :') || content.includes('📞');
+            const hasSignature = content.includes('문의\u200B :') || content.includes('문의 :') || content.includes('담당\u200B :') || content.includes('담당 :') || content.includes('📞');
             if (!hasSignature && sender === 'bot' && (isQuote || content.includes('견적') || content.includes('금액'))) {
 
                 // 가맹점 정보 없으면 기본값 (김정헌 실장)
@@ -1871,10 +1871,10 @@ const CONFIG = {
     </div>
 
     <div style="background: #fff; border: 1px solid #edf2f7; border-radius: 10px; padding: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); display: inline-block; width: 100%; box-sizing: border-box;">
-        <span style="font-size: 0.9em; font-weight: bold; color: #4a5568; display: block; margin-bottom: 6px;">담당 : ${ceo} ${pos}</span>
+        <span style="font-size: 0.9em; font-weight: bold; color: #4a5568; display: block; margin-bottom: 6px;">문의 : ${ceo} ${pos}</span>
         ${socialHtml}
         <a href="tel:${phone}" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 220px; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-weight: bold; color: #2d3748; text-decoration: none; font-size: 0.95em; box-sizing: border-box; outline: none;">
-            📞 ${phone}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>${phone}
         </a>
     </div>
 </div>
