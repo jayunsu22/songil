@@ -725,7 +725,20 @@
         // [New] URL에서 code 파라미터 읽어서 가맹점 정보 가져오기
         async function loadPartnerInfo() {
             const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
+            let code = urlParams.get('code');
+
+            // [New] URL 경로(Pathname)를 기반으로 가맹점 코드 매핑 (200 Rewrite 대응)
+            if (!code) {
+                const path = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
+                const PARTNER_MAPPING = {
+                    'jhyun': 'p_001',
+                    'semo': 'p_002',
+                    'songil': 'p_003'
+                };
+                if (PARTNER_MAPPING[path]) {
+                    code = PARTNER_MAPPING[path];
+                }
+            }
 
             if (!code) {
                 renderWelcomeIfNeeded();
