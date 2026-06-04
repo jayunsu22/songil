@@ -339,13 +339,13 @@ const CONFIG = {
                 activeCategory = "sink";
                 currentSinkBase = sinkItem.replace('1세트', '').trim();
                 if (currentSinkBase !== '싱크대') {
-                    step = 2;
+                    step = 0;
                 }
             } else if (sashItem) {
                 activeCategory = "sash";
                 currentSashBase = sashItem.replace('1세트', '').trim();
-                if (currentSashBase !== '샤시' && currentSashBase !== '샤시(단창)') {
-                    step = 2;
+                if (currentSashBase !== '샤시') {
+                    step = 0;
                 }
             }
 
@@ -354,7 +354,15 @@ const CONFIG = {
                 let currentOptions = [];
 
                 if (activeCategory === "sink") {
-                    if (step === 1) {
+                    if (step === 0) {
+                        let displayName = "싱크대 상하부장 전체";
+                        if (currentSinkBase.includes("상부장")) displayName = "싱크대 상부장만";
+                        else if (currentSinkBase.includes("하부장")) displayName = "싱크대 하부장만";
+                        
+                        titleDivUI.innerText = `💡 AI가 [${displayName}] 시공으로 진단했습니다. 맞습니까?`;
+                        currentOptions.push({ text: "네, 맞습니다", value: "confirm_yes" });
+                        currentOptions.push({ text: "아닙니다 (다른 범위 선택)", value: "confirm_no" });
+                    } else if (step === 1) {
                         titleDivUI.innerText = "💡 시공 범위를 먼저 선택해 주세요";
                         currentOptions.push({ text: "싱크대 상하부장 전체시공", value: "싱크대" });
                         currentOptions.push({ text: "싱크대 상부장만 시공", value: "싱크대상부장" });
@@ -368,7 +376,16 @@ const CONFIG = {
                         currentOptions.push({ text: "11~12m", value: `${currentSinkBase} 12m` });
                     }
                 } else if (activeCategory === "sash") {
-                    if (step === 1) {
+                    if (step === 0) {
+                        let displayName = "일반샤시";
+                        if (currentSashBase.includes("시스템")) displayName = "시스템샤시";
+                        else if (currentSashBase.includes("상가")) displayName = "상가샤시";
+                        else if (currentSashBase.includes("2중창") || currentSashBase.includes("이중창")) displayName = "이중창 샤시";
+
+                        titleDivUI.innerText = `💡 AI가 [${displayName}]로 진단했습니다. 맞습니까?`;
+                        currentOptions.push({ text: "네, 맞습니다", value: "confirm_yes" });
+                        currentOptions.push({ text: "아닙니다 (다른 종류 선택)", value: "confirm_no" });
+                    } else if (step === 1) {
                         titleDivUI.innerText = "💡 샤시 종류를 먼저 선택해 주세요";
                         currentOptions.push({ text: "일반샤시", value: "샤시(단창)" });
                         currentOptions.push({ text: "시스템샤시", value: "시스템샤시" });
@@ -390,7 +407,15 @@ const CONFIG = {
                     btn.style.cssText = "display: block; width: 100%; margin-bottom: 8px; padding: 12px; background: #4A90E2; color: white; border: none; border-radius: 8px; font-size: 1.05em; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); box-sizing: border-box;";
 
                     btn.onclick = () => {
-                        if (step === 1) {
+                        if (step === 0) {
+                            if (opt.value === "confirm_yes") {
+                                step = 2;
+                                renderButtons();
+                            } else {
+                                step = 1;
+                                renderButtons();
+                            }
+                        } else if (step === 1) {
                             if (activeCategory === "sink") currentSinkBase = opt.value;
                             if (activeCategory === "sash") currentSashBase = opt.value;
                             step = 2;
