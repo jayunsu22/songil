@@ -102,7 +102,7 @@ const CONFIG = {
 
         function scrollToBottom() { setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50); }
 
-        function handleImageSelect(event) {
+        function handleImageSelect(event, isCamera = false) {
             const files = Array.from(event.target.files);
             if (!files.length) return;
 
@@ -112,12 +112,29 @@ const CONFIG = {
 
             const file = files[0];
             const reader = new FileReader();
-            reader.onload = function (e) {
+            reader.onload = async function (e) {
                 selectedImages.push({
                     file: file,
                     previewUrl: e.target.result
                 });
                 renderPreviews(); // UI 갱신
+
+                // 모달 닫기
+                const modal = document.querySelector('.quick-quote-modal');
+                if (modal) {
+                    modal.remove();
+                    addOpenQuickQuoteButton();
+                }
+
+                if (isCamera) {
+                    // 카메라인 경우 즉시 전송
+                    await sendRequest(false);
+                } else {
+                    // 갤러리인 경우 컨펌 후 전송
+                    if (confirm("지금 선택한 사진의 견적을 진행할까요?")) {
+                        await sendRequest(false);
+                    }
+                }
             };
             reader.readAsDataURL(file);
             event.target.value = '';
@@ -1352,8 +1369,7 @@ const CONFIG = {
                         mainTab = t.index;
                         renderQuickQuoteModal();
                         if (t.index === 2) {
-                            const imgInput = document.getElementById('imageInput');
-                            if (imgInput) imgInput.click();
+                            // Do not automatically trigger imageInput.click() anymore
                         }
                     }, 100);
                 };
@@ -1602,26 +1618,41 @@ const CONFIG = {
 
                 const photoDesc = document.createElement('div');
                 photoDesc.innerText = "시공할 현장 사진을 촬영하여 올려주시면\nAI가 사진을 실시간 분석해 1분안에 견적을 계산해 드립니다.";
-                photoDesc.style.cssText = "font-size: 0.88em; color: #64748b; white-space: pre-line; line-height: 1.5;";
+                photoDesc.style.cssText = "font-size: 0.88em; color: #64748b; white-space: pre-line; line-height: 1.5; margin-bottom: 5px;";
 
+                // 1. 보관된 사진 선택 버튼
                 const uploadBtn = document.createElement('button');
-                uploadBtn.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 14px 28px; background: #4A90E2; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.05em; cursor: pointer; box-shadow: 0 4px 6px rgba(74, 144, 226, 0.2);";
+                uploadBtn.style.cssText = "display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 260px; padding: 12px 24px; background: #4A90E2; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.0em; cursor: pointer; box-shadow: 0 4px 6px rgba(74, 144, 226, 0.2);";
                 uploadBtn.innerHTML = `
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    보관된 사진 선택
+                `;
+                bindClickEffect(uploadBtn, () => {
+                    document.getElementById('imageInput').click();
+                });
+
+                // 2. 실시간 촬영하기 버튼
+                const cameraBtn = document.createElement('button');
+                cameraBtn.style.cssText = "display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 260px; padding: 12px 24px; background: #2ecc71; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.0em; cursor: pointer; box-shadow: 0 4px 6px rgba(46, 204, 113, 0.2);";
+                cameraBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
                         <circle cx="12" cy="13" r="4"></circle>
                     </svg>
-                    현장 사진 첨부하기
+                    실시간 촬영하기
                 `;
-
-                bindClickEffect(uploadBtn, () => {
-                    modal.remove();
-                    document.getElementById('imageInput').click();
+                bindClickEffect(cameraBtn, () => {
+                    document.getElementById('cameraInput').click();
                 });
 
                 photoCard.appendChild(photoTitle);
                 photoCard.appendChild(photoDesc);
                 photoCard.appendChild(uploadBtn);
+                photoCard.appendChild(cameraBtn);
                 bodyContainer.appendChild(photoCard);
             }
 
