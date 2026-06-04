@@ -53,8 +53,7 @@ const CONFIG = {
             }
         }
 
-        // 페이지 로드 시 실행
-        loadPartnerInfo();
+        // 페이지 로드 시 실행 (변수 초기화 완료 후 하단에서 실행됨)
 
         // [New] 채팅 기록 불러오기 (v2_chat_history)
         function loadChatHistory() {
@@ -983,7 +982,7 @@ const CONFIG = {
                 btn.classList.add('click-effect');
                 setTimeout(() => {
                     btn.remove();
-                    showQuickButtons();
+                    renderQuickQuoteModal();
                 }, 150);
             };
 
@@ -1018,7 +1017,7 @@ const CONFIG = {
             if (existingIndex !== -1) {
                 b2bCart[existingIndex].option = option;
                 showToast(`🛒 ${label} 옵션이 갱신되었습니다.`);
-                showQuickButtons();
+                renderQuickQuoteModal();
                 return true;
             }
 
@@ -1051,7 +1050,7 @@ const CONFIG = {
                 }
             }, 50);
 
-            showQuickButtons();
+            renderQuickQuoteModal();
             return true;
         }
 
@@ -1075,7 +1074,7 @@ const CONFIG = {
                     });
                 }
             }
-            showQuickButtons();
+            renderQuickQuoteModal();
         }
         // [New] 세련된 토스트 알림 표시 함수
         function showToast(message) {
@@ -1106,7 +1105,7 @@ const CONFIG = {
         // [New] 특정 품목(name)의 수량 1 감소 함수 (1개 제한이므로 삭제와 동일하게 필터링)
         function decreaseCartItemQuantity(name) {
             b2bCart = b2bCart.filter(item => item.name !== name);
-            showQuickButtons();
+            renderQuickQuoteModal();
         }
 
         // [New] 특정 품목(name)의 수량 1 증가 함수 (1개 제한이므로 미작동)
@@ -1117,7 +1116,7 @@ const CONFIG = {
         // [New] 특정 품목(name)에 해당하는 모든 장바구니 아이템 일괄 삭제 함수
         function clearCartItemsByName(name) {
             b2bCart = b2bCart.filter(item => item.name !== name);
-            showQuickButtons();
+            renderQuickQuoteModal();
         }
 
         // [New] 특정 슬롯(name, cartIndex)에 해당하는 장바구니 아이템 삭제 함수 (삭제 후 뒤쪽 슬롯을 앞으로 한 칸씩 당김)
@@ -1131,7 +1130,7 @@ const CONFIG = {
                     item.label = (item.cartIndex === 1) ? baseLabel : `${baseLabel}(${item.cartIndex})`;
                 }
             });
-            showQuickButtons();
+            renderQuickQuoteModal();
         }
 
         // [New] 품목별 탭 드롭다운 폼 오픈 함수 (트리거 박스와 담기버튼을 없애고 드롭다운 목록만 열어 한번에 선택하여 장바구니에 담는 방식으로 개편, 우측 상단 닫기버튼 추가)
@@ -1264,7 +1263,7 @@ const CONFIG = {
 
 
         // 퀵 메뉴(장바구니) 표시 함수 (전체화면 모달화 및 이중스크롤 제거)
-        function showQuickButtons() {
+        function renderQuickQuoteModal() {
             // 1. 모달 전체 오버레이 컨테이너 생성 및 복원
             let modal = document.querySelector('.quick-quote-modal');
             let isFirstRender = false;
@@ -1351,7 +1350,7 @@ const CONFIG = {
                     tab.classList.add('click-effect');
                     setTimeout(() => {
                         mainTab = t.index;
-                        showQuickButtons();
+                        renderQuickQuoteModal();
                         if (t.index === 2) {
                             const imgInput = document.getElementById('imageInput');
                             if (imgInput) imgInput.click();
@@ -1475,7 +1474,7 @@ const CONFIG = {
                         subTab.classList.add('click-effect');
                         setTimeout(() => {
                             currentB2BTab = index;
-                            showQuickButtons();
+                            renderQuickQuoteModal();
                         }, 100);
                     };
                     subTabsDiv.appendChild(subTab);
@@ -1678,7 +1677,7 @@ const CONFIG = {
 
                 bindClickEffect(resetBtn, () => {
                     b2bCart = [];
-                    showQuickButtons();
+                    renderQuickQuoteModal();
                 });
 
                 const submitBtn = document.createElement('button');
@@ -1927,5 +1926,8 @@ const CONFIG = {
             if (existingBtn) existingBtn.remove();
             const existingMenu = document.querySelector('.quick-reply-container');
             if (existingMenu) existingMenu.remove();
-            showQuickButtons();
+            renderQuickQuoteModal();
         };
+
+        // 모든 변수 및 DOM 엘리먼트 정의가 완료된 후 실행
+        loadPartnerInfo();
