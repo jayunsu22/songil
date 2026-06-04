@@ -1914,3 +1914,18 @@ const CONFIG = {
                 }
             }
         });
+
+        // [New] 추천 품목 클릭 시 즉시 텍스트 견적을 요청하는 전역 함수 정의
+        window.sendQuickTextRequest = async function(text) {
+            userInput.value = text;
+            await sendRequest(false);
+        };
+
+        // [New] 전체 품목 보기를 트리거하는 전역 매핑
+        window.showQuickButtons = function() {
+            const existingBtn = document.querySelector('.open-quick-quote-btn');
+            if (existingBtn) existingBtn.remove();
+            const existingMenu = document.querySelector('.quick-reply-container');
+            if (existingMenu) existingMenu.remove();
+            showQuickButtons();
+        };
