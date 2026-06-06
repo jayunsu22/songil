@@ -1201,16 +1201,16 @@ const CONFIG = {
             // 1. 문/도어류
             if (item.name === "방문") {
                 titleText = `⚙️ 방문 시공 수량 선택:`;
-                for (let i = 1; i <= 5; i++) optionList.push({ value: `문+틀 ${i}세트`, text: `문+틀 ${i}세트` });
+                for (let i = 1; i <= 9; i++) optionList.push({ value: `문+틀 ${i}세트`, text: `문+틀 ${i}세트` });
             } else if (item.name === "화장실문") {
                 titleText = `⚙️ 화장실문 시공 수량 선택:`;
-                for (let i = 1; i <= 3; i++) optionList.push({ value: `문+틀 ${i}세트`, text: `문+틀 ${i}세트` });
+                for (let i = 1; i <= 9; i++) optionList.push({ value: `문+틀 ${i}세트`, text: `문+틀 ${i}세트` });
             } else if (item.name === "문짝") {
                 titleText = `⚙️ 문짝만 시공 수량 선택:`;
-                for (let i = 1; i <= 5; i++) optionList.push({ value: `문 ${i}개`, text: `문 ${i}개` });
+                for (let i = 1; i <= 9; i++) optionList.push({ value: `문 ${i}개`, text: `문 ${i}개` });
             } else if (item.name === "문틀") {
                 titleText = `⚙️ 문틀만 시공 수량 선택:`;
-                for (let i = 1; i <= 5; i++) optionList.push({ value: `틀 ${i}개`, text: `틀 ${i}개` });
+                for (let i = 1; i <= 9; i++) optionList.push({ value: `틀 ${i}개`, text: `틀 ${i}개` });
             } else if (item.name === "방화문" || item.name === "터닝도어") {
                 titleText = `⚙️ ${item.label} 수량 선택:`;
                 for (let i = 1; i <= 2; i++) optionList.push({ value: `문+틀 ${i}세트`, text: `문+틀 ${i}세트` });
@@ -1222,12 +1222,12 @@ const CONFIG = {
             // 2. 샤시류 (일반샤시 단창, 2중창, 시스템샤시)
             else if (item.name === "샤시(단창) 1m" || item.name === "샤시(2중창) 1m" || item.name === "시스템샤시 1m") {
                 titleText = `⚙️ ${item.label} 수량 선택:`;
-                for (let i = 1; i <= 3; i++) optionList.push({ value: `샤시 ${i}세트`, text: `샤시 ${i}세트` });
+                for (let i = 1; i <= 9; i++) optionList.push({ value: `샤시 ${i}세트`, text: `샤시 ${i}세트` });
             } else if (item.name === "샤시(단창) 3m" || item.name === "샤시(단창) 5m" || 
                        item.name === "샤시(2중창) 3m" || item.name === "샤시(2중창) 5m" || 
                        item.name === "시스템샤시 3m" || item.name === "시스템샤시 5m") {
                 titleText = `⚙️ ${item.label} 수량 선택:`;
-                for (let i = 1; i <= 5; i++) optionList.push({ value: `샤시 ${i}세트`, text: `샤시 ${i}세트` });
+                for (let i = 1; i <= 9; i++) optionList.push({ value: `샤시 ${i}세트`, text: `샤시 ${i}세트` });
             }
             
             // 3. 싱크대류 (싱크대 전체, 상부장, 하부장)
