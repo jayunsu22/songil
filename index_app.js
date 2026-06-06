@@ -273,6 +273,10 @@ const CONFIG = {
 
         // [New] 동적 옵션 버튼 및 안내 문구 주입 로직
         function processDynamicOptions(bubble) {
+            // 이미지 분석 결과일 때만(버블 내부에 이미지가 존재할 때만) 동적 옵션 및 확인 단계를 진행합니다.
+            const hasImage = !!bubble.querySelector('img');
+            if (!hasImage) return;
+
             const itemTitles = bubble.querySelectorAll('.item-title');
             if (!itemTitles || itemTitles.length === 0) return;
 
