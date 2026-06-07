@@ -1083,7 +1083,7 @@ const CONFIG = {
                 cartIndex: cartIndex
             });
 
-            showToast(`🛒 ${label} 품목을 장바구니에 담았습니다.`);
+            showToast(`🛒 ${label} 품목을 장바구니에 담았습니다.<br><span style="font-size: 0.85em; font-weight: normal; opacity: 0.9; display: block; margin-top: 4px;">총 7개까지 한번에 견적 가능합니다.</span>`);
 
             setTimeout(() => {
                 const cartContainerUI = document.querySelector('.floating-cart-list');
@@ -1129,8 +1129,8 @@ const CONFIG = {
 
             toast = document.createElement('div');
             toast.className = 'toast-notification';
-            toast.innerText = message;
-            toast.style.cssText = "position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.85); color: white; padding: 12px 24px; border-radius: 30px; font-size: 0.92em; font-weight: bold; z-index: 100000; opacity: 0; transition: opacity 0.3s, bottom 0.3s; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.25); white-space: nowrap;";
+            toast.innerHTML = message;
+            toast.style.cssText = "position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.85); color: white; padding: 12px 24px; border-radius: 20px; font-size: 0.92em; font-weight: bold; z-index: 100000; opacity: 0; transition: opacity 0.3s, bottom 0.3s; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.25); text-align: center; white-space: nowrap;";
 
             document.body.appendChild(toast);
 
@@ -1145,7 +1145,7 @@ const CONFIG = {
                 setTimeout(() => {
                     if (toast.parentNode) toast.parentNode.removeChild(toast);
                 }, 300);
-            }, 2000);
+            }, 2500); // 2.5초 노출 (텍스트가 두 줄인 경우 대비 여유 시간 확보)
         }
 
         // [New] 특정 품목(name)의 수량 1 감소 함수 (1개 제한이므로 삭제와 동일하게 필터링)
@@ -1798,42 +1798,8 @@ const CONFIG = {
             if (contentDiv) {
                 const existingBadge = contentDiv.querySelector('.floating-cart-badge');
                 if (existingBadge) existingBadge.remove();
-                const existingHelper = contentDiv.querySelector('.floating-cart-helper-tooltip');
-                if (existingHelper) existingHelper.remove();
 
                 if (mainTab !== 2 && b2bCart.length > 0) {
-                    // [New] 여러 개 선택 안내 말풍선 추가
-                    const helper = document.createElement('div');
-                    helper.className = 'floating-cart-helper-tooltip';
-                    helper.innerHTML = `💡 여러 품목을 담아 한 번에 견적받으세요! (최대 7개)`;
-                    helper.style.cssText = `
-                        position: absolute;
-                        right: 20px;
-                        bottom: 74px;
-                        background: #34495e;
-                        color: white;
-                        padding: 6px 12px;
-                        border-radius: 8px;
-                        font-size: 0.78em;
-                        font-weight: bold;
-                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                        z-index: 10000;
-                        white-space: nowrap;
-                        pointer-events: none;
-                        border: 1.5px solid #ff4757;
-                        transition: opacity 0.25s ease;
-                    `;
-                    contentDiv.appendChild(helper);
-
-                    // 5초 후 말풍선 자동 소멸 (페이드 아웃 효과 적용)
-                    setTimeout(() => {
-                        helper.style.opacity = '0';
-                        setTimeout(() => {
-                            if (helper.parentNode) {
-                                helper.parentNode.removeChild(helper);
-                            }
-                        }, 250);
-                    }, 5000);
                     const badge = document.createElement('div');
                     badge.className = 'floating-cart-badge';
                     badge.innerHTML = `🛒 장바구니 ${b2bCart.length}개`;
