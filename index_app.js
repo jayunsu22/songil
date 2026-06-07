@@ -1956,7 +1956,7 @@ const CONFIG = {
         // [New] 이벤트 위임을 통한 공유하기 버튼 클릭 감지 보장 (백엔드 onclick 누락 방어)
         document.getElementById('chatContainer').addEventListener('click', function(e) {
             const btn = e.target.closest('.share-quote-btn') || 
-                        (e.target.textContent && e.target.textContent.includes('공유하기') ? e.target : null);
+                        (e.target.textContent && e.target.textContent.includes('공유하기') && e.target.textContent.trim().length < 30 ? e.target : null);
             if (btn) {
                 shareQuote(btn);
             }
