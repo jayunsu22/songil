@@ -1507,11 +1507,7 @@ const CONFIG = {
                 // [품목별 탭]
                 // ----------------------------------------------------
                 
-                // 안내 배너 추가 (여러 개 선택이 가능하다는 점을 강조)
-                const guideBanner = document.createElement('div');
-                guideBanner.style.cssText = "margin: 0 16px 12px 16px; padding: 10px 14px; background: #ebf8ff; border: 1.5px solid #bee3f8; border-radius: 8px; font-size: 0.85em; color: #2b6cb0; font-weight: bold; line-height: 1.4;";
-                guideBanner.innerHTML = `💡 <b>안내</b>: 여러 품목을 함께 담아 한 번에 통합 견적을 받아보실 수 있습니다. (최대 7개 품목 선택 가능)`;
-                bodyContainer.appendChild(guideBanner);
+
 
                 // 2-1. 서브 카테고리 탭 (2개: 도어/샤시, 싱크/가구/기타)
                 const subTabsDiv = document.createElement('div');
@@ -1825,8 +1821,19 @@ const CONFIG = {
                         white-space: nowrap;
                         pointer-events: none;
                         border: 1.5px solid #ff4757;
+                        transition: opacity 0.25s ease;
                     `;
                     contentDiv.appendChild(helper);
+
+                    // 5초 후 말풍선 자동 소멸 (페이드 아웃 효과 적용)
+                    setTimeout(() => {
+                        helper.style.opacity = '0';
+                        setTimeout(() => {
+                            if (helper.parentNode) {
+                                helper.parentNode.removeChild(helper);
+                            }
+                        }, 250);
+                    }, 5000);
                     const badge = document.createElement('div');
                     badge.className = 'floating-cart-badge';
                     badge.innerHTML = `🛒 장바구니 ${b2bCart.length}개`;
