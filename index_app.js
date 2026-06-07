@@ -1008,7 +1008,7 @@ const CONFIG = {
             }
         ];
 
-        let mainTab = 0; // 0: 평형별, 1: 품목별, 2: 사진견적
+        let mainTab = 1; // 0: 평형별, 1: 품목별, 2: 사진견적
         let b2bCart = []; // 장바구니 배열: [{ id, name, label, option, count }]
         let currentB2BTab = 0; // 품목별 탭 내부 서브 탭 (0: 도어, 1: 샤시, 2: 싱크/가구/기타)
 
@@ -1067,10 +1067,10 @@ const CONFIG = {
                 return true;
             }
 
-            // 종류 제한 체크 (고유한 품목 종류가 5종류 이상인 경우 제한)
+            // 종류 제한 체크 (고유한 품목 종류가 7종류 이상인 경우 제한)
             const uniqueNames = new Set(b2bCart.map(item => item.name));
-            if (!uniqueNames.has(name) && uniqueNames.size >= 5) {
-                alert("⚠️ 종류 제한: AI의 정확한 견적을 위해 한 번에 최대 5가지 품목까지만 담을 수 있습니다.\n5가지를 먼저 견적 내시고 추가로 진행해 주세요!");
+            if (!uniqueNames.has(name) && uniqueNames.size >= 7) {
+                alert("⚠️ 종류 제한: AI의 정확한 견적을 위해 한 번에 최대 7가지 품목까지만 담을 수 있습니다.\n7가지를 먼저 견적 내시고 추가로 진행해 주세요!");
                 return false;
             }
 
@@ -1506,6 +1506,12 @@ const CONFIG = {
                 // ----------------------------------------------------
                 // [품목별 탭]
                 // ----------------------------------------------------
+                
+                // 안내 배너 추가 (여러 개 선택이 가능하다는 점을 강조)
+                const guideBanner = document.createElement('div');
+                guideBanner.style.cssText = "margin: 0 16px 12px 16px; padding: 10px 14px; background: #ebf8ff; border: 1.5px solid #bee3f8; border-radius: 8px; font-size: 0.85em; color: #2b6cb0; font-weight: bold; line-height: 1.4;";
+                guideBanner.innerHTML = `💡 <b>안내</b>: 여러 품목을 함께 담아 한 번에 통합 견적을 받아보실 수 있습니다. (최대 7개 품목 선택 가능)`;
+                bodyContainer.appendChild(guideBanner);
 
                 // 2-1. 서브 카테고리 탭 (2개: 도어/샤시, 싱크/가구/기타)
                 const subTabsDiv = document.createElement('div');
@@ -1796,8 +1802,31 @@ const CONFIG = {
             if (contentDiv) {
                 const existingBadge = contentDiv.querySelector('.floating-cart-badge');
                 if (existingBadge) existingBadge.remove();
+                const existingHelper = contentDiv.querySelector('.floating-cart-helper-tooltip');
+                if (existingHelper) existingHelper.remove();
 
                 if (mainTab !== 2 && b2bCart.length > 0) {
+                    // [New] 여러 개 선택 안내 말풍선 추가
+                    const helper = document.createElement('div');
+                    helper.className = 'floating-cart-helper-tooltip';
+                    helper.innerHTML = `💡 여러 품목을 담아 한 번에 견적받으세요! (최대 7개)`;
+                    helper.style.cssText = `
+                        position: absolute;
+                        right: 20px;
+                        bottom: 74px;
+                        background: #34495e;
+                        color: white;
+                        padding: 6px 12px;
+                        border-radius: 8px;
+                        font-size: 0.78em;
+                        font-weight: bold;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                        z-index: 10000;
+                        white-space: nowrap;
+                        pointer-events: none;
+                        border: 1.5px solid #ff4757;
+                    `;
+                    contentDiv.appendChild(helper);
                     const badge = document.createElement('div');
                     badge.className = 'floating-cart-badge';
                     badge.innerHTML = `🛒 장바구니 ${b2bCart.length}개`;
