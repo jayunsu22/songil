@@ -354,14 +354,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (error) {
             console.error("데이터 로드 실패:", error);
-            const isBlocked = error.message.includes("만료") || error.message.includes("차단") || error.message.includes("제한");
-            loading.innerHTML = `<div style="text-align:center; padding:20px;">
-                <h2 style="color:var(--danger); margin-bottom:10px;">${isBlocked ? '접속이 제한되었습니다' : '데이터를 불러오지 못했습니다.'}</h2>
-                <p style="color:var(--text-main); margin-bottom:20px;">${isBlocked ? error.message : `서버(n8n)가 꺼져 있거나 연결에 실패했습니다.<br>오류 내용: ${error.message}`}</p>
-                ${isBlocked ? '' : '<button onclick="location.reload()" class="action-btn" style="background:var(--accent); color:white;">다시 시도</button>'}
-            </div>`;
-            loading.style.display = 'flex';
-            loading.style.background = 'white';
+            const isBlocked = error.message.includes("만료") || error.message.includes("차단") || error.message.includes("제한") || error.message.includes("BLOCKED") || error.message.includes("권한");
+            if (isBlocked) {
+                document.body.innerHTML = `
+                    <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; text-align:center; padding:20px; font-family:sans-serif; background:#f7fafc; box-sizing:border-box;">
+                        <h2 style="color:#e53e3e; margin:0 0 12px 0; font-weight:700; font-size:1.6rem; line-height:1.4;">접속이 제한되었습니다</h2>
+                        <p style="color:#4a5568; font-size:1.1rem; line-height:1.8; margin:0 0 12px 0; font-weight:500;">
+                            접속 권한이 없습니다!<br>
+                            또는 이용 기간이 만료되었습니다.<br>
+                            관리자에게 문의해 주세요.
+                        </p>
+                        <a href="tel:010-6657-1222" style="color:#e53e3e; font-size:1.6rem; font-weight:700; text-decoration:none; display:inline-block; margin:0; line-height:1.4;">
+                            연락처 : 010-6657-1222
+                        </a>
+                    </div>
+                `;
+            } else {
+                loading.innerHTML = `<div style="text-align:center; padding:20px;">
+                    <h2 style="color:var(--danger); margin-bottom:10px;">데이터를 불러오지 못했습니다.</h2>
+                    <p style="color:var(--text-main); margin-bottom:20px;">서버(n8n)가 꺼져 있거나 연결에 실패했습니다.<br>오류 내용: ${error.message}</p>
+                    <button onclick="location.reload()" class="action-btn" style="background:var(--accent); color:white;">다시 시도</button>
+                </div>`;
+                loading.style.display = 'flex';
+                loading.style.background = 'white';
+            }
         }
     }
 
