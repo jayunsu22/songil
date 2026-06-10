@@ -45,6 +45,19 @@ const CONFIG = {
 
                     // 상단 링크 영역은 의도적으로 비움
                     document.getElementById('partner-links').innerHTML = '';
+                } else {
+                    // 💡 만약 가맹점 정보 조회가 실패(만료/비활성화)했다면 접속 완전 차단!
+                    document.body.innerHTML = `
+                        <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; text-align:center; padding:20px; font-family:sans-serif; background:#f7fafc;">
+                            <div style="font-size:5rem; margin-bottom:20px;">🔒</div>
+                            <h2 style="color:#e53e3e; margin-bottom:12px; font-weight:700;">접속이 불가능한 페이지입니다.</h2>
+                            <p style="color:#4a5568; font-size:1.1rem; line-height:1.6; margin:0;">
+                                서비스 이용 기간이 만료되었거나 비활성화된 계정입니다.<br>
+                                자세한 사항은 관리자에게 문의해 주세요.
+                            </p>
+                        </div>
+                    `;
+                    return;
                 }
             } catch (e) {
                 console.error("가맹점 정보 로딩 실패:", e);

@@ -298,6 +298,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const data = await response.json();
             
+            // 💡 계정 만료 및 비활성화 체크
+            if (data.error === "BLOCKED" || data.success === false || data.success === "false") {
+                throw new Error(data.message || "서비스 이용 기간이 만료되어 접속이 차단되었습니다.");
+            }
+            
             // 데이터 매핑
             globalMaterialPrice = data.globalMaterialPrice || 9000;
             document.getElementById('globalMaterialPriceTxt').textContent = `${globalMaterialPrice.toLocaleString()}원`;
@@ -349,10 +354,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (error) {
             console.error("데이터 로드 실패:", error);
+            const isBlocked = error.message.includes("만료") || error.message.includes("차단") || error.message.includes("제한");
             loading.innerHTML = `<div style="text-align:center; padding:20px;">
-                <h2 style="color:var(--danger); margin-bottom:10px;">데이터를 불러오지 못했습니다.</h2>
-                <p style="color:var(--text-main); margin-bottom:20px;">서버(n8n)가 꺼져 있거나 연결에 실패했습니다.<br>오류 내용: ${error.message}</p>
-                <button onclick="location.reload()" class="action-btn" style="background:var(--accent); color:white;">다시 시도</button>
+                <h2 style="color:var(--danger); margin-bottom:10px;">${isBlocked ? '접속이 제한되었습니다' : '데이터를 불러오지 못했습니다.'}</h2>
+                <p style="color:var(--text-main); margin-bottom:20px;">${isBlocked ? error.message : `서버(n8n)가 꺼져 있거나 연결에 실패했습니다.<br>오류 내용: ${error.message}`}</p>
+                ${isBlocked ? '' : '<button onclick="location.reload()" class="action-btn" style="background:var(--accent); color:white;">다시 시도</button>'}
             </div>`;
             loading.style.display = 'flex';
             loading.style.background = 'white';
