@@ -52,8 +52,9 @@ const CONFIG = {
                             <div style="font-size:5rem; margin-bottom:20px;">🔒</div>
                             <h2 style="color:#e53e3e; margin-bottom:12px; font-weight:700;">접속이 불가능한 페이지입니다.</h2>
                             <p style="color:#4a5568; font-size:1.1rem; line-height:1.6; margin:0;">
-                                서비스 이용 기간이 만료되었거나 비활성화된 계정입니다.<br>
-                                자세한 사항은 관리자에게 문의해 주세요.
+                                서비스 이용 기간이 만료되었거나 접속중지 처리된 계정입니다.<br>
+                                자세한 사항은 관리자에게 문의해 주세요.<br>
+                                <span style="font-size:1rem; color:#718096; display:inline-block; margin-top:10px; font-weight:600;">관리자 연락처: 010-6657-1222</span>
                             </p>
                         </div>
                     `;
