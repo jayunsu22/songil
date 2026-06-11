@@ -548,7 +548,7 @@ const CONFIG = {
             if (sender === 'bot' && isQuote) {
                 // DOM 렌더링 후 처리되도록 약간 지연
                 setTimeout(() => {
-                    processDynamicOptions(bubble);
+                    // processDynamicOptions(bubble); // 제미나이가 자동으로 판독하므로 동적 질문 제거
                     if (!save) {
                         scrollToBottom();
                     }
@@ -847,6 +847,61 @@ const CONFIG = {
                     botBubble = addBubble(data.message, 'bot', true);
                 } else {
                     botBubble = addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
+                }
+
+                // AI 이미지 테두리(Bounding Box) 생성 반영
+                if (botBubble) {
+                    const boxes = (Array.isArray(data) && data.length > 0) ? data[0].boxes : data.boxes;
+                    if (boxes && Array.isArray(boxes) && boxes.length > 0) {
+                        const imgContainer = botBubble.querySelector('.ai-image-container');
+                        if (imgContainer) {
+                            boxes.forEach(boxObj => {
+                                if (boxObj.box && Array.isArray(boxObj.box) && boxObj.box.length === 4) {
+                                    const [ymin, xmin, ymax, xmax] = boxObj.box;
+                                    
+                                    const boxDiv = document.createElement('div');
+                                    boxDiv.style.position = 'absolute';
+                                    boxDiv.style.top = `${ymin / 10}%`;
+                                    boxDiv.style.left = `${xmin / 10}%`;
+                                    boxDiv.style.width = `${(xmax - xmin) / 10}%`;
+                                    boxDiv.style.height = `${(ymax - ymin) / 10}%`;
+                                    
+                                    // 네온 블루 테두리 및 미세 네온 효과 (시안 느낌)
+                                    boxDiv.style.border = '2px solid #00f0ff';
+                                    boxDiv.style.boxShadow = '0 0 8px rgba(0, 240, 255, 0.6), inset 0 0 8px rgba(0, 240, 255, 0.2)';
+                                    boxDiv.style.background = 'rgba(0, 240, 255, 0.05)';
+                                    boxDiv.style.borderRadius = '4px';
+                                    boxDiv.style.pointerEvents = 'none';
+                                    
+                                    // 배지 라벨 생성
+                                    const labelSpan = document.createElement('span');
+                                    labelSpan.style.position = 'absolute';
+                                    if (ymin < 50) {
+                                        labelSpan.style.top = '4px';
+                                        labelSpan.style.left = '4px';
+                                    } else {
+                                        labelSpan.style.top = '-20px';
+                                        labelSpan.style.left = '-2px';
+                                    }
+                                    
+                                    labelSpan.style.background = '#00f0ff';
+                                    labelSpan.style.color = '#111';
+                                    labelSpan.style.fontSize = '9px';
+                                    labelSpan.style.fontWeight = 'bold';
+                                    labelSpan.style.padding = '1px 5px';
+                                    labelSpan.style.borderRadius = '3px';
+                                    labelSpan.style.whiteSpace = 'nowrap';
+                                    labelSpan.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+                                    
+                                    const badgeNumStr = boxObj.badge ? ` [${boxObj.badge}]` : '';
+                                    labelSpan.innerHTML = `🤖 AI 인식: ${boxObj.item}${badgeNumStr}`;
+                                    
+                                    boxDiv.appendChild(labelSpan);
+                                    imgContainer.appendChild(boxDiv);
+                                }
+                            });
+                        }
+                    }
                 }
 
                 // [New] 1) 견적이 산출되고 나면 그다음에 버튼으로[간편견적 열기] 버튼 생성
