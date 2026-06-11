@@ -358,15 +358,9 @@ const CONFIG = {
             if (sinkItem) {
                 activeCategory = "sink";
                 currentSinkBase = sinkItem.replace('1세트', '').trim();
-                if (currentSinkBase !== '싱크대') {
-                    step = 0;
-                }
             } else if (sashItem) {
                 activeCategory = "sash";
                 currentSashBase = sashItem.replace('1세트', '').trim();
-                if (currentSashBase !== '샤시') {
-                    step = 0;
-                }
             }
 
             function renderButtons() {
