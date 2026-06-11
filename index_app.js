@@ -24,7 +24,6 @@ const CONFIG = {
             }
 
             if (!code) {
-                renderWelcomeIfNeeded();
                 return;
             }
 
@@ -45,6 +44,9 @@ const CONFIG = {
 
                     // 상단 링크 영역은 의도적으로 비움
                     document.getElementById('partner-links').innerHTML = '';
+
+                    // 웰컴 카드가 이미 렌더링되어 있다면 실시간 가맹점 정보 업데이트
+                    updateWelcomeCardWithPartner(data);
                 } else {
                     // 💡 만약 가맹점 정보 조회가 실패(만료/비활성화)했다면 접속 완전 차단!
                     document.body.innerHTML = `
@@ -64,8 +66,6 @@ const CONFIG = {
                 }
             } catch (e) {
                 console.error("가맹점 정보 로딩 실패:", e);
-            } finally {
-                renderWelcomeIfNeeded();
             }
         }
 
@@ -1907,7 +1907,7 @@ const CONFIG = {
                 const kakao = partnerData.kakao_url || '';
 
                 const socialHtml = (blog || insta || kakao) ? `
-                    <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; margin-top: 4px;">
+                    <div class="welcome-partner-socials" style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; margin-top: 4px;">
                         ${blog ? `<a href="${blog}" target="_blank" style="display:inline-block; padding:2px 6px; background:#03C75A; color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">블</a>` : ''}
                         ${insta ? `<a href="${insta}" target="_blank" style="display:inline-block; padding:2px 6px; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">인</a>` : ''}
                         ${kakao ? `<a href="${kakao}" target="_blank" style="display:inline-block; padding:2px 6px; background:#FEE500; color:#3c1e1e; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">카</a>` : ''}
@@ -1974,10 +1974,10 @@ const CONFIG = {
     </div>
 
     <div style="background: #fff; border: 1px solid #edf2f7; border-radius: 10px; padding: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); display: inline-block; width: 100%; box-sizing: border-box;">
-        <span style="font-size: 0.9em; font-weight: bold; color: #4a5568; display: block; margin-bottom: 6px;">문의 : ${ceo} ${pos}</span>
-        ${socialHtml}
-        <a href="tel:${phone}" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 220px; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-weight: bold; color: #2d3748; text-decoration: none; font-size: 0.95em; box-sizing: border-box; outline: none;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>${phone}
+        <span class="welcome-partner-name" style="font-size: 0.9em; font-weight: bold; color: #4a5568; display: block; margin-bottom: 6px;">문의 : ${ceo} ${pos}</span>
+        <div class="welcome-partner-socials-container">${socialHtml}</div>
+        <a href="tel:${phone}" class="welcome-partner-phone" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 220px; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-weight: bold; color: #2d3748; text-decoration: none; font-size: 0.95em; box-sizing: border-box; outline: none;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg><span class="phone-text">${phone}</span>
         </a>
     </div>
 </div>
@@ -1992,6 +1992,51 @@ const CONFIG = {
                 setTimeout(() => {
                     addOpenQuickQuoteButton();
                 }, 500);
+            }
+        }
+
+        // [New] 백그라운드 API 응답 결과를 웰컴 카드의 명함 영역에 동적으로 덮어쓰는 헬퍼 함수
+        function updateWelcomeCardWithPartner(partnerData) {
+            const welcomeCard = document.querySelector('.welcome-card-bubble');
+            if (!welcomeCard) return;
+
+            const ceo = partnerData.ceo_name || '김정헌';
+            const pos = partnerData.position || '실장';
+            const phone = partnerData.phone || '010-6657-1222';
+
+            const blog = partnerData.blog_url || '';
+            const insta = partnerData.insta_url || '';
+            const kakao = partnerData.kakao_url || '';
+
+            // 1. 문의처 담당자명 텍스트 업데이트
+            const nameEl = welcomeCard.querySelector('.welcome-partner-name');
+            if (nameEl) {
+                nameEl.textContent = `문의 : ${ceo} ${pos}`;
+            }
+
+            // 2. 소셜 SNS 링크 영역 업데이트
+            const socialsEl = welcomeCard.querySelector('.welcome-partner-socials-container');
+            if (socialsEl) {
+                const socialHtml = (blog || insta || kakao) ? `
+                    <div class="welcome-partner-socials" style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; margin-top: 4px;">
+                        ${blog ? `<a href="${blog}" target="_blank" style="display:inline-block; padding:2px 6px; background:#03C75A; color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">블</a>` : ''}
+                        ${insta ? `<a href="${insta}" target="_blank" style="display:inline-block; padding:2px 6px; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">인</a>` : ''}
+                        ${kakao ? `<a href="${kakao}" target="_blank" style="display:inline-block; padding:2px 6px; background:#FEE500; color:#3c1e1e; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">카</a>` : ''}
+                    </div>
+                ` : '';
+                socialsEl.innerHTML = socialHtml;
+            }
+
+            // 3. 전화번호 링크 및 표시 텍스트 업데이트
+            const phoneLinkEl = welcomeCard.querySelector('.welcome-partner-phone');
+            if (phoneLinkEl) {
+                phoneLinkEl.href = `tel:${phone}`;
+                const phoneTextEl = phoneLinkEl.querySelector('.phone-text');
+                if (phoneTextEl) {
+                    phoneTextEl.textContent = phone;
+                } else {
+                    phoneLinkEl.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg><span class="phone-text">${phone}</span>`;
+                }
             }
         }
 
@@ -2034,4 +2079,5 @@ const CONFIG = {
         };
 
         // 모든 변수 및 DOM 엘리먼트 정의가 완료된 후 실행
+        renderWelcomeIfNeeded();
         loadPartnerInfo();
