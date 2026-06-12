@@ -1475,7 +1475,16 @@ const CONFIG = {
                 bindClickEffect(uploadBtn, () => { document.getElementById('imageInput').click(); });
                 const cameraBtn = document.createElement('button');
                 cameraBtn.style.cssText = "display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 260px; padding: 12px 24px; background: #2ecc71; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.0em; cursor: pointer; box-shadow: 0 4px 6px rgba(46, 204, 113, 0.2);";
-                photoCard.appendChild(photoDesc);
+                cameraBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                    실시간 촬영하기
+                `;
+                bindClickEffect(cameraBtn, () => {
+                    document.getElementById('cameraInput').click();
+                });
                 photoCard.appendChild(uploadBtn);
                 photoCard.appendChild(cameraBtn);
                 bodyContainer.appendChild(photoCard);
