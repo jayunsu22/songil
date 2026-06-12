@@ -731,6 +731,8 @@ const CONFIG = {
             if (existingBtn) existingBtn.remove();
             const existingMenu = document.querySelector('.quick-reply-container');
             if (existingMenu) existingMenu.remove();
+            const inlineContainer = document.querySelector('.quick-quote-inline-container');
+            if (inlineContainer) inlineContainer.remove();
 
             // [New] 일일 무료 견적 3회 제한 (이미지 포함 시)
             // 단, URL 파라미터에 'admin=true'가 있거나, 해시값에 #admin이 있으면 제한 무시
@@ -1196,21 +1198,15 @@ const CONFIG = {
             renderQuickQuoteModal();
         }
 
-        // [New] 특정 품목(name)의 수량 1 증가 함수 (1개 제한이므로 미작동)
-        function increaseCartItemQuantity(name, label) {
-            // 1개 제한이므로 아무것도 하지 않음
-        }
+        function increaseCartItemQuantity(name, label) {}
 
-        // [New] 특정 품목(name)에 해당하는 모든 장바구니 아이템 일괄 삭제 함수
         function clearCartItemsByName(name) {
             b2bCart = b2bCart.filter(item => item.name !== name);
             renderQuickQuoteModal();
         }
 
-        // [New] 특정 슬롯(name, cartIndex)에 해당하는 장바구니 아이템 삭제 함수 (삭제 후 뒤쪽 슬롯을 앞으로 한 칸씩 당김)
         function clearCartItemBySlot(name, cartIndex) {
             b2bCart = b2bCart.filter(item => !(item.name === name && item.cartIndex === cartIndex));
-            
             b2bCart.forEach(item => {
                 if (item.name === name && item.cartIndex > cartIndex) {
                     item.cartIndex -= 1;
@@ -1221,26 +1217,18 @@ const CONFIG = {
             renderQuickQuoteModal();
         }
 
-        // [New] 품목별 탭 드롭다운 폼 오픈 함수 (트리거 박스와 담기버튼을 없애고 드롭다운 목록만 열어 한번에 선택하여 장바구니에 담는 방식으로 개편, 우측 상단 닫기버튼 추가)
         function openDropdownForm(item, rowWrapper, cartIndex = 1, currentLabel = "") {
             const oldForm = document.querySelector('.dropdown-select-form');
             if (oldForm) oldForm.remove();
-
             const selectForm = document.createElement('div');
             selectForm.className = 'dropdown-select-form';
             selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; position: relative;";
-
             const titleSpan = document.createElement('span');
             titleSpan.style.cssText = "font-size: 0.85em; font-weight: bold; color: #4A90E2; padding-right: 25px;";
-
             let optionList = [];
             let titleText = "";
-
             if (!currentLabel) currentLabel = item.label;
-            // 옵션 구성
             titleText = `⚙️ ${currentLabel} 옵션 선택:`;
-            
-            // 1. 문/도어류
             if (item.name === "방문") {
                 titleText = `⚙️ 방문 시공 수량 선택:`;
                 for (let i = 1; i <= 9; i++) optionList.push({ value: `문+틀 ${i}세트`, text: `문+틀 ${i}세트` });
@@ -1259,10 +1247,7 @@ const CONFIG = {
             } else if (item.name === "중문문짝") {
                 titleText = `⚙️ 중문문짝만 시공 수량 선택:`;
                 for (let i = 1; i <= 3; i++) optionList.push({ value: `문 ${i}개`, text: `문 ${i}개` });
-            }
-            
-            // 2. 샤시류 (일반샤시 단창, 2중창, 시스템샤시)
-            else if (item.name === "샤시(단창) 1m" || item.name === "샤시(2중창) 1m" || item.name === "시스템샤시 1m") {
+            } else if (item.name === "샤시(단창) 1m" || item.name === "샤시(2중창) 1m" || item.name === "시스템샤시 1m") {
                 titleText = `⚙️ ${item.label} 수량 선택:`;
                 for (let i = 1; i <= 9; i++) optionList.push({ value: `샤시 ${i}세트`, text: `샤시 ${i}세트` });
             } else if (item.name === "샤시(단창) 3m" || item.name === "샤시(단창) 5m" || 
@@ -1270,24 +1255,15 @@ const CONFIG = {
                        item.name === "시스템샤시 3m" || item.name === "시스템샤시 5m") {
                 titleText = `⚙️ ${item.label} 수량 선택:`;
                 for (let i = 1; i <= 9; i++) optionList.push({ value: `샤시 ${i}세트`, text: `샤시 ${i}세트` });
-            }
-            
-            // 3. 싱크대류 (싱크대 전체, 상부장, 하부장)
-            else if (item.name === "싱크대" || item.name === "싱크대 상부장" || item.name === "싱크대 하부장") {
+            } else if (item.name === "싱크대" || item.name === "싱크대 상부장" || item.name === "싱크대 하부장") {
                 titleText = `⚙️ ${item.label} 길이 선택:`;
                 const ranges = ["1~2m", "3~4m", "5~6m", "7~8m", "9~10m", "11~12m"];
                 ranges.forEach(r => optionList.push({ value: `길이 ${r}`, text: `길이 ${r}` }));
-            }
-            
-            // 4. 가구 전체시공 및 목공류 길이 범위 선택 (신발장, 붙박이장, 수납장, 냉장고장)
-            else if (item.name === "신발장" || item.name === "붙박이장" || item.name === "수납장" || item.name === "냉장고장") {
+            } else if (item.name === "신발장" || item.name === "붙박이장" || item.name === "수납장" || item.name === "냉장고장") {
                 titleText = `⚙️ ${item.label} 길이 선택:`;
                 const ranges = ["1~2m", "3~4m", "5~6m"];
                 ranges.forEach(r => optionList.push({ value: `길이 ${r}`, text: `길이 ${r}` }));
-            }
-            
-            // 5. 가구 부품 (문틀, 문짝)
-            else if (item.name === "신발장틀" || item.name === "냉장고장틀") {
+            } else if (item.name === "신발장틀" || item.name === "냉장고장틀") {
                 titleText = `⚙️ ${item.label} 수량 선택:`;
                 for (let i = 1; i <= 2; i++) optionList.push({ value: `문틀 ${i}개`, text: `문틀 ${i}개` });
             } else if (item.name === "신발장문짝") {
@@ -1302,18 +1278,13 @@ const CONFIG = {
             } else if (item.name === "냉장고장문짝") {
                 titleText = `⚙️ 냉장고장 문짝만 수량 선택:`;
                 for (let i = 1; i <= 8; i++) optionList.push({ value: `문짝 ${i}개`, text: `문짝 ${i}개` });
-            }
-            
-            // 6. 목공류 (가벽, 알판, 등박스, 웨인스코팅, 중간알판)
-            else if (item.name === "가벽" || item.name === "알판" || item.name === "등박스" || item.name === "웨인스코팅" || item.name === "중간알판") {
+            } else if (item.name === "가벽" || item.name === "알판" || item.name === "등박스" || item.name === "웨인스코팅" || item.name === "중간알판") {
                 titleText = `⚙️ ${item.label} 길이 선택:`;
                 const ranges = ["1~2m", "3~4m", "5~6m", "7~8m", "9~10m"];
                 ranges.forEach(r => optionList.push({ value: `길이 ${r}`, text: `길이 ${r}` }));
             }
             titleSpan.innerText = titleText;
             selectForm.appendChild(titleSpan);
-
-            // 우측 상단 X 닫기 버튼 추가
             const closeBtn = document.createElement('button');
             closeBtn.className = 'dropdown-close-btn';
             closeBtn.innerHTML = '✕';
@@ -1325,111 +1296,35 @@ const CONFIG = {
                 selectForm.remove();
             });
             selectForm.appendChild(closeBtn);
-
-            // 커스텀 드롭다운 옵션 목록 직접 렌더링 (트리거박스 없이 즉시 활성화)
             const optionsListDiv = document.createElement('div');
             optionsListDiv.className = 'custom-dropdown-options';
             optionsListDiv.style.cssText = "display: block; position: static; box-shadow: none; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 250px; overflow-y: auto; background: white; margin-top: 4px; box-sizing: border-box;";
-
             optionList.forEach(opt => {
                 const optDiv = document.createElement('div');
                 optDiv.className = 'custom-dropdown-option';
                 optDiv.innerText = opt.text;
-
                 optDiv.onclick = (e) => {
                     e.stopPropagation();
-                    // 선택 즉시 1개 장바구니에 담기 (원터치 완료)
                     addCartItem(item.name, currentLabel, opt.value, 1, cartIndex);
                     selectForm.remove();
                 };
                 optionsListDiv.appendChild(optDiv);
             });
-
             selectForm.appendChild(optionsListDiv);
             rowWrapper.appendChild(selectForm);
         }
 
+        // 공통 UI 렌더링 헬퍼 함수
+        function renderModalBody(bodyContainer, parentContainer) {
+            bodyContainer.innerHTML = ''; 
 
-        // 퀵 메뉴(장바구니) 표시 함수 (전체화면 모달화 및 이중스크롤 제거)
-        function renderQuickQuoteModal() {
-            // 1. 모달 전체 오버레이 컨테이너 생성 및 복원
-            let modal = document.querySelector('.quick-quote-modal');
-            let isFirstRender = false;
-
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.className = 'quick-quote-modal';
-
-                // 모달 뼈대 HTML 구조 생성
-                modal.innerHTML = `
-                    <div class="quick-quote-modal-content">
-                        <!-- 모달 헤더 -->
-                        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #edf2f7; background:#ffffff;">
-                            <span style="font-weight:bold; font-size:1.15em; color:#1a202c; display:flex; align-items:center; gap:6px;">
-                                🛠️ 1분 간편견적 선택
-                            </span>
-                            <button class="modal-close-btn" style="background:none; border:none; font-size:1.7em; font-weight:bold; cursor:pointer; color:#a0aec0; padding:5px; line-height:1; transition:color 0.2s;">&times;</button>
-                        </div>
-                        <!-- 모달 스크롤 바디 -->
-                        <div class="quick-quote-modal-body" id="modalBody"></div>
-                    </div>
-                `;
-
-                document.body.appendChild(modal);
-                isFirstRender = true;
-
-                // 닫기 버튼 이벤트 연결
-                const closeBtn = modal.querySelector('.modal-close-btn');
-                closeBtn.onmouseover = () => { closeBtn.style.color = '#e53e3e'; };
-                closeBtn.onmouseout = () => { closeBtn.style.color = '#a0aec0'; };
-
-                bindClickEffect(closeBtn, () => {
-                    modal.remove();
-                    addOpenQuickQuoteButton(); // 하단에 열기 버튼 다시 띄우기
-                });
-
-                // 모달 바깥 어두운 영역 클릭 시 닫기
-                modal.onclick = (e) => {
-                    if (e.target === modal) {
-                        modal.remove();
-                        addOpenQuickQuoteButton();
-                    }
-                };
-
-                // 스크롤 이벤트 바인딩 (장바구니 플로팅 버튼 자동 페이드 아웃/인 처리)
-                const modalBody = modal.querySelector('#modalBody');
-                if (modalBody) {
-                    modalBody.onscroll = () => {
-                        const badge = modal.querySelector('.floating-cart-badge');
-                        if (badge) {
-                            const threshold = 80;
-                            if (modalBody.scrollHeight - modalBody.scrollTop - modalBody.clientHeight < threshold) {
-                                badge.style.opacity = '0';
-                                badge.style.pointerEvents = 'none';
-                            } else {
-                                badge.style.opacity = '1';
-                                badge.style.pointerEvents = 'auto';
-                            }
-                        }
-                    };
-                }
-            }
-
-            const bodyContainer = modal.querySelector('#modalBody');
-            bodyContainer.innerHTML = ''; // 기존 내용 초기화
-
-            // 💡 상단 힌트 메시지 박스 제거됨
-
-            // 1. 최상단 메인 탭 (평형별, 품목별, 사진견적)
             const mainTabsDiv = document.createElement('div');
             mainTabsDiv.style.cssText = "display: flex; margin-bottom: 15px; background: #f0f2f5; border-radius: 8px; padding: 4px;";
-
             const mainTabsConfig = [
                 { label: "🏠 평형별", index: 0 },
                 { label: "🛒 품목별", index: 1 },
                 { label: "📸 사진견적", index: 2 }
             ];
-
             mainTabsConfig.forEach(t => {
                 const tab = document.createElement('div');
                 tab.innerText = t.label;
@@ -1439,9 +1334,6 @@ const CONFIG = {
                     setTimeout(() => {
                         mainTab = t.index;
                         renderQuickQuoteModal();
-                        if (t.index === 2) {
-                            // Do not automatically trigger imageInput.click() anymore
-                        }
                     }, 100);
                 };
                 mainTabsDiv.appendChild(tab);
@@ -1449,280 +1341,140 @@ const CONFIG = {
             mainTabsDiv.className = 'main-tabs-container';
             bodyContainer.appendChild(mainTabsDiv);
 
-            // 2. 메인 탭 내용 렌더링
             if (mainTab === 0) {
-                // 1) 아파트/빌라 전체견적 엑셀 표
                 const table1 = document.createElement('table');
                 table1.className = 'excel-table';
-
                 const tr1 = document.createElement('tr');
-
                 const tdLabel1 = document.createElement('td');
                 tdLabel1.className = 'excel-label orange';
                 tdLabel1.innerHTML = '아파트/빌라<br>전체견적';
-
                 const tdValue1 = document.createElement('td');
                 tdValue1.className = 'excel-value-container';
-
                 APARTMENT_SIZES.forEach(size => {
                     const row = document.createElement('div');
                     row.className = 'excel-item-row';
                     row.innerText = `${size.replace(" 아파트", "")} 전체견적`;
-
                     bindClickEffect(row, () => {
                         userInput.value = `${size} 전체 견적 내주세요.`;
-                        modal.remove();
+                        const modal = document.querySelector('.quick-quote-modal');
+                        if (modal) modal.remove();
+                        const inline = document.querySelector('.quick-quote-inline-container');
+                        if (inline) inline.remove();
                         sendRequest();
                     });
                     tdValue1.appendChild(row);
                 });
-
                 tr1.appendChild(tdLabel1);
                 tr1.appendChild(tdValue1);
                 table1.appendChild(tr1);
                 bodyContainer.appendChild(table1);
-
-                // 2) 평형별 세부 품목 엑셀 표
                 const sizeRanges = [
                     { label: "20평형 세부품목", sizeText: "20평", key: "20", colorClass: "blue" },
                     { label: "30평형 세부품목", sizeText: "30평", key: "30", colorClass: "teal" },
                     { label: "40평형 세부품목", sizeText: "40평", key: "40", colorClass: "purple" },
                     { label: "50평형 세부품목", sizeText: "50평", key: "50", colorClass: "indigo" }
                 ];
-
                 sizeRanges.forEach(range => {
                     const table = document.createElement('table');
                     table.className = 'excel-table';
-
                     const tr = document.createElement('tr');
-
                     const tdLabel = document.createElement('td');
                     tdLabel.className = `excel-label ${range.colorClass}`;
                     tdLabel.innerHTML = range.label.replace(" 세부품목", "<br>세부품목");
-
                     const tdValue = document.createElement('td');
                     tdValue.className = 'excel-value-container';
-
                     const filteredItems = SIZE_ITEMS.filter(item => item.label.startsWith(range.sizeText));
-
                     filteredItems.forEach(item => {
                         const row = document.createElement('div');
                         row.className = 'excel-item-row';
-
                         const matchItems = b2bCart.filter(c => c.name === item.name);
                         const count = matchItems.reduce((acc, cur) => acc + cur.count, 0);
-
                         if (count > 0) {
                             row.classList.add('active');
-                            row.innerHTML = `
-                                <span>${item.label}</span>
-                                <div class="excel-qty-control">
-                                    <span class="excel-check-badge">✓</span>
-                                    <button class="qty-btn remove">&times;</button>
-                                </div>
-                            `;
-
+                            row.innerHTML = `<span>${item.label}</span><div class="excel-qty-control"><span class="excel-check-badge">✓</span><button class="qty-btn remove">&times;</button></div>`;
                             const removeBtn = row.querySelector('.qty-btn.remove');
-
-                            bindClickEffect(removeBtn, (e) => {
-                                e.stopPropagation();
-                                clearCartItemsByName(item.name);
-                            });
+                            bindClickEffect(removeBtn, (e) => { e.stopPropagation(); clearCartItemsByName(item.name); });
                         } else {
                             row.innerText = item.label;
-                            bindClickEffect(row, () => {
-                                addCartItem(item.name, item.label, "", 1);
-                            });
+                            bindClickEffect(row, () => { addCartItem(item.name, item.label, "", 1); });
                         }
                         tdValue.appendChild(row);
                     });
-
                     tr.appendChild(tdLabel);
                     tr.appendChild(tdValue);
                     table.appendChild(tr);
                     bodyContainer.appendChild(table);
                 });
-
-
             } else if (mainTab === 1) {
-                // ----------------------------------------------------
-                // [품목별 탭]
-                // ----------------------------------------------------
-                
-
-
-                // 2-1. 서브 카테고리 탭 (2개: 도어/샤시, 싱크/가구/기타)
                 const subTabsDiv = document.createElement('div');
                 subTabsDiv.style.cssText = "display: flex; justify-content: space-around; margin-bottom: 12px; border-bottom: 2px solid #eee;";
-
                 ITEM_CATEGORIES.forEach((cat, index) => {
                     const subTab = document.createElement('div');
                     subTab.innerText = cat.name;
                     subTab.style.cssText = `padding: 8px; font-weight: bold; font-size: 0.9em; cursor: pointer; border-bottom: 3px solid ${index === currentB2BTab ? '#4A90E2' : 'transparent'}; color: ${index === currentB2BTab ? '#4A90E2' : '#888'}; flex: 1; transition: all 0.2s; text-align: center;`;
-                    subTab.onclick = () => {
-                        subTab.classList.add('click-effect');
-                        setTimeout(() => {
-                            currentB2BTab = index;
-                            renderQuickQuoteModal();
-                        }, 100);
-                    };
+                    subTab.onclick = () => { subTab.classList.add('click-effect'); setTimeout(() => { currentB2BTab = index; renderQuickQuoteModal(); }, 100); };
                     subTabsDiv.appendChild(subTab);
                 });
                 bodyContainer.appendChild(subTabsDiv);
-
-                // 2-2. 활성화된 탭의 아이템 버튼 렌더링 (분류별 그룹화 적용)
                 const activeCat = ITEM_CATEGORIES[currentB2BTab];
-
                 activeCat.groups.forEach(group => {
                     const table = document.createElement('table');
                     table.className = 'excel-table';
-
                     const tr = document.createElement('tr');
-
-                    let colorClass = "blue";
-                    if (group.accent === "accent-teal") colorClass = "teal";
-                    if (group.accent === "accent-purple") colorClass = "purple";
-                    if (group.accent === "accent-indigo") colorClass = "indigo";
-
+                    let colorClass = group.accent === "accent-teal" ? "teal" : (group.accent === "accent-purple" ? "purple" : (group.accent === "accent-indigo" ? "indigo" : "blue"));
                     const tdLabel = document.createElement('td');
                     tdLabel.className = `excel-label ${colorClass}`;
                     tdLabel.innerHTML = group.title.replace(" ", "<br>");
-
                     const tdValue = document.createElement('td');
                     tdValue.className = 'excel-value-container';
-
                     let lastSubHeader = "";
                     group.items.forEach(item => {
-                        // 소분류 헤더 및 구분선 추가
                         if (item.sub && item.sub !== lastSubHeader) {
-                            if (lastSubHeader !== "") {
-                                const divider = document.createElement('div');
-                                divider.style.cssText = "border-top: 1px solid #edf2f7; margin: 8px 16px; clear: both;";
-                                tdValue.appendChild(divider);
-                            }
+                            if (lastSubHeader !== "") { const divider = document.createElement('div'); divider.style.cssText = "border-top: 1px solid #edf2f7; margin: 8px 16px; clear: both;"; tdValue.appendChild(divider); }
                             const subHeaderDiv = document.createElement('div');
                             subHeaderDiv.style.cssText = "font-size: 0.82em; font-weight: bold; color: #4A90E2; margin: 10px 16px 4px; display: flex; align-items: center; gap: 6px; clear: both; text-align: left;";
                             subHeaderDiv.innerHTML = `<span style="display:inline-block; width:5px; height:5px; background:#4A90E2; border-radius:50%;"></span> ${item.sub}`;
                             tdValue.appendChild(subHeaderDiv);
                             lastSubHeader = item.sub;
                         }
-
                         const isMultiAllow = (item.name === "신발장" || item.name === "붙박이장" || item.name === "수납장");
                         const limit = (item.name === "신발장") ? 2 : (isMultiAllow ? 5 : 1);
-
                         for (let slotIndex = 1; slotIndex <= limit; slotIndex++) {
-                            // 다중 슬롯 노출 여부 판단
-                            if (slotIndex > 1) {
-                                const prevSlotExists = b2bCart.some(c => c.name === item.name && c.cartIndex === (slotIndex - 1));
-                                if (!prevSlotExists) {
-                                    break; // 이전 슬롯이 장바구니에 없으면 다음 추가 슬롯은 표시하지 않음
-                                }
-                            }
-
+                            if (slotIndex > 1) { const prevSlotExists = b2bCart.some(c => c.name === item.name && c.cartIndex === (slotIndex - 1)); if (!prevSlotExists) break; }
                             const rowWrapper = document.createElement('div');
                             rowWrapper.style.cssText = "position: relative; width: 100%; margin-bottom: 4px;";
-
                             const row = document.createElement('div');
                             row.className = 'excel-item-row';
-
                             const currentLabel = (slotIndex === 1) ? item.label : `${item.label}(${slotIndex})`;
                             const slotItem = b2bCart.find(c => c.name === item.name && c.cartIndex === slotIndex);
-
                             if (slotItem) {
                                 row.classList.add('active');
-                                const optionSubtext = slotItem.option ? `<span style="font-size: 0.82em; color: #4A90E2; display: block; font-weight: normal; margin-top: 2px; line-height: 1.2;">↳ 선택: ${slotItem.option}</span>` : "";
-                                row.innerHTML = `
-                                    <span class="qty-item-name-btn" style="cursor: pointer; flex: 1; text-align: left; display: flex; flex-direction: column; justify-content: center; padding: 2px 0;">
-                                        <span style="display: block; line-height: 1.3;">${currentLabel}</span>
-                                        ${optionSubtext}
-                                    </span>
-                                    <div class="excel-qty-control" style="display: flex; align-items: center; align-self: center;">
-                                        <span class="excel-check-badge">✓</span>
-                                        <button class="qty-btn remove">&times;</button>
-                                    </div>
-                                `;
-
-                                const nameBtn = row.querySelector('.qty-item-name-btn');
-                                bindClickEffect(nameBtn, (e) => {
-                                    e.stopPropagation();
-                                    if (item.type.includes('-dropdown')) {
-                                        openDropdownForm(item, rowWrapper, slotIndex, currentLabel);
-                                    } else {
-                                        addCartItem(item.name, currentLabel, "", 1, slotIndex);
-                                    }
-                                });
-
-                                const removeBtn = row.querySelector('.qty-btn.remove');
-                                bindClickEffect(removeBtn, (e) => {
-                                    e.stopPropagation();
-                                    clearCartItemBySlot(item.name, slotIndex);
-                                });
+                                row.innerHTML = `<span class="qty-item-name-btn" style="cursor: pointer; flex: 1; text-align: left; display: flex; flex-direction: column; justify-content: center; padding: 2px 0;"><span style="display: block; line-height: 1.3;">${currentLabel}</span>${slotItem.option ? `<span style="font-size: 0.82em; color: #4A90E2; display: block; font-weight: normal; margin-top: 2px; line-height: 1.2;">↳ 선택: ${slotItem.option}</span>` : ""}</span><div class="excel-qty-control" style="display: flex; align-items: center; align-self: center;"><span class="excel-check-badge">✓</span><button class="qty-btn remove">&times;</button></div>`;
+                                bindClickEffect(row.querySelector('.qty-item-name-btn'), (e) => { e.stopPropagation(); if (item.type.includes('-dropdown')) openDropdownForm(item, rowWrapper, slotIndex, currentLabel); else addCartItem(item.name, currentLabel, "", 1, slotIndex); });
+                                bindClickEffect(row.querySelector('.qty-btn.remove'), (e) => { e.stopPropagation(); clearCartItemBySlot(item.name, slotIndex); });
                             } else {
                                 row.innerText = currentLabel;
-                                bindClickEffect(row, () => {
-                                    if (item.type.includes('-dropdown')) {
-                                        openDropdownForm(item, rowWrapper, slotIndex, currentLabel);
-                                    } else {
-                                        addCartItem(item.name, currentLabel, "", 1, slotIndex);
-                                    }
-                                });
+                                bindClickEffect(row, () => { if (item.type.includes('-dropdown')) openDropdownForm(item, rowWrapper, slotIndex, currentLabel); else addCartItem(item.name, currentLabel, "", 1, slotIndex); });
                             }
                             rowWrapper.appendChild(row);
                             tdValue.appendChild(rowWrapper);
                         }
                     });
-
                     tr.appendChild(tdLabel);
                     tr.appendChild(tdValue);
                     table.appendChild(tr);
                     bodyContainer.appendChild(table);
                 });
-            } // else if (mainTab === 1) 블록 닫기
-            else {
-                // ----------------------------------------------------
-                // [사진견적 탭]
-                // ----------------------------------------------------
+            } else {
                 const photoCard = document.createElement('div');
                 photoCard.style.cssText = "padding: 25px 20px; border-radius: 12px; border: 2px dashed #cbd5e1; background: #f8fafc; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; margin-top: 10px;";
-
-                const photoTitle = document.createElement('div');
-                photoTitle.innerText = "📸 사진 찍어서 빠른 견적 받기";
-                photoTitle.style.cssText = "font-weight: bold; font-size: 1.15em; color: #1a202c;";
-
-                const photoDesc = document.createElement('div');
-                photoDesc.innerText = "시공할 현장 사진을 촬영하여 올려주시면\nAI가 사진을 실시간 분석해 1분안에 견적을 계산해 드립니다.";
-                photoDesc.style.cssText = "font-size: 0.88em; color: #64748b; white-space: pre-line; line-height: 1.5; margin-bottom: 5px;";
-
-                // 1. 보관된 사진 선택 버튼
+                photoCard.innerHTML = `<div style="font-weight: bold; font-size: 1.15em; color: #1a202c;">📸 사진 찍어서 빠른 견적 받기</div><div style="font-size: 0.88em; color: #64748b; white-space: pre-line; line-height: 1.5; margin-bottom: 5px;">시공할 현장 사진을 촬영하여 올려주시면<br>AI가 사진을 실시간 분석해 1분안에 견적을 계산해 드립니다.</div>`;
                 const uploadBtn = document.createElement('button');
                 uploadBtn.style.cssText = "display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 260px; padding: 12px 24px; background: #4A90E2; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.0em; cursor: pointer; box-shadow: 0 4px 6px rgba(74, 144, 226, 0.2);";
-                uploadBtn.innerHTML = `
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                        <polyline points="21 15 16 10 5 21"></polyline>
-                    </svg>
-                    보관된 사진 선택
-                `;
-                bindClickEffect(uploadBtn, () => {
-                    document.getElementById('imageInput').click();
-                });
-
-                // 2. 실시간 촬영하기 버튼
+                uploadBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>보관된 사진 선택`;
+                bindClickEffect(uploadBtn, () => { document.getElementById('imageInput').click(); });
                 const cameraBtn = document.createElement('button');
                 cameraBtn.style.cssText = "display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 260px; padding: 12px 24px; background: #2ecc71; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.0em; cursor: pointer; box-shadow: 0 4px 6px rgba(46, 204, 113, 0.2);";
-                cameraBtn.innerHTML = `
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                        <circle cx="12" cy="13" r="4"></circle>
-                    </svg>
-                    실시간 촬영하기
-                `;
-                bindClickEffect(cameraBtn, () => {
-                    document.getElementById('cameraInput').click();
-                });
-
-                photoCard.appendChild(photoTitle);
                 photoCard.appendChild(photoDesc);
                 photoCard.appendChild(uploadBtn);
                 photoCard.appendChild(cameraBtn);
@@ -1820,7 +1572,10 @@ const CONFIG = {
                     userInput.value = finalRequest;
 
                     b2bCart = [];
-                    modal.remove();
+                    const existingModal = document.querySelector('.quick-quote-modal');
+                    if (existingModal) existingModal.remove();
+                    const inlineContainer = document.querySelector('.quick-quote-inline-container');
+                    if (inlineContainer) inlineContainer.remove();
                     sendRequest();
                 });
 
@@ -1830,13 +1585,8 @@ const CONFIG = {
                 bodyContainer.appendChild(cartListContainer);
             }
 
-            // 최초 렌더링 시 모달 바디 스크롤 영역을 맨 위로 초기화
-            if (isFirstRender) {
-                bodyContainer.scrollTop = 0;
-            }
-
             // 장바구니 플로팅 배지/버튼 생성 및 제어 (B2B 품목별/평형별 탭 전용)
-            const contentDiv = modal.querySelector('.quick-quote-modal-content');
+            const contentDiv = parentContainer.querySelector('.quick-quote-modal-content');
             if (contentDiv) {
                 const existingBadge = contentDiv.querySelector('.floating-cart-badge');
                 if (existingBadge) existingBadge.remove();
@@ -1873,7 +1623,7 @@ const CONFIG = {
                         badge.style.transform = 'scale(1)';
                     };
                     bindClickEffect(badge, () => {
-                        const modalBody = modal.querySelector('#modalBody');
+                        const modalBody = parentContainer.querySelector('#modalBody');
                         if (modalBody) {
                             modalBody.scrollTo({ top: modalBody.scrollHeight, behavior: 'smooth' });
                         }
@@ -1881,10 +1631,119 @@ const CONFIG = {
                     contentDiv.appendChild(badge);
 
                     // 스크롤 포지션 즉시 수동 체크
-                    const modalBody = modal.querySelector('#modalBody');
+                    const modalBody = parentContainer.querySelector('#modalBody');
                     if (modalBody && modalBody.onscroll) {
                         modalBody.onscroll();
                     }
+                }
+            }
+        }
+
+        // 퀵 메뉴(장바구니) 표시 함수 (전체화면 모달화 및 이중스크롤 제거)
+        function renderQuickQuoteModal() {
+            const isInline = (chatHistory.length === 0);
+
+            if (isInline) {
+                // 1. 인라인 모드: 대화 시작 전에 웰컴 카드 아래에 상시 노출
+                // 기존 모달 오버레이가 열려 있다면 닫는다.
+                const existingModal = document.querySelector('.quick-quote-modal');
+                if (existingModal) existingModal.remove();
+
+                // 간편견적 열기 버튼도 숨긴다.
+                const existingBtn = document.querySelector('.open-quick-quote-btn');
+                if (existingBtn) existingBtn.remove();
+
+                let inlineContainer = document.querySelector('.quick-quote-inline-container');
+                if (!inlineContainer) {
+                    inlineContainer = document.createElement('div');
+                    inlineContainer.className = 'quick-quote-inline-container';
+                    inlineContainer.style.cssText = "width: 100%; max-width: 100%; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-top: 15px; margin-bottom: 25px; overflow: hidden; box-sizing: border-box;";
+                    
+                    inlineContainer.innerHTML = `
+                        <!-- 헤더 (닫기 버튼 없음) -->
+                        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #edf2f7; background:#ffffff;">
+                            <span style="font-weight:bold; font-size:1.15em; color:#1a202c; display:flex; align-items:center; gap:6px;">
+                                🛠️ 1분 간편견적 선택
+                            </span>
+                        </div>
+                        <!-- 내용 본문 영역 -->
+                        <div class="quick-quote-modal-body" id="modalBody" style="padding: 15px; max-height: none; overflow-y: visible;"></div>
+                    `;
+                    chatContainer.appendChild(inlineContainer);
+                }
+
+                // 렌더링 대상 컨테이너를 지정
+                const bodyContainer = inlineContainer.querySelector('#modalBody');
+                renderModalBody(bodyContainer, inlineContainer);
+
+            } else {
+                // 2. 모달 팝업 모드: 대화 기록이 있을 때
+                // 기존 인라인 컨테이너가 남아있으면 제거
+                const inlineContainer = document.querySelector('.quick-quote-inline-container');
+                if (inlineContainer) inlineContainer.remove();
+
+                let modal = document.querySelector('.quick-quote-modal');
+                let isFirstRender = false;
+
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.className = 'quick-quote-modal';
+                    modal.innerHTML = `
+                        <div class="quick-quote-modal-content">
+                            <!-- 모달 헤더 -->
+                            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #edf2f7; background:#ffffff;">
+                                <span style="font-weight:bold; font-size:1.15em; color:#1a202c; display:flex; align-items:center; gap:6px;">
+                                    🛠️ 1분 간편견적 선택
+                                </span>
+                                <button class="modal-close-btn" style="background:none; border:none; font-size:1.7em; font-weight:bold; cursor:pointer; color:#a0aec0; padding:5px; line-height:1; transition:color 0.2s;">&times;</button>
+                            </div>
+                            <!-- 모달 스크롤 바디 -->
+                            <div class="quick-quote-modal-body" id="modalBody"></div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                    isFirstRender = true;
+
+                    // 닫기 버튼 이벤트 연결
+                    const closeBtn = modal.querySelector('.modal-close-btn');
+                    closeBtn.onmouseover = () => { closeBtn.style.color = '#e53e3e'; };
+                    closeBtn.onmouseout = () => { closeBtn.style.color = '#a0aec0'; };
+                    bindClickEffect(closeBtn, () => {
+                        modal.remove();
+                        addOpenQuickQuoteButton();
+                    });
+
+                    modal.onclick = (e) => {
+                        if (e.target === modal) {
+                            modal.remove();
+                            addOpenQuickQuoteButton();
+                        }
+                    };
+
+                    const modalBody = modal.querySelector('#modalBody');
+                    if (modalBody) {
+                        modalBody.onscroll = () => {
+                            const badge = modal.querySelector('.floating-cart-badge');
+                            if (badge) {
+                                const threshold = 80;
+                                if (modalBody.scrollHeight - modalBody.scrollTop - modalBody.clientHeight < threshold) {
+                                    badge.style.opacity = '0';
+                                    badge.style.pointerEvents = 'none';
+                                } else {
+                                    badge.style.opacity = '1';
+                                    badge.style.pointerEvents = 'auto';
+                                }
+                            }
+                        };
+                    }
+                }
+
+                const bodyContainer = modal.querySelector('#modalBody');
+                renderModalBody(bodyContainer, modal);
+
+                // 최초 렌더링 시 모달 바디 스크롤 영역을 맨 위로 초기화
+                if (isFirstRender && bodyContainer) {
+                    bodyContainer.scrollTop = 0;
                 }
             }
         }
@@ -1988,7 +1847,7 @@ const CONFIG = {
                 welcomeBubble.classList.add('welcome-card-bubble');
 
                 setTimeout(() => {
-                    addOpenQuickQuoteButton();
+                    renderQuickQuoteModal();
                 }, 300);
             } else {
                 setTimeout(() => {
