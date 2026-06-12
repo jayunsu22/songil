@@ -464,8 +464,11 @@ const CONFIG = {
 
             let content = message;
 
-            // [추가] 중복 서명 제거 로직
+            // [추가] 중복 서명 제거 및 업데이트 태그 제거 로직
             if (sender === 'bot') {
+                // [New] [XX:XX KST 업데이트] 문구 제거
+                content = content.replace(/\s*\[[^\]]*KST\s*업데이트\]/gi, '');
+
                 if (isQuote || content.includes('견적') || content.includes('금액')) {
                     // [중요] 사용자가 요청한대로 "문의 :" 뒷부분은 n8n이 보내는 가짜 서명이므로 제거
                     // (단, n8n이 '담당 :' (투명문자 포함)으로 보낼 때는 이게 작동 안 할 수 있지만, 안전장치로 유지)
@@ -801,10 +804,11 @@ const CONFIG = {
         let lastAirtableImageUrl = "";
 
         async function sendRequest(isFromDynamicBtn = false) {
+            const isDynamic = (isFromDynamicBtn === true);
             let msg = userInput.value.trim();
 
             // [New] 만약 장바구니에 품목이 있고, 텍스트 입력 없이 '전송'을 누르거나 장바구니 품목을 보낼 때 자동 연동
-            if (b2bCart.length > 0 && !isFromDynamicBtn) {
+            if (b2bCart.length > 0 && !isDynamic) {
                 const requestTexts = [];
                 b2bCart.forEach(item => {
                     let text = "";
@@ -837,7 +841,7 @@ const CONFIG = {
                 b2bCart = [];
             }
 
-            if (!msg && selectedImages.length === 0 && !isFromDynamicBtn) return;
+            if (!msg && selectedImages.length === 0 && !isDynamic) return;
 
             // [Fix] 견적 계산이 시작되면 기존에 떠있던 간편견적 버튼과 컨테이너들을 숨김 처리
             const existingBtn = document.querySelector('.open-quick-quote-btn');
@@ -928,7 +932,7 @@ const CONFIG = {
                 // 길이 선택 버튼을 누른 거라면 사진 대신 payload.imageUrl 에 링크만 넣습니다.
                 if (finalImage) {
                     payload.image = finalImage;
-                } else if (isFromDynamicBtn && lastAirtableImageUrl) {
+                } else if (isDynamic && lastAirtableImageUrl) {
                     payload.imageUrl = lastAirtableImageUrl;
                 }
 
@@ -1017,7 +1021,7 @@ const CONFIG = {
             }
         }
 
-        sendButton.addEventListener('click', sendRequest);
+        sendButton.addEventListener('click', () => sendRequest());
         userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRequest(); });
 
         // ----------------------------------------------------
