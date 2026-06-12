@@ -1907,7 +1907,7 @@ const CONFIG = {
                 const kakao = partnerData.kakao_url || '';
 
                 const socialHtml = (blog || insta || kakao) ? `
-                    <div class="welcome-partner-socials" style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; margin-top: 4px;">
+                    <div class="welcome-partner-socials" style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 0px;">
                         ${blog ? `<a href="${blog}" target="_blank" style="display:inline-block; padding:2px 6px; background:#03C75A; color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">블</a>` : ''}
                         ${insta ? `<a href="${insta}" target="_blank" style="display:inline-block; padding:2px 6px; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">인</a>` : ''}
                         ${kakao ? `<a href="${kakao}" target="_blank" style="display:inline-block; padding:2px 6px; background:#FEE500; color:#3c1e1e; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">카</a>` : ''}
@@ -1973,11 +1973,13 @@ const CONFIG = {
         </div>
     </div>
 
-    <div style="background: #fff; border: 1px solid #edf2f7; border-radius: 10px; padding: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); display: inline-block; width: 100%; box-sizing: border-box;">
-        <span class="welcome-partner-name" style="font-size: 0.9em; font-weight: bold; color: #4a5568; display: block; margin-bottom: 6px;">문의 : ${ceo} ${pos}</span>
-        <div class="welcome-partner-socials-container">${socialHtml}</div>
-        <a href="tel:${phone}" class="welcome-partner-phone" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 220px; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-weight: bold; color: #2d3748; text-decoration: none; font-size: 0.95em; box-sizing: border-box; outline: none;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg><span class="phone-text">${phone}</span>
+    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px dashed #eee; text-align: center; width: 100%; box-sizing: border-box;">
+        <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; width: 100%;">
+            <span class="welcome-partner-name" style="font-weight: bold; font-size: 1.0em; color: #333; margin-right: 5px;">문의 : ${ceo} ${pos}</span>
+            <div class="welcome-partner-socials-container" style="display: inline-block;">${socialHtml}</div>
+        </div>
+        <a href="tel:${phone}" class="welcome-partner-phone" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); outline: none;">
+            📞 <span class="phone-text">${phone}</span>
         </a>
     </div>
 </div>
@@ -2018,7 +2020,7 @@ const CONFIG = {
             const socialsEl = welcomeCard.querySelector('.welcome-partner-socials-container');
             if (socialsEl) {
                 const socialHtml = (blog || insta || kakao) ? `
-                    <div class="welcome-partner-socials" style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; margin-top: 4px;">
+                    <div class="welcome-partner-socials" style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 0px;">
                         ${blog ? `<a href="${blog}" target="_blank" style="display:inline-block; padding:2px 6px; background:#03C75A; color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">블</a>` : ''}
                         ${insta ? `<a href="${insta}" target="_blank" style="display:inline-block; padding:2px 6px; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">인</a>` : ''}
                         ${kakao ? `<a href="${kakao}" target="_blank" style="display:inline-block; padding:2px 6px; background:#FEE500; color:#3c1e1e; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">카</a>` : ''}
@@ -2035,7 +2037,7 @@ const CONFIG = {
                 if (phoneTextEl) {
                     phoneTextEl.textContent = phone;
                 } else {
-                    phoneLinkEl.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg><span class="phone-text">${phone}</span>`;
+                    phoneLinkEl.innerHTML = `📞 <span class="phone-text">${phone}</span>`;
                 }
             }
         }
