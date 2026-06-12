@@ -801,16 +801,53 @@ const CONFIG = {
         let lastAirtableImageUrl = "";
 
         async function sendRequest(isFromDynamicBtn = false) {
-            const msg = userInput.value.trim();
+            let msg = userInput.value.trim();
+
+            // [New] 만약 장바구니에 품목이 있고, 텍스트 입력 없이 '전송'을 누르거나 장바구니 품목을 보낼 때 자동 연동
+            if (b2bCart.length > 0 && !isFromDynamicBtn) {
+                const requestTexts = [];
+                b2bCart.forEach(item => {
+                    let text = "";
+                    if (item.option) {
+                        const rangeItems = ["싱크대", "신발장", "붙박이장", "수납장", "냉장고장", "가벽", "알판", "등박스", "웨인스코팅", "중간알판", "룸박스"];
+                        const isRangeItem = rangeItems.some(k => item.name.includes(k) || k.includes(item.name));
+
+                        if (isRangeItem && item.option.includes("~")) {
+                            let mVal = item.option.split("~")[1] || item.option;
+                            mVal = mVal.trim();
+                            if (!mVal.toLowerCase().includes("m") && !mVal.includes("미터")) {
+                                mVal += "m";
+                            }
+                            text = `${item.name} ${mVal}`;
+                        } else {
+                            text = `${item.name} ${item.option}`;
+                        }
+                    } else {
+                        text = item.label;
+                    }
+                    if (text) requestTexts.push(text);
+                });
+
+                const cartItemsText = requestTexts.join(", ");
+                if (msg) {
+                    msg = `${cartItemsText} (요청사항: ${msg})`;
+                } else {
+                    msg = cartItemsText;
+                }
+                b2bCart = [];
+            }
+
             if (!msg && selectedImages.length === 0 && !isFromDynamicBtn) return;
 
-            // [Fix] 견적 계산이 시작되면 기존에 떠있던 간편견적 버튼들을 숨김 처리
+            // [Fix] 견적 계산이 시작되면 기존에 떠있던 간편견적 버튼과 컨테이너들을 숨김 처리
             const existingBtn = document.querySelector('.open-quick-quote-btn');
             if (existingBtn) existingBtn.remove();
             const existingMenu = document.querySelector('.quick-reply-container');
             if (existingMenu) existingMenu.remove();
             const inlineContainer = document.querySelector('.quick-quote-inline-container');
             if (inlineContainer) inlineContainer.remove();
+            const badge = document.querySelector('.floating-cart-badge');
+            if (badge) badge.remove();
 
             // [New] 일일 무료 견적 3회 제한 (이미지 포함 시)
             // 단, URL 파라미터에 'admin=true'가 있거나, 해시값에 #admin이 있으면 제한 무시
@@ -1674,34 +1711,62 @@ const CONFIG = {
             }
 
             // 장바구니 플로팅 배지/버튼 생성 및 제어 (B2B 품목별/평형별 탭 전용)
-            const contentDiv = parentContainer.querySelector('.quick-quote-modal-content');
-            if (contentDiv) {
-                const existingBadge = contentDiv.querySelector('.floating-cart-badge');
+            const isInline = !parentContainer.classList.contains('quick-quote-modal') && !parentContainer.classList.contains('quick-quote-modal-content');
+            
+            // inline 모드에서는 body에 직접 붙여서 뷰포트에 띄우고, 모달 모드에서는 모달 콘텐츠 내부에 붙입니다.
+            const badgeContainer = isInline ? document.body : parentContainer.querySelector('.quick-quote-modal-content');
+            
+            if (badgeContainer) {
+                const existingBadge = document.querySelector('.floating-cart-badge');
                 if (existingBadge) existingBadge.remove();
 
                 if (mainTab !== 2 && b2bCart.length > 0) {
                     const badge = document.createElement('div');
                     badge.className = 'floating-cart-badge';
                     badge.innerHTML = `🛒 장바구니 ${b2bCart.length}개`;
-                    badge.style.cssText = `
-                        position: absolute;
-                        right: 20px;
-                        bottom: 20px;
-                        background: #ff4757;
-                        color: white;
-                        padding: 10px 16px;
-                        border-radius: 30px;
-                        font-weight: bold;
-                        font-size: 0.9em;
-                        box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4);
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        gap: 6px;
-                        z-index: 10000;
-                        transition: opacity 0.25s ease, transform 0.2s ease, background-color 0.2s ease;
-                        border: 2px solid white;
-                    `;
+                    
+                    if (isInline) {
+                        badge.style.cssText = `
+                            position: fixed;
+                            right: 20px;
+                            bottom: 85px;
+                            background: #ff4757;
+                            color: white;
+                            padding: 12px 20px;
+                            border-radius: 30px;
+                            font-weight: bold;
+                            font-size: 0.95em;
+                            box-shadow: 0 4px 16px rgba(255, 71, 87, 0.5);
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                            z-index: 99999;
+                            transition: opacity 0.25s ease, transform 0.2s ease, background-color 0.2s ease;
+                            border: 2px solid white;
+                        `;
+                    } else {
+                        badge.style.cssText = `
+                            position: absolute;
+                            right: 20px;
+                            bottom: 20px;
+                            background: #ff4757;
+                            color: white;
+                            padding: 10px 16px;
+                            border-radius: 30px;
+                            font-weight: bold;
+                            font-size: 0.9em;
+                            box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4);
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                            z-index: 10000;
+                            transition: opacity 0.25s ease, transform 0.2s ease, background-color 0.2s ease;
+                            border: 2px solid white;
+                        `;
+                    }
+                    
                     badge.onmouseover = () => {
                         badge.style.background = '#ff6b81';
                         badge.style.transform = 'scale(1.05)';
@@ -1710,18 +1775,29 @@ const CONFIG = {
                         badge.style.background = '#ff4757';
                         badge.style.transform = 'scale(1)';
                     };
+                    
                     bindClickEffect(badge, () => {
-                        const modalBody = parentContainer.querySelector('#modalBody');
-                        if (modalBody) {
-                            modalBody.scrollTo({ top: modalBody.scrollHeight, behavior: 'smooth' });
+                        if (isInline) {
+                            const cartEl = parentContainer.querySelector('.floating-cart-list') || parentContainer;
+                            if (cartEl) {
+                                cartEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                            }
+                        } else {
+                            const modalBody = parentContainer.querySelector('#modalBody');
+                            if (modalBody) {
+                                modalBody.scrollTo({ top: modalBody.scrollHeight, behavior: 'smooth' });
+                            }
                         }
                     });
-                    contentDiv.appendChild(badge);
+                    
+                    badgeContainer.appendChild(badge);
 
-                    // 스크롤 포지션 즉시 수동 체크
-                    const modalBody = parentContainer.querySelector('#modalBody');
-                    if (modalBody && modalBody.onscroll) {
-                        modalBody.onscroll();
+                    // 스크롤 포지션 즉시 수동 체크 (모달 모드만 해당)
+                    if (!isInline) {
+                        const modalBody = parentContainer.querySelector('#modalBody');
+                        if (modalBody && modalBody.onscroll) {
+                            modalBody.onscroll();
+                        }
                     }
                 }
             }
