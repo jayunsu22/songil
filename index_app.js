@@ -552,13 +552,91 @@ const CONFIG = {
             return bubble;
         }
 
-        function addTimerBubble(message) {
-            const bubble = document.createElement('div');
-            bubble.classList.add('chat-bubble', 'bot-loading-blue');
-            bubble.innerHTML = `⏳ ${message}`;
-            chatContainer.appendChild(bubble);
-            scrollToBottom();
-            return bubble;
+        function showFullscreenLoading() {
+            const existing = document.querySelector('.estimate-loading-overlay');
+            if (existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.className = 'estimate-loading-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100dvh;
+                background: rgba(255, 255, 255, 0.85);
+                backdrop-filter: blur(15px);
+                -webkit-backdrop-filter: blur(15px);
+                z-index: 999999;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                font-family: 'Noto Sans KR', sans-serif;
+                transition: opacity 0.3s ease;
+            `;
+
+            overlay.innerHTML = `
+                <div style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; padding: 20px; box-sizing: border-box; width: 100%;">
+                    <div style="font-size: 2.2em; font-weight: 800; color: #1a202c; letter-spacing: -1px; margin-bottom: 5px;">견적 산출</div>
+                    
+                    <div class="loading-timer-circle" style="
+                        width: 210px;
+                        height: 210px;
+                        border-radius: 50%;
+                        background-color: #dbeafe;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 2.3em;
+                        font-weight: 800;
+                        color: #1a202c;
+                        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+                        border: 3px solid rgba(255,255,255,0.6);
+                        transition: background-color 0.4s ease, color 0.4s ease, transform 0.3s ease;
+                    ">
+                        <span class="timer-seconds-text">30초 전</span>
+                    </div>
+                    
+                    <div style="margin-top: 15px; font-size: 1.05em; font-weight: 700; color: #4A90E2; display: flex; align-items: center; gap: 6px;">
+                        <span class="loading-dots-pulse">⚡</span> AI 이미지/도면 분석 중...
+                    </div>
+                    
+                    <p style="font-size: 0.88em; color: #718096; margin: 5px 0 0; line-height: 1.6; font-weight: 500;">
+                        꼼꼼하게 견적서를 작성하고 있습니다.<br>
+                        잠시만 기다려주시면 바로 전송됩니다!
+                    </p>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+            return overlay;
+        }
+
+        function updateLoadingTimer(overlay, sec) {
+            const circle = overlay.querySelector('.loading-timer-circle');
+            const textEl = overlay.querySelector('.timer-seconds-text');
+            if (!circle || !textEl) return;
+
+            if (sec > 0) {
+                textEl.innerText = `${sec}초 전`;
+                
+                const colors = [
+                    '#dbeafe', // light blue
+                    '#fef08a', // light yellow
+                    '#a5f3fc', // cyan
+                    '#bbf7d0', // light green
+                    '#fbcfe8', // light pink
+                    '#e9d5ff'  // light purple
+                ];
+                const colorIndex = sec % colors.length;
+                circle.style.backgroundColor = colors[colorIndex];
+                circle.style.color = '#1a202c';
+                circle.classList.remove('blinking-red');
+            } else {
+                textEl.innerText = `0초`;
+                circle.classList.add('blinking-red');
+            }
         }
 
         // 견적서 HTML을 카톡 공유용 깔끔한 텍스트로 변환하는 함수
@@ -776,11 +854,12 @@ const CONFIG = {
             renderPreviews();
             sendButton.disabled = true;
 
-            let sec = 0;
-            const loading = addTimerBubble(`견적 계산 중...`);
+            let sec = 30;
+            const loading = showFullscreenLoading();
             const timer = setInterval(() => {
-                sec++;
-                loading.innerHTML = `⏳ 견적 계산 중... ${sec}s`;
+                sec--;
+                if (sec < 0) sec = 0;
+                updateLoadingTimer(loading, sec);
             }, 1000);
 
             try {

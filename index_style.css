@@ -736,3 +736,23 @@ body {
             font-family: inherit;
             z-index: 5;
         }
+
+        /* [New] 30초 카운트다운 로딩 화면 애니메이션 효과 */
+        @keyframes blinkRed {
+            0% { background-color: #ef4444; color: white; transform: scale(1.0); box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
+            50% { background-color: #fee2e2; color: #ef4444; transform: scale(1.05); box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
+            100% { background-color: #ef4444; color: white; transform: scale(1.0); box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
+        }
+        .blinking-red {
+            animation: blinkRed 1.2s infinite ease-in-out !important;
+        }
+
+        @keyframes pulseIcon {
+            0% { transform: scale(1.0) rotate(0deg); }
+            50% { transform: scale(1.2) rotate(15deg); }
+            100% { transform: scale(1.0) rotate(0deg); }
+        }
+        .loading-dots-pulse {
+            display: inline-block;
+            animation: pulseIcon 1.5s infinite ease-in-out;
+        }
