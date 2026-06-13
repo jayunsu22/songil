@@ -952,6 +952,34 @@ const CONFIG = {
                 if (!res.ok) throw new Error('Server Error');
                 const data = await res.json();
 
+                let responseText = "";
+                if (Array.isArray(data) && data.length > 0 && data[0].output) {
+                    responseText = data[0].output;
+                } else if (data.output) {
+                    responseText = data.output;
+                } else if (Array.isArray(data) && data.length > 0 && data[0].message) {
+                    responseText = data[0].message;
+                } else if (data.message) {
+                    responseText = data.message;
+                }
+
+                // [New] 예상견적이 0원이거나, 등록되지 않은 항목 경고가 있는 경우 견적 불가 예외 발생시킴
+                let totalEst = -1;
+                if (Array.isArray(data) && data.length > 0) {
+                    totalEst = data[0].totalEstimate !== undefined ? Number(data[0].totalEstimate) : -1;
+                } else if (data.totalEstimate !== undefined) {
+                    totalEst = Number(data.totalEstimate);
+                }
+
+                let isZeroEstimate = (totalEst === 0);
+                if (responseText.includes('예상견적: 0원') || responseText.includes('예상견적: 0 원') || responseText.includes('등록되지 않은 항목') || responseText.includes('견적 산출 불가')) {
+                    isZeroEstimate = true;
+                }
+
+                if (isZeroEstimate || !responseText.trim()) {
+                    throw new Error('Zero Estimate');
+                }
+
                 let botBubble = null;
                 if (Array.isArray(data) && data.length > 0 && data[0].output) {
                     botBubble = addBubble(data[0].output, 'bot', true);
@@ -1013,7 +1041,54 @@ const CONFIG = {
                 clearInterval(timer);
                 if (loading.parentNode) loading.parentNode.removeChild(loading);
                 console.error(e);
-                addBubble("⚠️ 서버 연결 실패. 잠시 후 다시 시도해주세요.", 'bot');
+
+                const partnerData = currentPartner || {};
+                const ceo = partnerData.ceo_name || '김정헌';
+                const pos = partnerData.position || '실장';
+                const phone = partnerData.phone || '010-6657-1222';
+                const blog = partnerData.blog_url || '';
+                const insta = partnerData.insta_url || '';
+                const kakao = partnerData.kakao_url || '';
+
+                const socialHtml = (blog || insta || kakao) ? `
+                    <div class="error-partner-socials" style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 5px; margin-bottom: 10px;">
+                        ${blog ? `<a href="${blog}" target="_blank" style="display:inline-block; padding:2px 6px; background:#03C75A; color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">블</a>` : ''}
+                        ${insta ? `<a href="${insta}" target="_blank" style="display:inline-block; padding:2px 6px; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">인</a>` : ''}
+                        ${kakao ? `<a href="${kakao}" target="_blank" style="display:inline-block; padding:2px 6px; background:#FEE500; color:#3c1e1e; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">카</a>` : ''}
+                    </div>
+                ` : '';
+
+                let errorTitle = "⚠️ 견적 불가 또는 없는 항목 안내";
+                let errorBody = `인식된 시공 품목이 없거나 견적 산출이 어려운 대상(예: 쇼파 등 필름 시공 불가 항목)입니다.<br>
+                인테리어 필름 시공 대상(샤시, 문틀/문짝, 싱크대, 신발장 등)이 맞는지 확인해 주세요.<br><br>
+                상세한 개별 견적 및 문의사항은 아래 담당자에게 직접 연락 주시면 친절히 안내해 드리겠습니다. 😊`;
+
+                if (e.message !== 'Zero Estimate') {
+                    errorTitle = "⚠️ 서버 연결 실패 또는 견적 불가";
+                    errorBody = `서버와의 연결이 일시적으로 원활하지 않거나, 인식된 시공 대상이 없습니다.<br>
+                    입력하신 내용이나 사진을 확인해 주시고, 상세한 견적 문의는 아래 담당자에게 직접 연락 주시면 친절히 상담해 드리겠습니다. 😊`;
+                }
+
+                const errorMsg = `
+<div class="error-card" style="font-family: sans-serif; padding: 5px 0; width: 100%; box-sizing: border-box;">
+    <div style="font-size: 1.1em; font-weight: bold; color: #e53e3e; margin-bottom: 8px; text-align: left;">
+        ${errorTitle}
+    </div>
+    <div style="font-size: 0.95em; color: #4a5568; line-height: 1.6; margin-bottom: 15px; text-align: left;">
+        ${errorBody}
+    </div>
+    <div style="padding-top: 15px; border-top: 1px dashed #e2e8f0; text-align: center;">
+        <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+            <span style="font-weight: bold; font-size: 1.0em; color: #333;">문의 : ${ceo} ${pos}</span>
+            ${socialHtml}
+        </div>
+        <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #e53e3e; color: #e53e3e; text-decoration: none; font-weight: 800; font-size: 1.25em; padding: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); outline: none;">
+            📞 ${phone}
+        </a>
+    </div>
+</div>
+`;
+                addBubble(errorMsg, 'bot');
                 addOpenQuickQuoteButton();
                 scrollToBottom();
             } finally {
@@ -1082,7 +1157,7 @@ const CONFIG = {
 
                             { label: "중문 전체시공", name: "중문", type: "click", sub: "중문 시공" },
                             { label: "중문틀만 시공", name: "중문틀", type: "click", sub: "중문 시공" },
-                            { label: "중문문짝만 시공", name: "중문문짝", type: "door-dropdown", sub: "중문 시공" },
+                            { label: "중문짝만 시공", name: "중문짝", type: "door-dropdown", sub: "중문 시공" },
 
                             { label: "아치문틀 너비 1m", name: "아치 1m", type: "click", sub: "아치문틀" },
                             { label: "아치문틀 너비 2~3m", name: "아치 3m", type: "click", sub: "아치문틀" },
@@ -1364,8 +1439,8 @@ const CONFIG = {
             } else if (item.name === "방화문" || item.name === "터닝도어") {
                 titleText = `⚙️ ${item.label} 수량 선택:`;
                 for (let i = 1; i <= 2; i++) optionList.push({ value: `문+틀 ${i}세트`, text: `문+틀 ${i}세트` });
-            } else if (item.name === "중문문짝") {
-                titleText = `⚙️ 중문문짝만 시공 수량 선택:`;
+            } else if (item.name === "중문짝") {
+                titleText = `⚙️ 중문짝만 시공 수량 선택:`;
                 for (let i = 1; i <= 3; i++) optionList.push({ value: `문 ${i}개`, text: `문 ${i}개` });
             } else if (item.name === "샤시(단창) 1m" || item.name === "샤시(2중창) 1m" || item.name === "시스템샤시 1m") {
                 titleText = `⚙️ ${item.label} 수량 선택:`;
