@@ -1624,6 +1624,14 @@ const CONFIG = {
                     tdValue.className = 'excel-value-container';
                     let lastSubHeader = "";
                     group.items.forEach(item => {
+                        // [New] 노출여부 필터링: 가맹점 정보에 active_items가 있으면 허용된 품목만 노출합니다.
+                        if (currentPartner && currentPartner.active_items && Array.isArray(currentPartner.active_items)) {
+                            const isAllowed = currentPartner.active_items.some(allowedName => {
+                                return item.name === allowedName || item.label.includes(allowedName) || allowedName.includes(item.name);
+                            });
+                            if (!isAllowed) return; // 노출 여부가 해제된 품목은 화면에서 숨김
+                        }
+
                         if (item.sub && item.sub !== lastSubHeader) {
                             if (lastSubHeader !== "") { const divider = document.createElement('div'); divider.style.cssText = "border-top: 1px solid #edf2f7; margin: 8px 16px; clear: both;"; tdValue.appendChild(divider); }
                             const subHeaderDiv = document.createElement('div');
