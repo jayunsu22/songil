@@ -203,6 +203,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('페이지 제목이 업데이트 되었습니다.', 'success');
         });
 
+        document.getElementById('editShortIdBtn').addEventListener('click', async () => {
+            const val = document.getElementById('shortId').value.trim();
+            await savePartnerField({ shortId: val }, '홍보 단축 ID가 업데이트 되었습니다.');
+            // 성공 시 화면의 1분 견적주소도 동적 갱신
+            document.getElementById('quoteUrl').value = val ? `https://1film.co.kr/${val}` : `https://1film.co.kr/${partnerId}`;
+        });
+
         // SNS 주소 수정 버튼 공통 핸들러
         function handleSnsEdit(typeSuffix, bodyKey, storageKeyPrefix, displayName) {
             const inputEl = document.getElementById(`url${typeSuffix}`);
@@ -316,6 +323,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (data.contractPeriod) document.getElementById('servicePeriod').textContent = data.contractPeriod;
             if (data.quoteUrl) document.getElementById('quoteUrl').value = data.quoteUrl;
+            if (data.shortId !== undefined) document.getElementById('shortId').value = data.shortId || '';
             if (data.ceoName) document.getElementById('mgrName').value = data.ceoName;
             if (data.position) document.getElementById('mgrTitle').value = data.position;
             if (data.phone) document.getElementById('mgrPhone').value = data.phone;
