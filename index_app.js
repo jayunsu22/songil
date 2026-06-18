@@ -1,6 +1,6 @@
 const CONFIG = {
-            estimateUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test-dev", // 견적 요청용 (개발용)
-            partnerUrl: "https://primary-production-a6fa.up.railway.app/webhook/partner-info-dev", // 가맹점 정보 조회용 (개발용)
+            estimateUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test", // 견적 요청용 (개발용)
+            partnerUrl: "https://primary-production-a6fa.up.railway.app/webhook/partner-info", // 가맹점 정보 조회용 (개발용)
             secretToken: "songil_secret_2025",
             managerName: "김정헌 실장" // 기본값
         };
@@ -2298,7 +2298,7 @@ const CONFIG = {
 
                 try {
                     // n8n 프록시 웹훅을 통해 실시간 네이버 부동산 검색 시도
-                    const searchUrl = `${CONFIG.estimateUrl.replace('image-test-dev', 'naver-search-dev')}?keyword=${encodeURIComponent(keyword)}`;
+                    const searchUrl = `${CONFIG.estimateUrl.replace('image-test', 'naver-search-dev')}?keyword=${encodeURIComponent(keyword)}`;
                     const res = await fetch(searchUrl);
                     if (!res.ok) throw new Error("API_ERROR");
                     const data = await res.json();
@@ -2349,7 +2349,7 @@ const CONFIG = {
                         // 평형 세부정보 로드
                         pyeongBox.innerHTML = '<div style="font-size:0.88em; color:#888;">평형 정보 조회 중...</div>';
                         try {
-                            const detailUrl = `${CONFIG.estimateUrl.replace('image-test-dev', 'naver-detail-dev')}?complexNo=${c.complexNo}`;
+                            const detailUrl = `${CONFIG.estimateUrl.replace('image-test', 'naver-detail-dev')}?complexNo=${c.complexNo}`;
                             const res = await fetch(detailUrl);
                             if (!res.ok) throw new Error("API_ERROR");
                             const data = await res.json();
