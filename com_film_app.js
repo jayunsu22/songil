@@ -315,7 +315,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('partnerNameInput').value = data.partnerName;
             }
             if (data.contractPeriod) document.getElementById('servicePeriod').textContent = data.contractPeriod;
-            if (data.quoteUrl) document.getElementById('quoteUrl').value = data.quoteUrl;
+            if (data.quoteUrl) {
+                document.getElementById('quoteUrl').value = data.quoteUrl;
+            } else if (data.partnerCode) {
+                document.getElementById('quoteUrl').value = 'https://1film.co.kr/' + data.partnerCode;
+            } else {
+                document.getElementById('quoteUrl').value = '';
+            }
             if (data.ceoName) document.getElementById('mgrName').value = data.ceoName;
             if (data.position) document.getElementById('mgrTitle').value = data.position;
             if (data.phone) document.getElementById('mgrPhone').value = data.phone;
@@ -449,8 +455,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             el.innerHTML = `
                 <div class="accordion-header" onclick="toggleAccordion('${item.id}')">
-                    <div class="accordion-title">${item.name}</div>
-                    <div class="accordion-price" id="header-total-${item.id}">${grandTotal.toLocaleString()}원</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" class="visibility-checkbox" ${item.visible !== false ? 'checked' : ''} onclick="event.stopPropagation(); toggleItemVisibility('${item.id}', this.checked)" style="width: 18px; height: 18px; cursor: pointer; accent-color: #4A90E2;" title="노출 여부 설정">
+                        <div class="accordion-title" style="${item.visible !== false ? '' : 'color: #a0aec0; text-decoration: line-through;'}">${item.name}</div>
+                    </div>
+                    <div class="accordion-price" id="header-total-${item.id}" style="${item.visible !== false ? '' : 'color: #a0aec0;'}">${grandTotal.toLocaleString()}원</div>
                 </div>
                 <div class="accordion-body" id="body-${item.id}">
                     <div style="color:var(--danger); font-size:14px; font-weight:700; margin-bottom:14px;">
@@ -602,6 +611,76 @@ document.addEventListener('DOMContentLoaded', async () => {
         const parent = body.parentElement;
         if (parent) {
             parent.classList.toggle('active');
+        }
+    }
+
+    window.toggleItemVisibility = async function(id, isChecked) {
+        const body = document.getElementById(`body-${id}`);
+        if (!body) return;
+        const parent = body.parentElement;
+        const headerTitle = parent ? parent.querySelector('.accordion-title') : null;
+        const headerPrice = document.getElementById(`header-total-${id}`);
+        
+        // Update UI styles immediately for a responsive feel
+        if (isChecked) {
+            if (headerTitle) {
+                headerTitle.style.color = '';
+                headerTitle.style.textDecoration = '';
+            }
+            if (headerPrice) {
+                headerPrice.style.color = '';
+            }
+        } else {
+            if (headerTitle) {
+                headerTitle.style.color = '#a0aec0';
+                headerTitle.style.textDecoration = 'line-through';
+            }
+            if (headerPrice) {
+                headerPrice.style.color = '#a0aec0';
+            }
+        }
+
+        const payload = {
+            partnerId: partnerId,
+            type: 'item_visibility',
+            itemId: id,
+            visible: isChecked
+        };
+
+        try {
+            const response = await fetch(WEBHOOK_POST_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                throw new Error('Server responded with error');
+            }
+            showToast(isChecked ? '항목 노출이 설정되었습니다.' : '항목 숨김이 설정되었습니다.', 'success');
+        } catch (error) {
+            console.error('Failed to update visibility:', error);
+            showToast('서버 저장에 실패했습니다. 다시 시도해주세요.', 'error');
+            // Revert UI styles and checkbox on failure
+            const checkbox = parent ? parent.querySelector('.visibility-checkbox') : null;
+            if (checkbox) checkbox.checked = !isChecked;
+            
+            if (!isChecked) {
+                if (headerTitle) {
+                    headerTitle.style.color = '';
+                    headerTitle.style.textDecoration = '';
+                }
+                if (headerPrice) {
+                    headerPrice.style.color = '';
+                }
+            } else {
+                if (headerTitle) {
+                    headerTitle.style.color = '#a0aec0';
+                    headerTitle.style.textDecoration = 'line-through';
+                }
+                if (headerPrice) {
+                    headerPrice.style.color = '#a0aec0';
+                }
+            }
         }
     }
 

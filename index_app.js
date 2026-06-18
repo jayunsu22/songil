@@ -1,6 +1,6 @@
 const CONFIG = {
-            estimateUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test", // 견적 요청용
-            partnerUrl: "https://primary-production-a6fa.up.railway.app/webhook/partner-info", // 가맹점 정보 조회용
+            estimateUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test-dev", // 견적 요청용 (개발용)
+            partnerUrl: "https://primary-production-a6fa.up.railway.app/webhook/partner-info-dev", // 가맹점 정보 조회용 (개발용)
             secretToken: "songil_secret_2025",
             managerName: "김정헌 실장" // 기본값
         };
@@ -8,6 +8,44 @@ const CONFIG = {
         let currentPartner = null; // 가맹점 정보 저장용
         let currentPartnerCode = ''; // 가맹점 코드 저장용 (200 Rewrite 대응)
         let chatHistory = []; // 채팅 기록 메모리 저장
+
+        /* ==========================================================================
+           [New: 2026-06-14] 2단계/3단계 평면도 핀 꽂기 & 아파트 검색용 글로벌 데이터 및 상태 변수
+           ========================================================================== */
+        let flatplanPins = []; // 사용자 배치 핀 목록: { x, y, name, label, option }
+        let selectedComplex = null; // 선택된 아파트: { complexNo, complexName }
+        let pyeongList = []; // 선택된 아파트의 평형 목록
+        let selectedPyeong = null; // 선택된 평형 정보: { pyeongName, exclusivePyeong, supplyPyeong, imageFlat }
+        let activeTempPin = null; // 핀 생성 중인 임시 좌표: { x, y }
+        let activeEditPinIndex = -1; // 수정 중인 핀 인덱스 (-1이면 새 핀 생성)
+
+        const MOCK_COMPLEXES = [
+            {
+                complexNo: "3075",
+                complexName: "마포래미안푸르지오",
+                pyeongList: [
+                    { pyeongName: "82A", exclusivePyeong: "59.9㎡", supplyPyeong: "24평", imageFlat: "./샘플사진/floorplan_24.png" },
+                    { pyeongName: "113B", exclusivePyeong: "84.9㎡", supplyPyeong: "34평", imageFlat: "./샘플사진/floorplan_34.png" },
+                    { pyeongName: "148A", exclusivePyeong: "114.9㎡", supplyPyeong: "45평", imageFlat: "./샘플사진/floorplan_45.png" }
+                ]
+            },
+            {
+                complexNo: "111520",
+                complexName: "송파 헬리오시티",
+                pyeongList: [
+                    { pyeongName: "84A", exclusivePyeong: "59.9㎡", supplyPyeong: "25평", imageFlat: "./샘플사진/floorplan_24.png" },
+                    { pyeongName: "109C", exclusivePyeong: "84.9㎡", supplyPyeong: "33평", imageFlat: "./샘플사진/floorplan_34.png" }
+                ]
+            },
+            {
+                complexNo: "18888",
+                complexName: "반포자이",
+                pyeongList: [
+                    { pyeongName: "116A", exclusivePyeong: "84.9㎡", supplyPyeong: "35평", imageFlat: "./샘플사진/floorplan_34.png" },
+                    { pyeongName: "165B", exclusivePyeong: "130.5㎡", supplyPyeong: "50평", imageFlat: "./샘플사진/floorplan_45.png" }
+                ]
+            }
+        ];
 
         // [New] URL에서 code 파라미터 읽어서 가맹점 정보 가져오기
         async function loadPartnerInfo() {
@@ -17,9 +55,13 @@ const CONFIG = {
             // [New] URL 경로(Pathname)를 기반으로 가맹점 코드 매핑 (200 Rewrite 대응)
             if (!code) {
                 const path = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
-                // 외부 partners.js 파일에 정의된 PARTNER_MAPPING 객체를 참조합니다.
-                if (typeof PARTNER_MAPPING !== 'undefined' && PARTNER_MAPPING[path]) {
-                    code = PARTNER_MAPPING[path];
+                if (path && path !== 'index.html') {
+                    // 외부 partners.js 파일에 정의된 PARTNER_MAPPING 객체를 참조합니다.
+                    if (typeof PARTNER_MAPPING !== 'undefined' && PARTNER_MAPPING[path]) {
+                        code = PARTNER_MAPPING[path];
+                    } else {
+                        code = path; // partners.js 매핑에 없어도 경로명 자체를 단축ID 코드로 사용
+                    }
                 }
             }
 
@@ -1518,6 +1560,7 @@ const CONFIG = {
             const mainTabsConfig = [
                 { label: "🏠 평형별", index: 0 },
                 { label: "🛒 품목별", index: 1 },
+                { label: "🗺️ 도면핀", index: 3 },
                 { label: "📸 사진견적", index: 2 }
             ];
             mainTabsConfig.forEach(t => {
@@ -1624,6 +1667,14 @@ const CONFIG = {
                     tdValue.className = 'excel-value-container';
                     let lastSubHeader = "";
                     group.items.forEach(item => {
+                        // [New] 노출여부 필터링: 가맹점 정보에 active_items가 있으면 허용된 품목만 노출합니다.
+                        if (currentPartner && currentPartner.active_items && Array.isArray(currentPartner.active_items)) {
+                            const isAllowed = currentPartner.active_items.some(allowedName => {
+                                return item.name === allowedName || item.label.includes(allowedName) || item.name.includes(allowedName) || allowedName.includes(item.name);
+                            });
+                            if (!isAllowed) return; // 노출 여부가 해제된 품목은 화면에서 숨김
+                        }
+
                         if (item.sub && item.sub !== lastSubHeader) {
                             if (lastSubHeader !== "") { const divider = document.createElement('div'); divider.style.cssText = "border-top: 1px solid #edf2f7; margin: 8px 16px; clear: both;"; tdValue.appendChild(divider); }
                             const subHeaderDiv = document.createElement('div');
@@ -1660,7 +1711,7 @@ const CONFIG = {
                     table.appendChild(tr);
                     bodyContainer.appendChild(table);
                 });
-            } else {
+            } else if (mainTab === 2) {
                 const photoCard = document.createElement('div');
                 photoCard.style.cssText = "padding: 25px 20px; border-radius: 12px; border: 2px dashed #cbd5e1; background: #f8fafc; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; margin-top: 10px;";
                 photoCard.innerHTML = `<div style="font-weight: bold; font-size: 1.15em; color: #1a202c;">📸 사진 찍어서 빠른 견적 받기</div><div style="font-size: 0.88em; color: #64748b; white-space: pre-line; line-height: 1.5; margin-bottom: 5px;">시공할 현장 사진을 촬영하여 올려주시면<br>AI가 사진을 실시간 분석해 1분안에 견적을 계산해 드립니다.</div>`;
@@ -1683,10 +1734,12 @@ const CONFIG = {
                 photoCard.appendChild(uploadBtn);
                 photoCard.appendChild(cameraBtn);
                 bodyContainer.appendChild(photoCard);
+            } else if (mainTab === 3) {
+                renderFlatplanTab(bodyContainer);
             }
 
             // 3. 실시간 장바구니 리스트 영역 렌더링 (평형별, 품목별 탭에서만 장바구니 노출)
-            if (mainTab !== 2 && b2bCart.length > 0) {
+            if (mainTab !== 2 && mainTab !== 3 && b2bCart.length > 0) {
                 const cartListContainer = document.createElement('div');
                 cartListContainer.className = "floating-cart-list";
                 cartListContainer.style.cssText = "margin-top: 20px; border-top: 2px dashed #e2e8f0; padding-top: 15px; text-align: left; transition: all 0.2s; border-radius: 12px; padding: 12px; background: #f8fafc; border: 1px solid #edf2f7;";
@@ -1799,7 +1852,7 @@ const CONFIG = {
                 const existingBadge = document.querySelector('.floating-cart-badge');
                 if (existingBadge) existingBadge.remove();
 
-                if (mainTab !== 2 && b2bCart.length > 0) {
+                if (mainTab !== 2 && mainTab !== 3 && b2bCart.length > 0) {
                     const badge = document.createElement('div');
                     badge.className = 'floating-cart-badge';
                     badge.innerHTML = `🛒 장바구니 ${b2bCart.length}개`;
@@ -2181,6 +2234,695 @@ const CONFIG = {
             if (existingMenu) existingMenu.remove();
             renderQuickQuoteModal();
         };
+
+        // [New: 2026-06-14] 🗺️ 평면도 핀 견적 탭 UI 렌더러
+        function renderFlatplanTab(bodyContainer) {
+            const container = document.createElement('div');
+            container.style.cssText = "display: flex; flex-direction: column; gap: 15px; text-align: left;";
+
+            // 1. 아파트 단지명 검색 영역
+            const searchBox = document.createElement('div');
+            searchBox.className = "pin-search-container";
+            searchBox.innerHTML = `
+                <div style="font-size:0.88em; font-weight:bold; color:#475569; margin-bottom:6px;">🏠 아파트 단지명 검색</div>
+                <div class="pin-search-row">
+                    <input type="text" class="pin-search-input" id="pinSearchInput" placeholder="아파트 단지명 입력... (예: 마포래미안푸르지오)" value="${selectedComplex ? selectedComplex.complexName : ''}">
+                    <button class="pin-search-btn" id="pinSearchBtn">검색</button>
+                </div>
+                <div class="pin-search-results" id="pinSearchResults"></div>
+            `;
+            container.appendChild(searchBox);
+
+            // 2. 평형 타입 리스트 영역 (선택된 단지가 있을 때 노출)
+            const pyeongBox = document.createElement('div');
+            pyeongBox.className = "pin-pyeong-container";
+            pyeongBox.id = "pinPyeongContainer";
+            container.appendChild(pyeongBox);
+
+            // 3. 도면 핀 Canvas 뷰 영역
+            const canvasWrapper = document.createElement('div');
+            canvasWrapper.className = "pin-canvas-wrapper";
+            canvasWrapper.id = "pinCanvasWrapper";
+            canvasWrapper.style.display = selectedPyeong ? "block" : "none";
+            container.appendChild(canvasWrapper);
+
+            // 4. 하단 핀 정보 안내 및 품목 리스트 테이블
+            const pinListBox = document.createElement('div');
+            pinListBox.id = "pinListBox";
+            pinListBox.style.display = (selectedPyeong && flatplanPins.length > 0) ? "block" : "none";
+            container.appendChild(pinListBox);
+
+            // 5. 최종 견적 산출 버튼
+            const submitBtn = document.createElement('button');
+            submitBtn.id = "pinSubmitBtn";
+            submitBtn.style.cssText = "display: none; width: 100%; padding: 14px; background: linear-gradient(135deg, #4A90E2, #357ABD); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1.0em; cursor: pointer; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3); margin-top: 10px;";
+            submitBtn.innerText = `🛒 핀으로 견적내기 (${flatplanPins.length}개)`;
+            container.appendChild(submitBtn);
+
+            bodyContainer.appendChild(container);
+
+            // 이벤트 바인딩 및 초기 복원 렌더링
+            const searchInput = searchBox.querySelector('#pinSearchInput');
+            const searchBtn = searchBox.querySelector('#pinSearchBtn');
+            const searchResults = searchBox.querySelector('#pinSearchResults');
+
+            bindClickEffect(searchBtn, async () => {
+                const keyword = searchInput.value.trim();
+                if (!keyword) {
+                    alert("아파트 이름을 입력해 주세요!");
+                    return;
+                }
+                searchBtn.disabled = true;
+                searchBtn.innerText = "검색중...";
+                searchResults.innerHTML = '<div style="padding:10px; font-size:0.88em; color:#888;">단지 검색 중...</div>';
+                searchResults.style.display = 'block';
+
+                try {
+                    // n8n 프록시 웹훅을 통해 실시간 네이버 부동산 검색 시도
+                    const searchUrl = `${CONFIG.estimateUrl.replace('image-test-dev', 'naver-search-dev')}?keyword=${encodeURIComponent(keyword)}`;
+                    const res = await fetch(searchUrl);
+                    if (!res.ok) throw new Error("API_ERROR");
+                    const data = await res.json();
+                    
+                    if (data && data.complexes && data.complexes.length > 0) {
+                        renderSearchResults(data.complexes, searchResults);
+                    } else {
+                        // 결과 없으면 즉시 로컬 Mock Fallback 구동
+                        triggerMockFallback(keyword, searchResults);
+                    }
+                } catch (e) {
+                    console.warn("실시간 네이버 부동산 검색 실패 -> Mock Fallback 로드", e);
+                    triggerMockFallback(keyword, searchResults);
+                } finally {
+                    searchBtn.disabled = false;
+                    searchBtn.innerText = "검색";
+                }
+            });
+
+            // 엔터 입력 대응
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    searchBtn.click();
+                }
+            });
+
+            // 만약 이미 선택된 정보가 있으면 복구 렌더링
+            if (selectedComplex) {
+                renderPyeongOptions();
+            }
+            if (selectedPyeong) {
+                renderPinCanvas();
+                renderPinList();
+            }
+
+            // 아파트 검색 결과 리스트 렌더링 함수
+            function renderSearchResults(complexes, resultsEl) {
+                resultsEl.innerHTML = '';
+                complexes.forEach(c => {
+                    const item = document.createElement('div');
+                    item.className = 'pin-search-result-item';
+                    item.innerText = c.complexName;
+                    item.onclick = async () => {
+                        selectedComplex = { complexNo: c.complexNo, complexName: c.complexName };
+                        searchInput.value = c.complexName;
+                        resultsEl.style.display = 'none';
+                        
+                        // 평형 세부정보 로드
+                        pyeongBox.innerHTML = '<div style="font-size:0.88em; color:#888;">평형 정보 조회 중...</div>';
+                        try {
+                            const detailUrl = `${CONFIG.estimateUrl.replace('image-test-dev', 'naver-detail-dev')}?complexNo=${c.complexNo}`;
+                            const res = await fetch(detailUrl);
+                            if (!res.ok) throw new Error("API_ERROR");
+                            const data = await res.json();
+                            
+                            if (data && data.pyeongList && data.pyeongList.length > 0) {
+                                pyeongList = data.pyeongList.map(p => ({
+                                    pyeongName: p.pyeongName,
+                                    exclusivePyeong: p.exclusivePyeong || '',
+                                    supplyPyeong: p.supplyPyeong || '',
+                                    imageFlat: p.imageFlat || './샘플사진/floorplan_34.png'
+                                }));
+                            } else {
+                                pyeongList = getMockPyeongList(c.complexName);
+                            }
+                        } catch (e) {
+                            console.warn("실시간 평형 정보 로드 실패 -> Mock Fallback", e);
+                            pyeongList = getMockPyeongList(c.complexName);
+                        }
+                        selectedPyeong = null;
+                        flatplanPins = [];
+                        activeTempPin = null;
+                        renderPyeongOptions();
+                    };
+                    resultsEl.appendChild(item);
+                });
+            }
+
+            // Mock Fallback 트리거 함수
+            function triggerMockFallback(keyword, resultsEl) {
+                const matches = MOCK_COMPLEXES.filter(c => c.complexName.includes(keyword));
+                if (matches.length > 0) {
+                    const complexes = matches.map(c => ({ complexNo: c.complexNo, complexName: `⚠️ ${c.complexName} (데모용)` }));
+                    renderSearchResults(complexes, resultsEl);
+                } else {
+                    resultsEl.innerHTML = '<div style="padding:10px; font-size:0.88em; color:#e53e3e;">일치하는 아파트가 없습니다.<br><span style="font-size:0.85em; color:#666;">팁: "마포래미안푸르지오" 또는 "헬리오시티"를 입력해 보세요.</span></div>';
+                }
+            }
+
+            function getMockPyeongList(name) {
+                if (name.includes("마포")) {
+                    return MOCK_COMPLEXES[0].pyeongList;
+                } else if (name.includes("헬리오")) {
+                    return MOCK_COMPLEXES[1].pyeongList;
+                } else {
+                    return MOCK_COMPLEXES[2].pyeongList;
+                }
+            }
+
+            // 평형 선택 옵션 버튼 렌더링
+            function renderPyeongOptions() {
+                pyeongBox.innerHTML = `
+                    <div style="font-size:0.88em; font-weight:bold; color:#475569; margin-bottom:6px; width:100%; text-align:left;">📐 평형/타입 선택</div>
+                `;
+                pyeongList.forEach(p => {
+                    const btn = document.createElement('button');
+                    btn.className = 'pin-pyeong-btn';
+                    if (selectedPyeong && selectedPyeong.pyeongName === p.pyeongName) {
+                        btn.classList.add('active');
+                    }
+                    const sizeLabel = p.supplyPyeong ? ` (${p.supplyPyeong})` : '';
+                    btn.innerText = `${p.pyeongName}${sizeLabel}`;
+
+                    btn.onclick = () => {
+                        pyeongBox.querySelectorAll('.pin-pyeong-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        selectedPyeong = p;
+                        flatplanPins = [];
+                        activeTempPin = null;
+                        
+                        renderPinCanvas();
+                        renderPinList();
+                    };
+                    pyeongBox.appendChild(btn);
+                });
+            }
+
+            // 도면 핀 Canvas 렌더링
+            function renderPinCanvas() {
+                canvasWrapper.style.display = "block";
+                canvasWrapper.innerHTML = '';
+
+                const img = document.createElement('img');
+                img.className = 'pin-canvas-image';
+                img.id = 'pinCanvasImage';
+                img.src = selectedPyeong.imageFlat;
+                img.alt = 'floorplan';
+                canvasWrapper.appendChild(img);
+
+                // 클릭 또는 터치 시 핀 생성
+                img.onclick = (e) => {
+                    const popover = canvasWrapper.querySelector('.pin-select-popover');
+                    if (popover) return;
+
+                    const rect = img.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+                    // 기존 핀 반경 5% 클릭 시 편집/삭제 팝업 띄우기
+                    const existingIndex = flatplanPins.findIndex(p => Math.hypot(p.x - x, p.y - y) < 5);
+                    if (existingIndex !== -1) {
+                        activeEditPinIndex = existingIndex;
+                        const pin = flatplanPins[existingIndex];
+                        showPopover(pin.x, pin.y, pin.name, pin.option);
+                    } else {
+                        activeEditPinIndex = -1;
+                        activeTempPin = { x, y };
+                        showPopover(x, y);
+                    }
+                };
+
+                // 그려진 핀들 복구 그리기
+                flatplanPins.forEach((pin, index) => {
+                    const pinDiv = document.createElement('div');
+                    pinDiv.className = 'flatplan-pin';
+                    pinDiv.style.left = `${pin.x}%`;
+                    pinDiv.style.top = `${pin.y}%`;
+                    pinDiv.innerText = index + 1;
+                    
+                    pinDiv.title = `${pin.label} ${pin.option ? '(' + pin.option + ')' : ''}`;
+
+                    pinDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        activeEditPinIndex = index;
+                        showPopover(pin.x, pin.y, pin.name, pin.option);
+                    };
+
+                    canvasWrapper.appendChild(pinDiv);
+                });
+            }
+
+            // 품목 고르기 오버레이 팝업 생성
+            function showPopover(x, y, currentItem = "", currentOption = "") {
+                const popover = document.createElement('div');
+                popover.className = 'pin-select-popover';
+                
+                const pinNum = activeEditPinIndex !== -1 ? activeEditPinIndex + 1 : flatplanPins.length + 1;
+                const titleText = activeEditPinIndex !== -1 ? `📍 ❶-${pinNum}번 핀 수정/삭제` : `📍 ❶-${pinNum}번 핀 품목 선택`;
+
+                popover.innerHTML = `
+                    <div class="pin-popover-title">
+                        <span>${titleText}</span>
+                        <button class="pin-popover-close" id="popoverClose">✕</button>
+                    </div>
+                    <div class="pin-item-grid">
+                        <button class="pin-item-btn" data-item="방문" data-label="방문 시공">🚪 방문</button>
+                        <button class="pin-item-btn" data-item="화장실문" data-label="화장실문 시공">🚽 화장실문</button>
+                        <button class="pin-item-btn" data-item="일반샤시" data-label="일반샤시 시공">🪟 일반샤시</button>
+                        <button class="pin-item-btn" data-item="이중창샤시" data-label="이중창샤시 시공">🪟 이중창샤시</button>
+                        <button class="pin-item-btn" data-item="시스템샤시" data-label="시스템샤시 시공">🪟 시스템샤시</button>
+                        <button class="pin-item-btn" data-item="현관문" data-label="현관문 시공">🚪 현관문</button>
+                        <button class="pin-item-btn" data-item="세탁실실외기실문" data-label="문/도어류">🚪 세탁실/실외기실</button>
+                        <button class="pin-item-btn" data-item="터닝도어" data-label="터닝도어 시공">🚪 터닝도어</button>
+                        <button class="pin-item-btn" data-item="싱크대" data-label="싱크대 전체시공">🍳 싱크대(전체)</button>
+                        <button class="pin-item-btn" data-item="신발장" data-label="신발장 전체시공">👞 신발장</button>
+                        <button class="pin-item-btn" data-item="붙박이장" data-label="붙박이장 전체시공">👕 붙박이장</button>
+                        <button class="pin-item-btn" data-item="중문" data-label="중문 전체시공">🚪 중문</button>
+                    </div>
+                    <div class="pin-options-wrapper" id="pinOptionsWrapper">
+                        <span class="pin-options-title">세부 옵션/크기 선택</span>
+                        <select class="pin-options-select" id="pinOptionsSelect"></select>
+                    </div>
+                    <div class="pin-popover-actions">
+                        ${activeEditPinIndex !== -1 ? '<button class="pin-popover-btn delete" id="popoverDelete">삭제</button>' : ''}
+                        <button class="pin-popover-btn cancel" id="popoverCancel">취소</button>
+                        <button class="pin-popover-btn confirm" id="popoverConfirm">확인</button>
+                    </div>
+                `;
+
+                canvasWrapper.appendChild(popover);
+
+                // 임시 핀 마커 표시
+                if (activeEditPinIndex === -1) {
+                    const tempPinDiv = document.createElement('div');
+                    tempPinDiv.className = 'flatplan-pin temp-pin';
+                    tempPinDiv.id = 'tempPinMarker';
+                    tempPinDiv.style.left = `${x}%`;
+                    tempPinDiv.style.top = `${y}%`;
+                    tempPinDiv.innerText = '?';
+                    canvasWrapper.appendChild(tempPinDiv);
+                }
+
+                const closeBtn = popover.querySelector('#popoverClose');
+                const cancelBtn = popover.querySelector('#popoverCancel');
+                const confirmBtn = popover.querySelector('#popoverConfirm');
+                const deleteBtn = popover.querySelector('#popoverDelete');
+                const itemButtons = popover.querySelectorAll('.pin-item-btn');
+                const optionsWrapper = popover.querySelector('#pinOptionsWrapper');
+                const optionsSelect = popover.querySelector('#pinOptionsSelect');
+
+                let selectedItem = currentItem;
+                let selectedLabel = "";
+
+                // 세부 옵션 렌더링 매핑
+                function renderOptions(item) {
+                    optionsWrapper.style.display = 'flex';
+                    optionsSelect.innerHTML = '';
+                    
+                    let options = [];
+                    if (item === "방문" || item === "화장실문") {
+                        for(let i=1; i<=9; i++) options.push({ val: `문+틀 ${i}세트`, text: `문+틀 ${i}세트 (추천)` });
+                        for(let i=1; i<=9; i++) options.push({ val: `문짝 ${i}개`, text: `문짝만 ${i}개` });
+                        for(let i=1; i<=9; i++) options.push({ val: `문틀 ${i}개`, text: `문틀만 ${i}개` });
+                    } else if (item === "일반샤시" || item === "이중창샤시" || item === "시스템샤시") {
+                        const base = item === "일반샤시" ? "샤시(단창)" : (item === "이중창샤시" ? "샤시(2중창)" : "시스템샤시");
+                        options.push({ val: `${base} 1m`, text: "가로 1m 내외 (소형창)" });
+                        options.push({ val: `${base} 3m`, text: "가로 2~3m 내외 (중형창)" });
+                        options.push({ val: `${base} 5m`, text: "가로 4~5m 내외 (대형창)" });
+                    } else if (item === "현관문" || item === "터닝도어") {
+                        options.push({ val: "문+틀 1세트", text: "문+틀 1세트" });
+                        options.push({ val: "문+틀 2세트", text: "문+틀 2세트" });
+                    } else if (item === "세탁실실외기실문") {
+                        optionsWrapper.style.display = 'none';
+                        options.push({ val: "", text: "기본" });
+                    } else if (item === "싱크대") {
+                        const ranges = ["1~2m", "3~4m", "5~6m", "7~8m", "9~10m"];
+                        ranges.forEach(r => options.push({ val: `길이 ${r}`, text: `싱크대 가로 폭 ${r}` }));
+                    } else if (item === "신발장" || item === "붙박이장") {
+                        const ranges = ["1~2m", "3~4m", "5~6m"];
+                        ranges.forEach(r => options.push({ val: `길이 ${r}`, text: `가로 폭 ${r}` }));
+                    } else if (item === "중문") {
+                        options.push({ val: "1세트", text: "중문 전체 1세트" });
+                    }
+
+                    options.forEach(opt => {
+                        const o = document.createElement('option');
+                        o.value = opt.val;
+                        o.innerText = opt.text;
+                        if (currentOption && opt.val === currentOption) {
+                            o.selected = true;
+                        }
+                        optionsSelect.appendChild(o);
+                    });
+                }
+
+                if (currentItem) {
+                    const activeBtn = Array.from(itemButtons).find(btn => btn.dataset.item === currentItem);
+                    if (activeBtn) {
+                        activeBtn.classList.add('selected');
+                        selectedLabel = activeBtn.dataset.label;
+                        renderOptions(currentItem);
+                    }
+                }
+
+                itemButtons.forEach(btn => {
+                    btn.onclick = () => {
+                        itemButtons.forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        selectedItem = btn.dataset.item;
+                        selectedLabel = btn.dataset.label;
+                        renderOptions(selectedItem);
+                    };
+                });
+
+                const closePopover = () => {
+                    popover.remove();
+                    const marker = canvasWrapper.querySelector('#tempPinMarker');
+                    if (marker) marker.remove();
+                    activeTempPin = null;
+                };
+
+                closeBtn.onclick = closePopover;
+                cancelBtn.onclick = closePopover;
+
+                if (deleteBtn) {
+                    deleteBtn.onclick = () => {
+                        flatplanPins.splice(activeEditPinIndex, 1);
+                        closePopover();
+                        renderPinCanvas();
+                        renderPinList();
+                    };
+                }
+
+                confirmBtn.onclick = () => {
+                    if (!selectedItem) {
+                        alert("품목을 먼저 선택해 주세요!");
+                        return;
+                    }
+                    const optVal = optionsSelect.value || "";
+
+                    let mappedName = selectedItem;
+                    let mappedLabel = selectedLabel;
+
+                    if (selectedItem === "일반샤시") {
+                        mappedName = optVal.split(" ")[0];
+                        mappedLabel = "일반샤시(단창) 시공";
+                    } else if (selectedItem === "이중창샤시") {
+                        mappedName = optVal.split(" ")[0];
+                        mappedLabel = "일반샤시(2중창) 시공";
+                    } else if (selectedItem === "시스템샤시") {
+                        mappedName = optVal.split(" ")[0];
+                        mappedLabel = "시스템샤시 시공";
+                    } else if (selectedItem === "세탁실실외기실문") {
+                        mappedName = "세탁실문";
+                        mappedLabel = "세탁실문 시공";
+                    }
+
+                    let finalOption = optVal;
+                    if (selectedItem.includes("샤시") && optVal.includes(" ")) {
+                        finalOption = optVal.split(" ").slice(1).join(" ");
+                    }
+
+                    if (activeEditPinIndex !== -1) {
+                        flatplanPins[activeEditPinIndex] = {
+                            x, y,
+                            name: mappedName,
+                            label: mappedLabel,
+                            option: finalOption
+                        };
+                    } else {
+                        flatplanPins.push({
+                            x, y,
+                            name: mappedName,
+                            label: mappedLabel,
+                            option: finalOption
+                        });
+                    }
+
+                    closePopover();
+                    renderPinCanvas();
+                    renderPinList();
+                };
+            }
+
+            // 하단 핀 정보 테이블 및 주의 안내 렌더링
+            function renderPinList() {
+                if (flatplanPins.length === 0) {
+                    pinListBox.style.display = "none";
+                    submitBtn.style.display = "none";
+                    return;
+                }
+
+                pinListBox.style.display = "block";
+                submitBtn.style.display = "block";
+                submitBtn.innerText = `🛒 핀으로 견적내기 (${flatplanPins.length}개)`;
+
+                pinListBox.innerHTML = `
+                    <div style="font-size:0.88em; font-weight:bold; color:#475569; margin:15px 0 6px; text-align:left;">📍 핀 품목 리스트</div>
+                    <table class="pin-list-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%">번호</th>
+                                <th style="width: 50%">품목명</th>
+                                <th style="width: 25%">선택 옵션</th>
+                                <th style="width: 10%">삭제</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pinListTableBody"></tbody>
+                    </table>
+                    <div class="pin-info-note">
+                        💡 도면 위의 핀을 터치하면 품목을 수정하거나 해당 핀을 지울 수 있습니다.
+                    </div>
+                `;
+
+                const tbody = pinListBox.querySelector('#pinListTableBody');
+                flatplanPins.forEach((pin, index) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><span class="pin-badge">${index + 1}</span></td>
+                        <td style="font-weight:600; color:#334155; text-align:left;">${pin.label}</td>
+                        <td style="color:#4A90E2; font-weight:500; text-align:left;">${pin.option || '기본'}</td>
+                        <td><button class="pin-item-delete-btn" data-index="${index}">&times;</button></td>
+                    `;
+                    tr.querySelector('.pin-item-delete-btn').onclick = () => {
+                        flatplanPins.splice(index, 1);
+                        renderPinCanvas();
+                        renderPinList();
+                    };
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Canvas 이미지 핀 그리기 병합 및 요청 전송 처리
+            bindClickEffect(submitBtn, async () => {
+                if (flatplanPins.length === 0) return;
+
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerText;
+                submitBtn.innerText = "도면 및 핀 병합 합성 중...";
+
+                try {
+                    const imgEl = document.getElementById('pinCanvasImage');
+                    if (!imgEl) throw new Error("도면 이미지를 찾을 수 없습니다.");
+
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    canvas.width = imgEl.naturalWidth || 800;
+                    canvas.height = imgEl.naturalHeight || 600;
+                    ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+
+                    // 핀 그리기
+                    flatplanPins.forEach((pin, index) => {
+                        const px = (pin.x / 100) * canvas.width;
+                        const py = (pin.y / 100) * canvas.height;
+
+                        ctx.beginPath();
+                        ctx.arc(px, py, 14, 0, 2 * Math.PI);
+                        ctx.fillStyle = '#e53e3e';
+                        ctx.fill();
+
+                        ctx.lineWidth = 2.5;
+                        ctx.strokeStyle = 'white';
+                        ctx.stroke();
+
+                        ctx.fillStyle = 'white';
+                        ctx.font = 'bold 16px Arial, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(index + 1, px, py + 1);
+                    });
+
+                    const mergedBase64 = canvas.toDataURL('image/jpeg', 0.65);
+
+                    const requestTexts = [];
+                    flatplanPins.forEach(pin => {
+                        let text = "";
+                        const rangeItems = ["싱크대", "신발장", "붙박이장", "수납장", "냉장고장"];
+                        const isRangeItem = rangeItems.some(k => pin.name.includes(k) || k.includes(pin.name));
+
+                        if (pin.option) {
+                            if (isRangeItem && pin.option.includes("~")) {
+                                let mVal = pin.option.split("~")[1] || pin.option;
+                                mVal = mVal.trim();
+                                if (!mVal.toLowerCase().includes("m") && !mVal.includes("미터")) {
+                                    mVal += "m";
+                                }
+                                text = `${pin.name} ${mVal}`;
+                            } else {
+                                text = `${pin.name} ${pin.option}`;
+                            }
+                        } else {
+                            text = pin.label;
+                        }
+                        if (text) requestTexts.push(text);
+                    });
+
+                    const finalRequestText = requestTexts.join(", ");
+                    userInput.value = finalRequestText;
+
+                    const pCode = currentPartnerCode || '';
+                    const payload = {
+                        message: finalRequestText,
+                        partner_code: pCode,
+                        image: mergedBase64,
+                        is_pin_quote: true
+                    };
+
+                    const modal = document.querySelector('.quick-quote-modal');
+                    if (modal) modal.remove();
+                    const inline = document.querySelector('.quick-quote-inline-container');
+                    if (inline) inline.remove();
+
+                    selectedImages = [{
+                        file: null,
+                        previewUrl: mergedBase64
+                    }];
+                    renderPreviews();
+
+                    await sendPinQuoteRequest(payload);
+
+                } catch (e) {
+                    console.error("합성 및 전송 실패:", e);
+                    alert("도면 합성에 실패했습니다. 다시 시도해 주세요.");
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = originalText;
+                }
+            });
+        }
+
+        // 핀 전용 견적 전송 함수 (sendRequest 대체)
+        async function sendPinQuoteRequest(payload) {
+            const existingBtn = document.querySelector('.open-quick-quote-btn');
+            if (existingBtn) existingBtn.remove();
+            const badge = document.querySelector('.floating-cart-badge');
+            if (badge) badge.remove();
+
+            const firstImg = payload.image;
+            let displayMsg = `<div style="position:relative; display:inline-block;">
+                           <img src="${firstImg}" style="width:100%; max-width:260px; border-radius:8px; display:block; border:1px solid #ddd;">
+                           <span style="background:#e53e3e; color:white; position:absolute; bottom:5px; right:5px; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold;">도면 핀견적</span>
+                         </div>`;
+            displayMsg += `<div style="margin-top:8px;">📍 핀 견적 요청:<br><b>${payload.message}</b></div>`;
+            const userBubble = addBubble(displayMsg, 'user');
+            scrollToBottom();
+
+            userInput.value = "";
+            selectedImages = [];
+            renderPreviews();
+            sendButton.disabled = true;
+
+            let sec = 30;
+            const loading = showFullscreenLoading();
+            const timer = setInterval(() => {
+                sec--;
+                if (sec < 0) sec = 0;
+                updateLoadingTimer(loading, sec);
+            }, 1000);
+
+            try {
+                const res = await fetch(CONFIG.estimateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-secret-token': CONFIG.secretToken,
+                        'x-user-id': currentUserId
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                clearInterval(timer);
+                if (loading.parentNode) loading.parentNode.removeChild(loading);
+
+                if (!res.ok) throw new Error('Server Error');
+                const data = await res.json();
+
+                let botBubble = null;
+                if (Array.isArray(data) && data.length > 0 && data[0].output) {
+                    botBubble = addBubble(data[0].output, 'bot', true);
+                } else if (data.output) {
+                    botBubble = addBubble(data.output, 'bot', true);
+                } else if (Array.isArray(data) && data.length > 0 && data[0].message) {
+                    botBubble = addBubble(data[0].message, 'bot', true);
+                } else if (data.message) {
+                    botBubble = addBubble(data.message, 'bot', true);
+                } else {
+                    botBubble = addBubble("✅ 계산 완료! (내용을 확인해주세요)", 'bot');
+                }
+
+                addOpenQuickQuoteButton();
+
+                setTimeout(() => {
+                    const targetBubble = botBubble || userBubble;
+                    if (targetBubble) {
+                        targetBubble.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 100);
+
+            } catch (e) {
+                clearInterval(timer);
+                if (loading.parentNode) loading.parentNode.removeChild(loading);
+                console.error(e);
+
+                const partnerData = currentPartner || {};
+                const ceo = partnerData.ceo_name || '김정헌';
+                const pos = partnerData.position || '실장';
+                const phone = partnerData.phone || '010-6657-1222';
+                
+                const errorMsg = `
+                <div class="error-card" style="font-family: sans-serif; padding: 5px 0; width: 100%; box-sizing: border-box;">
+                    <div style="font-size: 1.1em; font-weight: bold; color: #e53e3e; margin-bottom: 8px; text-align: left;">
+                        ⚠️ 견적 계산 실패
+                    </div>
+                    <div style="font-size: 0.95em; color: #4a5568; line-height: 1.6; margin-bottom: 15px; text-align: left;">
+                        견적을 전송하는 과정에서 오류가 발생했습니다.<br>
+                        입력 품목을 다시 확인해 주시거나 아래 담당자에게 직접 전화를 통해 견적을 받아보실 수 있습니다. 😊
+                    </div>
+                    <div style="padding-top: 15px; border-top: 1px dashed #e2e8f0; text-align: center;">
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <span style="font-weight: bold; font-size: 1.0em; color: #333;">문의 : ${ceo} ${pos}</span>
+                        </div>
+                        <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #e53e3e; color: #e53e3e; text-decoration: none; font-weight: 800; font-size: 1.25em; padding: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); outline: none;">
+                            📞 ${phone}
+                        </a>
+                    </div>
+                </div>`;
+                addBubble(errorMsg, 'bot');
+                addOpenQuickQuoteButton();
+                scrollToBottom();
+            } finally {
+                sendButton.disabled = false;
+            }
+        }
 
         // 모든 변수 및 DOM 엘리먼트 정의가 완료된 후 실행
         renderWelcomeIfNeeded();
