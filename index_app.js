@@ -507,7 +507,7 @@ const CONFIG = {
                 // [New] [XX:XX KST 업데이트] 문구 제거
                 content = content.replace(/\s*\[[^\]]*KST\s*업데이트\]/gi, '');
 
-                if (isQuote || content.includes('견적') || content.includes('금액')) {
+                if (!content.includes('intro-card') && (isQuote || content.includes('견적') || content.includes('금액'))) {
                     // [중요] 사용자가 요청한대로 "문의 :" 뒷부분은 n8n이 보내는 가짜 서명이므로 제거
                     // (단, n8n이 '담당 :' (투명문자 포함)으로 보낼 때는 이게 작동 안 할 수 있지만, 안전장치로 유지)
                     const safeSplit = content.split('문의 :')[0];
