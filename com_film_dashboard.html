@@ -53,7 +53,6 @@
             <div class="tab-wrapper">
                 <button class="tab-btn active" data-target="tab-info">기본정보 / SNS</button>
                 <button class="tab-btn" data-target="tab-price">단가 설정</button>
-                <button class="tab-btn" data-target="tab-inquiries">견적내역</button>
             </div>
         </div>
 
@@ -64,7 +63,7 @@
                 <div class="form-label">1분 견적주소</div>
                 <div class="form-value">
                     <div class="row-flex">
-                        <input type="text" id="quoteUrl" class="readonly-input" value="" placeholder="주소를 불러오는 중..." readonly>
+                        <input type="text" id="quoteUrl" class="readonly-input" value="https://1film.co.kr/p_001" readonly>
                         <button class="action-btn" onclick="window.open(document.getElementById('quoteUrl').value, '_blank')">열기</button>
                         <button class="action-btn" onclick="copyToClipboard('quoteUrl')">복사</button>
                     </div>
@@ -207,21 +206,7 @@
 
             <div id="priceListContainer">
             </div>
-        </div>
 
-        <!-- 탭 3: 견적내역 -->
-        <div id="tab-inquiries" class="tab-content">
-            <div id="inquiryListContainer" class="inquiry-list-container">
-                <!-- 견적내역 카드들이 동적으로 생성됩니다 -->
-            </div>
-        </div>
-
-    </div>
-
-    <!-- 이미지 확대 모달 -->
-    <div id="imageModal" class="image-modal" onclick="closeImageModal()">
-        <span class="close-modal">&times;</span>
-        <img class="image-modal-content" id="modalImg">
     </div>
 
     <script src="com_film_app.js"></script>

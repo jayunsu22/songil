@@ -3,8 +3,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // n8n 웹훅 URL 세팅 (사장님이 만들어주신 Production URL)
     // 참고: 스샷 확인 결과 GET/POST 모두 'dashboard-save' 경로로 만드셔서 그대로 적용했습니다!
-    const WEBHOOK_GET_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save"; 
-    const WEBHOOK_POST_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save";
+    const WEBHOOK_GET_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save-dev"; 
+    const WEBHOOK_POST_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save-dev";
 
     // 글로벌 단가
     let globalMaterialPrice = 9000; 
@@ -315,13 +315,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('partnerNameInput').value = data.partnerName;
             }
             if (data.contractPeriod) document.getElementById('servicePeriod').textContent = data.contractPeriod;
-            if (data.quoteUrl) {
-                document.getElementById('quoteUrl').value = data.quoteUrl;
-            } else if (data.partnerCode) {
-                document.getElementById('quoteUrl').value = 'https://1film.co.kr/' + data.partnerCode;
-            } else {
-                document.getElementById('quoteUrl').value = '';
-            }
+            if (data.quoteUrl) document.getElementById('quoteUrl').value = data.quoteUrl;
             if (data.ceoName) document.getElementById('mgrName').value = data.ceoName;
             if (data.position) document.getElementById('mgrTitle').value = data.position;
             if (data.phone) document.getElementById('mgrPhone').value = data.phone;
@@ -355,11 +349,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             mockItems = data.items || []; // 서버에서 받아온 아이템 리스트
 
             renderAccordionList(mockItems);
-            
-            // [New: 2026-06-18] 견적 요청 내역 탭 렌더링 호출
-            const inquiries = data.inquiries || [];
-            renderInquiryList(inquiries);
-            
             loading.style.display = 'none';
             content.style.display = 'block';
 
@@ -835,79 +824,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         showToast('에어테이블에 정상적으로 적용되었습니다.', 'success');
     }
-
-    // [New: 2026-06-18] 견적 요청 내역 탭 렌더링 함수
-    function renderInquiryList(inquiries) {
-        const container = document.getElementById('inquiryListContainer');
-        container.innerHTML = '';
-
-        if (!inquiries || inquiries.length === 0) {
-            container.innerHTML = `
-                <div style="text-align:center; color:var(--text-muted); padding:40px 20px; font-weight:600; font-size:14px;">
-                    견적 요청 내역이 없습니다.
-                </div>
-            `;
-            return;
-        }
-
-        // 최신 요청순으로 정렬
-        inquiries.sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
-
-        inquiries.forEach(inq => {
-            const dateStr = inq.dateTime ? new Date(inq.dateTime).toLocaleString('ko-KR') : '날짜 미상';
-            const card = document.createElement('div');
-            card.className = 'inquiry-card';
-            
-            let cardBodyHtml = '';
-            if (inq.html && inq.html.trim()) {
-                cardBodyHtml = inq.html;
-            } else {
-                // 구형 레코드용 폴백 레이아웃
-                let imgHtml = '';
-                if (inq.imageUrl) {
-                    imgHtml = `
-                    <div style="text-align:center; margin-bottom:15px;">
-                        <img src="${inq.imageUrl}" style="max-width:100%; border-radius:8px; border:2px solid #ddd; cursor:pointer;" title="클릭하면 크게 봅니다">
-                    </div>`;
-                }
-                cardBodyHtml = `
-                    ${imgHtml}
-                    <div style="font-size:15px; font-weight:700; color:#333; margin-top:10px;">📋 요청 품목</div>
-                    <div style="font-size:14px; color:#555; line-height:1.6; margin-top:5px; white-space:pre-wrap;">${inq.items || '품목 정보가 없습니다.'}</div>
-                `;
-            }
-
-            card.innerHTML = `
-                <div class="inquiry-card-header">
-                    <div class="inquiry-card-title">견적 요청건 (${inq.chatId || 'ID 미상'})</div>
-                    <div class="inquiry-card-date">${dateStr}</div>
-                </div>
-                <div class="inquiry-card-body">
-                    ${cardBodyHtml}
-                </div>
-            `;
-            container.appendChild(card);
-        });
-    }
-
-    // 이미지 확대 모달 제어
-    const modal = document.getElementById('imageModal');
-    const modalImg = document.getElementById('modalImg');
-    
-    window.openImageModal = function(src) {
-        modal.style.display = 'flex';
-        modalImg.src = src;
-    };
-    
-    window.closeImageModal = function() {
-        modal.style.display = 'none';
-    };
-
-    // 이미지 클릭 시 모달 열기 이벤트 위임
-    document.getElementById('inquiryListContainer').addEventListener('click', (e) => {
-        if (e.target.tagName === 'IMG') {
-            window.openImageModal(e.target.src);
-        }
-    });
-
 });
