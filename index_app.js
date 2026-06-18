@@ -1556,7 +1556,6 @@ const CONFIG = {
             const mainTabsConfig = [
                 { label: "🏠 평형별", index: 0 },
                 { label: "🛒 품목별", index: 1 },
-                { label: "🗺️ 도면핀", index: 3 },
                 { label: "📸 사진견적", index: 2 }
             ];
             mainTabsConfig.forEach(t => {
