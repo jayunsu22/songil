@@ -3,8 +3,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // n8n 웹훅 URL 세팅 (사장님이 만들어주신 Production URL)
     // 참고: 스샷 확인 결과 GET/POST 모두 'dashboard-save' 경로로 만드셔서 그대로 적용했습니다!
-    const WEBHOOK_GET_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save-dev"; 
-    const WEBHOOK_POST_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save-dev";
+    const WEBHOOK_GET_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save"; 
+    const WEBHOOK_POST_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save";
 
     // 글로벌 단가
     let globalMaterialPrice = 9000; 
