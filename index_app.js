@@ -1,6 +1,6 @@
 const CONFIG = {
-            estimateUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test-dev", // 견적 요청용 (개발용)
-            partnerUrl: "https://primary-production-a6fa.up.railway.app/webhook/partner-info-dev", // 가맹점 정보 조회용 (개발용)
+            estimateUrl: "https://primary-production-a6fa.up.railway.app/webhook/image-test", // 견적 요청용 (실서비스용)
+            partnerUrl: "https://primary-production-a6fa.up.railway.app/webhook/partner-info", // 가맹점 정보 조회용 (실서비스용)
             secretToken: "songil_secret_2025",
             managerName: "김정헌 실장" // 기본값
         };
