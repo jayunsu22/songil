@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let globalMaterialPrice = 9000; 
     let mockItems = []; // 서버에서 받아올 빈 배열
     let partnerRecordId = '';
+    let currentShortId = '';
     let currentPriceCategory = 'pyeong';
     let mockInquiries = [];
 
@@ -240,7 +241,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const success = await savePartnerField({ shortId: val }, '홍보 단축 ID가 업데이트 되었습니다.');
             if (success) {
+                currentShortId = val;
                 updateQuoteUrl(val ? `https://1film.co.kr/${val}` : `https://1film.co.kr/${partnerId}`);
+            } else {
+                document.getElementById('shortId').value = currentShortId;
             }
         });
 
@@ -399,7 +403,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
             if (data.quoteUrl) updateQuoteUrl(data.quoteUrl);
-            if (data.shortId !== undefined) document.getElementById('shortId').value = data.shortId || '';
+            if (data.shortId !== undefined) {
+                const val = data.shortId || '';
+                document.getElementById('shortId').value = val;
+                currentShortId = val;
+            }
             if (data.ceoName) document.getElementById('mgrName').value = data.ceoName;
             if (data.position) document.getElementById('mgrTitle').value = data.position;
             if (data.phone) document.getElementById('mgrPhone').value = data.phone;
