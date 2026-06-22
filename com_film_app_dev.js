@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     result = await response.json();
                 } catch (e) {}
 
-                if (!response.ok) {
+                if (!response.ok || result.success === false || result.success === 'false') {
                     throw new Error(result.message || '네트워크 응답 오류');
                 }
                 showToast(successMessage, 'success');
