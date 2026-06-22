@@ -225,11 +225,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             savePartnerField({ notice: val }, '견적서 공통 안내문구가 업데이트 되었습니다.');
         });
 
-        document.getElementById('editPageTitleBtn').addEventListener('click', () => {
-            const val = document.getElementById('pageTitle').value.trim();
-            localStorage.setItem('saved_page_title_' + partnerId, val);
-            showToast('페이지 제목이 업데이트 되었습니다.', 'success');
-        });
+
 
         document.getElementById('editShortIdBtn').addEventListener('click', async () => {
             const val = document.getElementById('shortId').value.trim();
@@ -475,8 +471,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 
-            // 페이지 제목 로컬스토리지 매핑
-            document.getElementById('pageTitle').value = localStorage.getItem('saved_page_title_' + partnerId) || '섬세한 손길의 1분 견적';
+
 
             function setupSnsField(typeSuffix, serverUrl, storageKeyPrefix) {
                 const inputEl = document.getElementById(`url${typeSuffix}`);
