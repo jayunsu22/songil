@@ -187,12 +187,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                         ...payload
                     })
                 });
+                
+                let result = {};
+                try {
+                    result = await response.json();
+                } catch (e) {}
+
                 if (!response.ok) {
-                    throw new Error('네트워크 응답 오류');
+                    throw new Error(result.message || '네트워크 응답 오류');
                 }
                 showToast(successMessage, 'success');
+                return true;
             } catch (error) {
-                showToast('서버 저장에 실패했습니다.', 'error');
+                showToast(error.message || '서버 저장에 실패했습니다.', 'error');
+                return false;
             }
         }
 
@@ -224,8 +232,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('editShortIdBtn').addEventListener('click', async () => {
             const val = document.getElementById('shortId').value.trim();
-            await savePartnerField({ shortId: val }, '홍보 단축 ID가 업데이트 되었습니다.');
-            updateQuoteUrl(val ? `https://1film.co.kr/${val}` : `https://1film.co.kr/${partnerId}`);
+            
+            if (val && !/^[a-zA-Z0-9_-]+$/.test(val)) {
+                showToast('홍보 ID는 영문, 숫자, 밑줄(_), 하이픈(-)만 사용할 수 있습니다.', 'error');
+                return;
+            }
+
+            const success = await savePartnerField({ shortId: val }, '홍보 단축 ID가 업데이트 되었습니다.');
+            if (success) {
+                updateQuoteUrl(val ? `https://1film.co.kr/${val}` : `https://1film.co.kr/${partnerId}`);
+            }
         });
 
         // SNS 주소 수정 버튼 공통 핸들러
