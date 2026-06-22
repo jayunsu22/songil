@@ -239,6 +239,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
+            if (val.length > 8) {
+                showToast('홍보 ID는 최대 8글자 이하만 입력할 수 있습니다.', 'error');
+                return;
+            }
+
             const success = await savePartnerField({ shortId: val }, '홍보 단축 ID가 업데이트 되었습니다.');
             if (success) {
                 currentShortId = val;
