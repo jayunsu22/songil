@@ -1,10 +1,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const toast = document.getElementById('toast');
     
-    // n8n 웹훅 URL 세팅 (사장님이 만들어주신 Production URL)
-    // 참고: 스샷 확인 결과 GET/POST 모두 'dashboard-save' 경로로 만드셔서 그대로 적용했습니다!
+    // n8n 웹훅 URL 세팅 (개발용 격리)
     const WEBHOOK_GET_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save"; 
     const WEBHOOK_POST_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save";
+    const WEBHOOK_INQUIRY_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-inquiries";
 
     // 글로벌 단가
     let globalMaterialPrice = 9000; 
@@ -17,6 +17,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         toast.textContent = message;
         toast.className = `toast show ${type}`;
         setTimeout(() => { toast.className = 'toast'; }, 3000);
+    }
+
+    function updateQuoteUrl(url) {
+        document.getElementById('quoteUrl').value = url;
+        const idEl = document.getElementById('quoteUrlId');
+        if (idEl && url) {
+            const parts = url.split('/');
+            idEl.textContent = parts[parts.length - 1] || '';
+        }
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -56,7 +65,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 e.target.classList.add('active');
                 document.getElementById(e.target.dataset.target).classList.add('active');
+
+                // 견적문의 탭 클릭 시 리스트 조회 실행
+                if (e.target.id === 'inquiryTabBtn') {
+                    loadInquiries(partnerId);
+                }
             });
+        });
+
+        // 견적문의 새로고침 버튼
+        document.getElementById('refreshInquiriesBtn').addEventListener('click', () => {
+            loadInquiries(partnerId);
         });
 
         // 가격 카테고리 탭 클릭 이벤트 추가
@@ -206,8 +225,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editShortIdBtn').addEventListener('click', async () => {
             const val = document.getElementById('shortId').value.trim();
             await savePartnerField({ shortId: val }, '홍보 단축 ID가 업데이트 되었습니다.');
-            // 성공 시 화면의 1분 견적주소도 동적 갱신
-            document.getElementById('quoteUrl').value = val ? `https://1film.co.kr/${val}` : `https://1film.co.kr/${partnerId}`;
+            updateQuoteUrl(val ? `https://1film.co.kr/${val}` : `https://1film.co.kr/${partnerId}`);
         });
 
         // SNS 주소 수정 버튼 공통 핸들러
@@ -321,13 +339,112 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('companyName').textContent = data.partnerName;
                 document.getElementById('partnerNameInput').value = data.partnerName;
             }
-            if (data.contractPeriod) document.getElementById('servicePeriod').textContent = data.contractPeriod;
-            if (data.quoteUrl) document.getElementById('quoteUrl').value = data.quoteUrl;
+            if (data.contractPeriod) {
+                document.getElementById('servicePeriod').textContent = data.contractPeriod;
+                
+                // 남은 기간 계산 및 배지 렌더링
+                const remainingDaysBadge = document.getElementById('remainingDaysBadge');
+                const remainingDaysNum = document.getElementById('remainingDaysNum');
+                
+                if (remainingDaysBadge && remainingDaysNum) {
+                    let diffDays = 0;
+                    if (data.contractPeriod.includes(' ~ ')) {
+                        const parts = data.contractPeriod.split(' ~ ');
+                        const endDateStr = parts[1] ? parts[1].trim() : null;
+                        if (endDateStr) {
+                            const endDate = new Date(endDateStr.replace(/\./g, '-'));
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            endDate.setHours(0, 0, 0, 0);
+                            if (!isNaN(endDate.getTime())) {
+                                const diffTime = endDate.getTime() - today.getTime();
+                                diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            }
+                        }
+                    }
+                    
+                    if (diffDays > 0) {
+                        remainingDaysNum.textContent = diffDays;
+                        remainingDaysBadge.style.display = 'flex';
+                        
+                        // 남은 기간이 30일 이하인 경우 빨간 경고 스타일 적용
+                        if (diffDays <= 30) {
+                            remainingDaysBadge.style.borderColor = '#fee2e2';
+                            remainingDaysBadge.style.background = '#fef2f2';
+                            remainingDaysNum.style.color = '#ef4444';
+                        } else {
+                            remainingDaysBadge.style.borderColor = '#f3f4f6';
+                            remainingDaysBadge.style.background = '#ffffff';
+                            remainingDaysNum.style.color = '#1e293b';
+                        }
+                    } else {
+                        remainingDaysBadge.style.display = 'none';
+                    }
+                }
+            }
+            if (data.quoteUrl) updateQuoteUrl(data.quoteUrl);
             if (data.shortId !== undefined) document.getElementById('shortId').value = data.shortId || '';
             if (data.ceoName) document.getElementById('mgrName').value = data.ceoName;
             if (data.position) document.getElementById('mgrTitle').value = data.position;
             if (data.phone) document.getElementById('mgrPhone').value = data.phone;
             if (data.notice) document.getElementById('quoteNotice').value = data.notice;
+
+            // 공지사항 및 공식카페 배너 렌더링
+            const noticeContainer = document.getElementById('noticeContainer');
+            if (noticeContainer) {
+                noticeContainer.innerHTML = '';
+                noticeContainer.className = '';
+                noticeContainer.style.display = 'none';
+                
+                let notices = [];
+                if (data.boardNotice) {
+                    if (Array.isArray(data.boardNotice)) {
+                        notices = data.boardNotice;
+                    } else if (data.boardNotice.content) {
+                        notices = [data.boardNotice];
+                    }
+                }
+                
+                if (notices.length > 0) {
+                    noticeContainer.className = 'notice-container-box';
+                    noticeContainer.style.display = 'block';
+                    
+                    notices.forEach((notice) => {
+                        const noticeRow = document.createElement('div');
+                        noticeRow.className = 'notice-row';
+                        
+                        const noticeContent = document.createElement('div');
+                        noticeContent.className = 'notice-content';
+                        
+                        const badge = document.createElement('span');
+                        badge.className = 'notice-badge';
+                        badge.textContent = '공지';
+                        
+                        const text = document.createElement('span');
+                        text.className = 'notice-text';
+                        text.textContent = notice.content;
+                        
+                        noticeContent.appendChild(badge);
+                        noticeContent.appendChild(text);
+                        noticeRow.appendChild(noticeContent);
+
+                        
+                        if (notice.cafeUrl) {
+                            const linkBtn = document.createElement('a');
+                            linkBtn.href = notice.cafeUrl;
+                            linkBtn.target = '_blank';
+                            linkBtn.className = 'notice-link-btn';
+                            linkBtn.textContent = '내용보기';
+                            noticeRow.appendChild(linkBtn);
+                        }
+                        
+                        noticeContainer.appendChild(noticeRow);
+                    });
+
+                }
+            }
+
+
 
             // 페이지 제목 로컬스토리지 매핑
             document.getElementById('pageTitle').value = localStorage.getItem('saved_page_title_' + partnerId) || '섬세한 손길의 1분 견적';
@@ -490,11 +607,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </div>
                         </div>
                         <div class="calc-row">
-                            <div class="calc-label">인건비<span>(${isPyeong ? '인건비 단가 x (설정 길이 x 자재소모량)' : '인건비 단가 x 자재 소모량'})</span></div>
+                            <div class="calc-label" id="labor-label-${item.id}">인건비<span>(${isPyeong ? '인건비 단가 x (설정 길이 x 자재소모량)' : '인건비 단가 x 자재 소모량'})</span></div>
                             <div class="calc-val" id="labor-total-${item.id}">${laborTotal.toLocaleString()}원</div>
                         </div>
                         <div class="calc-row">
-                            <div class="calc-label">자재비<span>(${isPyeong ? '공통 자재비 단가 x (설정 길이 x 자재소모량)' : '자재비 단가 x 자재 소모량'})</span></div>
+                            <div class="calc-label" id="material-label-${item.id}">자재비<span>(${isPyeong ? '공통 자재비 단가 x (설정 길이 x 자재소모량)' : '자재비 단가 x 자재 소모량'})</span></div>
                             <div class="calc-val" id="material-total-${item.id}">${materialTotal.toLocaleString()}원</div>
                         </div>
                         <div class="calc-row total-row">
@@ -717,6 +834,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById(`material-total-${id}`).textContent = `${materialTotal.toLocaleString()}원`;
         document.getElementById(`grand-total-${id}`).textContent = `${grandTotal.toLocaleString()}원`;
 
+        const laborLabel = document.getElementById(`labor-label-${id}`);
+        const materialLabel = document.getElementById(`material-label-${id}`);
+        if (laborLabel) {
+            laborLabel.innerHTML = `인건비<span>(${isPyeong ? `${laborUnit.toLocaleString()}원 × ${inputVal}m × ${staticFactor}배` : `${laborUnit.toLocaleString()}원 × ${inputVal}m`})</span>`;
+        }
+        if (materialLabel) {
+            materialLabel.innerHTML = `자재비<span>(${isPyeong ? `${globalMaterialPrice.toLocaleString()}원 × ${inputVal}m × ${staticFactor}배` : `${globalMaterialPrice.toLocaleString()}원 × ${inputVal}m`})</span>`;
+        }
+
         const headerTotal = document.getElementById(`header-total-${id}`);
         if (headerTotal) {
             headerTotal.textContent = `${grandTotal.toLocaleString()}원`;
@@ -831,5 +957,106 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById(`header-total-${id}`).textContent = `${grandTotal.toLocaleString()}원`;
 
         showToast('에어테이블에 정상적으로 적용되었습니다.', 'success');
+    }
+
+    // 💡 신규 기능: 견적문의 내역 조회
+    async function loadInquiries(recordId) {
+        const container = document.getElementById('inquiryListContainer');
+        container.innerHTML = '<div class="no-data">견적문의 내역을 불러오는 중입니다...</div>';
+        
+        if (!recordId) {
+            container.innerHTML = '<div class="no-data">가맹점 정보를 조회할 수 없습니다.</div>';
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${WEBHOOK_INQUIRY_URL}?partnerId=${recordId}`);
+            if (!response.ok) throw new Error('데이터 조회 실패');
+            
+            const data = await response.json();
+            const inquiries = data.inquiries || [];
+            
+            if (inquiries.length === 0) {
+                container.innerHTML = '<div class="no-data">접수된 견적문의 내역이 없습니다.</div>';
+                return;
+            }
+            
+            renderInquiryList(inquiries);
+        } catch (error) {
+            console.error("견적 조회 실패:", error);
+            container.innerHTML = `<div class="no-data" style="color:var(--danger);">데이터를 가져오지 못했습니다.<br>오류 내용: ${error.message}</div>`;
+        }
+    }
+
+    // 견적문의 리스트 렌더링 (더보기 버튼 포함)
+    function renderInquiryList(inquiries) {
+        const container = document.getElementById('inquiryListContainer');
+        container.innerHTML = '';
+        
+        let currentIndex = 0;
+        const batchSize = 10;
+
+        // 실제 카드 요소를 생성하는 헬퍼 함수
+        function createCard(inq) {
+            if (!inq.htmlContent) return null;
+            
+            const itemCard = document.createElement('div');
+            itemCard.className = 'inquiry-card';
+            itemCard.style.padding = '0'; // HTML 자체 패딩 사용
+            itemCard.style.overflow = 'hidden';
+            itemCard.style.background = 'transparent';
+            itemCard.style.border = 'none';
+            itemCard.style.boxShadow = 'none';
+            
+            // 날짜 정보 추가 표시 (카드 상단)
+            let dateStr = '';
+            if (inq.date) {
+                const dateObj = new Date(inq.date);
+                dateStr = dateObj.toLocaleDateString('ko-KR', {
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit'
+                });
+            }
+            
+            itemCard.innerHTML = `
+                ${dateStr ? `<div style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; padding-left: 8px;">신청 일시: ${dateStr}</div>` : ''}
+                <div class="inquiry-card-html-wrap">${inq.htmlContent}</div>
+            `;
+            return itemCard;
+        }
+
+        // 더보기 버튼을 관리하기 위한 컨테이너 정의
+        const listWrapper = document.createElement('div');
+        listWrapper.id = 'inquiryListWrapper';
+        container.appendChild(listWrapper);
+
+        const moreBtnContainer = document.createElement('div');
+        moreBtnContainer.style.textAlign = 'center';
+        moreBtnContainer.style.margin = '20px 0 10px 0';
+        container.appendChild(moreBtnContainer);
+
+        function showNext() {
+            const limit = Math.min(currentIndex + batchSize, inquiries.length);
+            for (let i = currentIndex; i < limit; i++) {
+                const card = createCard(inquiries[i]);
+                if (card) listWrapper.appendChild(card);
+            }
+            currentIndex = limit;
+
+            // 더보기 버튼 제어
+            if (currentIndex < inquiries.length) {
+                moreBtnContainer.innerHTML = `
+                    <button id="loadMoreInquiriesBtn" class="action-btn" style="background:var(--accent); color:white; width: 100%; max-width: 200px; padding: 12px; border-radius: 12px; border:none; font-weight:700; cursor:pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); outline: none;">
+                        더보기 (${inquiries.length - currentIndex}개 남음)
+                    </button>
+                `;
+                document.getElementById('loadMoreInquiriesBtn').addEventListener('click', showNext);
+            } else {
+                moreBtnContainer.innerHTML = '';
+            }
+        }
+
+        // 초기 10개 출력
+        showNext();
     }
 });
