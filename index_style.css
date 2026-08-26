@@ -311,33 +311,78 @@ body {
             width: 100% !important;
         }
 
-        /* [New] 간편견적 전체화면 모달 (Glassmorphism & 단일 스크롤) */
+        /* [New] 간편견적 좌측 슬라이드 드로어 */
         .quick-quote-modal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100dvh;
+            background: rgba(0, 0, 0, 0);
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+            z-index: 9999;
+            display: flex;
+            align-items: stretch;
+            justify-content: flex-start;
+            transition: background 0.28s ease-out, backdrop-filter 0.28s ease-out;
+            pointer-events: none;
+        }
+
+        .quick-quote-modal.open {
             background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
-            z-index: 9999;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
+            pointer-events: auto;
         }
 
         .quick-quote-modal-content {
-            width: 100%;
-            max-width: 500px;
-            height: 85vh;
+            width: 97%;
+            max-width: 560px;
+            height: 100%;
             background: white;
-            border-radius: 20px 20px 0 0;
+            border-radius: 0 20px 20px 0;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
             position: relative;
+            transform: translateX(-100%);
+            transition: transform 0.28s ease-out;
+        }
+
+        .quick-quote-modal.open .quick-quote-modal-content {
+            transform: translateX(0);
+        }
+
+        /* [New] 좌측 벽 간편견적 진입 탭 */
+        .edge-quote-tab {
+            position: fixed;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 500;
+            background: #4A90E2;
+            color: white;
+            border: none;
+            padding: 14px 6px;
+            border-radius: 0 12px 12px 0;
+            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.12);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8em;
+            font-weight: 700;
+            font-family: 'Noto Sans KR', sans-serif;
+            writing-mode: vertical-rl;
+            letter-spacing: 1px;
+        }
+
+        .edge-quote-tab .tab-icon {
+            writing-mode: horizontal-tb;
+            font-size: 1.1em;
         }
 
         /* 모달 내 스크롤 영역 */
