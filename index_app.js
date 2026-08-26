@@ -156,6 +156,49 @@ const CONFIG = {
 
         function scrollToBottom() { setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50); }
 
+        // [New] 채팅창 사진 아이콘 클릭 시, 간편견적 사진견적 탭과 동일하게
+        // "보관된 사진 선택" / "실시간 촬영하기" 2가지 옵션을 보여주는 팝업
+        function openChatPhotoSourceMenu(event) {
+            if (event) event.stopPropagation();
+
+            // 이미 열려있으면 닫기(토글)
+            const existingMenu = document.querySelector('.photo-source-menu');
+            if (existingMenu) { existingMenu.remove(); return; }
+
+            const menu = document.createElement('div');
+            menu.className = 'photo-source-menu';
+
+            const galleryBtn = document.createElement('button');
+            galleryBtn.className = 'photo-source-btn gallery';
+            galleryBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>보관된 사진 선택`;
+            bindClickEffect(galleryBtn, () => {
+                menu.remove();
+                document.getElementById('imageInput').click();
+            });
+
+            const cameraBtn = document.createElement('button');
+            cameraBtn.className = 'photo-source-btn camera';
+            cameraBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>실시간 촬영하기`;
+            bindClickEffect(cameraBtn, () => {
+                menu.remove();
+                document.getElementById('cameraInput').click();
+            });
+
+            menu.appendChild(galleryBtn);
+            menu.appendChild(cameraBtn);
+            document.querySelector('.chat-input-area').appendChild(menu);
+
+            // 바깥 영역 클릭 시 닫기
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenuOnOutsideClick(e) {
+                    if (!menu.contains(e.target) && e.target.id !== 'chatPhotoBtn') {
+                        menu.remove();
+                        document.removeEventListener('click', closeMenuOnOutsideClick);
+                    }
+                });
+            }, 0);
+        }
+
         function handleImageSelect(event, isCamera = false) {
             const files = Array.from(event.target.files);
             if (!files.length) return;
