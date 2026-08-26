@@ -1921,112 +1921,85 @@ const CONFIG = {
             }
         }
 
-        // 퀵 메뉴(장바구니) 표시 함수 (전체화면 모달화 및 이중스크롤 제거)
+        // 퀵 메뉴(장바구니) 표시 함수 — 항상 좌측 슬라이드 드로어로 통일 (인라인 모드 없음)
         function renderQuickQuoteModal() {
-            const isInline = (chatHistory.length === 0);
+            const inlineContainer = document.querySelector('.quick-quote-inline-container');
+            if (inlineContainer) inlineContainer.remove();
 
-            if (isInline) {
-                // 1. 인라인 모드: 대화 시작 전에 웰컴 카드 아래에 상시 노출
-                // 기존 모달 오버레이가 열려 있다면 닫는다.
-                const existingModal = document.querySelector('.quick-quote-modal');
-                if (existingModal) existingModal.remove();
+            let modal = document.querySelector('.quick-quote-modal');
+            let isFirstRender = false;
 
-                // 간편견적 열기 버튼도 숨긴다.
-                const existingBtn = document.querySelector('.open-quick-quote-btn');
-                if (existingBtn) existingBtn.remove();
-
-                let inlineContainer = document.querySelector('.quick-quote-inline-container');
-                if (!inlineContainer) {
-                    inlineContainer = document.createElement('div');
-                    inlineContainer.className = 'quick-quote-inline-container';
-                    inlineContainer.style.cssText = "width: 100%; max-width: 100%; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-top: 15px; margin-bottom: 25px; overflow: hidden; box-sizing: border-box;";
-                    
-                    inlineContainer.innerHTML = `
-                        <!-- 헤더 (닫기 버튼 없음) -->
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.className = 'quick-quote-modal';
+                modal.innerHTML = `
+                    <div class="quick-quote-modal-content">
+                        <!-- 모달 헤더 -->
                         <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #edf2f7; background:#ffffff;">
                             <span style="font-weight:bold; font-size:1.15em; color:#1a202c; display:flex; align-items:center; gap:6px;">
                                 🛠️ 1분 간편견적 선택
                             </span>
+                            <button class="modal-close-btn" style="background:none; border:none; font-size:1.7em; font-weight:bold; cursor:pointer; color:#a0aec0; padding:5px; line-height:1; transition:color 0.2s;">&times;</button>
                         </div>
-                        <!-- 내용 본문 영역 -->
-                        <div class="quick-quote-modal-body" id="modalBody" style="padding: 15px; max-height: none; overflow-y: visible;"></div>
-                    `;
-                    chatContainer.appendChild(inlineContainer);
-                }
+                        <!-- 모달 스크롤 바디 -->
+                        <div class="quick-quote-modal-body" id="modalBody"></div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                isFirstRender = true;
 
-                // 렌더링 대상 컨테이너를 지정
-                const bodyContainer = inlineContainer.querySelector('#modalBody');
-                renderModalBody(bodyContainer, inlineContainer);
+                // 슬라이드 인 애니메이션 트리거 (초기 스타일이 먼저 적용된 뒤 open 클래스 부여 — 탭이 백그라운드에 있어도 안정적으로 동작하도록 rAF 대신 setTimeout 사용)
+                setTimeout(() => {
+                    modal.classList.add('open');
+                }, 10);
 
-            } else {
-                // 2. 모달 팝업 모드: 대화 기록이 있을 때
-                // 기존 인라인 컨테이너가 남아있으면 제거
-                const inlineContainer = document.querySelector('.quick-quote-inline-container');
-                if (inlineContainer) inlineContainer.remove();
-
-                let modal = document.querySelector('.quick-quote-modal');
-                let isFirstRender = false;
-
-                if (!modal) {
-                    modal = document.createElement('div');
-                    modal.className = 'quick-quote-modal';
-                    modal.innerHTML = `
-                        <div class="quick-quote-modal-content">
-                            <!-- 모달 헤더 -->
-                            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #edf2f7; background:#ffffff;">
-                                <span style="font-weight:bold; font-size:1.15em; color:#1a202c; display:flex; align-items:center; gap:6px;">
-                                    🛠️ 1분 간편견적 선택
-                                </span>
-                                <button class="modal-close-btn" style="background:none; border:none; font-size:1.7em; font-weight:bold; cursor:pointer; color:#a0aec0; padding:5px; line-height:1; transition:color 0.2s;">&times;</button>
-                            </div>
-                            <!-- 모달 스크롤 바디 -->
-                            <div class="quick-quote-modal-body" id="modalBody"></div>
-                        </div>
-                    `;
-                    document.body.appendChild(modal);
-                    isFirstRender = true;
-
-                    // 닫기 버튼 이벤트 연결
-                    const closeBtn = modal.querySelector('.modal-close-btn');
-                    closeBtn.onmouseover = () => { closeBtn.style.color = '#e53e3e'; };
-                    closeBtn.onmouseout = () => { closeBtn.style.color = '#a0aec0'; };
-                    bindClickEffect(closeBtn, () => {
+                // 슬라이드 아웃 후 DOM에서 제거하고 탭을 복원하는 닫기 헬퍼
+                const closeDrawer = () => {
+                    modal.classList.remove('open');
+                    setTimeout(() => {
                         modal.remove();
                         addOpenQuickQuoteButton();
-                    });
+                    }, 280);
+                };
 
-                    modal.onclick = (e) => {
-                        if (e.target === modal) {
-                            modal.remove();
-                            addOpenQuickQuoteButton();
+                // 닫기 버튼 이벤트 연결
+                const closeBtn = modal.querySelector('.modal-close-btn');
+                closeBtn.onmouseover = () => { closeBtn.style.color = '#e53e3e'; };
+                closeBtn.onmouseout = () => { closeBtn.style.color = '#a0aec0'; };
+                bindClickEffect(closeBtn, () => {
+                    closeDrawer();
+                });
+
+                modal.onclick = (e) => {
+                    if (e.target === modal) {
+                        closeDrawer();
+                    }
+                };
+
+                const modalBody = modal.querySelector('#modalBody');
+                if (modalBody) {
+                    modalBody.onscroll = () => {
+                        const badge = modal.querySelector('.floating-cart-badge');
+                        if (badge) {
+                            const threshold = 80;
+                            if (modalBody.scrollHeight - modalBody.scrollTop - modalBody.clientHeight < threshold) {
+                                badge.style.opacity = '0';
+                                badge.style.pointerEvents = 'none';
+                            } else {
+                                badge.style.opacity = '1';
+                                badge.style.pointerEvents = 'auto';
+                            }
                         }
                     };
-
-                    const modalBody = modal.querySelector('#modalBody');
-                    if (modalBody) {
-                        modalBody.onscroll = () => {
-                            const badge = modal.querySelector('.floating-cart-badge');
-                            if (badge) {
-                                const threshold = 80;
-                                if (modalBody.scrollHeight - modalBody.scrollTop - modalBody.clientHeight < threshold) {
-                                    badge.style.opacity = '0';
-                                    badge.style.pointerEvents = 'none';
-                                } else {
-                                    badge.style.opacity = '1';
-                                    badge.style.pointerEvents = 'auto';
-                                }
-                            }
-                        };
-                    }
                 }
+            }
 
-                const bodyContainer = modal.querySelector('#modalBody');
-                renderModalBody(bodyContainer, modal);
+            const bodyContainer = modal.querySelector('#modalBody');
+            renderModalBody(bodyContainer, modal);
 
-                // 최초 렌더링 시 모달 바디 스크롤 영역을 맨 위로 초기화
-                if (isFirstRender && bodyContainer) {
-                    bodyContainer.scrollTop = 0;
-                }
+            // 최초 렌더링 시 모달 바디 스크롤 영역을 맨 위로 초기화
+            if (isFirstRender && bodyContainer) {
+                bodyContainer.scrollTop = 0;
             }
         }
 
@@ -2129,7 +2102,7 @@ const CONFIG = {
                 welcomeBubble.classList.add('welcome-card-bubble');
 
                 setTimeout(() => {
-                    renderQuickQuoteModal();
+                    addOpenQuickQuoteButton();
                 }, 300);
             } else {
                 setTimeout(() => {
