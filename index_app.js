@@ -842,6 +842,7 @@ const CONFIG = {
         let lastAirtableImageUrl = "";
 
         async function sendRequest(isFromDynamicBtn = false) {
+            document.querySelector('.chat-wrapper')?.classList.remove('welcome-centered');
             const isDynamic = (isFromDynamicBtn === true);
             let msg = userInput.value.trim();
 
@@ -2009,6 +2010,7 @@ const CONFIG = {
         // 첫 접속 시 환영 인사 및 간편메뉴 자동 표시 (가맹점 정보 획득 완료 후 실행)
         function renderWelcomeIfNeeded() {
             if (chatHistory.length === 0) {
+                document.querySelector('.chat-wrapper')?.classList.add('welcome-centered');
                 if (document.querySelector('.welcome-card-bubble')) return;
 
                 const partnerData = currentPartner || {};
@@ -2093,7 +2095,7 @@ const CONFIG = {
     </div>
     </div>
 
-    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px dashed #eee; text-align: center; width: 100%; box-sizing: border-box;">
+    <div style="display: none; margin-top: 15px; padding-top: 15px; border-top: 2px dashed #eee; text-align: center; width: 100%; box-sizing: border-box;">
         <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; width: 100%;">
             <span class="welcome-partner-name" style="font-weight: bold; font-size: 1.0em; color: #333; margin-right: 5px;">문의 : ${ceo} ${pos}</span>
             <div class="welcome-partner-socials-container" style="display: inline-block;">${socialHtml}</div>

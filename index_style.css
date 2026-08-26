@@ -18,6 +18,16 @@ body {
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
         }
 
+        /* [New] 첫 방문(웰컴카드만 있을 때) 채팅창을 화면 중간쯤으로 모아서 구글 검색창 느낌으로 */
+        .chat-wrapper.welcome-centered {
+            justify-content: center;
+        }
+
+        .chat-wrapper.welcome-centered .chat-container {
+            flex: 0 1 auto;
+            overflow-y: visible;
+        }
+
         .chat-header {
             background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
             color: white;
