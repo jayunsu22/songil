@@ -457,6 +457,24 @@ body {
             100% { left: 160%; }
         }
 
+        /* [New] 견적 상단 상담신청 정사각형 아이콘 버튼에 재사용하는 반짝임 효과 */
+        .shine-btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .shine-btn::after {
+            content: "";
+            position: absolute;
+            top: -60%;
+            left: -160%;
+            width: 55%;
+            height: 220%;
+            background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+            transform: rotate(20deg);
+            animation: tabShine 2.8s ease-in-out infinite;
+        }
+
         /* 모달 내 스크롤 영역 */
         .quick-quote-modal-body {
             flex: 1;

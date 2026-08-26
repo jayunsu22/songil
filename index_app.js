@@ -1364,16 +1364,17 @@ const CONFIG = {
             });
         }
 
-        // [New] 견적 하단 "상담신청" 버튼: 연락처를 입력받아 가맹점에 텔레그램으로 알림
+        // [New] 견적 상단 예상견적 옆 "상담신청" 아이콘 버튼: 연락처를 입력받아 가맹점에 텔레그램으로 알림
         function openConsultForm(btnEl, quoteId, totalEstimate) {
-            const actionRow = btnEl.closest('.quote-action-row');
-            if (!actionRow) return;
+            const topRow = btnEl.closest('.quote-top-row');
+            if (!topRow) return;
 
             // 이미 폼이 열려있으면 무시(중복 방지)
-            const existing = actionRow.parentNode.querySelector('.consult-request-form');
+            const existing = topRow.parentNode.querySelector('.consult-request-form');
             if (existing) { existing.querySelector('input')?.focus(); return; }
 
-            actionRow.style.display = 'none';
+            // 예상견적 박스는 그대로 보이도록 버튼만 숨김(자리는 유지해 레이아웃 유지)
+            btnEl.style.visibility = 'hidden';
 
             const form = document.createElement('div');
             form.className = 'consult-request-form';
@@ -1385,14 +1386,14 @@ const CONFIG = {
                     <button type="button" class="consult-submit-btn" style="flex:1; padding:11px; border:none; background:#4A90E2; color:white; border-radius:10px; font-weight:700; cursor:pointer;">상담 신청하기</button>
                 </div>
             `;
-            actionRow.parentNode.insertBefore(form, actionRow.nextSibling);
+            topRow.parentNode.insertBefore(form, topRow.nextSibling);
 
             const input = form.querySelector('.consult-phone-input');
             input.focus();
 
             form.querySelector('.consult-cancel-btn').onclick = () => {
                 form.remove();
-                actionRow.style.display = '';
+                btnEl.style.visibility = '';
             };
 
             form.querySelector('.consult-submit-btn').onclick = async () => {
