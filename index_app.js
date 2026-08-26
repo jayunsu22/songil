@@ -2034,7 +2034,11 @@ const CONFIG = {
     <p style="font-size: 0.95em; color: #4a5568; line-height: 1.5; margin: 0 0 15px;">
         <strong style="color: #4A90E2; font-weight: 800;">1분이내 견적 OK!</strong>
     </p>
-    
+
+    <div style="background: #ebf8ff; border: 1px dashed #90cdf4; border-radius: 10px; padding: 8px 12px; margin: 0 0 15px; font-size: 0.82em; color: #2b6cb0; line-height: 1.4;">
+        💬 채팅창에 바로 <strong>"화장실문2개, 샤시2개"</strong>처럼 입력해도 견적이 나와요!
+    </div>
+
     <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 20px;">
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 75px; height: 75px; border-radius: 50%; background: #ebf8ff; border: 2.5px solid #3182ce; box-shadow: 0 4px 6px rgba(49, 130, 206, 0.15); box-sizing: border-box;">
             <span style="font-size: 1.5em; line-height: 1; margin-bottom: 3px;">🏠</span>
