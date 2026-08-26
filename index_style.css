@@ -18,14 +18,19 @@ body {
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
         }
 
-        /* [New] 첫 방문(웰컴카드만 있을 때) 채팅창을 화면 중간쯤으로 모아서 구글 검색창 느낌으로 */
-        .chat-wrapper.welcome-centered {
-            justify-content: center;
+        /* [New] 첫 방문(웰컴카드만 있을 때) 헤더는 그대로 맨 위 고정, 웰컴카드만 남는 공간 안에서 중앙에 뜨도록 */
+        .chat-wrapper.welcome-centered .chat-container {
+            display: flex;
+            flex-direction: column;
         }
 
-        .chat-wrapper.welcome-centered .chat-container {
-            flex: 0 1 auto;
-            overflow-y: visible;
+        .chat-wrapper.welcome-centered .chat-container > .chat-header {
+            flex-shrink: 0;
+        }
+
+        .chat-wrapper.welcome-centered .welcome-card-bubble {
+            margin-top: auto;
+            margin-bottom: auto;
         }
 
         .chat-header {
