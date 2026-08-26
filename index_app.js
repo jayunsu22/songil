@@ -1342,7 +1342,7 @@ const CONFIG = {
 
             const btn = document.createElement('button');
             btn.className = 'open-quick-quote-btn edge-quote-tab';
-            btn.innerHTML = '<span class="tab-icon">🛠️</span>간편견적';
+            btn.innerHTML = '간편견적';
 
             btn.onclick = () => {
                 btn.remove();
@@ -1362,6 +1362,78 @@ const CONFIG = {
                 });
                 if (callback) callback(e);
             });
+        }
+
+        // [New] 견적 하단 "상담신청" 버튼: 연락처를 입력받아 가맹점에 텔레그램으로 알림
+        function openConsultForm(btnEl, quoteId, totalEstimate) {
+            const actionRow = btnEl.closest('.quote-action-row');
+            if (!actionRow) return;
+
+            // 이미 폼이 열려있으면 무시(중복 방지)
+            const existing = actionRow.parentNode.querySelector('.consult-request-form');
+            if (existing) { existing.querySelector('input')?.focus(); return; }
+
+            actionRow.style.display = 'none';
+
+            const form = document.createElement('div');
+            form.className = 'consult-request-form';
+            form.innerHTML = `
+                <div style="font-size:0.9em; font-weight:700; color:#333; margin-bottom:10px; text-align:center;">📞 연락처를 남겨주시면 담당자가 연락드려요</div>
+                <input type="tel" class="consult-phone-input" placeholder="010-0000-0000" inputmode="numeric" style="width:100%; box-sizing:border-box; padding:12px 14px; border:1px solid #ddd; border-radius:10px; font-size:1em; margin-bottom:10px;">
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="consult-cancel-btn" style="flex:1; padding:11px; border:1px solid #ddd; background:white; color:#666; border-radius:10px; font-weight:700; cursor:pointer;">취소</button>
+                    <button type="button" class="consult-submit-btn" style="flex:1; padding:11px; border:none; background:#4A90E2; color:white; border-radius:10px; font-weight:700; cursor:pointer;">상담 신청하기</button>
+                </div>
+            `;
+            actionRow.parentNode.insertBefore(form, actionRow.nextSibling);
+
+            const input = form.querySelector('.consult-phone-input');
+            input.focus();
+
+            form.querySelector('.consult-cancel-btn').onclick = () => {
+                form.remove();
+                actionRow.style.display = '';
+            };
+
+            form.querySelector('.consult-submit-btn').onclick = async () => {
+                const phoneRaw = input.value.trim();
+                const phoneDigits = phoneRaw.replace(/[^0-9]/g, '');
+                if (phoneDigits.length < 9 || phoneDigits.length > 11) {
+                    alert('올바른 연락처를 입력해 주세요. (예: 010-1234-5678)');
+                    input.focus();
+                    return;
+                }
+
+                const submitBtn = form.querySelector('.consult-submit-btn');
+                const cancelBtn = form.querySelector('.consult-cancel-btn');
+                submitBtn.disabled = true;
+                cancelBtn.disabled = true;
+                submitBtn.innerText = '접수 중...';
+
+                try {
+                    const res = await fetch(CONFIG.estimateUrl.replace('image-test', 'consult-request'), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-secret-token': CONFIG.secretToken
+                        },
+                        body: JSON.stringify({
+                            phone: phoneRaw,
+                            quote_id: quoteId || '',
+                            total_estimate: totalEstimate || 0,
+                            partner_code: currentPartnerCode || ''
+                        })
+                    });
+                    if (!res.ok) throw new Error('Server Error');
+
+                    form.innerHTML = `<div style="text-align:center; padding:8px; color:#2ecc71; font-weight:700;">✅ 상담 신청이 접수됐어요! 곧 연락드릴게요.</div>`;
+                } catch (e) {
+                    submitBtn.disabled = false;
+                    cancelBtn.disabled = false;
+                    submitBtn.innerText = '상담 신청하기';
+                    alert('신청 중 오류가 발생했어요. 다시 시도해 주세요.');
+                }
+            };
         }
 
         // 장바구니 아이템 추가 함수 (수량 1개 한정 고정 및 토스트 메시지 알림)

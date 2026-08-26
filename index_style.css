@@ -422,7 +422,7 @@ body {
             background: #4A90E2;
             color: white;
             border: none;
-            padding: 14px 6px;
+            padding: 16px 8px;
             border-radius: 0 12px 12px 0;
             box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.12);
             cursor: pointer;
@@ -435,11 +435,26 @@ body {
             font-family: 'Noto Sans KR', sans-serif;
             writing-mode: vertical-rl;
             letter-spacing: 1px;
+            overflow: hidden;
         }
 
-        .edge-quote-tab .tab-icon {
-            writing-mode: horizontal-tb;
-            font-size: 1.1em;
+        /* 반짝이는 빛 줄기가 탭을 가로질러 지나가는 효과 */
+        .edge-quote-tab::after {
+            content: "";
+            position: absolute;
+            top: -60%;
+            left: -160%;
+            width: 55%;
+            height: 220%;
+            background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+            transform: rotate(20deg);
+            animation: tabShine 2.8s ease-in-out infinite;
+        }
+
+        @keyframes tabShine {
+            0% { left: -160%; }
+            45% { left: 160%; }
+            100% { left: 160%; }
         }
 
         /* 모달 내 스크롤 영역 */
