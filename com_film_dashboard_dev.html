@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>가맹점 페이지</title>
+    <title>단가 관리 대시보드 [개발용]</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="com_film_style.css?v=4">
 </head>
@@ -79,7 +79,7 @@
                 <div class="form-value">
                     <div class="row-flex">
                         <div class="url-display-box">
-                            <span class="url-base">1film.co.kr/</span><span class="url-id" id="quoteUrlId">p_001</span>
+                            <span class="url-base">https://1film.co.kr/</span><span class="url-id" id="quoteUrlId">p_001</span>
                         </div>
                         <input type="hidden" id="quoteUrl" value="https://1film.co.kr/p_001">
                         <button class="action-btn" onclick="window.open(document.getElementById('quoteUrl').value, '_blank')">열기</button>
@@ -95,7 +95,7 @@
                 </div>
                 <div class="form-value">
                     <div class="row-flex">
-                        <input type="text" id="shortId" value="" placeholder="예: songil" maxlength="8">
+                        <input type="text" id="shortId" value="" placeholder="예: songil">
                         <button class="action-btn" id="editShortIdBtn">수정</button>
                     </div>
                 </div>
@@ -135,7 +135,15 @@
                 </div>
             </div>
 
-
+            <div class="form-row">
+                <div class="form-label">페이지 제목</div>
+                <div class="form-value">
+                    <div class="row-flex">
+                        <input type="text" id="pageTitle" value="섬세한 손길의 1분 견적">
+                        <button class="action-btn" id="editPageTitleBtn">수정</button>
+                    </div>
+                </div>
+            </div>
 
             <div class="form-row">
                 <div class="form-label">
@@ -193,7 +201,7 @@
                 <div class="form-label">견적서 공통 안내문구</div>
                 <div class="form-value">
                     <div class="row-flex">
-                        <textarea id="quoteNotice" style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; font-size: 16.5px; resize: vertical;" placeholder="견적서 하단에 공통으로 보여질 안내문구를 입력하세요."></textarea>
+                        <textarea id="quoteNotice" style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;" placeholder="견적서 하단에 공통으로 보여질 안내문구를 입력하세요."></textarea>
                         <button class="action-btn" id="editQuoteNoticeBtn">수정</button>
                     </div>
                 </div>
