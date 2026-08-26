@@ -1289,7 +1289,7 @@ const CONFIG = {
         let b2bCart = []; // 장바구니 배열: [{ id, name, label, option, count }]
         let currentB2BTab = 0; // 품목별 탭 내부 서브 탭 (0: 도어, 1: 샤시, 2: 싱크/가구/기타)
 
-        // 간편견적 열기 버튼 생성 함수 (닫기 버그 해결: 스크롤 하단 파묻힘을 예방하기 위해 chat-input-area 위에 고정 삽입)
+        // 간편견적 진입 탭 생성 함수 (화면 왼쪽 벽에 고정된 작은 손잡이 — 채팅 입력창을 가리지 않음)
         function addOpenQuickQuoteButton() {
             const existingMenu = document.querySelector('.quick-reply-container');
             if (existingMenu) existingMenu.remove();
@@ -1297,24 +1297,15 @@ const CONFIG = {
             if (existingBtn) existingBtn.remove();
 
             const btn = document.createElement('button');
-            btn.className = 'quick-reply-btn open-quick-quote-btn';
-            btn.innerHTML = '🛠️ 간편견적 열기';
-            btn.style.cssText = "display: block; width: 90%; margin: 10px auto; padding: 14px; background: #2c3e50; color: white; border-radius: 8px; font-weight: bold; font-size: 1.05em; cursor: pointer; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+            btn.className = 'open-quick-quote-btn edge-quote-tab';
+            btn.innerHTML = '<span class="tab-icon">🛠️</span>간편견적';
 
             btn.onclick = () => {
-                btn.classList.add('click-effect');
-                setTimeout(() => {
-                    btn.remove();
-                    renderQuickQuoteModal();
-                }, 150);
+                btn.remove();
+                renderQuickQuoteModal();
             };
 
-            const inputArea = document.querySelector('.chat-input-area');
-            if (inputArea) {
-                inputArea.parentNode.insertBefore(btn, inputArea);
-            } else {
-                chatContainer.appendChild(btn);
-            }
+            document.body.appendChild(btn);
         }
 
         // 클릭 효과 바인딩 헬퍼 함수
