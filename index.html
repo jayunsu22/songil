@@ -1,0 +1,80 @@
+<!-- 
+    [Updated: 2026-06-03 17:00:00 KST]
+    수정내용:
+    1. [기록보존] localStorage를 활용하여 채팅 기록 영구 저장 (새로고침 시에도 유지)
+    2. [초기화] 상단 '새로고침' 버튼 클릭 시에만 채팅 기록 삭제 및 리셋
+    3. [스크롤개선] 새 견적 도착 시 화면이 맨 아래로 튀지 않고, 사용자가 보낸 요청 위치(결과물 시작점)를 유지하도록 개선
+    4. [관리자모드] URL에 'admin=true' 또는 '#admin' 포함 시 일일 3회 제한 무시 (테스트용)
+    5. [전송안정화] 이미지 용 용량 초과 방지를 위해 병합 시 압축률 조정 (0.8 -> 0.5)
+    6. [간편견적개편] 평형별 / 품목별 / 사진견적 3대 탭으로 개편
+    7. [장바구니고도화] 품목별 개별 삭제(X) 버튼 및 가구/목공 상세 드롭다운 옵션 선택을 통한 동일 품목 다중 추가(다른 규격 지원) 기능 구현
+    8. [UX개선] 클릭 피드백 바운스 효과 및 수량 누적 안내 힌트 메시지 적용, 품목당 최대 수량 7개 제한
+    9. [선택옵션개선] 선택된 세부 옵션(예: [샤시 2세트])이 메인 품목명 아래에 서브 텍스트(↳ 선택: 옵션)로 깔끔하게 떨어지도록 UI 레이아웃 개선
+    10. [인트로개선] 첫 진입 시 모달이 자동 팝업되어 인트로 카드가 가려지는 현상 제거 (간편견적 열기 버튼만 상시 띄우기) 및 스마트폰 Mockup 내부 이미지를 요리하는 사진에서 전문적인 견적/업무 테마의 고해상도 사진으로 교체
+-->
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>인테리어필름 1분견적</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index_style.css">
+</head>
+
+<body>
+    <div class="chat-wrapper">
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-header">
+                <h1 id="header-title">이미지견적 V2</h1>
+
+                <!-- 가맹점 소셜 링크 영역 (공백 유지, 하단 명함에 집중) -->
+                <div id="partner-links" style="margin-top: 10px;"></div>
+
+                <div style="position:absolute; right:15px; top:12px;">
+                    <button onclick="resetChat()" class="header-refresh-btn" title="새로 대화하기">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 4v6h-6"></path>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-area" style="display: none;">
+            <div id="preview-container"></div>
+
+            <div class="input-row">
+                <div class="input-wrapper">
+                    <input type="text" id="userInput" placeholder="사진 첨부 또는 견적 내용 입력...">
+                    <input type="file" id="imageInput" accept="image/*" style="display:none;"
+                        onchange="handleImageSelect(event)">
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;"
+                        onchange="handleImageSelect(event, true)">
+                    <button class="camera-btn" onclick="document.getElementById('cameraInput').click()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
+                            </path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <button id="sendButton">전송</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 가맹점 단축 주소 매핑용 외부 설정 파일 로드 -->
+    <script src="partners.js"></script>
+
+    <script src="index_app.js"></script>
+</body>
+
+</html>
+<!-- [Updated: 2026-06-03 17:00:00 KST] End -->
