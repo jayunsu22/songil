@@ -1391,6 +1391,18 @@ const CONFIG = {
             const input = form.querySelector('.consult-phone-input');
             input.focus();
 
+            // 입력하는 대로 010-1234-5678 형식으로 자동 하이픈 삽입
+            input.addEventListener('input', () => {
+                const digits = input.value.replace(/[^0-9]/g, '').slice(0, 11);
+                let formatted = digits;
+                if (digits.length > 7) {
+                    formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+                } else if (digits.length > 3) {
+                    formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+                }
+                input.value = formatted;
+            });
+
             form.querySelector('.consult-cancel-btn').onclick = () => {
                 form.remove();
                 btnEl.style.visibility = '';
