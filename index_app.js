@@ -1434,11 +1434,11 @@ const CONFIG = {
                 <span class="ad-badge">광고</span>
                 <span class="ad-text">${data.ad_text}</span>
             `;
-            // 채팅 입력창(chat-input-area)이 화면 최하단에 고정되어 있으므로,
-            // fixed로 겹치지 않도록 chat-wrapper의 flex 흐름 안에서 입력창 바로 위에 끼워넣음
+            // 채팅 입력창(chat-input-area) 바로 아래, chat-wrapper 맨 마지막에 끼워넣음
+            // (fixed 포지션 대신 flex 흐름을 이용해 입력창과 안 겹치게 함)
             const inputArea = document.querySelector('.chat-input-area');
             if (inputArea && inputArea.parentNode) {
-                inputArea.parentNode.insertBefore(banner, inputArea);
+                inputArea.after(banner);
             } else {
                 document.body.appendChild(banner);
             }
