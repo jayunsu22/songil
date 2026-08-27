@@ -96,6 +96,69 @@
         #resultBox h2 { font-size: 1.15em; margin-bottom: 8px; color: #1a202c; }
         #resultBox p { font-size: 0.9em; color: #666; line-height: 1.5; }
 
+        .link-section {
+            margin-top: 22px;
+            text-align: left;
+        }
+        .link-section-title {
+            font-size: 0.85em;
+            font-weight: 700;
+            color: #4A90E2;
+            margin-bottom: 8px;
+        }
+        .link-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f4f6fa;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+        }
+        .link-row .link-text {
+            flex: 1;
+            font-size: 0.82em;
+            color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .link-row .copy-btn {
+            flex-shrink: 0;
+            background: #4A90E2;
+            color: white;
+            border: none;
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 0.78em;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .link-row .copy-btn.copied { background: #2ecc71; }
+        .link-desc { font-size: 0.78em; color: #888; margin: -4px 0 12px 2px; line-height: 1.4; }
+
+        .telegram-box {
+            background: #eaf4ff;
+            border: 1px dashed #90cdf4;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-top: 6px;
+        }
+        .telegram-box .tg-title { font-size: 0.86em; font-weight: 700; color: #2b6cb0; margin-bottom: 6px; }
+        .telegram-box .tg-desc { font-size: 0.8em; color: #4a6a8a; line-height: 1.5; margin-bottom: 10px; }
+        .telegram-box .tg-btn {
+            display: block;
+            text-align: center;
+            background: #2ecc71;
+            color: white;
+            text-decoration: none;
+            padding: 11px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.88em;
+            margin-bottom: 8px;
+        }
+
         .footer-note { text-align: center; font-size: 0.78em; color: #999; margin-top: 16px; line-height: 1.5; }
     </style>
 </head>
@@ -136,6 +199,33 @@
             <div class="icon">✅</div>
             <h2 id="resultTitle">신청이 접수됐어요!</h2>
             <p id="resultMessage">곧 담당자가 연락드릴게요.</p>
+
+            <div class="link-section">
+                <div class="link-section-title">🔗 내 견적페이지</div>
+                <div class="link-row">
+                    <span class="link-text" id="quoteUrlText"></span>
+                    <button type="button" class="copy-btn" data-copy-target="quoteUrlText">복사</button>
+                </div>
+                <div class="link-desc">고객에게 이 주소를 알려주시면 바로 견적을 받을 수 있어요.</div>
+
+                <div class="link-section-title">⚙️ 관리자페이지</div>
+                <div class="link-row">
+                    <span class="link-text" id="dashboardUrlText"></span>
+                    <button type="button" class="copy-btn" data-copy-target="dashboardUrlText">복사</button>
+                </div>
+                <div class="link-desc">단가를 직접 수정하거나, 텔레그램을 등록하지 않아도 여기서 견적/상담 문의 내역을 확인할 수 있어요.</div>
+
+                <div class="telegram-box">
+                    <div class="tg-title">📲 실시간 알림 받기 (선택사항)</div>
+                    <div class="tg-desc">텔레그램을 설치하시면 견적/상담 요청이 올 때마다 바로 알려드려요. 설치 안 하셔도 위 관리자페이지에서 언제든 확인 가능해요.</div>
+                    <a class="tg-btn" id="telegramDownloadBtn" href="#" target="_blank">1. 텔레그램 설치하기</a>
+                    <div class="link-row">
+                        <span class="link-text" id="registerUrlText"></span>
+                        <button type="button" class="copy-btn" data-copy-target="registerUrlText">복사</button>
+                    </div>
+                    <div class="link-desc">2. 설치 후 위 등록링크를 눌러주세요 (또는 링크를 열어서 "시작" 버튼)</div>
+                </div>
+            </div>
         </div>
 
         <div class="footer-note">신청하신 연락처는 체험 안내 목적으로만 사용됩니다.</div>
@@ -187,6 +277,12 @@
                 if (data.success) {
                     document.getElementById('formCard').style.display = 'none';
                     document.getElementById('resultMessage').innerText = data.message || '곧 담당자가 연락드릴게요.';
+
+                    if (data.quote_url) document.getElementById('quoteUrlText').innerText = data.quote_url;
+                    if (data.dashboard_url) document.getElementById('dashboardUrlText').innerText = data.dashboard_url;
+                    if (data.register_url) document.getElementById('registerUrlText').innerText = data.register_url;
+                    if (data.telegram_download_url) document.getElementById('telegramDownloadBtn').href = data.telegram_download_url;
+
                     document.getElementById('resultBox').classList.add('show');
                 } else {
                     alert(data.message || '신청 중 문제가 발생했어요. 다시 시도해 주세요.');
@@ -198,6 +294,36 @@
                 btn.disabled = false;
                 btn.innerText = '무료체험 신청하기';
             }
+        });
+
+        // 링크 복사 버튼 (이벤트 위임 - 성공 화면은 나중에 채워지므로)
+        document.getElementById('resultBox').addEventListener('click', async (e) => {
+            const copyBtn = e.target.closest('.copy-btn');
+            if (!copyBtn) return;
+
+            const targetEl = document.getElementById(copyBtn.dataset.copyTarget);
+            const text = targetEl ? targetEl.innerText : '';
+            if (!text) return;
+
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (err) {
+                // 클립보드 API 실패 시 폴백
+                const temp = document.createElement('textarea');
+                temp.value = text;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
+            }
+
+            const original = copyBtn.innerText;
+            copyBtn.innerText = '복사됨';
+            copyBtn.classList.add('copied');
+            setTimeout(() => {
+                copyBtn.innerText = original;
+                copyBtn.classList.remove('copied');
+            }, 1500);
         });
     </script>
 </body>
