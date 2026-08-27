@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>1분견적 무료체험 신청</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Noto Sans KR', sans-serif; }
+        body {
+            background: #f4f6fa;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 24px 16px;
+        }
+        .wrap { width: 100%; max-width: 460px; }
+
+        .hero {
+            background: linear-gradient(135deg, #4A90E2, #6C63FF);
+            border-radius: 20px;
+            padding: 32px 24px;
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 24px rgba(74, 144, 226, 0.25);
+        }
+        .hero .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .hero h1 { font-size: 1.5em; font-weight: 900; line-height: 1.4; margin-bottom: 8px; }
+        .hero p { font-size: 0.92em; opacity: 0.92; line-height: 1.5; }
+
+        .perks {
+            background: white;
+            border-radius: 16px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .perk-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; font-size: 0.9em; color: #333; }
+        .perk-item .icon { font-size: 1.15em; flex-shrink: 0; }
+
+        .form-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .form-card h2 { font-size: 1.05em; margin-bottom: 16px; color: #1a202c; }
+
+        .field { margin-bottom: 14px; }
+        .field label { display: block; font-size: 0.85em; font-weight: 700; color: #555; margin-bottom: 6px; }
+        .field input {
+            width: 100%;
+            padding: 13px 14px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .field input:focus { border-color: #4A90E2; }
+
+        #submitBtn {
+            width: 100%;
+            padding: 15px;
+            margin-top: 6px;
+            background: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.05em;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+        }
+        #submitBtn:disabled { opacity: 0.6; cursor: default; }
+
+        #resultBox {
+            display: none;
+            text-align: center;
+            padding: 30px 20px;
+        }
+        #resultBox.show { display: block; }
+        #resultBox .icon { font-size: 2.6em; margin-bottom: 10px; }
+        #resultBox h2 { font-size: 1.15em; margin-bottom: 8px; color: #1a202c; }
+        #resultBox p { font-size: 0.9em; color: #666; line-height: 1.5; }
+
+        .footer-note { text-align: center; font-size: 0.78em; color: #999; margin-top: 16px; line-height: 1.5; }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="hero">
+            <div class="badge">🎁 1개월 무료체험</div>
+            <h1>사진 한 장으로<br>1분만에 견적 뽑는 시스템</h1>
+            <p>표준 단가로 바로 시작하고,<br>세팅은 1:1로 도와드립니다.</p>
+        </div>
+
+        <div class="perks">
+            <div class="perk-item"><span class="icon">📸</span><span>사진 찍으면 AI가 실시간 견적 산출</span></div>
+            <div class="perk-item"><span class="icon">💬</span><span>텍스트로도 즉시 견적 ("화장실문2개, 샤시2개")</span></div>
+            <div class="perk-item"><span class="icon">⚙️</span><span>업계 표준 단가 자동 적용, 원하면 직접 조정</span></div>
+            <div class="perk-item"><span class="icon">📞</span><span>등록부터 세팅까지 1:1 상담으로 지원</span></div>
+        </div>
+
+        <div class="form-card" id="formCard">
+            <h2>무료체험 신청하기</h2>
+            <div class="field">
+                <label for="companyName">업체명 *</label>
+                <input type="text" id="companyName" placeholder="예: 정성필름">
+            </div>
+            <div class="field">
+                <label for="ceoName">대표자명</label>
+                <input type="text" id="ceoName" placeholder="예: 박정성">
+            </div>
+            <div class="field">
+                <label for="phone">연락처 *</label>
+                <input type="tel" id="phone" inputmode="numeric" placeholder="010-0000-0000">
+            </div>
+            <button id="submitBtn">무료체험 신청하기</button>
+        </div>
+
+        <div class="form-card" id="resultBox">
+            <div class="icon">✅</div>
+            <h2 id="resultTitle">신청이 접수됐어요!</h2>
+            <p id="resultMessage">곧 담당자가 연락드릴게요.</p>
+        </div>
+
+        <div class="footer-note">신청하신 연락처는 체험 안내 목적으로만 사용됩니다.</div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            signupUrl: "https://primary-production-a6fa.up.railway.app/webhook/trial-signup",
+            secretToken: "songil_secret_2025"
+        };
+
+        const phoneInput = document.getElementById('phone');
+        phoneInput.addEventListener('input', () => {
+            const digits = phoneInput.value.replace(/[^0-9]/g, '').slice(0, 11);
+            let formatted = digits;
+            if (digits.length > 7) formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+            else if (digits.length > 3) formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+            phoneInput.value = formatted;
+        });
+
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            const companyName = document.getElementById('companyName').value.trim();
+            const ceoName = document.getElementById('ceoName').value.trim();
+            const phone = phoneInput.value.trim();
+            const phoneDigits = phone.replace(/[^0-9]/g, '');
+
+            if (!companyName) { alert('업체명을 입력해 주세요.'); return; }
+            if (phoneDigits.length < 9 || phoneDigits.length > 11) { alert('올바른 연락처를 입력해 주세요.'); return; }
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerText = '접수 중...';
+
+            try {
+                const res = await fetch(CONFIG.signupUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-secret-token': CONFIG.secretToken
+                    },
+                    body: JSON.stringify({
+                        company_name: companyName,
+                        ceo_name: ceoName,
+                        phone: phone
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('formCard').style.display = 'none';
+                    document.getElementById('resultMessage').innerText = data.message || '곧 담당자가 연락드릴게요.';
+                    document.getElementById('resultBox').classList.add('show');
+                } else {
+                    alert(data.message || '신청 중 문제가 발생했어요. 다시 시도해 주세요.');
+                    btn.disabled = false;
+                    btn.innerText = '무료체험 신청하기';
+                }
+            } catch (e) {
+                alert('신청 중 오류가 발생했어요. 다시 시도해 주세요.');
+                btn.disabled = false;
+                btn.innerText = '무료체험 신청하기';
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -475,6 +475,41 @@ body {
             animation: tabShine 2.8s ease-in-out infinite;
         }
 
+        /* [New] 무료체험 홍보 배너 (데모 계정 전용) */
+        .promo-trial-banner {
+            position: fixed;
+            left: 50%;
+            bottom: 88px;
+            transform: translateX(-50%);
+            z-index: 550;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #4A90E2, #6C63FF);
+            color: white;
+            text-decoration: none;
+            padding: 13px 22px;
+            border-radius: 30px;
+            font-size: 0.92em;
+            font-weight: 700;
+            font-family: 'Noto Sans KR', sans-serif;
+            box-shadow: 0 6px 18px rgba(74, 144, 226, 0.4);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .promo-trial-banner::after {
+            content: "";
+            position: absolute;
+            top: -60%;
+            left: -160%;
+            width: 45%;
+            height: 220%;
+            background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+            transform: rotate(20deg);
+            animation: tabShine 2.8s ease-in-out infinite;
+        }
+
         /* 모달 내 스크롤 영역 */
         .quick-quote-modal-body {
             flex: 1;

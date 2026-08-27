@@ -85,6 +85,9 @@ const CONFIG = {
 
                     // 웰컴 카드가 이미 렌더링되어 있다면 실시간 가맹점 정보 업데이트
                     updateWelcomeCardWithPartner(data);
+
+                    // [New] 무료체험 홍보용 데모 계정에서만 신청 CTA 배너 노출
+                    addPromoBannerIfDemoPartner(code);
                 } else {
                     // 💡 만약 가맹점 정보 조회가 실패(만료/비활성화)했다면 접속 완전 차단!
                     document.body.innerHTML = `
@@ -1350,6 +1353,19 @@ const CONFIG = {
             };
 
             document.body.appendChild(btn);
+        }
+
+        // [New] 무료체험 홍보용 데모 계정(p_999)에서만 하단 고정 신청 배너 노출
+        function addPromoBannerIfDemoPartner(partnerCode) {
+            if (partnerCode !== 'p_999') return;
+            if (document.querySelector('.promo-trial-banner')) return;
+
+            const banner = document.createElement('a');
+            banner.className = 'promo-trial-banner';
+            banner.href = 'apply.html';
+            banner.innerHTML = '🎁 <strong>1개월 무료체험</strong> 신청하기';
+
+            document.body.appendChild(banner);
         }
 
         // 클릭 효과 바인딩 헬퍼 함수
