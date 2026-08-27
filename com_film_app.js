@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const WEBHOOK_GET_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save"; 
     const WEBHOOK_POST_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save";
     const WEBHOOK_INQUIRY_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-inquiries";
+    const WEBHOOK_YEARLY_URL = "https://primary-production-a6fa.up.railway.app/webhook/yearly-membership-signup";
+    const SECRET_TOKEN = "songil_secret_2025";
 
     // 글로벌 단가
     let globalMaterialPrice = 9000; 
@@ -27,6 +29,80 @@ document.addEventListener('DOMContentLoaded', async () => {
             const parts = url.split('/');
             idEl.textContent = parts[parts.length - 1] || '';
         }
+    }
+
+    // 체험중 가맹점에게만 노출되는 연회원 전환 할인 배너 (관리자페이지 전용)
+    function renderYearlyDiscountBanner(subscriptionStatus, partnerCode) {
+        const banner = document.getElementById('yearlyDiscountBanner');
+        if (!banner) return;
+
+        if (subscriptionStatus !== '대기중' || !partnerCode) {
+            banner.style.display = 'none';
+            banner.innerHTML = '';
+            return;
+        }
+
+        banner.className = 'yearly-discount-banner';
+        banner.style.display = 'flex';
+        banner.innerHTML = `
+            <span class="yearly-banner-text">🎉 체험기간 중 신청하면 <strong>연회비 50% 할인!</strong></span>
+            <button type="button" class="yearly-banner-btn">연회원 신청하기</button>
+        `;
+        banner.querySelector('.yearly-banner-btn').onclick = () => openYearlyMembershipConfirmDashboard(partnerCode, banner);
+    }
+
+    function openYearlyMembershipConfirmDashboard(partnerCode, bannerEl) {
+        if (document.querySelector('.yearly-confirm-overlay')) return;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'yearly-confirm-overlay';
+        overlay.innerHTML = `
+            <div class="yearly-confirm-box">
+                <div class="yearly-confirm-title">🎉 연회원 전환 신청</div>
+                <p class="yearly-confirm-desc">체험기간 중 신청하시면 연회비 <strong>50% 할인</strong>이 적용됩니다.<br>등록된 연락처로 곧 안내드릴게요.</p>
+                <div class="yearly-confirm-actions">
+                    <button type="button" class="yearly-cancel-btn">취소</button>
+                    <button type="button" class="yearly-submit-btn">신청하기</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        overlay.querySelector('.yearly-cancel-btn').onclick = () => overlay.remove();
+
+        overlay.querySelector('.yearly-submit-btn').onclick = async () => {
+            const submitBtn = overlay.querySelector('.yearly-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = '접수 중...';
+
+            try {
+                const res = await fetch(WEBHOOK_YEARLY_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-secret-token': SECRET_TOKEN
+                    },
+                    body: JSON.stringify({ partner_code: partnerCode })
+                });
+                const resData = await res.json();
+
+                overlay.querySelector('.yearly-confirm-box').innerHTML = `
+                    <div class="yearly-confirm-title">✅ 신청 완료!</div>
+                    <p class="yearly-confirm-desc">${resData.message || '곧 안내드릴게요.'}</p>
+                    <div class="yearly-confirm-actions">
+                        <button type="button" class="yearly-cancel-btn">닫기</button>
+                    </div>
+                `;
+                overlay.querySelector('.yearly-cancel-btn').onclick = () => {
+                    overlay.remove();
+                    if (bannerEl) bannerEl.style.display = 'none';
+                };
+            } catch (e) {
+                alert('신청 중 오류가 발생했어요. 다시 시도해 주세요.');
+                submitBtn.disabled = false;
+                submitBtn.innerText = '신청하기';
+            }
+        };
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -413,6 +489,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (data.position) document.getElementById('mgrTitle').value = data.position;
             if (data.phone) document.getElementById('mgrPhone').value = data.phone;
             if (data.notice) document.getElementById('quoteNotice').value = data.notice;
+
+            // 체험중(구독상태='대기중') 가맹점에게만 연회원 전환 할인 배너 노출
+            // (고객이 보는 견적페이지가 아니라 가맹점 담당자만 접속하는 이 관리자페이지에만 표시)
+            renderYearlyDiscountBanner(data.subscriptionStatus, data.partnerCode);
 
             // 공지사항 및 공식카페 배너 렌더링
             const noticeContainer = document.getElementById('noticeContainer');

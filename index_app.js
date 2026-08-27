@@ -95,8 +95,8 @@ const CONFIG = {
                     // [New] 무료체험 홍보용 데모 계정에서만 신청 CTA 배너 노출
                     addPromoBannerIfDemoPartner(code);
 
-                    // [New] 체험중(구독상태='대기중') 가맹점에게 연회원 전환 할인 공지 노출
-                    addYearlyDiscountNoticeIfTrial(code, data);
+                    // 연회원 전환 할인 공지는 고객이 아닌 가맹점 담당자에게만 보여야 하므로
+                    // 여기(고객용 견적페이지)가 아닌 com_film_dashboard.html(관리자페이지)에서 노출함.
                 } else {
                     // 💡 만약 가맹점 정보 조회가 실패(만료/비활성화)했다면 접속 완전 차단!
                     document.body.innerHTML = `
@@ -1375,83 +1375,6 @@ const CONFIG = {
             banner.innerHTML = '🎁 <strong>1개월 무료체험</strong> 신청하기';
 
             document.body.appendChild(banner);
-        }
-
-        // [New] 체험중(구독상태='대기중') 가맹점에게 상단 고정 연회원 전환 할인 공지 노출
-        // partner_code가 더 이상 trial_ 접두어를 갖지 않는 경우(홍보ID 직접 입력)도 있으므로
-        // partner-info 응답의 구독상태 필드로 판단하되, 과거 trial_ 접두어 테스트 데이터도 하위호환으로 지원.
-        function addYearlyDiscountNoticeIfTrial(partnerCode, data) {
-            const isTrial = (data && data.subscription_status === '대기중') || (partnerCode && partnerCode.startsWith('trial_'));
-            if (!partnerCode || !isTrial) return;
-            if (document.querySelector('.yearly-discount-notice')) return;
-
-            const notice = document.createElement('div');
-            notice.className = 'yearly-discount-notice';
-            notice.innerHTML = `
-                <span class="notice-text">🎉 체험기간 중 신청하면 <strong>연회비 50% 할인!</strong></span>
-                <button type="button" class="yearly-apply-btn">연회원 신청하기</button>
-            `;
-            // chat-wrapper는 flex-direction:column이라 order:-1로 항상 헤더보다 위(맨 앞)에 렌더링됨
-            (document.querySelector('.chat-wrapper') || document.body).appendChild(notice);
-
-            notice.querySelector('.yearly-apply-btn').onclick = () => {
-                openYearlyMembershipConfirm(partnerCode, notice);
-            };
-        }
-
-        // [New] 연회원 신청 확인 팝업 (이미 등록된 정보로 원클릭 신청)
-        function openYearlyMembershipConfirm(partnerCode, noticeEl) {
-            if (document.querySelector('.yearly-confirm-overlay')) return;
-
-            const overlay = document.createElement('div');
-            overlay.className = 'yearly-confirm-overlay';
-            overlay.innerHTML = `
-                <div class="yearly-confirm-box">
-                    <div class="yearly-confirm-title">🎉 연회원 전환 신청</div>
-                    <p class="yearly-confirm-desc">체험기간 중 신청하시면 연회비 <strong>50% 할인</strong>이 적용됩니다.<br>등록된 연락처로 사장님이 곧 안내드릴게요.</p>
-                    <div class="yearly-confirm-actions">
-                        <button type="button" class="yearly-cancel-btn">취소</button>
-                        <button type="button" class="yearly-submit-btn">신청하기</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-
-            overlay.querySelector('.yearly-cancel-btn').onclick = () => overlay.remove();
-
-            overlay.querySelector('.yearly-submit-btn').onclick = async () => {
-                const submitBtn = overlay.querySelector('.yearly-submit-btn');
-                submitBtn.disabled = true;
-                submitBtn.innerText = '접수 중...';
-
-                try {
-                    const res = await fetch(CONFIG.estimateUrl.replace('image-test', 'yearly-membership-signup'), {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-secret-token': CONFIG.secretToken
-                        },
-                        body: JSON.stringify({ partner_code: partnerCode })
-                    });
-                    const data = await res.json();
-
-                    overlay.querySelector('.yearly-confirm-box').innerHTML = `
-                        <div class="yearly-confirm-title">✅ 신청 완료!</div>
-                        <p class="yearly-confirm-desc">${data.message || '곧 담당자가 안내드릴게요.'}</p>
-                        <div class="yearly-confirm-actions">
-                            <button type="button" class="yearly-cancel-btn">닫기</button>
-                        </div>
-                    `;
-                    overlay.querySelector('.yearly-cancel-btn').onclick = () => {
-                        overlay.remove();
-                        if (noticeEl) noticeEl.remove();
-                    };
-                } catch (e) {
-                    alert('신청 중 오류가 발생했어요. 다시 시도해 주세요.');
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = '신청하기';
-                }
-            };
         }
 
         // 클릭 효과 바인딩 헬퍼 함수
