@@ -498,6 +498,39 @@ body {
             overflow: hidden;
         }
 
+        /* [New] 무료회원(광고형) 가맹점 견적페이지 하단 제휴광고 배너 - 연회원 전환시 사라짐 */
+        /* chat-wrapper(flex-column) 안에서 채팅 입력창 바로 위에 in-flow로 삽입되므로 fixed를 쓰지 않음 (입력창과 겹침 방지) */
+        .partner-ad-banner {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            color: #333;
+            text-decoration: none;
+            padding: 8px 14px;
+            font-size: 0.82em;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        .partner-ad-banner .ad-badge {
+            flex-shrink: 0;
+            background: #edf2f7;
+            color: #718096;
+            font-size: 0.78em;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 5px;
+        }
+
+        .partner-ad-banner .ad-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .promo-trial-banner::after {
             content: "";
             position: absolute;

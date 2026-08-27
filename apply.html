@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1분견적 무료체험 신청</title>
+    <title>1분견적 무료가입</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -150,7 +150,7 @@
 <body>
     <div class="wrap">
         <div class="form-card" id="formCard">
-            <h2>무료체험 신청하기</h2>
+            <h2>무료로 가입하기</h2>
             <div class="field">
                 <label for="companyName">업체명 *</label>
                 <input type="text" id="companyName" placeholder="예: 정성필름">
@@ -164,7 +164,7 @@
                 <label for="phone">연락처 *</label>
                 <input type="tel" id="phone" inputmode="numeric" placeholder="010-0000-0000">
             </div>
-            <button id="submitBtn">무료체험 신청하기</button>
+            <button id="submitBtn">무료로 가입하기</button>
         </div>
 
         <div class="form-card" id="resultBox">
@@ -284,12 +284,12 @@
                 } else {
                     alert(data.message || '신청 중 문제가 발생했어요. 다시 시도해 주세요.');
                     btn.disabled = false;
-                    btn.innerText = '무료체험 신청하기';
+                    btn.innerText = '무료로 가입하기';
                 }
             } catch (e) {
                 alert('신청 중 오류가 발생했어요. 다시 시도해 주세요.');
                 btn.disabled = false;
-                btn.innerText = '무료체험 신청하기';
+                btn.innerText = '무료로 가입하기';
             }
         });
 

@@ -100,6 +100,10 @@ const CONFIG = {
                     // 사장님이 잠재 파트너 모집용으로 밴드/카페에 직접 홍보하는 데모 계정이라,
                     // "실제 파트너가 되면 이런 혜택도 있다"는 영업 미리보기 용도로 여기서도 노출.
                     addYearlySalesPreviewIfDemoPartner(code, data);
+
+                    // [New] 무료회원(광고형) 가맹점의 견적페이지 하단에 제휴 광고 배너 노출
+                    // 연회원(유료)으로 전환하면 광고 없이 이용 가능 - 구독상태가 '무료회원'일 때만 표시
+                    addAdBannerIfFreeMember(code, data);
                 } else {
                     // 💡 만약 가맹점 정보 조회가 실패(만료/비활성화)했다면 접속 완전 차단!
                     document.body.innerHTML = `
@@ -1375,7 +1379,7 @@ const CONFIG = {
             const banner = document.createElement('a');
             banner.className = 'promo-trial-banner';
             banner.href = 'apply.html';
-            banner.innerHTML = '🎁 <strong>1개월 무료체험</strong> 신청하기';
+            banner.innerHTML = '🎁 <strong>무료로</strong> 시작하기';
 
             document.body.appendChild(banner);
         }
@@ -1388,27 +1392,18 @@ const CONFIG = {
             if (partnerCode !== 'p_999') return;
             if (document.querySelector('.yearly-sales-preview')) return;
 
-            let periodText = '';
-            if (data && data.contract_start && data.contract_end) {
-                const fmt = (s) => {
-                    const parts = s.split(/[-/.]/).map(p => parseInt(p, 10));
-                    return (parts.length >= 3 && !isNaN(parts[1]) && !isNaN(parts[2])) ? `${parts[1]}월${parts[2]}일` : s;
-                };
-                periodText = `${fmt(data.contract_start)}~${fmt(data.contract_end)}`;
-            }
-
             const banner = document.createElement('div');
             banner.className = 'yearly-sales-preview expanded';
             banner.innerHTML = `
                 <div class="yearly-banner-full">
-                    <div class="yearly-banner-title">🎁 체험기간 1달${periodText ? `(${periodText})` : ''}</div>
-                    <div class="yearly-banner-line">체험기간 동안 신청하면 <strong>연회비 50% 할인</strong>(연회원신청)</div>
-                    <div class="yearly-banner-line yearly-banner-price">월 6만원(연 72만원) → 월 3만원(연 36만원) <strong>50% 할인</strong></div>
-                    <a class="yearly-banner-btn" href="apply.html">지금 무료체험 신청하기</a>
+                    <div class="yearly-banner-title">🎁 필름업체 사장님이시라면?</div>
+                    <div class="yearly-banner-line">가입 즉시 <strong>무료로</strong> 이런 견적시스템을 바로 쓸 수 있어요</div>
+                    <div class="yearly-banner-line yearly-banner-price">광고 없이 쓰고 싶으면 연회원 전환 - <strong>월 3만원</strong></div>
+                    <a class="yearly-banner-btn" href="apply.html">지금 무료로 시작하기</a>
                 </div>
                 <div class="yearly-banner-compact">
-                    <span class="yearly-banner-text">🎉 체험기간 동안 신청하면 <strong>연회비 50% 할인</strong>(연회원신청)</span>
-                    <a class="yearly-banner-btn" href="apply.html">지금 무료체험 신청하기</a>
+                    <span class="yearly-banner-text">🎁 필름업체 사장님이시라면 <strong>지금 무료로</strong> 시작하세요!</span>
+                    <a class="yearly-banner-btn" href="apply.html">무료로 시작하기</a>
                 </div>
             `;
             // chat-wrapper는 flex-direction:column이라 order:-1로 항상 헤더보다 위(맨 앞)에 렌더링됨
@@ -1421,6 +1416,32 @@ const CONFIG = {
                 banner.classList.remove('expanded');
                 banner.classList.add('collapsed');
             }, { passive: true });
+        }
+
+        // [New] 무료회원(구독상태='무료회원') 가맹점 견적페이지 하단에 제휴 광고 배너 노출
+        // 연회원(유료) 전환시 광고가 사라짐 - ad_text가 없으면(활성 광고 없음) 아무것도 표시 안 함
+        function addAdBannerIfFreeMember(partnerCode, data) {
+            if (partnerCode === 'p_999') return; // 정성필름은 시스템 홍보용 데모 계정 - 하단에 이미 무료체험 CTA가 있어 광고와 자리가 겹침
+            if (!data || data.subscription_status !== '무료회원') return;
+            if (!data.ad_text) return;
+            if (document.querySelector('.partner-ad-banner')) return;
+
+            const banner = document.createElement('a');
+            banner.className = 'partner-ad-banner';
+            banner.href = data.ad_link || '#';
+            if (data.ad_link) banner.target = '_blank';
+            banner.innerHTML = `
+                <span class="ad-badge">광고</span>
+                <span class="ad-text">${data.ad_text}</span>
+            `;
+            // 채팅 입력창(chat-input-area)이 화면 최하단에 고정되어 있으므로,
+            // fixed로 겹치지 않도록 chat-wrapper의 flex 흐름 안에서 입력창 바로 위에 끼워넣음
+            const inputArea = document.querySelector('.chat-input-area');
+            if (inputArea && inputArea.parentNode) {
+                inputArea.parentNode.insertBefore(banner, inputArea);
+            } else {
+                document.body.appendChild(banner);
+            }
         }
 
         // 클릭 효과 바인딩 헬퍼 함수

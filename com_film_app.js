@@ -31,41 +31,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 체험중 가맹점에게만 노출되는 연회원 전환 할인 배너 (관리자페이지 전용)
-    // 처음 로드 시에는 체험기간/가격 상세정보까지 펼쳐서 보여주고,
+    // 무료회원(광고형) 가맹점에게만 노출되는 연회원 전환 배너 (관리자페이지 전용)
+    // 처음 로드 시에는 가격 상세정보까지 펼쳐서 보여주고,
     // 페이지를 스크롤하면(움직이면) 한 줄짜리 축약형으로 자동 전환됨(공간 절약, 이후 다시 안 펼쳐짐).
-    function renderYearlyDiscountBanner(subscriptionStatus, partnerCode, contractPeriod) {
+    function renderYearlyDiscountBanner(subscriptionStatus, partnerCode) {
         const banner = document.getElementById('yearlyDiscountBanner');
         if (!banner) return;
 
-        if (subscriptionStatus !== '대기중' || !partnerCode) {
+        if (subscriptionStatus !== '무료회원' || !partnerCode) {
             banner.style.display = 'none';
             banner.innerHTML = '';
             return;
-        }
-
-        // 체험기간을 "M월D일~M월D일" 형태로 포맷 (결제_시작일~결제_종료일 원본은 YYYY-MM-DD 또는 YYYY/M/D 형식)
-        let periodText = '';
-        if (contractPeriod && contractPeriod.includes('~')) {
-            const [startRaw, endRaw] = contractPeriod.split('~').map(s => s.trim());
-            const fmt = (s) => {
-                const parts = s.split(/[-/.]/).map(p => parseInt(p, 10));
-                return (parts.length >= 3 && !isNaN(parts[1]) && !isNaN(parts[2])) ? `${parts[1]}월${parts[2]}일` : s;
-            };
-            periodText = `${fmt(startRaw)}~${fmt(endRaw)}`;
         }
 
         banner.className = 'yearly-discount-banner expanded';
         banner.style.display = 'block';
         banner.innerHTML = `
             <div class="yearly-banner-full">
-                <div class="yearly-banner-title">🎁 체험기간 1달${periodText ? `(${periodText})` : ''}</div>
-                <div class="yearly-banner-line">체험기간 동안 신청하면 <strong>연회비 50% 할인</strong>(연회원신청)</div>
-                <div class="yearly-banner-line yearly-banner-price">월 6만원(연 72만원) → 월 3만원(연 36만원) <strong>50% 할인</strong></div>
+                <div class="yearly-banner-title">🎁 지금 무료회원(광고형)이에요</div>
+                <div class="yearly-banner-line">연회원으로 전환하면 <strong>견적페이지 광고가 사라져요</strong></div>
+                <div class="yearly-banner-line yearly-banner-price">월 3만원 (연 36만원)</div>
                 <button type="button" class="yearly-banner-btn">연회원 신청하기</button>
             </div>
             <div class="yearly-banner-compact">
-                <span class="yearly-banner-text">🎉 체험기간 동안 신청하면 <strong>연회비 50% 할인</strong>(연회원신청)</span>
+                <span class="yearly-banner-text">🎉 연회원 전환하면 <strong>광고가 사라져요</strong></span>
                 <button type="button" class="yearly-banner-btn">연회원 신청하기</button>
             </div>
         `;
@@ -528,7 +517,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // 체험중(구독상태='대기중') 가맹점에게만 연회원 전환 할인 배너 노출
             // (고객이 보는 견적페이지가 아니라 가맹점 담당자만 접속하는 이 관리자페이지에만 표시)
-            renderYearlyDiscountBanner(data.subscriptionStatus, data.partnerCode, data.contractPeriod);
+            renderYearlyDiscountBanner(data.subscriptionStatus, data.partnerCode);
 
             // 공지사항 및 공식카페 배너 렌더링
             const noticeContainer = document.getElementById('noticeContainer');
