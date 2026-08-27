@@ -55,9 +55,15 @@ const CONFIG = {
             // [New] URL 경로(Pathname)를 기반으로 가맹점 코드 매핑 (200 Rewrite 대응)
             if (!code) {
                 const path = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
-                // 외부 partners.js 파일에 정의된 PARTNER_MAPPING 객체를 참조합니다.
-                if (typeof PARTNER_MAPPING !== 'undefined' && PARTNER_MAPPING[path]) {
-                    code = PARTNER_MAPPING[path];
+                if (path) {
+                    // 외부 partners.js 파일에 정의된 PARTNER_MAPPING 객체를 우선 참조합니다.
+                    if (typeof PARTNER_MAPPING !== 'undefined' && PARTNER_MAPPING[path]) {
+                        code = PARTNER_MAPPING[path];
+                    } else {
+                        // [New] 매핑에 없는 경로는 경로 자체를 코드로 사용 (무료체험 등 홍보ID 신청 가맹점).
+                        // 존재하지 않는 코드라면 아래 partner-info 조회가 success:"false"를 반환해 접속이 차단됨.
+                        code = path;
+                    }
                 }
             }
 
@@ -89,8 +95,8 @@ const CONFIG = {
                     // [New] 무료체험 홍보용 데모 계정에서만 신청 CTA 배너 노출
                     addPromoBannerIfDemoPartner(code);
 
-                    // [New] 무료체험(trial_) 가맹점에게 연회원 전환 할인 공지 노출
-                    addYearlyDiscountNoticeIfTrial(code);
+                    // [New] 체험중(구독상태='대기중') 가맹점에게 연회원 전환 할인 공지 노출
+                    addYearlyDiscountNoticeIfTrial(code, data);
                 } else {
                     // 💡 만약 가맹점 정보 조회가 실패(만료/비활성화)했다면 접속 완전 차단!
                     document.body.innerHTML = `
@@ -1371,9 +1377,12 @@ const CONFIG = {
             document.body.appendChild(banner);
         }
 
-        // [New] 무료체험(trial_) 가맹점에게 상단 고정 연회원 전환 할인 공지 노출
-        function addYearlyDiscountNoticeIfTrial(partnerCode) {
-            if (!partnerCode || !partnerCode.startsWith('trial_')) return;
+        // [New] 체험중(구독상태='대기중') 가맹점에게 상단 고정 연회원 전환 할인 공지 노출
+        // partner_code가 더 이상 trial_ 접두어를 갖지 않는 경우(홍보ID 직접 입력)도 있으므로
+        // partner-info 응답의 구독상태 필드로 판단하되, 과거 trial_ 접두어 테스트 데이터도 하위호환으로 지원.
+        function addYearlyDiscountNoticeIfTrial(partnerCode, data) {
+            const isTrial = (data && data.subscription_status === '대기중') || (partnerCode && partnerCode.startsWith('trial_'));
+            if (!partnerCode || !isTrial) return;
             if (document.querySelector('.yearly-discount-notice')) return;
 
             const notice = document.createElement('div');
