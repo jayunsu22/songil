@@ -86,8 +86,12 @@ const CONFIG = {
                     document.getElementById('header-title').textContent = titleText;
                     document.title = titleText; // 브라우저 타이틀 태그도 동기화
 
-                    // 상단 링크 영역은 의도적으로 비움
-                    document.getElementById('partner-links').innerHTML = '';
+                    // [New] 헤더 타이틀 아래에 가맹점 연락처 표시 (탭하면 바로 전화걸기)
+                    const linksEl = document.getElementById('partner-links');
+                    const phoneDigits = (data.phone || '').replace(/[^0-9]/g, '');
+                    linksEl.innerHTML = phoneDigits
+                        ? `<a href="tel:${phoneDigits}" class="header-phone-link">📞 ${data.phone}</a>`
+                        : '';
 
                     // 웰컴 카드가 이미 렌더링되어 있다면 실시간 가맹점 정보 업데이트
                     updateWelcomeCardWithPartner(data);

@@ -52,6 +52,16 @@ body {
             font-weight: 700;
         }
 
+        /* [New] 헤더 타이틀 아래 가맹점 연락처 (탭하면 바로 전화걸기) */
+        .header-phone-link {
+            display: inline-block;
+            color: rgba(255, 255, 255, 0.92);
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+
         .chat-container {
             flex: 1;
             overflow-y: auto;
