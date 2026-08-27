@@ -95,8 +95,11 @@ const CONFIG = {
                     // [New] 무료체험 홍보용 데모 계정에서만 신청 CTA 배너 노출
                     addPromoBannerIfDemoPartner(code);
 
-                    // 연회원 전환 할인 공지는 고객이 아닌 가맹점 담당자에게만 보여야 하므로
-                    // 여기(고객용 견적페이지)가 아닌 com_film_dashboard.html(관리자페이지)에서 노출함.
+                    // 연회원 전환 할인 공지는 원래 고객이 아닌 가맹점 담당자에게만 보여야 하므로
+                    // com_film_dashboard.html(관리자페이지)로 옮겼음. 단, 정성필름(p_999)은 예외 —
+                    // 사장님이 잠재 파트너 모집용으로 밴드/카페에 직접 홍보하는 데모 계정이라,
+                    // "실제 파트너가 되면 이런 혜택도 있다"는 영업 미리보기 용도로 여기서도 노출.
+                    addYearlySalesPreviewIfDemoPartner(code, data);
                 } else {
                     // 💡 만약 가맹점 정보 조회가 실패(만료/비활성화)했다면 접속 완전 차단!
                     document.body.innerHTML = `
@@ -1375,6 +1378,49 @@ const CONFIG = {
             banner.innerHTML = '🎁 <strong>1개월 무료체험</strong> 신청하기';
 
             document.body.appendChild(banner);
+        }
+
+        // [New] 정성필름(p_999) 견적페이지 전용 - 연회원 전환 혜택 영업 미리보기 배너
+        // 실제 가맹점 관리자페이지 배너와 같은 펼침/축약 UX를 재사용하되,
+        // 낯선 방문자가 누를 수 있으므로 버튼은 실제 연회원 신청 API가 아니라
+        // apply.html(무료체험 신청)로 연결해 전환을 유도함.
+        function addYearlySalesPreviewIfDemoPartner(partnerCode, data) {
+            if (partnerCode !== 'p_999') return;
+            if (document.querySelector('.yearly-sales-preview')) return;
+
+            let periodText = '';
+            if (data && data.contract_start && data.contract_end) {
+                const fmt = (s) => {
+                    const parts = s.split(/[-/.]/).map(p => parseInt(p, 10));
+                    return (parts.length >= 3 && !isNaN(parts[1]) && !isNaN(parts[2])) ? `${parts[1]}월${parts[2]}일` : s;
+                };
+                periodText = `${fmt(data.contract_start)}~${fmt(data.contract_end)}`;
+            }
+
+            const banner = document.createElement('div');
+            banner.className = 'yearly-sales-preview expanded';
+            banner.innerHTML = `
+                <div class="yearly-banner-full">
+                    <div class="yearly-banner-title">🎁 체험기간 1달${periodText ? `(${periodText})` : ''}</div>
+                    <div class="yearly-banner-line">체험기간 동안 신청하면 <strong>연회비 50% 할인</strong>(연회원신청)</div>
+                    <div class="yearly-banner-line yearly-banner-price">월 6만원(연 72만원) → 월 3만원(연 36만원) <strong>50% 할인</strong></div>
+                    <a class="yearly-banner-btn" href="apply.html">지금 무료체험 신청하기</a>
+                </div>
+                <div class="yearly-banner-compact">
+                    <span class="yearly-banner-text">🎉 체험기간 동안 신청하면 <strong>연회비 50% 할인</strong>(연회원신청)</span>
+                    <a class="yearly-banner-btn" href="apply.html">지금 무료체험 신청하기</a>
+                </div>
+            `;
+            // chat-wrapper는 flex-direction:column이라 order:-1로 항상 헤더보다 위(맨 앞)에 렌더링됨
+            (document.querySelector('.chat-wrapper') || document.body).appendChild(banner);
+
+            let collapsed = false;
+            window.addEventListener('scroll', () => {
+                if (collapsed || window.scrollY <= 30) return;
+                collapsed = true;
+                banner.classList.remove('expanded');
+                banner.classList.add('collapsed');
+            }, { passive: true });
         }
 
         // 클릭 효과 바인딩 헬퍼 함수
