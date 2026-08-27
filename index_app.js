@@ -96,8 +96,8 @@ const CONFIG = {
                     // 웰컴 카드가 이미 렌더링되어 있다면 실시간 가맹점 정보 업데이트
                     updateWelcomeCardWithPartner(data);
 
-                    // [New] 무료체험 홍보용 데모 계정에서만 신청 CTA 배너 노출
-                    addPromoBannerIfDemoPartner(code);
+                    // 하단 고정 CTA 배너는 상단 영업 미리보기 배너(addYearlySalesPreviewIfDemoPartner)와
+                    // 중복이라 제거함 - 상단 배너 하나에 CTA를 통합.
 
                     // 연회원 전환 할인 공지는 원래 고객이 아닌 가맹점 담당자에게만 보여야 하므로
                     // com_film_dashboard.html(관리자페이지)로 옮겼음. 단, 정성필름(p_999)은 예외 —
@@ -1375,19 +1375,6 @@ const CONFIG = {
             document.body.appendChild(btn);
         }
 
-        // [New] 무료체험 홍보용 데모 계정(p_999)에서만 하단 고정 신청 배너 노출
-        function addPromoBannerIfDemoPartner(partnerCode) {
-            if (partnerCode !== 'p_999') return;
-            if (document.querySelector('.promo-trial-banner')) return;
-
-            const banner = document.createElement('a');
-            banner.className = 'promo-trial-banner';
-            banner.href = 'apply.html';
-            banner.innerHTML = '🎁 <strong>무료로</strong> 시작하기';
-
-            document.body.appendChild(banner);
-        }
-
         // [New] 정성필름(p_999) 견적페이지 전용 - 연회원 전환 혜택 영업 미리보기 배너
         // 실제 가맹점 관리자페이지 배너와 같은 펼침/축약 UX를 재사용하되,
         // 낯선 방문자가 누를 수 있으므로 버튼은 실제 연회원 신청 API가 아니라
@@ -1402,7 +1389,6 @@ const CONFIG = {
                 <div class="yearly-banner-full">
                     <div class="yearly-banner-title">🎁 필름업체 사장님이시라면?</div>
                     <div class="yearly-banner-line">가입 즉시 <strong>무료로</strong> 이런 견적시스템을 바로 쓸 수 있어요</div>
-                    <div class="yearly-banner-line yearly-banner-price">광고 없이 쓰고 싶으면 연회원 전환 - <strong>월 3만원</strong></div>
                     <a class="yearly-banner-btn" href="apply.html">지금 무료로 시작하기</a>
                 </div>
                 <div class="yearly-banner-compact">
