@@ -1881,8 +1881,10 @@ const CONFIG = {
                     tdValue.className = 'excel-value-container';
                     let lastSubHeader = "";
                     group.items.forEach(item => {
-                        // [New] 노출여부 필터링: 가맹점 정보에 active_items가 있으면 허용된 품목만 노출합니다.
-                        if (currentPartner && currentPartner.active_items && Array.isArray(currentPartner.active_items)) {
+                        // [New] 노출여부 필터링: 가맹점 정보에 active_items가 "설정되어" 있으면 허용된 품목만 노출합니다.
+                        // 주의: active_items가 빈 배열([])인 경우는 "전체 품목 노출 해제"가 아니라
+                        // "아직 설정 안 함(기본값)"으로 간주하여 필터링하지 않습니다. (전체 메뉴 소실 방지)
+                        if (currentPartner && currentPartner.active_items && Array.isArray(currentPartner.active_items) && currentPartner.active_items.length > 0) {
                             const isAllowed = currentPartner.active_items.some(allowedName => {
                                 return item.name === allowedName || item.label.includes(allowedName) || item.name.includes(allowedName) || allowedName.includes(item.name);
                             });
