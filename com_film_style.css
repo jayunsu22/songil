@@ -457,6 +457,18 @@ body {
     text-align: right;
 }
 
+/* 인건비/자재비 산출식 행: 좁은 화면에서 줄바꿈되지 않도록 세로로 쌓음 */
+@media (max-width: 480px) {
+    .calc-row-breakdown {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .calc-row-breakdown .calc-val {
+        text-align: left;
+    }
+}
+
 .calc-input-wrap {
     display: flex;
     align-items: center;

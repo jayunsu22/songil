@@ -840,12 +840,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <button class="stepper-btn" onclick="stepValue('${item.id}', '${isPyeong ? 'length' : 'qty'}', ${isPyeong ? 1 : 0.5})">+</button>
                             </div>
                         </div>
-                        <div class="calc-row">
-                            <div class="calc-label" id="labor-label-${item.id}">인건비<span>(${isPyeong ? '인건비 단가 x (설정 길이 x 자재소모량)' : '인건비 단가 x 자재 소모량'})</span></div>
+                        <div class="calc-row calc-row-breakdown">
+                            <div class="calc-label" id="labor-label-${item.id}">인건비<span>(${isPyeong ? '인건비 단가 x (설정 길이 x 1m 시공시 자재소모량)' : '인건비 단가 x 자재 소모량'})</span></div>
                             <div class="calc-val" id="labor-total-${item.id}">${laborTotal.toLocaleString()}원</div>
                         </div>
-                        <div class="calc-row">
-                            <div class="calc-label" id="material-label-${item.id}">자재비<span>(${isPyeong ? '공통 자재비 단가 x (설정 길이 x 자재소모량)' : '자재비 단가 x 자재 소모량'})</span></div>
+                        <div class="calc-row calc-row-breakdown">
+                            <div class="calc-label" id="material-label-${item.id}">자재비<span>(${isPyeong ? '공통 자재비 단가 x (설정 길이 x 1m 시공시 자재소모량)' : '자재비 단가 x 자재 소모량'})</span></div>
                             <div class="calc-val" id="material-total-${item.id}">${materialTotal.toLocaleString()}원</div>
                         </div>
                         <div class="calc-row total-row">
@@ -1009,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!response.ok) {
                 throw new Error('Server responded with error');
             }
-            showToast(isChecked ? '항목 노출이 설정되었습니다.' : '항목 숨김이 설정되었습니다.', 'success');
+            showToast(isChecked ? '1분견적 페이지에 해당 품목 나타납니다.' : '1분견적 페이지에 해당 품목이 사라집니다.', 'success');
         } catch (error) {
             console.error('Failed to update visibility:', error);
             showToast('서버 저장에 실패했습니다. 다시 시도해주세요.', 'error');
@@ -1071,10 +1071,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const laborLabel = document.getElementById(`labor-label-${id}`);
         const materialLabel = document.getElementById(`material-label-${id}`);
         if (laborLabel) {
-            laborLabel.innerHTML = `인건비<span>(${isPyeong ? `${laborUnit.toLocaleString()}원 × ${inputVal}m × ${staticFactor}배` : `${laborUnit.toLocaleString()}원 × ${inputVal}m`})</span>`;
+            laborLabel.innerHTML = `인건비<span>(${isPyeong ? `${laborUnit.toLocaleString()}원 × ${inputVal}m × ${staticFactor}m` : `${laborUnit.toLocaleString()}원 × ${inputVal}m`})</span>`;
         }
         if (materialLabel) {
-            materialLabel.innerHTML = `자재비<span>(${isPyeong ? `${globalMaterialPrice.toLocaleString()}원 × ${inputVal}m × ${staticFactor}배` : `${globalMaterialPrice.toLocaleString()}원 × ${inputVal}m`})</span>`;
+            materialLabel.innerHTML = `자재비<span>(${isPyeong ? `${globalMaterialPrice.toLocaleString()}원 × ${inputVal}m × ${staticFactor}m` : `${globalMaterialPrice.toLocaleString()}원 × ${inputVal}m`})</span>`;
         }
 
         const headerTotal = document.getElementById(`header-total-${id}`);
