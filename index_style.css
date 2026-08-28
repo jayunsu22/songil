@@ -523,6 +523,40 @@ body {
             line-height: 1.4;
         }
 
+        /* [New] 견적산출 로딩화면(30초) 하단의 큰 광고 - 무료회원(광고형) 가맹점 손님만 봄.
+           로딩이 끝나면 같은 광고가 .partner-ad-banner로 정착됨 */
+        .loading-screen-ad {
+            margin-top: 24px;
+            width: min(320px, 85%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #4A90E2, #6C63FF);
+            color: white;
+            text-decoration: none;
+            padding: 18px 20px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 24px rgba(74, 144, 226, 0.25);
+        }
+
+        .loading-screen-ad .ad-badge {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            font-size: 0.72em;
+            font-weight: 700;
+            padding: 2px 9px;
+            border-radius: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .loading-screen-ad .ad-text {
+            font-size: 1.05em;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+
         /* 연회원 전환 할인 공지는 가맹점 담당자만 보는 관리자페이지(com_film_dashboard.html)로 이동함 */
         /* 단, 정성필름(p_999)은 잠재 파트너 영업용 데모라 예외로 견적페이지에도 노출 (헤더 위, order:-1) */
         .yearly-sales-preview {

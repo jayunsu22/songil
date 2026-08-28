@@ -105,9 +105,9 @@ const CONFIG = {
                     // "실제 파트너가 되면 이런 혜택도 있다"는 영업 미리보기 용도로 여기서도 노출.
                     addYearlySalesPreviewIfDemoPartner(code, data);
 
-                    // [New] 무료회원(광고형) 가맹점의 견적페이지 하단에 제휴 광고 배너 노출
-                    // 연회원(유료)으로 전환하면 광고 없이 이용 가능 - 구독상태가 '무료회원'일 때만 표시
-                    addAdBannerIfFreeMember(code, data);
+                    // 무료회원(광고형) 가맹점의 제휴 광고 배너는 더 이상 초기화면에 바로 안 띄움 -
+                    // 견적산출 로딩광고(showFullscreenLoading)가 끝난 뒤 hideFullscreenLoading()에서
+                    // 같은 광고를 하단 배너로 정착시키는 방식으로 바뀜 (초기 화면은 항상 광고 없이 깨끗하게 시작)
                 } else {
                     // 💡 만약 가맹점 정보 조회가 실패(만료/비활성화)했다면 접속 완전 차단!
                     document.body.innerHTML = `
@@ -683,10 +683,19 @@ const CONFIG = {
                 transition: opacity 0.3s ease;
             `;
 
+            // [New] 무료회원(광고형) 가맹점일 때만 로딩화면 하단에 큰 광고 노출
+            const showAd = currentPartner && currentPartner.subscription_status === '무료회원' && currentPartner.ad_text;
+            const adBlockHtml = showAd ? `
+                <a class="loading-screen-ad" href="${currentPartner.ad_link || '#'}" target="_blank">
+                    <span class="ad-badge">광고</span>
+                    <span class="ad-text">${currentPartner.ad_text}</span>
+                </a>
+            ` : '';
+
             overlay.innerHTML = `
                 <div style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; padding: 20px; box-sizing: border-box; width: 100%;">
                     <div style="font-size: 2.2em; font-weight: 800; color: #1a202c; letter-spacing: -1px; margin-bottom: 5px;">견적 산출</div>
-                    
+
                     <div class="loading-timer-circle" style="
                         width: 210px;
                         height: 210px;
@@ -704,20 +713,28 @@ const CONFIG = {
                     ">
                         <span class="timer-seconds-text">30초 전</span>
                     </div>
-                    
+
                     <div style="margin-top: 15px; font-size: 1.05em; font-weight: 700; color: #4A90E2; display: flex; align-items: center; gap: 6px;">
                         <span class="loading-dots-pulse">⚡</span> AI 이미지/도면 분석 중...
                     </div>
-                    
+
                     <p style="font-size: 0.88em; color: #718096; margin: 5px 0 0; line-height: 1.6; font-weight: 500;">
                         꼼꼼하게 견적서를 작성하고 있습니다.<br>
                         잠시만 기다려주시면 바로 전송됩니다!
                     </p>
                 </div>
+                ${adBlockHtml}
             `;
 
             document.body.appendChild(overlay);
             return overlay;
+        }
+
+        // 로딩 오버레이를 제거하고, 무료회원(광고형) 가맹점이면 같은 광고를 하단 배너로 정착시킴
+        // (초기화면엔 광고를 안 띄우다가, 견적 결과가 나온 시점부터 이어서 보여주는 구조)
+        function hideFullscreenLoading(loading) {
+            if (loading && loading.parentNode) loading.parentNode.removeChild(loading);
+            addAdBannerIfFreeMember(currentPartnerCode, currentPartner);
         }
 
         function updateLoadingTimer(overlay, sec) {
@@ -1052,7 +1069,7 @@ const CONFIG = {
                 });
 
                 clearInterval(timer);
-                if (loading.parentNode) loading.parentNode.removeChild(loading);
+                hideFullscreenLoading(loading);
 
                 if (!res.ok) throw new Error('Server Error');
                 const data = await res.json();
@@ -1144,7 +1161,7 @@ const CONFIG = {
 
             } catch (e) {
                 clearInterval(timer);
-                if (loading.parentNode) loading.parentNode.removeChild(loading);
+                hideFullscreenLoading(loading);
                 console.error(e);
 
                 const partnerData = currentPartner || {};
@@ -3038,7 +3055,7 @@ const CONFIG = {
                 });
 
                 clearInterval(timer);
-                if (loading.parentNode) loading.parentNode.removeChild(loading);
+                hideFullscreenLoading(loading);
 
                 if (!res.ok) throw new Error('Server Error');
                 const data = await res.json();
@@ -3067,7 +3084,7 @@ const CONFIG = {
 
             } catch (e) {
                 clearInterval(timer);
-                if (loading.parentNode) loading.parentNode.removeChild(loading);
+                hideFullscreenLoading(loading);
                 console.error(e);
 
                 const partnerData = currentPartner || {};
