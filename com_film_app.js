@@ -1083,11 +1083,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // 인건비/자재비 하단 라벨을 "숫자 계산식"이 아닌 원래의 "설명 문구"로 되돌린다.
+    // (calcTotal은 입력값이 바뀔 때마다 실시간 숫자 계산식을 보여주기 위한 것이고,
+    //  취소/닫기/저장 후처럼 편집이 끝난 시점에는 다시 설명 문구로 복귀해야 한다.)
+    function restoreCalcLabelText(id) {
+        const bodyEl = document.getElementById(`body-${id}`);
+        if (!bodyEl) return;
+        const el = bodyEl.parentElement;
+        const isPyeong = (el.dataset.category || '').trim() === '평형별';
+        const laborLabel = document.getElementById(`labor-label-${id}`);
+        const materialLabel = document.getElementById(`material-label-${id}`);
+        if (laborLabel) {
+            laborLabel.innerHTML = `인건비<span>(${isPyeong ? '인건비 단가 x (설정 길이 x 1m 시공시 자재소모량)' : '인건비 단가 x 자재 소모량'})</span>`;
+        }
+        if (materialLabel) {
+            materialLabel.innerHTML = `자재비<span>(${isPyeong ? '공통 자재비 단가 x (설정 길이 x 1m 시공시 자재소모량)' : '자재비 단가 x 자재 소모량'})</span>`;
+        }
+    }
+
     window.resetCalc = function(id) {
         const el = document.getElementById(`body-${id}`).parentElement;
         document.getElementById(`labor-unit-${id}`).value = Number(el.dataset.originalLabor).toLocaleString();
         document.getElementById(`material-qty-${id}`).value = el.dataset.originalQty;
         calcTotal(id);
+        restoreCalcLabelText(id);
         showToast('변경 내용이 취소되었습니다.');
     }
     
@@ -1104,9 +1123,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const currentQty = document.getElementById(`material-qty-${id}`).value;
         const currentDesc = document.getElementById(`desc-${id}`).value;
         
-        if (Number(currentLabor) === Number(el.dataset.originalLabor) && 
-            Number(currentQty) === Number(el.dataset.originalQty) && 
+        if (Number(currentLabor) === Number(el.dataset.originalLabor) &&
+            Number(currentQty) === Number(el.dataset.originalQty) &&
             currentDesc === el.dataset.originalDesc) {
+            restoreCalcLabelText(id);
             toggleAccordion(id);
             return;
         }
@@ -1127,6 +1147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById(`material-qty-${closingId}`).value = el.dataset.originalQty;
             document.getElementById(`desc-${closingId}`).value = el.dataset.originalDesc;
             calcTotal(closingId);
+            restoreCalcLabelText(closingId);
             toggleAccordion(closingId);
         }
         closingId = null;
@@ -1190,6 +1211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const grandTotal = (Number(laborUnit) * qtyMultiplier) + (globalMaterialPrice * qtyMultiplier);
         document.getElementById(`header-total-${id}`).textContent = `${grandTotal.toLocaleString()}원`;
 
+        restoreCalcLabelText(id);
         showToast('에어테이블에 정상적으로 적용되었습니다.', 'success');
     }
 
