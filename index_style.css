@@ -528,42 +528,43 @@ body {
            (2026-08-28 확대: 기존보다 훨씬 크고 눈에 띄게) */
         .loading-screen-ad {
             margin-top: 26px;
-            width: min(430px, 94%);
+            width: min(460px, 96%);
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 14px;
+            gap: 18px;
             background: linear-gradient(135deg, #4A90E2, #6C63FF);
             color: white;
             text-decoration: none;
-            padding: 42px 28px;
-            border-radius: 24px;
+            padding: 60px 30px;
+            border-radius: 28px;
             text-align: center;
-            box-shadow: 0 20px 44px rgba(74, 144, 226, 0.35);
+            box-shadow: 0 24px 52px rgba(74, 144, 226, 0.4);
         }
 
         .loading-screen-ad .ad-badge {
             background: rgba(255, 255, 255, 0.25);
             color: white;
-            font-size: 0.82em;
+            font-size: 0.9em;
             font-weight: 700;
-            padding: 4px 14px;
-            border-radius: 12px;
+            padding: 5px 16px;
+            border-radius: 13px;
             letter-spacing: 0.5px;
         }
 
         .loading-screen-ad .ad-text {
-            font-size: 1.5em;
+            font-size: 1.85em;
             font-weight: 800;
             line-height: 1.45;
         }
 
         .loading-screen-ad .ad-cta {
-            margin-top: 2px;
-            font-size: 0.85em;
+            margin-top: 4px;
+            font-size: 0.95em;
             font-weight: 700;
             background: rgba(255, 255, 255, 0.18);
-            padding: 8px 20px;
+            padding: 10px 24px;
             border-radius: 999px;
         }
 
