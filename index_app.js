@@ -1072,7 +1072,23 @@ const CONFIG = {
                 hideFullscreenLoading(loading);
 
                 if (!res.ok) throw new Error('Server Error');
-                const data = await res.json();
+
+                // [Fix] n8n 웹훅이 200 OK를 주면서도 본문이 빈 문자열인 경우가 있음
+                // (미등록/인식 안 되는 partner_code 등). res.json()을 바로 호출하면
+                // "Unexpected end of JSON input" 예외가 나서 원인 불명의 "서버 연결 실패"로만 표시되므로,
+                // 텍스트로 먼저 받아 비어있는지 확인하고 별도 에러로 구분해 로그를 남긴다.
+                const rawText = await res.text();
+                if (!rawText || !rawText.trim()) {
+                    console.error('[견적 요청] 서버가 빈 응답을 반환했습니다. partner_code:', pCode, '/ message:', msg);
+                    throw new Error('Empty Response');
+                }
+                let data;
+                try {
+                    data = JSON.parse(rawText);
+                } catch (parseErr) {
+                    console.error('[견적 요청] 응답 JSON 파싱 실패:', parseErr, '/ raw:', rawText);
+                    throw new Error('Empty Response');
+                }
 
                 let responseText = "";
                 if (Array.isArray(data) && data.length > 0 && data[0].output) {
@@ -1185,7 +1201,13 @@ const CONFIG = {
                 인테리어 필름 시공 대상(샤시, 문틀/문짝, 싱크대, 신발장 등)이 맞는지 확인해 주세요.<br><br>
                 상세한 개별 견적 및 문의사항은 아래 담당자에게 직접 연락 주시면 친절히 안내해 드리겠습니다. 😊`;
 
-                if (e.message !== 'Zero Estimate') {
+                if (e.message === 'Empty Response') {
+                    // [Fix] 서버가 200 OK를 줬지만 본문이 비어있던 경우 - 대부분 가맹점 코드 인식 문제이므로
+                    // "연결 실패"보다는 원인을 짐작할 수 있는 문구로 안내한다.
+                    errorTitle = "⚠️ 일시적인 견적 처리 오류";
+                    errorBody = `요청은 정상적으로 전달됐지만, 서버에서 견적 결과를 받지 못했습니다.<br>
+                    잠시 후 다시 시도해 주시거나, 계속 안 될 경우 아래 담당자에게 직접 연락 주시면 확인 후 안내해 드리겠습니다. 😊`;
+                } else if (e.message !== 'Zero Estimate') {
                     errorTitle = "⚠️ 서버 연결 실패 또는 견적 불가";
                     errorBody = `서버와의 연결이 일시적으로 원활하지 않거나, 인식된 시공 대상이 없습니다.<br>
                     입력하신 내용이나 사진을 확인해 주시고, 상세한 견적 문의는 아래 담당자에게 직접 연락 주시면 친절히 상담해 드리겠습니다. 😊`;
@@ -3060,7 +3082,17 @@ const CONFIG = {
                 hideFullscreenLoading(loading);
 
                 if (!res.ok) throw new Error('Server Error');
-                const data = await res.json();
+
+                // [Fix] n8n 웹훅이 200 OK를 주면서도 본문이 빈 문자열인 경우가 있음
+                // (미등록/인식 안 되는 partner_code 등). res.json()을 바로 호출하면
+                // "Unexpected end of JSON input" 예외로 원인 불명의 오류만 남으므로,
+                // 텍스트로 먼저 받아 비어있는지 확인해 로그를 남긴다.
+                const rawText = await res.text();
+                if (!rawText || !rawText.trim()) {
+                    console.error('[핀 견적 요청] 서버가 빈 응답을 반환했습니다. partner_code:', currentPartnerCode, '/ payload:', payload.message);
+                    throw new Error('Empty Response');
+                }
+                const data = JSON.parse(rawText);
 
                 let botBubble = null;
                 if (Array.isArray(data) && data.length > 0 && data[0].output) {
