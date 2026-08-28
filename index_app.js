@@ -691,16 +691,18 @@ const CONFIG = {
                 transition: opacity 0.3s ease;
             `;
 
-            // [New] 무료회원(광고형) 가맹점일 때만 로딩화면 하단에 큰 광고 노출.
-            // 광고관리 테이블에 활성화된 광고가 여러개면 AD_ROTATE_MS 주기로 돌아가며 보여줌.
-            const ads = (currentPartner && Array.isArray(currentPartner.ads) && currentPartner.ads.length > 0)
-                ? currentPartner.ads.filter(a => a && a.text)
-                : (currentPartner && currentPartner.ad_text ? [{ text: currentPartner.ad_text, link: currentPartner.ad_link || '' }] : []);
-            const showAd = currentPartner && currentPartner.subscription_status === '무료회원' && ads.length > 0;
+            // [New] 무료회원은 관리자가 등록한 광고(광고관리), 플러스 회원은 본인이 등록한 광고를
+            // 로딩화면 하단에 노출. resolveAdSource()가 회원 등급에 맞는 광고를 골라줌.
+            const adSource = resolveAdSource(currentPartner);
+            const ads = adSource.ads;
+            const showAd = ads.length > 0;
             const firstAd = showAd ? ads[0] : null;
+            const adImageHtml = firstAd && firstAd.image ? `<img class="ad-photo" src="${firstAd.image}" alt="">` : '';
+            const adBadgeHtml = adSource.mode === 'admin' ? '<span class="ad-badge">광고</span>' : '';
             const adBlockHtml = showAd ? `
                 <a class="loading-screen-ad" href="${firstAd.link || '#'}" target="_blank">
-                    <span class="ad-badge">광고</span>
+                    ${adBadgeHtml}
+                    ${adImageHtml}
                     <span class="ad-text">${firstAd.text}</span>
                     <span class="ad-cta">자세히 보기 →</span>
                 </a>
@@ -743,12 +745,12 @@ const CONFIG = {
             return overlay;
         }
 
-        // 로딩 오버레이를 제거하고, 무료회원(광고형) 가맹점이면 같은 광고를 하단 배너로 정착시킴
-        // (초기화면엔 광고를 안 띄우다가, 견적 결과가 나온 시점부터 이어서 보여주는 구조)
+        // 로딩 오버레이를 제거하고, 광고(무료회원=관리자광고 / 플러스회원=본인광고)가 있으면
+        // 같은 광고를 하단 배너로 정착시킴 (초기화면엔 광고를 안 띄우다가, 견적 결과가 나온 시점부터 이어서 보여주는 구조)
         function hideFullscreenLoading(loading) {
             if (loading && loading._adRotateTimer) clearInterval(loading._adRotateTimer);
             if (loading && loading.parentNode) loading.parentNode.removeChild(loading);
-            addAdBannerIfFreeMember(currentPartnerCode, currentPartner);
+            addPartnerAdBanner(currentPartnerCode, currentPartner);
         }
 
         // 서버 응답이 로딩 시작 후 MIN_LOADING_MS보다 빨리 왔다면, 남은 시간만큼 더 기다렸다가
@@ -1472,21 +1474,44 @@ const CONFIG = {
             }, { passive: true });
         }
 
-        // [New] 무료회원(구독상태='무료회원') 가맹점 견적페이지 하단에 제휴 광고 배너 노출
-        // 연회원(유료) 전환시 광고가 사라짐 - ad_text가 없으면(활성 광고 없음) 아무것도 표시 안 함
-        function addAdBannerIfFreeMember(partnerCode, data) {
+        // [New] 무료회원 = 관리자가 등록한 광고(광고관리 테이블), 플러스회원(유료) = 본인이 등록한 광고를 노출.
+        // 무료회원이면서 관리자 광고가 없거나, 플러스회원이면서 본인 광고를 등록 안 했으면 mode:'none' (광고 없음).
+        function resolveAdSource(data) {
+            if (!data) return { mode: 'none', ads: [] };
+            const isPlus = data.subscription_status !== '무료회원';
+            if (isPlus) {
+                if (data.own_ad_text || data.own_ad_image) {
+                    return { mode: 'own', ads: [{ text: data.own_ad_text || '', link: data.own_ad_link || '', image: data.own_ad_image || '' }] };
+                }
+                return { mode: 'none', ads: [] };
+            }
+            const adminAds = Array.isArray(data.ads) && data.ads.length > 0
+                ? data.ads.filter(a => a && a.text)
+                : (data.ad_text ? [{ text: data.ad_text, link: data.ad_link || '' }] : []);
+            return { mode: adminAds.length > 0 ? 'admin' : 'none', ads: adminAds };
+        }
+
+        // [New] 견적페이지 하단에 제휴/본인 광고 배너 노출 (무료회원=관리자광고, 플러스회원=본인광고)
+        function addPartnerAdBanner(partnerCode, data) {
             if (partnerCode === 'p_999') return; // 정성필름은 시스템 홍보용 데모 계정 - 하단에 이미 무료체험 CTA가 있어 광고와 자리가 겹침
-            if (!data || data.subscription_status !== '무료회원') return;
-            if (!data.ad_text) return;
             if (document.querySelector('.partner-ad-banner')) return;
+
+            const adSource = resolveAdSource(data);
+            if (adSource.mode === 'none') return;
+            const ad = adSource.ads[0];
 
             const banner = document.createElement('a');
             banner.className = 'partner-ad-banner';
-            banner.href = data.ad_link || '#';
-            if (data.ad_link) banner.target = '_blank';
+            banner.href = ad.link || '#';
+            if (ad.link) banner.target = '_blank';
+            const badgeHtml = adSource.mode === 'admin' ? '<span class="ad-badge">광고</span>' : '';
+            const photoHtml = ad.image ? `<img class="ad-photo" src="${ad.image}" alt="">` : '';
             banner.innerHTML = `
-                <span class="ad-badge">광고</span>
-                <span class="ad-text">${data.ad_text}</span>
+                ${badgeHtml}
+                <div class="ad-banner-row">
+                    ${photoHtml}
+                    <span class="ad-text">${ad.text}</span>
+                </div>
             `;
             // 채팅 입력창(chat-input-area) 바로 아래, chat-wrapper 맨 마지막에 끼워넣음
             // (fixed 포지션 대신 flex 흐름을 이용해 입력창과 안 겹치게 함)

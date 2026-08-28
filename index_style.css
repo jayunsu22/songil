@@ -526,6 +526,23 @@ body {
             line-height: 1.4;
         }
 
+        /* 플러스 회원 본인광고에 사진이 있을 때: 사진+문구를 가로로 배치 */
+        .partner-ad-banner .ad-banner-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+        .partner-ad-banner .ad-photo {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 1.5px solid rgba(255, 255, 255, 0.4);
+        }
+
         /* [New] 견적산출 로딩화면(30초) 하단의 큰 광고 - 무료회원(광고형) 가맹점 손님만 봄.
            로딩이 끝나면 같은 광고가 .partner-ad-banner로 정착됨.
            (2026-08-28 확대: 기존보다 훨씬 크고 눈에 띄게) */
@@ -558,6 +575,14 @@ body {
             font-weight: 600;
             padding: 0;
             letter-spacing: 0.3px;
+        }
+
+        .loading-screen-ad .ad-photo {
+            width: 88px;
+            height: 88px;
+            border-radius: 20px;
+            object-fit: cover;
+            border: 3px solid rgba(255, 255, 255, 0.35);
         }
 
         .loading-screen-ad .ad-text {

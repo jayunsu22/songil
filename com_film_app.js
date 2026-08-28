@@ -55,13 +55,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         banner.innerHTML = `
             <div class="yearly-banner-full">
                 <div class="yearly-banner-title">🎁 지금 무료회원(광고형)이에요</div>
-                <div class="yearly-banner-line">연회원으로 전환하면 <strong>견적페이지 광고가 사라져요</strong></div>
+                <div class="yearly-banner-line">플러스 회원으로 전환하면 <strong>광고가 사라지고, 그 자리에 내 광고를 넣을 수 있어요</strong></div>
                 <div class="yearly-banner-line yearly-banner-price">월 3만원 (연 36만원)</div>
-                <button type="button" class="yearly-banner-btn">연회원 신청하기</button>
+                <button type="button" class="yearly-banner-btn">플러스 회원 신청하기</button>
             </div>
             <div class="yearly-banner-compact">
-                <span class="yearly-banner-text">🎉 연회원 전환하면 <strong>광고가 사라져요</strong></span>
-                <button type="button" class="yearly-banner-btn">연회원 신청하기</button>
+                <span class="yearly-banner-text">🎉 플러스 회원 전환하면 <strong>내 광고를 넣을 수 있어요</strong></span>
+                <button type="button" class="yearly-banner-btn">플러스 회원 신청하기</button>
             </div>
         `;
 
@@ -89,8 +89,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         overlay.className = 'yearly-confirm-overlay';
         overlay.innerHTML = `
             <div class="yearly-confirm-box">
-                <div class="yearly-confirm-title">🎉 연회원 전환 신청</div>
-                <p class="yearly-confirm-desc">체험기간 중 신청하시면 연회비 <strong>50% 할인</strong>이 적용됩니다.<br>등록된 연락처로 곧 안내드릴게요.</p>
+                <div class="yearly-confirm-title">🎉 플러스 회원 전환 신청</div>
+                <p class="yearly-confirm-desc">월 3만원(연 36만원)으로 광고 없이, 내 광고도 넣을 수 있어요.<br>등록된 연락처로 곧 안내드릴게요.</p>
                 <div class="yearly-confirm-actions">
                     <button type="button" class="yearly-cancel-btn">취소</button>
                     <button type="button" class="yearly-submit-btn">신청하기</button>
@@ -514,6 +514,73 @@ document.addEventListener('DOMContentLoaded', async () => {
             handleSnsToggle('Kakao', 'kakaoUrl', 'saved_url_kakao_', '오픈채팅');
         });
 
+        // 플러스 회원 전용 "내 광고" 섹션: 구독상태가 '무료회원'이 아닐 때만 노출/입력값 채움
+        let ownAdImageBase64 = null; // 새 파일을 고른 경우에만 채워짐 (data: 접두어 제외한 순수 base64)
+        let ownAdImageFilename = '';
+        let ownAdImageContentType = '';
+
+        function renderOwnAdSection(subscriptionStatus, ownAdText, ownAdLink, ownAdImage) {
+            const section = document.getElementById('ownAdSection');
+            if (!section) return;
+            const isPlus = (subscriptionStatus || '') !== '무료회원';
+            section.style.display = isPlus ? 'block' : 'none';
+            if (!isPlus) return;
+
+            document.getElementById('ownAdText').value = ownAdText || '';
+            document.getElementById('ownAdLink').value = ownAdLink || '';
+            const preview = document.getElementById('ownAdImagePreview');
+            if (ownAdImage) {
+                preview.src = ownAdImage;
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+                preview.src = '';
+            }
+        }
+
+        document.getElementById('ownAdImageInput').addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            if (file.size > 4 * 1024 * 1024) {
+                showToast('사진 용량은 4MB 이하로 올려주세요.', 'error');
+                e.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                const dataUrl = reader.result; // "data:image/png;base64,...."
+                const commaIdx = dataUrl.indexOf(',');
+                ownAdImageBase64 = dataUrl.slice(commaIdx + 1);
+                ownAdImageContentType = file.type || 'image/jpeg';
+                ownAdImageFilename = file.name || 'ad.jpg';
+                const preview = document.getElementById('ownAdImagePreview');
+                preview.src = dataUrl;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('saveOwnAdBtn').addEventListener('click', async () => {
+            const text = document.getElementById('ownAdText').value.trim();
+            const link = document.getElementById('ownAdLink').value.trim();
+            const payload = { ownAdText: text, ownAdLink: link };
+            if (ownAdImageBase64) {
+                payload.ownAdImageBase64 = ownAdImageBase64;
+                payload.ownAdImageFilename = ownAdImageFilename;
+                payload.ownAdImageContentType = ownAdImageContentType;
+            }
+            const btn = document.getElementById('saveOwnAdBtn');
+            btn.disabled = true;
+            const originalText = btn.innerText;
+            btn.innerText = '저장 중...';
+            const success = await savePartnerField(payload, '내 광고가 저장되었습니다.');
+            btn.disabled = false;
+            btn.innerText = originalText;
+            if (success) {
+                ownAdImageBase64 = null; // 다음 저장 때 사진을 또 보내지 않도록 초기화 (텍스트/링크만 저장해도 안전)
+            }
+        });
+
         window.stepGlobalValue = function(delta) {
             let val = Number(globalPriceInput.value) + delta;
             if (val < 0) val = 0;
@@ -617,6 +684,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 체험중(구독상태='대기중') 가맹점에게만 연회원 전환 할인 배너 노출
             // (고객이 보는 견적페이지가 아니라 가맹점 담당자만 접속하는 이 관리자페이지에만 표시)
             renderYearlyDiscountBanner(data.subscriptionStatus, data.partnerCode);
+
+            // 플러스 회원(구독상태 !== '무료회원')에게만 "내 광고" 입력 섹션 노출
+            renderOwnAdSection(data.subscriptionStatus, data.ownAdText, data.ownAdLink, data.ownAdImage);
 
             // 견적문의 탭에서 쓸 구독상태/광고 정보 저장 (10건 초과시 5초 광고용)
             currentSubscriptionStatus = data.subscriptionStatus || '';
