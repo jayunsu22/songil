@@ -809,15 +809,23 @@ const CONFIG = {
             const childNodes = quoteContainer.querySelectorAll('.item-title, .item-detail, .item-notification');
             let hasItems = false;
             childNodes.forEach(el => {
-                const text = el.textContent.trim().replace(/\s+/g, ' ');
                 if (el.classList.contains('item-title')) {
+                    const text = el.textContent.trim().replace(/\s+/g, ' ');
                     if (hasItems) lines.push('');
                     lines.push(`${text}`);
                     hasItems = true;
                 } else if (el.classList.contains('item-detail')) {
+                    const text = el.textContent.trim().replace(/\s+/g, ' ');
                     lines.push(`   ${text}`);
                 } else if (el.classList.contains('item-notification')) {
-                    lines.push(`   ${text}`);
+                    // <br> 태그로 구분된 안내문구를 각각 줄바꿈해서 표시 (붙어나오지 않도록)
+                    const noteLines = el.innerHTML
+                        .replace(/<br\s*\/?>/gi, '\n')
+                        .replace(/<[^>]+>/g, '')
+                        .split('\n')
+                        .map(l => l.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim())
+                        .filter(l => l.length > 0);
+                    noteLines.forEach(l => lines.push(`   ${l}`));
                 }
             });
             
