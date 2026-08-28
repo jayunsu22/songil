@@ -693,34 +693,18 @@ const CONFIG = {
             ` : '';
 
             overlay.innerHTML = `
-                <div style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; padding: 20px; box-sizing: border-box; width: 100%;">
-                    <div style="font-size: 2.2em; font-weight: 800; color: #1a202c; letter-spacing: -1px; margin-bottom: 5px;">견적 산출</div>
-
-                    <div class="loading-timer-circle" style="
-                        width: 210px;
-                        height: 210px;
-                        border-radius: 50%;
-                        background-color: #dbeafe;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 2.3em;
-                        font-weight: 800;
-                        color: #1a202c;
-                        box-shadow: 0 15px 35px rgba(0,0,0,0.08);
-                        border: 3px solid rgba(255,255,255,0.6);
-                        transition: background-color 0.4s ease, color 0.4s ease, transform 0.3s ease;
-                    ">
-                        <span class="timer-seconds-text">30초 전</span>
+                <div style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px; box-sizing: border-box; width: 100%; max-width: 380px;">
+                    <div class="loading-calc-eyebrow">
+                        <span class="loading-dots-pulse">⚡</span> AI 견적 작성중...
                     </div>
 
-                    <div style="margin-top: 15px; font-size: 1.05em; font-weight: 700; color: #4A90E2; display: flex; align-items: center; gap: 6px;">
-                        <span class="loading-dots-pulse">⚡</span> AI 이미지/도면 분석 중...
+                    <div class="loading-bar-track">
+                        <div class="loading-bar-fill"></div>
+                        <div class="loading-bar-text">견적산출중 <span class="loading-bar-num">30</span>초</div>
                     </div>
 
-                    <p style="font-size: 0.88em; color: #718096; margin: 5px 0 0; line-height: 1.6; font-weight: 500;">
-                        꼼꼼하게 견적서를 작성하고 있습니다.<br>
-                        잠시만 기다려주시면 바로 전송됩니다!
+                    <p style="font-size: 0.85em; color: #718096; margin: 9px 0 0; line-height: 1.6; font-weight: 600;">
+                        꼼꼼하게 견적서를 작성하고 있어요, 곧 전송됩니다!
                     </p>
                 </div>
                 ${adBlockHtml}
@@ -738,28 +722,21 @@ const CONFIG = {
         }
 
         function updateLoadingTimer(overlay, sec) {
-            const circle = overlay.querySelector('.loading-timer-circle');
-            const textEl = overlay.querySelector('.timer-seconds-text');
-            if (!circle || !textEl) return;
+            const fill = overlay.querySelector('.loading-bar-fill');
+            const track = overlay.querySelector('.loading-bar-track');
+            const numEl = overlay.querySelector('.loading-bar-num');
+            if (!fill || !track || !numEl) return;
+
+            const TOTAL_SEC = 30;
+            const pct = Math.max(sec / TOTAL_SEC * 100, 4); // 완전히 0%로 사라지지 않게 최소폭 유지
+            fill.style.width = `${pct}%`;
 
             if (sec > 0) {
-                textEl.innerText = `${sec}초 전`;
-                
-                const colors = [
-                    '#dbeafe', // light blue
-                    '#fef08a', // light yellow
-                    '#a5f3fc', // cyan
-                    '#bbf7d0', // light green
-                    '#fbcfe8', // light pink
-                    '#e9d5ff'  // light purple
-                ];
-                const colorIndex = sec % colors.length;
-                circle.style.backgroundColor = colors[colorIndex];
-                circle.style.color = '#1a202c';
-                circle.classList.remove('blinking-red');
+                numEl.innerText = sec;
+                track.classList.remove('bar-finishing');
             } else {
-                textEl.innerText = `0초`;
-                circle.classList.add('blinking-red');
+                numEl.innerText = '0';
+                track.classList.add('bar-finishing');
             }
         }
 
