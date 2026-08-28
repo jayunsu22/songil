@@ -1056,4 +1056,92 @@ body {
     opacity: 0.6;
 }
 
+/* [New] 견적문의 탭 - 하루 10건 초과 무료회원에게만 뜨는 5초 광고 오버레이 */
+.inquiry-loading-ad-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 24px;
+    text-align: center;
+}
+
+.inquiry-loading-ad-title {
+    font-size: 1.3em;
+    font-weight: 800;
+    color: var(--text-main, #1a202c);
+}
+
+.inquiry-loading-ad-spinner {
+    width: 44px;
+    height: 44px;
+    border: 4px solid #e2e8f0;
+    border-top-color: var(--primary-blue);
+    border-radius: 50%;
+    animation: dashboardAdSpin 0.8s linear infinite;
+}
+
+@keyframes dashboardAdSpin {
+    to { transform: rotate(360deg); }
+}
+
+.inquiry-loading-ad-box {
+    width: min(320px, 85%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #4A90E2, #6C63FF);
+    color: white;
+    text-decoration: none;
+    padding: 18px 20px;
+    border-radius: 16px;
+    box-shadow: 0 10px 24px rgba(74, 144, 226, 0.25);
+}
+
+.inquiry-loading-ad-box .ad-badge,
+.dashboard-ad-banner .ad-badge {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    font-size: 0.72em;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 10px;
+    letter-spacing: 0.5px;
+}
+
+.inquiry-loading-ad-box .ad-text {
+    font-size: 1.05em;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+/* 5초 광고가 끝난 뒤 견적문의 목록 위에 정착하는 배너 */
+.dashboard-ad-banner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+    background: linear-gradient(135deg, #4A90E2, #6C63FF);
+    color: white;
+    text-decoration: none;
+    padding: 14px 16px;
+    border-radius: 12px;
+    margin: 0 0 16px 0;
+}
+
+.dashboard-ad-banner .ad-text {
+    font-size: 0.98em;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
 

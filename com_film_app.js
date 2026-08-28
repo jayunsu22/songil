@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentShortId = '';
     let currentPriceCategory = 'pyeong';
     let mockInquiries = [];
+    let currentSubscriptionStatus = ''; // 구독상태('무료회원' 등) - 대시보드 5초 광고 조건 판단용
+    let currentAdText = '';
+    let currentAdLink = '';
 
     function showToast(message, type = 'success') {
         toast.textContent = message;
@@ -518,6 +521,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 체험중(구독상태='대기중') 가맹점에게만 연회원 전환 할인 배너 노출
             // (고객이 보는 견적페이지가 아니라 가맹점 담당자만 접속하는 이 관리자페이지에만 표시)
             renderYearlyDiscountBanner(data.subscriptionStatus, data.partnerCode);
+
+            // 견적문의 탭에서 쓸 구독상태/광고 정보 저장 (10건 초과시 5초 광고용)
+            currentSubscriptionStatus = data.subscriptionStatus || '';
+            currentAdText = data.adText || '';
+            currentAdLink = data.adLink || '';
 
             // 공지사항 및 공식카페 배너 렌더링
             const noticeContainer = document.getElementById('noticeContainer');
@@ -1088,6 +1096,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('에어테이블에 정상적으로 적용되었습니다.', 'success');
     }
 
+    // [New] 견적문의 탭 진입시(하루 10건 초과 무료회원 한정) 5초 광고 표시 후 콜백 실행
+    function showInquiryLoadingAd(onDone) {
+        const existing = document.querySelector('.inquiry-loading-ad-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'inquiry-loading-ad-overlay';
+        overlay.innerHTML = `
+            <div class="inquiry-loading-ad-title">견적내역 확인중</div>
+            <div class="inquiry-loading-ad-spinner"></div>
+            <a class="inquiry-loading-ad-box" href="${currentAdLink || '#'}" target="_blank">
+                <span class="ad-badge">광고</span>
+                <span class="ad-text">${currentAdText}</span>
+            </a>
+        `;
+        document.body.appendChild(overlay);
+
+        setTimeout(() => {
+            overlay.remove();
+            onDone();
+        }, 5000);
+    }
+
+    // [New] 5초 광고가 끝난 뒤 견적문의 목록 상단에 같은 광고를 배너로 정착시킴
+    function showDashboardAdBanner() {
+        if (document.querySelector('.dashboard-ad-banner')) return;
+        const container = document.getElementById('inquiryListContainer');
+        if (!container) return;
+
+        const banner = document.createElement('a');
+        banner.className = 'dashboard-ad-banner';
+        banner.href = currentAdLink || '#';
+        if (currentAdLink) banner.target = '_blank';
+        banner.innerHTML = `
+            <span class="ad-badge">광고</span>
+            <span class="ad-text">${currentAdText}</span>
+        `;
+        container.parentNode.insertBefore(banner, container);
+    }
+
     // 💡 신규 기능: 견적문의 내역 조회
     async function loadInquiries(recordId) {
         const container = document.getElementById('inquiryListContainer');
@@ -1101,16 +1149,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const response = await fetch(`${WEBHOOK_INQUIRY_URL}?partnerId=${recordId}`);
             if (!response.ok) throw new Error('데이터 조회 실패');
-            
+
             const data = await response.json();
             const inquiries = data.inquiries || [];
-            
+
             if (inquiries.length === 0) {
                 container.innerHTML = '<div class="no-data">접수된 견적문의 내역이 없습니다.</div>';
                 return;
             }
-            
-            renderInquiryList(inquiries);
+
+            // [New] 무료회원(광고형) 가맹점이 오늘 10건 넘게 문의를 받았을 때만
+            // 5초짜리 광고를 먼저 보여준 뒤 목록을 열람하게 함 (텔레그램 10건 제한과 같은 기준)
+            const todayStr = new Date().toDateString();
+            const todayCount = inquiries.filter(inq => inq.date && new Date(inq.date).toDateString() === todayStr).length;
+            const DAILY_LIMIT = 10;
+
+            if (currentSubscriptionStatus === '무료회원' && todayCount > DAILY_LIMIT && currentAdText) {
+                showInquiryLoadingAd(() => {
+                    renderInquiryList(inquiries);
+                    showDashboardAdBanner();
+                });
+            } else {
+                renderInquiryList(inquiries);
+            }
         } catch (error) {
             console.error("견적 조회 실패:", error);
             container.innerHTML = `<div class="no-data" style="color:var(--danger);">데이터를 가져오지 못했습니다.<br>오류 내용: ${error.message}</div>`;
