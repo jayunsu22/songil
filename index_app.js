@@ -659,6 +659,13 @@ const CONFIG = {
             return bubble;
         }
 
+        // 로딩화면을 최소 이만큼(ms)은 띄워둔다 - 실제 서버 응답이 더 빨라도 광고를
+        // 최소 2번 정도는 볼 수 있도록. TOTAL_LOADING_SEC(카운트다운 바)와 값을 맞춰서
+        // 바가 0에 가까워질 때쯤 결과가 뜨도록 함.
+        const TOTAL_LOADING_SEC = 20;
+        const MIN_LOADING_MS = TOTAL_LOADING_SEC * 1000;
+        const AD_ROTATE_MS = 9000; // 광고 여러 개 등록시 이 주기로 교체 노출
+
         function showFullscreenLoading() {
             const existing = document.querySelector('.estimate-loading-overlay');
             if (existing) existing.remove();
@@ -683,12 +690,18 @@ const CONFIG = {
                 transition: opacity 0.3s ease;
             `;
 
-            // [New] 무료회원(광고형) 가맹점일 때만 로딩화면 하단에 큰 광고 노출
-            const showAd = currentPartner && currentPartner.subscription_status === '무료회원' && currentPartner.ad_text;
+            // [New] 무료회원(광고형) 가맹점일 때만 로딩화면 하단에 큰 광고 노출.
+            // 광고관리 테이블에 활성화된 광고가 여러개면 AD_ROTATE_MS 주기로 돌아가며 보여줌.
+            const ads = (currentPartner && Array.isArray(currentPartner.ads) && currentPartner.ads.length > 0)
+                ? currentPartner.ads.filter(a => a && a.text)
+                : (currentPartner && currentPartner.ad_text ? [{ text: currentPartner.ad_text, link: currentPartner.ad_link || '' }] : []);
+            const showAd = currentPartner && currentPartner.subscription_status === '무료회원' && ads.length > 0;
+            const firstAd = showAd ? ads[0] : null;
             const adBlockHtml = showAd ? `
-                <a class="loading-screen-ad" href="${currentPartner.ad_link || '#'}" target="_blank">
+                <a class="loading-screen-ad" href="${firstAd.link || '#'}" target="_blank">
                     <span class="ad-badge">광고</span>
-                    <span class="ad-text">${currentPartner.ad_text}</span>
+                    <span class="ad-text">${firstAd.text}</span>
+                    <span class="ad-cta">자세히 보기 →</span>
                 </a>
             ` : '';
 
@@ -700,7 +713,7 @@ const CONFIG = {
 
                     <div class="loading-bar-track">
                         <div class="loading-bar-fill"></div>
-                        <div class="loading-bar-text">견적산출중 <span class="loading-bar-num">30</span>초</div>
+                        <div class="loading-bar-text">견적산출중 <span class="loading-bar-num">${TOTAL_LOADING_SEC}</span>초</div>
                     </div>
 
                     <p style="font-size: 0.85em; color: #718096; margin: 9px 0 0; line-height: 1.6; font-weight: 600;">
@@ -711,14 +724,37 @@ const CONFIG = {
             `;
 
             document.body.appendChild(overlay);
+
+            // 광고가 2개 이상이면 주기적으로 교체
+            if (showAd && ads.length > 1) {
+                let adIndex = 0;
+                overlay._adRotateTimer = setInterval(() => {
+                    adIndex = (adIndex + 1) % ads.length;
+                    const nextAd = ads[adIndex];
+                    const adEl = overlay.querySelector('.loading-screen-ad');
+                    if (!adEl) return;
+                    adEl.href = nextAd.link || '#';
+                    const textEl = adEl.querySelector('.ad-text');
+                    if (textEl) textEl.textContent = nextAd.text;
+                }, AD_ROTATE_MS);
+            }
+
             return overlay;
         }
 
         // 로딩 오버레이를 제거하고, 무료회원(광고형) 가맹점이면 같은 광고를 하단 배너로 정착시킴
         // (초기화면엔 광고를 안 띄우다가, 견적 결과가 나온 시점부터 이어서 보여주는 구조)
         function hideFullscreenLoading(loading) {
+            if (loading && loading._adRotateTimer) clearInterval(loading._adRotateTimer);
             if (loading && loading.parentNode) loading.parentNode.removeChild(loading);
             addAdBannerIfFreeMember(currentPartnerCode, currentPartner);
+        }
+
+        // 서버 응답이 로딩 시작 후 MIN_LOADING_MS보다 빨리 왔다면, 남은 시간만큼 더 기다렸다가
+        // 결과를 보여줌 (광고를 최소 노출시간만큼은 보게 하려는 의도 - 응답이 느리면 그냥 바로 진행됨)
+        async function waitMinLoadingTime(startedAt) {
+            const remain = MIN_LOADING_MS - (Date.now() - startedAt);
+            if (remain > 0) await new Promise(r => setTimeout(r, remain));
         }
 
         function updateLoadingTimer(overlay, sec) {
@@ -727,8 +763,7 @@ const CONFIG = {
             const numEl = overlay.querySelector('.loading-bar-num');
             if (!fill || !track || !numEl) return;
 
-            const TOTAL_SEC = 30;
-            const pct = Math.max(sec / TOTAL_SEC * 100, 4); // 완전히 0%로 사라지지 않게 최소폭 유지
+            const pct = Math.max(sec / TOTAL_LOADING_SEC * 100, 4); // 완전히 0%로 사라지지 않게 최소폭 유지
             fill.style.width = `${pct}%`;
 
             if (sec > 0) {
@@ -994,7 +1029,8 @@ const CONFIG = {
             renderPreviews();
             sendButton.disabled = true;
 
-            let sec = 30;
+            let sec = TOTAL_LOADING_SEC;
+            const loadStartedAt = Date.now();
             const loading = showFullscreenLoading();
             const timer = setInterval(() => {
                 sec--;
@@ -1045,6 +1081,7 @@ const CONFIG = {
                     body: JSON.stringify(payload)
                 });
 
+                await waitMinLoadingTime(loadStartedAt);
                 clearInterval(timer);
                 hideFullscreenLoading(loading);
 
@@ -3036,7 +3073,8 @@ const CONFIG = {
             renderPreviews();
             sendButton.disabled = true;
 
-            let sec = 30;
+            let sec = TOTAL_LOADING_SEC;
+            const loadStartedAt = Date.now();
             const loading = showFullscreenLoading();
             const timer = setInterval(() => {
                 sec--;
@@ -3055,6 +3093,7 @@ const CONFIG = {
                     body: JSON.stringify(payload)
                 });
 
+                await waitMinLoadingTime(loadStartedAt);
                 clearInterval(timer);
                 hideFullscreenLoading(loading);
 

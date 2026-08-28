@@ -528,34 +528,43 @@ body {
            (2026-08-28 확대: 기존보다 훨씬 크고 눈에 띄게) */
         .loading-screen-ad {
             margin-top: 26px;
-            width: min(380px, 90%);
+            width: min(430px, 94%);
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 14px;
             background: linear-gradient(135deg, #4A90E2, #6C63FF);
             color: white;
             text-decoration: none;
-            padding: 30px 24px;
-            border-radius: 22px;
+            padding: 42px 28px;
+            border-radius: 24px;
             text-align: center;
-            box-shadow: 0 18px 38px rgba(74, 144, 226, 0.3);
+            box-shadow: 0 20px 44px rgba(74, 144, 226, 0.35);
         }
 
         .loading-screen-ad .ad-badge {
             background: rgba(255, 255, 255, 0.25);
             color: white;
-            font-size: 0.78em;
+            font-size: 0.82em;
             font-weight: 700;
-            padding: 3px 12px;
+            padding: 4px 14px;
             border-radius: 12px;
             letter-spacing: 0.5px;
         }
 
         .loading-screen-ad .ad-text {
-            font-size: 1.32em;
+            font-size: 1.5em;
             font-weight: 800;
-            line-height: 1.4;
+            line-height: 1.45;
+        }
+
+        .loading-screen-ad .ad-cta {
+            margin-top: 2px;
+            font-size: 0.85em;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.18);
+            padding: 8px 20px;
+            border-radius: 999px;
         }
 
         /* [New] 축소된 원형 카운트다운을 대체한, 크게 키운 가로 카운트다운 바 (2026-08-28) */
