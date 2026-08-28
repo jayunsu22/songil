@@ -1405,7 +1405,7 @@ const CONFIG = {
             banner.innerHTML = `
                 <div class="yearly-banner-full">
                     <div class="yearly-banner-title">🎁 필름업체 사장님이시라면?</div>
-                    <div class="yearly-banner-line">가입 즉시 <strong>무료로</strong> 이런 견적시스템을 바로 쓸 수 있어요</div>
+                    <div class="yearly-banner-line">가입즉시 <strong>무료로</strong> 나만의 견적서를 만들어드려요. (1분 완성)</div>
                     <a class="yearly-banner-btn" href="apply.html">지금 무료로 시작하기</a>
                 </div>
                 <div class="yearly-banner-compact">
