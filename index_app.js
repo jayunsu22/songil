@@ -659,12 +659,13 @@ const CONFIG = {
             return bubble;
         }
 
-        // 로딩화면을 최소 이만큼(ms)은 띄워둔다 - 실제 서버 응답이 더 빨라도 광고를
-        // 최소 2번 정도는 볼 수 있도록. TOTAL_LOADING_SEC(카운트다운 바)와 값을 맞춰서
-        // 바가 0에 가까워질 때쯤 결과가 뜨도록 함.
-        const TOTAL_LOADING_SEC = 20;
-        const MIN_LOADING_MS = TOTAL_LOADING_SEC * 1000;
-        const AD_ROTATE_MS = 9000; // 광고 여러 개 등록시 이 주기로 교체 노출
+        // 카운트다운 바는 30초부터 시작(시각적 스케일). 단, 실제 결과 공개는 MIN_LOADING_MS를
+        // 최소로 보장함 - 서버가 그보다 일찍 응답해도 최소 20초는 채우고 나서 보여줌(광고 노출 확보).
+        // 서버가 더 늦게 오면 그냥 응답 오는 대로 보여주고(바는 계속 30초까지 돌아감), 그동안
+        // AD_ROTATE_MS(10초) 주기로 광고가 계속 교체 노출됨.
+        const TOTAL_LOADING_SEC = 30;
+        const MIN_LOADING_MS = 20000;
+        const AD_ROTATE_MS = 10000; // 광고 여러 개 등록시 이 주기로 교체 노출
 
         function showFullscreenLoading() {
             const existing = document.querySelector('.estimate-loading-overlay');
