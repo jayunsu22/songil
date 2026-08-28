@@ -779,10 +779,11 @@ const CONFIG = {
         // 견적서 HTML을 카톡 공유용 깔끔한 텍스트로 변환하는 함수
         function getQuoteText(quoteContainer) {
             let lines = [];
-            
+            const partnerName = (currentPartner && currentPartner.partner_name) || '1분견적';
+
             // [New] 웰컴 소개 카드(인트로 카드) 복사 대응
             if (quoteContainer.classList.contains('welcome-card-bubble') || quoteContainer.querySelector('.open-quick-quote-btn')) {
-                lines.push(`📋 [대박난손길 1분 간편견적 서비스]`);
+                lines.push(`📋 [${partnerName} 1분 간편견적 서비스]`);
                 lines.push(`━━━━━━━━━━━━━━━━━━━━`);
                 lines.push(`⚡ 어떤 견적이든 1분내 OK!`);
                 lines.push(`👉 평형별, 품목별, 사진견적으로 빠르고 간편하게 견적을 산출해 드립니다.`);
@@ -790,17 +791,17 @@ const CONFIG = {
                 lines.push(`👤 문의 : 김정헌 실장`);
                 lines.push(`📞 연락처 : 010-6657-1222`);
                 lines.push(`━━━━━━━━━━━━━━━━━━━━`);
-                lines.push(`🔗 URL: https://songil.netlify.app/image_dev.html?code=p_001`);
+                lines.push(`🔗 URL: ${window.location.href}`);
                 return lines.join('\n');
             }
-            
+
             // 1. 타이틀 & 견적 ID
             const titleEl = quoteContainer.querySelector('.quote-title');
             if (titleEl) {
                 const text = titleEl.textContent.trim().replace(/\s+/g, ' ');
                 lines.push(`📋 ${text}`);
             } else {
-                lines.push(`📋 [대박난손길 1분 간편 견적서]`);
+                lines.push(`📋 [${partnerName} 1분 간편 견적서]`);
             }
             lines.push(`━━━━━━━━━━━━━━━━━━━━`);
             
@@ -869,8 +870,8 @@ const CONFIG = {
             }
             
             lines.push(`━━━━━━━━━━━━━━━━━━━━`);
-            lines.push(`⚡ 대박난손길 1분 간편견적 서비스`);
-            
+            lines.push(`⚡ ${partnerName} 1분 간편견적 서비스`);
+
             return lines.join('\n');
         }
 
@@ -916,8 +917,9 @@ const CONFIG = {
 
             // 모바일이고 navigator.share를 지원하는 경우 공유하기 창을 띄움
             if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                const shareTitle = ((currentPartner && currentPartner.partner_name) || '1분견적') + ' 견적 결과';
                 navigator.share({
-                    title: '대박난손길 견적 결과',
+                    title: shareTitle,
                     text: formattedText
                 }).catch(() => {
                     // 공유하기 창을 닫거나 에러 시 클립보드로 복사 진행
