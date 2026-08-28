@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const WEBHOOK_POST_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-save";
     const WEBHOOK_INQUIRY_URL = "https://primary-production-a6fa.up.railway.app/webhook/dashboard-inquiries";
     const WEBHOOK_YEARLY_URL = "https://primary-production-a6fa.up.railway.app/webhook/yearly-membership-signup";
+    const WEBHOOK_WITHDRAW_URL = "https://primary-production-a6fa.up.railway.app/webhook/withdraw-request";
+    const WEBHOOK_SUGGESTION_URL = "https://primary-production-a6fa.up.railway.app/webhook/suggestion-request";
     const SECRET_TOKEN = "songil_secret_2025";
 
     // 글로벌 단가
@@ -18,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentSubscriptionStatus = ''; // 구독상태('무료회원' 등) - 대시보드 5초 광고 조건 판단용
     let currentAdText = '';
     let currentAdLink = '';
+    let currentPartnerCode = ''; // 탈퇴 신청 / 건의사항 전송 시 가맹점 식별용
 
     function showToast(message, type = 'success') {
         toast.textContent = message;
@@ -129,6 +132,60 @@ document.addEventListener('DOMContentLoaded', async () => {
                 alert('신청 중 오류가 발생했어요. 다시 시도해 주세요.');
                 submitBtn.disabled = false;
                 submitBtn.innerText = '신청하기';
+            }
+        };
+    }
+
+    // 탈퇴 신청 모달 (연회원 전환 모달과 동일한 구조, 사유는 선택 입력)
+    function openWithdrawConfirmDashboard() {
+        if (document.querySelector('.withdraw-confirm-overlay')) return;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'withdraw-confirm-overlay';
+        overlay.innerHTML = `
+            <div class="withdraw-confirm-box">
+                <div class="withdraw-confirm-title">🚪 탈퇴 신청</div>
+                <p class="withdraw-confirm-desc">탈퇴하시면 관리자페이지와 견적페이지 이용이 즉시 중단됩니다.<br>계속 진행하시겠어요?</p>
+                <textarea class="withdraw-reason-textarea" placeholder="탈퇴 사유를 알려주시면 서비스 개선에 참고할게요. (선택)"></textarea>
+                <div class="withdraw-confirm-actions">
+                    <button type="button" class="withdraw-cancel-btn">취소</button>
+                    <button type="button" class="withdraw-submit-btn">탈퇴하기</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        overlay.querySelector('.withdraw-cancel-btn').onclick = () => overlay.remove();
+
+        overlay.querySelector('.withdraw-submit-btn').onclick = async () => {
+            const submitBtn = overlay.querySelector('.withdraw-submit-btn');
+            const reason = overlay.querySelector('.withdraw-reason-textarea').value.trim();
+            submitBtn.disabled = true;
+            submitBtn.innerText = '처리 중...';
+
+            try {
+                const res = await fetch(WEBHOOK_WITHDRAW_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-secret-token': SECRET_TOKEN
+                    },
+                    body: JSON.stringify({ id: partnerRecordId || currentPartnerCode, reason: reason })
+                });
+                const resData = await res.json();
+
+                overlay.querySelector('.withdraw-confirm-box').innerHTML = `
+                    <div class="withdraw-confirm-title">✅ 탈퇴 완료</div>
+                    <p class="withdraw-confirm-desc">${resData.message || '그동안 이용해주셔서 감사합니다.'}</p>
+                    <div class="withdraw-confirm-actions">
+                        <button type="button" class="withdraw-cancel-btn" style="flex:1;">닫기</button>
+                    </div>
+                `;
+                overlay.querySelector('.withdraw-cancel-btn').onclick = () => overlay.remove();
+            } catch (e) {
+                alert('처리 중 오류가 발생했어요. 다시 시도해 주세요.');
+                submitBtn.disabled = false;
+                submitBtn.innerText = '탈퇴하기';
             }
         };
     }
@@ -329,6 +386,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             savePartnerField({ notice: val }, '견적서 공통 안내문구가 업데이트 되었습니다.');
         });
 
+        document.getElementById('sendSuggestionBtn').addEventListener('click', async () => {
+            const textarea = document.getElementById('suggestionText');
+            const content = textarea.value.trim();
+            if (!content) {
+                showToast('건의사항 내용을 입력해 주세요.', 'error');
+                return;
+            }
+            const btn = document.getElementById('sendSuggestionBtn');
+            btn.disabled = true;
+            const originalText = btn.innerText;
+            btn.innerText = '전송 중...';
+            try {
+                const res = await fetch(WEBHOOK_SUGGESTION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-secret-token': SECRET_TOKEN
+                    },
+                    body: JSON.stringify({ id: partnerRecordId || currentPartnerCode, content: content })
+                });
+                const resData = await res.json();
+                if (resData.success) {
+                    showToast(resData.message || '건의사항이 전달됐어요.', 'success');
+                    textarea.value = '';
+                } else {
+                    showToast(resData.message || '전송에 실패했습니다.', 'error');
+                }
+            } catch (e) {
+                showToast('전송 중 오류가 발생했습니다.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        });
+
+        document.getElementById('openWithdrawBtn').addEventListener('click', () => {
+            openWithdrawConfirmDashboard();
+        });
+
 
 
         document.getElementById('editShortIdBtn').addEventListener('click', async () => {
@@ -526,6 +622,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentSubscriptionStatus = data.subscriptionStatus || '';
             currentAdText = data.adText || '';
             currentAdLink = data.adLink || '';
+            currentPartnerCode = data.partnerCode || '';
 
             // 공지사항 및 공식카페 배너 렌더링
             const noticeContainer = document.getElementById('noticeContainer');

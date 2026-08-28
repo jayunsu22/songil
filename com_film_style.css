@@ -1056,6 +1056,105 @@ body {
     opacity: 0.6;
 }
 
+/* [New] 기본정보 탭 하단 - 탈퇴 신청 링크 */
+.account-danger-zone {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    text-align: center;
+}
+
+.withdraw-link-btn {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 13.5px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 8px;
+}
+
+.withdraw-link-btn:hover {
+    color: #e53e3e;
+}
+
+/* [New] 탈퇴 신청 확인 모달 (yearly-confirm-* 과 동일한 구조, 별도 색상) */
+.withdraw-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.withdraw-confirm-box {
+    background: white;
+    border-radius: 16px;
+    padding: 24px 22px;
+    max-width: 340px;
+    width: 100%;
+    text-align: center;
+}
+
+.withdraw-confirm-title {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--text-main, #1a202c);
+    margin-bottom: 10px;
+}
+
+.withdraw-confirm-desc {
+    font-size: 14.5px;
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 14px;
+}
+
+.withdraw-reason-textarea {
+    width: 100%;
+    min-height: 70px;
+    margin-bottom: 16px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14.5px;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.withdraw-confirm-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.withdraw-confirm-actions button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    border: none;
+}
+
+.withdraw-cancel-btn {
+    background: #f1f2f6;
+    color: #555;
+}
+
+.withdraw-submit-btn {
+    background: #e53e3e;
+    color: white;
+}
+
+.withdraw-submit-btn:disabled {
+    opacity: 0.6;
+}
+
 /* [New] 견적문의 탭 - 하루 10건 초과 무료회원에게만 뜨는 5초 광고 오버레이 */
 .inquiry-loading-ad-overlay {
     position: fixed;
