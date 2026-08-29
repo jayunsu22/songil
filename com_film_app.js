@@ -240,6 +240,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadInquiries(partnerId);
         });
 
+        // 상담신청 알림(웹푸시) 클릭해서 들어온 경우(?tab=inquiry) 견적문의 탭이 바로 보이게
+        if (urlParams.get('tab') === 'inquiry') {
+            document.getElementById('inquiryTabBtn').click();
+        }
+
         // 가격 카테고리 탭 클릭 이벤트 추가
         document.querySelectorAll('#priceCategoryTabs .category-tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {

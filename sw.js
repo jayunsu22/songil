@@ -32,12 +32,23 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const url = (event.notification.data && event.notification.data.url) || '/';
+
     event.waitUntil(
-        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            for (const client of clientList) {
-                if (client.url === url && 'focus' in client) return client.focus();
+        (async () => {
+            try {
+                const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+                // 이미 열려있는 탭이 있으면(같은 사이트 origin) 그 탭으로 이동시키고 포커스
+                for (const client of clientList) {
+                    if (client.url.startsWith(self.registration.scope) && 'navigate' in client) {
+                        await client.navigate(url);
+                        if ('focus' in client) return client.focus();
+                        return;
+                    }
+                }
+            } catch (e) {
+                // 위 매칭이 실패해도 아래 openWindow로 폴백
             }
-            if (self.clients.openWindow) return self.clients.openWindow(url);
-        })
+            return self.clients.openWindow(url);
+        })()
     );
 });
