@@ -1,0 +1,9 @@
+{
+  "name": "1film-site-functions",
+  "private": true,
+  "version": "1.0.0",
+  "description": "songil.netlify.app 정적 사이트의 Netlify Functions(웹푸시 발송용) 의존성",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

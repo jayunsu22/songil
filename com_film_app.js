@@ -425,6 +425,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             openWithdrawConfirmDashboard();
         });
 
+        // 🔔 이 브라우저로 알림받기 (웹푸시) - 앱 설치 없이 새 견적/상담 문의를 이 컴퓨터에 알림으로 받음
+        document.getElementById('enablePushBtn').addEventListener('click', async () => {
+            const pushBtn = document.getElementById('enablePushBtn');
+            const statusText = document.getElementById('pushStatusText');
+            pushBtn.disabled = true;
+            pushBtn.innerText = '설정 중...';
+            try {
+                await PushNotify.subscribeToPush(partnerRecordId || partnerId);
+                pushBtn.innerText = '✅ 알림 켜짐';
+                statusText.innerText = '이 브라우저로 알림을 받도록 설정했어요.';
+                showToast('브라우저 알림이 켜졌습니다.', 'success');
+            } catch (e) {
+                pushBtn.disabled = false;
+                pushBtn.innerText = '🔔 이 브라우저 알림 켜기';
+                statusText.innerText = e.message || '알림 설정에 실패했어요.';
+                showToast(e.message || '알림 설정에 실패했어요.', 'error');
+            }
+        });
+        if (typeof PushNotify !== 'undefined') {
+            PushNotify.isSubscribed().then((subscribed) => {
+                if (subscribed) {
+                    document.getElementById('enablePushBtn').innerText = '✅ 알림 켜짐';
+                }
+            });
+        }
+
 
 
         document.getElementById('editShortIdBtn').addEventListener('click', async () => {

@@ -189,7 +189,14 @@
                 <div class="link-desc">단가를 직접 수정하거나 견적/상담 문의 내역을 확인할 수 있어요.</div>
 
                 <div class="telegram-box">
-                    <div class="tg-title">📲 견적문의 실시간 알림받기(선택사항)</div>
+                    <div class="tg-title">🔔 이 브라우저로 바로 알림받기 (추천, 설치 필요없음)</div>
+                    <div class="tg-desc">버튼 한 번만 누르면, 새 견적/상담 문의가 올 때마다 이 컴퓨터에 알림 팝업이 떠요. 앱 설치 없이 지금 바로 켤 수 있어요.</div>
+                    <button type="button" class="tg-btn" id="enablePushBtn" style="background:#4A90E2; border:none; cursor:pointer;">🔔 이 브라우저 알림 켜기</button>
+                    <div class="link-desc" id="pushStatusText" style="margin-top:8px;"></div>
+                </div>
+
+                <div class="telegram-box">
+                    <div class="tg-title">📲 텔레그램으로 알림받기(선택사항)</div>
                     <div class="tg-desc">텔레그램을 설치하시면 견적/상담 요청이 올 때마다 바로 알려드려요. 설치 안 하셔도 위 관리자페이지에서 언제든 확인 가능해요.</div>
                     <a class="tg-btn" id="telegramDownloadBtn" href="#" target="_blank">1. 텔레그램 설치하기</a>
                     <div class="link-desc" style="margin-top:10px;">2. 설치 후 아래 등록링크를 열면 알림이 자동 등록돼요.</div>
@@ -210,6 +217,7 @@
         <div class="footer-note">신청하신 연락처는 다른 목적으로는 사용하지 않습니다.</div>
     </div>
 
+    <script src="push-notify.js"></script>
     <script>
         const CONFIG = {
             signupUrl: "https://primary-production-a6fa.up.railway.app/webhook/trial-signup",
@@ -281,6 +289,24 @@
                     if (data.start_command) document.getElementById('startCmdText').innerText = data.start_command;
 
                     document.getElementById('resultBox').classList.add('show');
+
+                    if (data.partner_record_id) {
+                        document.getElementById('enablePushBtn').addEventListener('click', async () => {
+                            const pushBtn = document.getElementById('enablePushBtn');
+                            const statusText = document.getElementById('pushStatusText');
+                            pushBtn.disabled = true;
+                            pushBtn.innerText = '설정 중...';
+                            try {
+                                await PushNotify.subscribeToPush(data.partner_record_id);
+                                pushBtn.innerText = '✅ 알림 켜짐';
+                                statusText.innerText = '이 브라우저로 알림을 받도록 설정했어요.';
+                            } catch (e) {
+                                pushBtn.disabled = false;
+                                pushBtn.innerText = '🔔 이 브라우저 알림 켜기';
+                                statusText.innerText = e.message || '알림 설정에 실패했어요. 다시 시도해 주세요.';
+                            }
+                        });
+                    }
                 } else {
                     alert(data.message || '신청 중 문제가 발생했어요. 다시 시도해 주세요.');
                     btn.disabled = false;
