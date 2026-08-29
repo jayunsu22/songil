@@ -1474,16 +1474,13 @@ const CONFIG = {
             }, { passive: true });
         }
 
-        // [New] 무료회원 = 관리자가 등록한 광고(광고관리 테이블), 플러스회원(유료) = 본인이 등록한 광고를 노출.
-        // 무료회원이면서 관리자 광고가 없거나, 플러스회원이면서 본인 광고를 등록 안 했으면 mode:'none' (광고 없음).
+        // [New] 플러스회원이 본인 광고를 등록해두면 그걸 우선 노출. 그게 없으면(무료회원이든 플러스회원이든)
+        // 관리자가 등록한 광고(광고관리 테이블)를 기본으로 노출 - 광고 자리가 비어있지 않게 함.
         function resolveAdSource(data) {
             if (!data) return { mode: 'none', ads: [] };
             const isPlus = data.subscription_status !== '무료회원';
-            if (isPlus) {
-                if (data.own_ad_text || data.own_ad_image) {
-                    return { mode: 'own', ads: [{ text: data.own_ad_text || '', link: data.own_ad_link || '', image: data.own_ad_image || '' }] };
-                }
-                return { mode: 'none', ads: [] };
+            if (isPlus && (data.own_ad_text || data.own_ad_image)) {
+                return { mode: 'own', ads: [{ text: data.own_ad_text || '', link: data.own_ad_link || '', image: data.own_ad_image || '' }] };
             }
             const adminAds = Array.isArray(data.ads) && data.ads.length > 0
                 ? data.ads.filter(a => a && a.text)

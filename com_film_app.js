@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         banner.innerHTML = `
             <div class="yearly-banner-full">
                 <div class="yearly-banner-title">🎁 지금 무료회원(광고형)이에요</div>
-                <div class="yearly-banner-line">플러스 회원으로 전환하면 <strong>광고가 사라지고, 그 자리에 내 광고를 넣을 수 있어요</strong></div>
+                <div class="yearly-banner-line">플러스 회원이 되면 <strong>광고 자리에 내 업체 광고를 넣을 수 있어요</strong></div>
                 <div class="yearly-banner-line yearly-banner-price">월 3만원 (연 36만원)</div>
                 <button type="button" class="yearly-banner-btn">플러스 회원 신청하기</button>
             </div>
