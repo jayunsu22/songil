@@ -438,7 +438,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             pushBtn.innerText = '설정 중...';
             try {
                 await PushNotify.subscribeToPush(partnerRecordId || partnerId);
-                pushBtn.innerText = '✅ 알림 켜짐';
+                pushBtn.innerText = '✅ 알림설정완료';
                 statusText.innerHTML = '이 브라우저로 알림을 받도록 설정했어요.';
                 showToast('브라우저 알림이 켜졌습니다.', 'success');
             } catch (e) {
@@ -466,7 +466,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof PushNotify !== 'undefined') {
             PushNotify.isSubscribed().then((subscribed) => {
                 if (subscribed) {
-                    document.getElementById('enablePushBtn').innerText = '✅ 알림 켜짐';
+                    document.getElementById('enablePushBtn').innerText = '✅ 알림설정완료';
                 }
             });
         }
