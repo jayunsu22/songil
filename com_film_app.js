@@ -673,13 +673,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('companyName').textContent = data.partnerName;
                 document.getElementById('partnerNameInput').value = data.partnerName;
             }
-            if (data.contractPeriod) {
+            const remainingDaysBadge = document.getElementById('remainingDaysBadge');
+            if (!data.contractPeriod) {
+                // 계약(결제) 기간이 없는 경우(무료회원 등 만료 개념이 없는 등급) - 가짜 기간/D-day 대신
+                // 구독등급 이름만 보여줌
+                document.getElementById('servicePeriod').textContent = data.subscriptionStatus || '무료회원';
+                if (remainingDaysBadge) remainingDaysBadge.style.display = 'none';
+            } else {
                 document.getElementById('servicePeriod').textContent = data.contractPeriod;
-                
+
                 // 남은 기간 계산 및 배지 렌더링
-                const remainingDaysBadge = document.getElementById('remainingDaysBadge');
                 const remainingDaysNum = document.getElementById('remainingDaysNum');
-                
+
                 if (remainingDaysBadge && remainingDaysNum) {
                     let diffDays = 0;
                     if (data.contractPeriod.includes(' ~ ')) {
