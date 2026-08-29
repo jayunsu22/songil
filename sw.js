@@ -32,23 +32,8 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const url = (event.notification.data && event.notification.data.url) || '/';
-
-    event.waitUntil(
-        (async () => {
-            try {
-                const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-                // 이미 열려있는 탭이 있으면(같은 사이트 origin) 그 탭으로 이동시키고 포커스
-                for (const client of clientList) {
-                    if (client.url.startsWith(self.registration.scope) && 'navigate' in client) {
-                        await client.navigate(url);
-                        if ('focus' in client) return client.focus();
-                        return;
-                    }
-                }
-            } catch (e) {
-                // 위 매칭이 실패해도 아래 openWindow로 폴백
-            }
-            return self.clients.openWindow(url);
-        })()
-    );
+    // 클릭 직후 "사용자 조작" 상태가 살아있는 아주 짧은 시간 안에 openWindow를 바로 호출해야
+    // 안드로이드 크롬 등에서 정상적으로 새 창/탭이 열린다. 그 전에 await로 다른 비동기 작업
+    // (예: 기존 탭 찾기)을 먼저 하면 그 사이에 상태가 만료되어 조용히 아무 일도 안 일어난다.
+    event.waitUntil(self.clients.openWindow(url));
 });
