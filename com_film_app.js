@@ -386,22 +386,43 @@ document.addEventListener('DOMContentLoaded', async () => {
             savePartnerField({ phone: val }, '전화번호가 업데이트 되었습니다.');
         });
 
-        document.getElementById('editQuoteNoticeBtn').addEventListener('click', () => {
-            const val = document.getElementById('quoteNotice').value.trim();
-            savePartnerField({ notice: val }, '견적서 공통 안내문구가 업데이트 되었습니다.');
+        // 긴 텍스트(안내문구/건의사항)를 크게 펼쳐서 수정하는 공용 모달
+        let textEditModalOnSave = null;
+        function openTextEditModal(title, currentValue, onSave) {
+            document.getElementById('textEditModalTitle').textContent = title;
+            document.getElementById('textEditModalTextarea').value = currentValue || '';
+            textEditModalOnSave = onSave;
+            document.getElementById('textEditModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('textEditModalTextarea').focus(), 50);
+        }
+        document.getElementById('textEditModalCancelBtn').addEventListener('click', () => {
+            document.getElementById('textEditModal').style.display = 'none';
+            textEditModalOnSave = null;
+        });
+        document.getElementById('textEditModalSaveBtn').addEventListener('click', async () => {
+            const val = document.getElementById('textEditModalTextarea').value;
+            const cb = textEditModalOnSave;
+            document.getElementById('textEditModal').style.display = 'none';
+            textEditModalOnSave = null;
+            if (cb) await cb(val);
         });
 
-        document.getElementById('sendSuggestionBtn').addEventListener('click', async () => {
-            const textarea = document.getElementById('suggestionText');
-            const content = textarea.value.trim();
-            if (!content) {
+        function openQuoteNoticeEditor() {
+            const current = document.getElementById('quoteNotice').value;
+            openTextEditModal('견적서 공통 안내문구', current, async (val) => {
+                document.getElementById('quoteNotice').value = val;
+                await savePartnerField({ notice: val.trim() }, '견적서 공통 안내문구가 업데이트 되었습니다.');
+            });
+        }
+        document.getElementById('quoteNotice').addEventListener('click', openQuoteNoticeEditor);
+        document.getElementById('editQuoteNoticeBtn').addEventListener('click', openQuoteNoticeEditor);
+
+        async function sendSuggestion(content) {
+            const trimmed = content.trim();
+            if (!trimmed) {
                 showToast('건의사항 내용을 입력해 주세요.', 'error');
                 return;
             }
-            const btn = document.getElementById('sendSuggestionBtn');
-            btn.disabled = true;
-            const originalText = btn.innerText;
-            btn.innerText = '전송 중...';
             try {
                 const res = await fetch(WEBHOOK_SUGGESTION_URL, {
                     method: 'POST',
@@ -409,22 +430,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                         'Content-Type': 'application/json',
                         'x-secret-token': SECRET_TOKEN
                     },
-                    body: JSON.stringify({ id: partnerRecordId || currentPartnerCode, content: content })
+                    body: JSON.stringify({ id: partnerRecordId || currentPartnerCode, content: trimmed })
                 });
                 const resData = await res.json();
                 if (resData.success) {
                     showToast(resData.message || '건의사항이 전달됐어요.', 'success');
-                    textarea.value = '';
+                    document.getElementById('suggestionText').value = '';
                 } else {
                     showToast(resData.message || '전송에 실패했습니다.', 'error');
                 }
             } catch (e) {
                 showToast('전송 중 오류가 발생했습니다.', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = originalText;
             }
-        });
+        }
+        function openSuggestionEditor() {
+            const current = document.getElementById('suggestionText').value;
+            openTextEditModal('건의사항', current, sendSuggestion);
+        }
+        document.getElementById('suggestionText').addEventListener('click', openSuggestionEditor);
+        document.getElementById('sendSuggestionBtn').addEventListener('click', openSuggestionEditor);
 
         document.getElementById('openWithdrawBtn').addEventListener('click', () => {
             openWithdrawConfirmDashboard();
