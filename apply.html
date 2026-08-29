@@ -299,11 +299,15 @@
                             try {
                                 await PushNotify.subscribeToPush(data.partner_record_id);
                                 pushBtn.innerText = '✅ 알림 켜짐';
-                                statusText.innerText = '이 브라우저로 알림을 받도록 설정했어요.';
+                                statusText.innerHTML = '이 브라우저로 알림을 받도록 설정했어요.';
                             } catch (e) {
                                 pushBtn.disabled = false;
                                 pushBtn.innerText = '🔔 이 브라우저 알림 켜기';
-                                statusText.innerText = e.message || '알림 설정에 실패했어요. 다시 시도해 주세요.';
+                                if (/지원하지 않습니다/.test(e.message || '')) {
+                                    statusText.innerHTML = '이 기기/브라우저는 알림 기능을 지원하지 않아요.<br>아이폰이시라면 아래 텔레그램으로 알림을 받아보세요.';
+                                } else {
+                                    statusText.innerText = e.message || '알림 설정에 실패했어요. 다시 시도해 주세요.';
+                                }
                             }
                         });
                     }

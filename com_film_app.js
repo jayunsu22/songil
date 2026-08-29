@@ -439,14 +439,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 await PushNotify.subscribeToPush(partnerRecordId || partnerId);
                 pushBtn.innerText = '✅ 알림 켜짐';
-                statusText.innerText = '이 브라우저로 알림을 받도록 설정했어요.';
+                statusText.innerHTML = '이 브라우저로 알림을 받도록 설정했어요.';
                 showToast('브라우저 알림이 켜졌습니다.', 'success');
             } catch (e) {
                 pushBtn.disabled = false;
                 pushBtn.innerText = '🔔 이 브라우저 알림 켜기';
-                statusText.innerText = e.message || '알림 설정에 실패했어요.';
+                // 아이폰(사파리, 홈화면 추가 안 함) 등 웹푸시 자체가 안 되는 기기/브라우저는
+                // 대안으로 텔레그램 등록을 안내한다.
+                if (/지원하지 않습니다/.test(e.message || '')) {
+                    statusText.innerHTML = '이 기기/브라우저는 알림 기능을 지원하지 않아요.<br>아이폰이시라면 아래 텔레그램으로 알림을 받아보세요.';
+                } else {
+                    statusText.innerText = e.message || '알림 설정에 실패했어요.';
+                }
                 showToast(e.message || '알림 설정에 실패했어요.', 'error');
             }
+        });
+
+        document.getElementById('pushPhoneOnlyCheckbox').addEventListener('change', async (e) => {
+            const checked = e.target.checked;
+            const success = await savePartnerField(
+                { pushPhoneOnly: checked },
+                checked ? '전화번호 있는 상담신청만 알림받도록 설정했어요.' : '새 견적요청에도 알림을 받도록 설정했어요.'
+            );
+            if (!success) e.target.checked = !checked;
         });
         if (typeof PushNotify !== 'undefined') {
             PushNotify.isSubscribed().then((subscribed) => {
@@ -718,6 +733,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // 플러스 회원(구독상태 !== '무료회원')에게만 "내 광고" 입력 섹션 노출
             renderOwnAdSection(data.subscriptionStatus, data.ownAdText, data.ownAdLink, data.ownAdImage);
+
+            const pushPhoneOnlyCb = document.getElementById('pushPhoneOnlyCheckbox');
+            if (pushPhoneOnlyCb) pushPhoneOnlyCb.checked = !!data.pushPhoneOnly;
 
             // 견적문의 탭에서 쓸 구독상태/광고 정보 저장 (10건 초과시 5초 광고용)
             currentSubscriptionStatus = data.subscriptionStatus || '';
