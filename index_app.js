@@ -2336,7 +2336,7 @@ const CONFIG = {
     <div style="position: absolute; left: 20px; top: 120px; max-width: 215px;">
         <div style="position: relative; background: #FFFFFF; border-radius: 18px; padding: 16px 18px; box-shadow: 0 12px 28px rgba(101,74,42,0.18);">
             <div style="position: absolute; bottom: -8px; right: 30px; width: 16px; height: 16px; background: #FFFFFF; transform: rotate(45deg); border-radius: 3px;"></div>
-            <h2 style="margin: 0 0 6px; font-family: 'Gowun Batang', serif; font-size: 18px; font-weight: 700; color: #241E17; letter-spacing: -0.2px; line-height: 1.4; text-align: left;">${partnerName}의<br>24시간 AI 견적비서입니다.</h2>
+            <h2 class="hero-welcome-title" style="margin: 0 0 6px; font-family: 'Gowun Batang', serif; font-size: 18px; font-weight: 700; color: #241E17; letter-spacing: -0.2px; line-height: 1.4; text-align: left;">${partnerName}의<br>24시간 AI 견적비서입니다.</h2>
             <p style="margin: 0; font-size: 12.5px; font-weight: 600; color: #B2612F; line-height: 1.4; text-align: left;">필름견적을 1분이내<br>꼼꼼하게 알려드립니다.</p>
         </div>
     </div>
@@ -2438,6 +2438,14 @@ const CONFIG = {
             const blog = partnerData.blog_url || '';
             const insta = partnerData.insta_url || '';
             const kakao = partnerData.kakao_url || '';
+
+            // 0. AI 견적비서 헤드라인의 가맹점명 업데이트 (renderWelcomeIfNeeded가 데이터 도착 전에
+            //    먼저 그려지는 경우, currentPartner 로딩 완료 시점에 실제 업체명으로 다시 채워준다)
+            const titleEl = welcomeCard.querySelector('.hero-welcome-title');
+            if (titleEl) {
+                const partnerName = partnerData.partner_name || '1분견적';
+                titleEl.innerHTML = `${partnerName}의<br>24시간 AI 견적비서입니다.`;
+            }
 
             // 1. 문의처 담당자명 텍스트 업데이트
             const nameEl = welcomeCard.querySelector('.welcome-partner-name');

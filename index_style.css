@@ -139,6 +139,7 @@ body {
            chat-container의 20px 패딩 밖으로 좌/우/아래를 흘려보낸다 (헤더가 위쪽으로 흘러나가는 방식과 동일). */
         .chat-wrapper.welcome-centered .chat-bubble.bot.welcome-card-bubble.hero-style {
             flex: 1;
+            align-self: stretch !important;
             width: auto !important;
             max-width: none !important;
             margin: 0 -20px -20px -20px !important;
