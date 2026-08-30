@@ -2333,8 +2333,8 @@ const CONFIG = {
 
                 const welcomeMsg = `
 <div class="intro-card hero-intro" style="position: relative; width: 100%; height: 100%; font-family: sans-serif; box-sizing: border-box;">
-    <img src="hero_bg_office.jpg" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(6px); opacity: 0.16; z-index: 0;">
-    <div style="position: absolute; inset: 0; background: linear-gradient(180deg, #FBF8F2 0%, rgba(251,248,242,0.4) 30%, rgba(251,248,242,0.75) 100%); z-index: 1;"></div>
+    <img src="hero_bg_office.jpg" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(5px); opacity: 0.38; z-index: 0;">
+    <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(251,248,242,0.55) 0%, rgba(251,248,242,0.15) 30%, rgba(251,248,242,0.55) 100%); z-index: 1;"></div>
 
     <img src="ai_consultant.png" alt="AI 견적비서가 안내하는 모습" style="position: absolute; right: -4px; bottom: 0; height: 58%; width: auto; display: block; z-index: 2;">
 
