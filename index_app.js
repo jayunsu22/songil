@@ -2312,7 +2312,7 @@ const CONFIG = {
 
     <div style="position: absolute; left: 92px; top: min(150px, 20%); max-width: 210px; z-index: 3;">
         <div style="position: relative; background: #FFFFFF; border-radius: 18px; padding: 16px 20px; box-shadow: 0 12px 28px rgba(101,74,42,0.18);">
-            <svg width="26" height="30" viewBox="0 0 26 30" style="position: absolute; bottom: -17px; right: 20px; display: block;"><path d="M2 0 C0 12 10 20 24 28 C12 27 -2 18 2 0 Z" fill="#FFFFFF"/></svg>
+            <svg width="32" height="28" viewBox="0 0 32 28" style="position: absolute; bottom: -15px; right: 14px; display: block;"><path d="M0 0 L21 0 Q 31 10 27 25 Q 11 17 0 0 Z" fill="#FFFFFF"/></svg>
             <h2 class="hero-welcome-title" style="margin: 0; font-size: 19px; font-weight: 800; color: #241E17; letter-spacing: -0.3px; line-height: 1.5; text-align: left;">${partnerName}의<br><span style="color: #B2612F;">24시간</span><br>견적비서입니다.</h2>
         </div>
     </div>
