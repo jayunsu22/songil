@@ -61,7 +61,10 @@ exports.handler = async (event) => {
   });
 
   try {
-    await webpush.sendNotification(subscription, payload);
+    // urgency: 'high'를 안 주면 안드로이드에서 폰이 잠자기(Doze) 상태일 때 FCM이 "일반 우선순위"로
+    // 취급해서 배터리 최적화 때문에 배송을 늦추거나 계속 미룰 수 있다(구독 직후 화면 켜져있을 때 온
+    // 첫 알림만 오고, 그 다음부터는 안 오는 증상의 실제 원인). high로 강제해서 즉시 깨워서 배송하게 한다.
+    await webpush.sendNotification(subscription, payload, { TTL: 3600, urgency: 'high' });
     return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
   } catch (e) {
     // 구독이 만료/취소된 경우(410/404)를 포함해 실패해도 호출한 n8n 워크플로우 자체는 끊기지 않게
