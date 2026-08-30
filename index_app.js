@@ -80,10 +80,12 @@ const CONFIG = {
                 if (data.success === "true") {
                     currentPartner = data; // 데이터 저장
 
-                    // 1. 헤더 텍스트 변경
+                    // 1. 헤더 텍스트 변경 ("1분"만 포인트 컬러로 강조)
                     const pName = data.partner_name || '';
                     const titleText = pName ? `${pName} 1분견적` : '인테리어필름 1분견적';
-                    document.getElementById('header-title').textContent = titleText;
+                    document.getElementById('header-title').innerHTML = pName
+                        ? `${pName} <span class="accent-num">1분</span>견적`
+                        : `인테리어필름 <span class="accent-num">1분</span>견적`;
                     document.title = titleText; // 브라우저 타이틀 태그도 동기화
 
                     // [New] 헤더 타이틀 아래에 가맹점 연락처 표시 (탭하면 바로 전화걸기)
@@ -2333,18 +2335,18 @@ const CONFIG = {
 <div class="intro-card hero-intro" style="position: relative; width: 100%; height: 100%; font-family: sans-serif; box-sizing: border-box;">
     <img src="ai_consultant.png" alt="AI 견적비서가 안내하는 모습" style="position: absolute; right: -4px; bottom: 0; height: 58%; width: auto; display: block;">
 
-    <div style="position: absolute; left: 44px; top: 120px; max-width: 250px;">
-        <div style="position: relative; background: #FFFFFF; border-radius: 18px; padding: 16px 18px; box-shadow: 0 12px 28px rgba(101,74,42,0.18);">
+    <div style="position: absolute; left: 20px; top: 120px; max-width: 210px;">
+        <div style="position: relative; background: #FFFFFF; border-radius: 18px; padding: 16px 20px; box-shadow: 0 12px 28px rgba(101,74,42,0.18);">
             <div style="position: absolute; bottom: -8px; right: 30px; width: 16px; height: 16px; background: #FFFFFF; transform: rotate(45deg); border-radius: 3px;"></div>
-            <h2 class="hero-welcome-title" style="margin: 0 0 6px; font-family: 'Gowun Batang', serif; font-size: 16px; font-weight: 700; color: #241E17; letter-spacing: -0.2px; line-height: 1.4; text-align: left;">${partnerName}의<br>24시간 AI 견적비서입니다.</h2>
-            <p style="margin: 0; font-size: 12.5px; font-weight: 600; color: #B2612F; line-height: 1.4; text-align: left;">필름견적을 1분이내<br>꼼꼼하게 알려드립니다.</p>
+            <h2 class="hero-welcome-title" style="margin: 0; font-size: 19px; font-weight: 800; color: #241E17; letter-spacing: -0.3px; line-height: 1.5; text-align: left;">${partnerName}의<br><span style="color: #B2612F;">24시간</span><br>견적비서입니다.</h2>
         </div>
     </div>
 
     <div style="position: absolute; left: 20px; right: 20px; bottom: 16px; z-index: 3;">
-        <div style="position: relative; background: #FFFFFF; border-radius: 14px; padding: 12px 14px; box-shadow: 0 10px 26px rgba(101,74,42,0.18); font-size: 14.5px; color: #7A4E23; line-height: 1.5; text-align: left;">
+        <div style="position: relative; background: #FFFFFF; border-radius: 14px; padding: 12px 14px; box-shadow: 0 10px 26px rgba(101,74,42,0.18); font-size: 14.5px; color: #241E17; line-height: 1.5; text-align: left; display: flex; align-items: flex-start; gap: 8px;">
             <div style="position: absolute; top: -7px; left: 26px; width: 14px; height: 14px; background: #FFFFFF; transform: rotate(45deg); border-radius: 3px;"></div>
-            💬 채팅창에 <strong>"방문2개, 샤시2개"</strong> 입력하시거나, 왼쪽의 <strong>간편견적</strong>을 이용해보세요.
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#8B7BC7" style="flex-shrink: 0; margin-top: 2px;"><path d="M12 2C6.48 2 2 5.94 2 10.8c0 2.76 1.44 5.22 3.7 6.84-.13.98-.5 2.32-1.5 3.64a.5.5 0 0 0 .53.79c1.9-.5 3.65-1.4 4.87-2.16.76.15 1.55.23 2.4.23 5.52 0 10-3.94 10-8.8S17.52 2 12 2z"/></svg>
+            <span>채팅창에 <strong>"방문2개, 샤시2개"</strong> 입력하시거나, 왼쪽의 <strong>간편견적</strong>을 이용해보세요.</span>
         </div>
     </div>
 
@@ -2444,7 +2446,7 @@ const CONFIG = {
             const titleEl = welcomeCard.querySelector('.hero-welcome-title');
             if (titleEl) {
                 const partnerName = partnerData.partner_name || '1분견적';
-                titleEl.innerHTML = `${partnerName}의<br>24시간 AI 견적비서입니다.`;
+                titleEl.innerHTML = `${partnerName}의<br><span style="color: #B2612F;">24시간</span><br>견적비서입니다.`;
             }
 
             // 1. 문의처 담당자명 텍스트 업데이트
