@@ -2333,11 +2333,14 @@ const CONFIG = {
 
                 const welcomeMsg = `
 <div class="intro-card hero-intro" style="position: relative; width: 100%; height: 100%; font-family: sans-serif; box-sizing: border-box;">
-    <img src="ai_consultant.png" alt="AI 견적비서가 안내하는 모습" style="position: absolute; right: -4px; bottom: 0; height: 58%; width: auto; display: block;">
+    <img src="hero_bg_office.jpg" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(6px); opacity: 0.16; z-index: 0;">
+    <div style="position: absolute; inset: 0; background: linear-gradient(180deg, #FBF8F2 0%, rgba(251,248,242,0.4) 30%, rgba(251,248,242,0.75) 100%); z-index: 1;"></div>
 
-    <div style="position: absolute; left: 20px; top: 120px; max-width: 210px;">
+    <img src="ai_consultant.png" alt="AI 견적비서가 안내하는 모습" style="position: absolute; right: -4px; bottom: 0; height: 58%; width: auto; display: block; z-index: 2;">
+
+    <div style="position: absolute; left: 92px; top: 150px; max-width: 210px; z-index: 3;">
         <div style="position: relative; background: #FFFFFF; border-radius: 18px; padding: 16px 20px; box-shadow: 0 12px 28px rgba(101,74,42,0.18);">
-            <div style="position: absolute; bottom: -8px; right: 30px; width: 16px; height: 16px; background: #FFFFFF; transform: rotate(45deg); border-radius: 3px;"></div>
+            <div style="position: absolute; bottom: -8px; right: 24px; width: 16px; height: 16px; background: #FFFFFF; transform: rotate(45deg); border-radius: 3px;"></div>
             <h2 class="hero-welcome-title" style="margin: 0; font-size: 19px; font-weight: 800; color: #241E17; letter-spacing: -0.3px; line-height: 1.5; text-align: left;">${partnerName}의<br><span style="color: #B2612F;">24시간</span><br>견적비서입니다.</h2>
         </div>
     </div>
@@ -2346,7 +2349,7 @@ const CONFIG = {
         <div style="position: relative; background: #FFFFFF; border-radius: 14px; padding: 12px 14px; box-shadow: 0 10px 26px rgba(101,74,42,0.18); font-size: 14.5px; color: #241E17; line-height: 1.5; text-align: left; display: flex; align-items: flex-start; gap: 8px;">
             <div style="position: absolute; top: -7px; left: 26px; width: 14px; height: 14px; background: #FFFFFF; transform: rotate(45deg); border-radius: 3px;"></div>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#8B7BC7" style="flex-shrink: 0; margin-top: 2px;"><path d="M12 2C6.48 2 2 5.94 2 10.8c0 2.76 1.44 5.22 3.7 6.84-.13.98-.5 2.32-1.5 3.64a.5.5 0 0 0 .53.79c1.9-.5 3.65-1.4 4.87-2.16.76.15 1.55.23 2.4.23 5.52 0 10-3.94 10-8.8S17.52 2 12 2z"/></svg>
-            <span>채팅창에 <strong>"방문2개, 샤시2개"</strong> 입력하시거나, 왼쪽의 <strong>간편견적</strong>을 이용해보세요.</span>
+            <span>채팅창에 <strong>"방문2개, 샤시2개"</strong> 입력하시거나,<br>왼쪽의 <strong>간편견적</strong>을 이용해보세요.</span>
         </div>
     </div>
 
