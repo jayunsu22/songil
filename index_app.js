@@ -953,6 +953,11 @@ const CONFIG = {
 
         async function sendRequest(isFromDynamicBtn = false) {
             document.querySelector('.chat-wrapper')?.classList.remove('welcome-centered');
+            // [Fix] welcome-centered가 빠지면 히어로형 웰컴카드(.hero-style)는 flex:1 높이를 잃고
+            // 내부의 절대좌표 요소(말풍선/사진/안내카드)만 남아 이후 대화 내용 위에 둥둥 떠서 겹쳐 보이던 문제.
+            // 실제 대화가 시작되는 시점부터는 웰컴카드를 완전히 숨긴다.
+            const welcomeCardEl = document.querySelector('.welcome-card-bubble');
+            if (welcomeCardEl) welcomeCardEl.style.display = 'none';
             const isDynamic = (isFromDynamicBtn === true);
             let msg = userInput.value.trim();
 
