@@ -1481,18 +1481,15 @@ const CONFIG = {
             }, { passive: true });
         }
 
-        // [New] 플러스회원이 본인 광고를 등록해두면 그걸 우선 노출. 그게 없으면(무료회원이든 플러스회원이든)
-        // 관리자가 등록한 광고(광고관리 테이블)를 기본으로 노출 - 광고 자리가 비어있지 않게 함.
+        // [수정] 무료회원 대상 관리자 광고 배너 기능은 폐지함 (요청에 따라 완전 제거).
+        // 플러스회원이 본인 광고(내광고_문구/링크/이미지)를 등록해둔 경우에만 노출.
         function resolveAdSource(data) {
             if (!data) return { mode: 'none', ads: [] };
             const isPlus = data.subscription_status !== '무료회원';
             if (isPlus && (data.own_ad_text || data.own_ad_image)) {
                 return { mode: 'own', ads: [{ text: data.own_ad_text || '', link: data.own_ad_link || '', image: data.own_ad_image || '' }] };
             }
-            const adminAds = Array.isArray(data.ads) && data.ads.length > 0
-                ? data.ads.filter(a => a && a.text)
-                : (data.ad_text ? [{ text: data.ad_text, link: data.ad_link || '' }] : []);
-            return { mode: adminAds.length > 0 ? 'admin' : 'none', ads: adminAds };
+            return { mode: 'none', ads: [] };
         }
 
         // [New] 견적페이지 하단에 제휴/본인 광고 배너 노출 (무료회원=관리자광고, 플러스회원=본인광고)
@@ -2338,7 +2335,7 @@ const CONFIG = {
 
                 const welcomeMsg = `
 <div class="intro-card hero-intro" style="position: relative; width: 100%; height: 100%; font-family: sans-serif; box-sizing: border-box;">
-    <img src="hero_bg_office.jpg" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(5px); opacity: 0.38; z-index: 0;">
+    <img src="hero_bg_plants.jpg" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(4px); opacity: 0.4; z-index: 0;">
     <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(251,248,242,0.55) 0%, rgba(251,248,242,0.15) 30%, rgba(251,248,242,0.55) 100%); z-index: 1;"></div>
 
     <img src="ai_consultant.png" alt="AI 견적비서가 안내하는 모습" style="position: absolute; right: -4px; bottom: 0; height: 58%; width: auto; display: block; z-index: 2;">
