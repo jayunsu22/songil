@@ -2333,16 +2333,16 @@ const CONFIG = {
 <div class="intro-card hero-intro" style="position: relative; width: 100%; height: 100%; font-family: sans-serif; box-sizing: border-box;">
     <img src="ai_consultant.png" alt="AI 견적비서가 안내하는 모습" style="position: absolute; right: -4px; bottom: 0; height: 58%; width: auto; display: block;">
 
-    <div style="position: absolute; left: 20px; top: 120px; max-width: 215px;">
+    <div style="position: absolute; left: 44px; top: 120px; max-width: 250px;">
         <div style="position: relative; background: #FFFFFF; border-radius: 18px; padding: 16px 18px; box-shadow: 0 12px 28px rgba(101,74,42,0.18);">
             <div style="position: absolute; bottom: -8px; right: 30px; width: 16px; height: 16px; background: #FFFFFF; transform: rotate(45deg); border-radius: 3px;"></div>
-            <h2 class="hero-welcome-title" style="margin: 0 0 6px; font-family: 'Gowun Batang', serif; font-size: 18px; font-weight: 700; color: #241E17; letter-spacing: -0.2px; line-height: 1.4; text-align: left;">${partnerName}의<br>24시간 AI 견적비서입니다.</h2>
+            <h2 class="hero-welcome-title" style="margin: 0 0 6px; font-family: 'Gowun Batang', serif; font-size: 16px; font-weight: 700; color: #241E17; letter-spacing: -0.2px; line-height: 1.4; text-align: left;">${partnerName}의<br>24시간 AI 견적비서입니다.</h2>
             <p style="margin: 0; font-size: 12.5px; font-weight: 600; color: #B2612F; line-height: 1.4; text-align: left;">필름견적을 1분이내<br>꼼꼼하게 알려드립니다.</p>
         </div>
     </div>
 
     <div style="position: absolute; left: 20px; right: 20px; bottom: 16px; z-index: 3;">
-        <div style="position: relative; background: #FFFFFF; border-radius: 14px; padding: 12px 14px; box-shadow: 0 10px 26px rgba(101,74,42,0.18); font-size: 12.5px; color: #7A4E23; line-height: 1.5; text-align: left;">
+        <div style="position: relative; background: #FFFFFF; border-radius: 14px; padding: 12px 14px; box-shadow: 0 10px 26px rgba(101,74,42,0.18); font-size: 14.5px; color: #7A4E23; line-height: 1.5; text-align: left;">
             <div style="position: absolute; top: -7px; left: 26px; width: 14px; height: 14px; background: #FFFFFF; transform: rotate(45deg); border-radius: 3px;"></div>
             💬 채팅창에 <strong>"방문2개, 샤시2개"</strong> 입력하시거나, 왼쪽의 <strong>간편견적</strong>을 이용해보세요.
         </div>
