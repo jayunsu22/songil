@@ -747,12 +747,15 @@ const CONFIG = {
             return overlay;
         }
 
-        // 로딩 오버레이를 제거하고, 광고(무료회원=관리자광고 / 플러스회원=본인광고)가 있으면
-        // 같은 광고를 하단 배너로 정착시킴 (초기화면엔 광고를 안 띄우다가, 견적 결과가 나온 시점부터 이어서 보여주는 구조)
+        // 로딩 오버레이를 제거함. 하단 고정 배너는 플러스회원 본인광고일 때만 이어서 정착시킴
+        // (무료회원 대상 관리자 광고는 로딩화면에서만 보이고, 견적 결과 화면에 계속 붙어있진 않음)
         function hideFullscreenLoading(loading) {
             if (loading && loading._adRotateTimer) clearInterval(loading._adRotateTimer);
             if (loading && loading.parentNode) loading.parentNode.removeChild(loading);
-            addPartnerAdBanner(currentPartnerCode, currentPartner);
+            const adSource = resolveAdSource(currentPartner);
+            if (adSource.mode === 'own') {
+                addPartnerAdBanner(currentPartnerCode, currentPartner);
+            }
         }
 
         // 서버 응답이 로딩 시작 후 MIN_LOADING_MS보다 빨리 왔다면, 남은 시간만큼 더 기다렸다가
@@ -1481,15 +1484,19 @@ const CONFIG = {
             }, { passive: true });
         }
 
-        // [수정] 무료회원 대상 관리자 광고 배너 기능은 폐지함 (요청에 따라 완전 제거).
-        // 플러스회원이 본인 광고(내광고_문구/링크/이미지)를 등록해둔 경우에만 노출.
+        // [수정] 견적 산출중 로딩화면 광고는 유지하되(무료회원=관리자광고), 견적 결과 화면 하단에
+        // 계속 붙어있는 고정 배너는 플러스회원 본인광고일 때만 노출하도록 분리함 (호출부인
+        // hideFullscreenLoading에서 mode==='own'일 때만 addPartnerAdBanner를 부르도록 게이트).
         function resolveAdSource(data) {
             if (!data) return { mode: 'none', ads: [] };
             const isPlus = data.subscription_status !== '무료회원';
             if (isPlus && (data.own_ad_text || data.own_ad_image)) {
                 return { mode: 'own', ads: [{ text: data.own_ad_text || '', link: data.own_ad_link || '', image: data.own_ad_image || '' }] };
             }
-            return { mode: 'none', ads: [] };
+            const adminAds = Array.isArray(data.ads) && data.ads.length > 0
+                ? data.ads.filter(a => a && a.text)
+                : (data.ad_text ? [{ text: data.ad_text, link: data.ad_link || '' }] : []);
+            return { mode: adminAds.length > 0 ? 'admin' : 'none', ads: adminAds };
         }
 
         // [New] 견적페이지 하단에 제휴/본인 광고 배너 노출 (무료회원=관리자광고, 플러스회원=본인광고)
