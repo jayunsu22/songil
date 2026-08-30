@@ -2310,7 +2310,7 @@ const CONFIG = {
 
     <img src="ai_consultant.png" alt="AI 견적비서가 안내하는 모습" style="position: absolute; right: -4px; bottom: 0; height: 58%; width: auto; display: block; z-index: 2;">
 
-    <div style="position: absolute; left: 92px; top: 150px; max-width: 210px; z-index: 3;">
+    <div style="position: absolute; left: 92px; top: min(150px, 20%); max-width: 210px; z-index: 3;">
         <div style="position: relative; background: #FFFFFF; border-radius: 18px; padding: 16px 20px; box-shadow: 0 12px 28px rgba(101,74,42,0.18);">
             <div style="position: absolute; bottom: -8px; right: 24px; width: 16px; height: 16px; background: #FFFFFF; transform: rotate(45deg); border-radius: 3px;"></div>
             <h2 class="hero-welcome-title" style="margin: 0; font-size: 19px; font-weight: 800; color: #241E17; letter-spacing: -0.3px; line-height: 1.5; text-align: left;">${partnerName}의<br><span style="color: #B2612F;">24시간</span><br>견적비서입니다.</h2>
