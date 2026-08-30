@@ -522,7 +522,7 @@ const CONFIG = {
                     const btn = document.createElement('button');
                     btn.className = 'quick-reply-btn dynamic-btn';
                     btn.innerText = opt.text;
-                    btn.style.cssText = "display: block; width: 100%; margin-bottom: 8px; padding: 12px; background: #4A90E2; color: white; border: none; border-radius: 8px; font-size: 1.05em; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); box-sizing: border-box;";
+                    btn.style.cssText = "display: block; width: 100%; margin-bottom: 8px; padding: 12px; background: #B2612F; color: white; border: none; border-radius: 8px; font-size: 1.05em; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); box-sizing: border-box;";
 
                     btn.onclick = () => {
                         if (step === 0) {
@@ -614,7 +614,7 @@ const CONFIG = {
                             ${insta ? `<a href="${insta}" target="_blank" style="display:inline-block; padding:2px 6px; background:linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color:white; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">인</a>` : ''}
                             ${kakao ? `<a href="${kakao}" target="_blank" style="display:inline-block; padding:2px 6px; background:#FEE500; color:#3c1e1e; text-decoration:none; border-radius:4px; font-size:0.85em; font-weight:bold;">카</a>` : ''}
                         </div>
-                        <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <a href="tel:${phone}" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #B2612F; color: #B2612F; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             📞 ${phone}
                         </a>
                         ${(false && !content.includes('견적 제공이 되지 않는') && !content.includes('견적을 산출할 수 없습니다')) ?
@@ -1551,7 +1551,7 @@ const CONFIG = {
                 <input type="tel" class="consult-phone-input" placeholder="010-0000-0000" inputmode="numeric" style="width:100%; box-sizing:border-box; padding:12px 14px; border:1px solid #ddd; border-radius:10px; font-size:1em; margin-bottom:10px;">
                 <div style="display:flex; gap:8px;">
                     <button type="button" class="consult-cancel-btn" style="flex:1; padding:11px; border:1px solid #ddd; background:white; color:#666; border-radius:10px; font-weight:700; cursor:pointer;">취소</button>
-                    <button type="button" class="consult-submit-btn" style="flex:1; padding:11px; border:none; background:#4A90E2; color:white; border-radius:10px; font-weight:700; cursor:pointer;">상담 신청하기</button>
+                    <button type="button" class="consult-submit-btn" style="flex:1; padding:11px; border:none; background:#B2612F; color:white; border-radius:10px; font-weight:700; cursor:pointer;">상담 신청하기</button>
                 </div>
             `;
             topRow.parentNode.insertBefore(form, topRow.nextSibling);
@@ -1743,9 +1743,9 @@ const CONFIG = {
             if (oldForm) oldForm.remove();
             const selectForm = document.createElement('div');
             selectForm.className = 'dropdown-select-form';
-            selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #4A90E2; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; position: relative;";
+            selectForm.style.cssText = "margin: 8px; padding: 12px; background: #f8f9fa; border: 1px solid #B2612F; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; position: relative;";
             const titleSpan = document.createElement('span');
-            titleSpan.style.cssText = "font-size: 0.85em; font-weight: bold; color: #4A90E2; padding-right: 25px;";
+            titleSpan.style.cssText = "font-size: 0.85em; font-weight: bold; color: #B2612F; padding-right: 25px;";
             let optionList = [];
             let titleText = "";
             if (!currentLabel) currentLabel = item.label;
@@ -1849,7 +1849,7 @@ const CONFIG = {
             mainTabsConfig.forEach(t => {
                 const tab = document.createElement('div');
                 tab.innerText = t.label;
-                tab.style.cssText = `flex: 1; padding: 10px; font-weight: bold; font-size: 0.9em; border-radius: 6px; cursor: pointer; transition: 0.2s; text-align: center; ${mainTab === t.index ? 'background: white; color: #4A90E2; box-shadow: 0 2px 4px rgba(0,0,0,0.05);' : 'color: #888;'}`;
+                tab.style.cssText = `flex: 1; padding: 10px; font-weight: bold; font-size: 0.9em; border-radius: 6px; cursor: pointer; transition: 0.2s; text-align: center; ${mainTab === t.index ? 'background: white; color: #B2612F; box-shadow: 0 2px 4px rgba(0,0,0,0.05);' : 'color: #888;'}`;
                 tab.onclick = () => {
                     tab.classList.add('click-effect');
                     setTimeout(() => {
@@ -1932,7 +1932,7 @@ const CONFIG = {
                 ITEM_CATEGORIES.forEach((cat, index) => {
                     const subTab = document.createElement('div');
                     subTab.innerText = cat.name;
-                    subTab.style.cssText = `padding: 8px; font-weight: bold; font-size: 0.9em; cursor: pointer; border-bottom: 3px solid ${index === currentB2BTab ? '#4A90E2' : 'transparent'}; color: ${index === currentB2BTab ? '#4A90E2' : '#888'}; flex: 1; transition: all 0.2s; text-align: center;`;
+                    subTab.style.cssText = `padding: 8px; font-weight: bold; font-size: 0.9em; cursor: pointer; border-bottom: 3px solid ${index === currentB2BTab ? '#B2612F' : 'transparent'}; color: ${index === currentB2BTab ? '#B2612F' : '#888'}; flex: 1; transition: all 0.2s; text-align: center;`;
                     subTab.onclick = () => { subTab.classList.add('click-effect'); setTimeout(() => { currentB2BTab = index; renderQuickQuoteModal(); }, 100); };
                     subTabsDiv.appendChild(subTab);
                 });
@@ -1963,8 +1963,8 @@ const CONFIG = {
                         if (item.sub && item.sub !== lastSubHeader) {
                             if (lastSubHeader !== "") { const divider = document.createElement('div'); divider.style.cssText = "border-top: 1px solid #edf2f7; margin: 8px 16px; clear: both;"; tdValue.appendChild(divider); }
                             const subHeaderDiv = document.createElement('div');
-                            subHeaderDiv.style.cssText = "font-size: 0.82em; font-weight: bold; color: #4A90E2; margin: 10px 16px 4px; display: flex; align-items: center; gap: 6px; clear: both; text-align: left;";
-                            subHeaderDiv.innerHTML = `<span style="display:inline-block; width:5px; height:5px; background:#4A90E2; border-radius:50%;"></span> ${item.sub}`;
+                            subHeaderDiv.style.cssText = "font-size: 0.82em; font-weight: bold; color: #B2612F; margin: 10px 16px 4px; display: flex; align-items: center; gap: 6px; clear: both; text-align: left;";
+                            subHeaderDiv.innerHTML = `<span style="display:inline-block; width:5px; height:5px; background:#B2612F; border-radius:50%;"></span> ${item.sub}`;
                             tdValue.appendChild(subHeaderDiv);
                             lastSubHeader = item.sub;
                         }
@@ -1980,7 +1980,7 @@ const CONFIG = {
                             const slotItem = b2bCart.find(c => c.name === item.name && c.cartIndex === slotIndex);
                             if (slotItem) {
                                 row.classList.add('active');
-                                row.innerHTML = `<span class="qty-item-name-btn" style="cursor: pointer; flex: 1; text-align: left; display: flex; flex-direction: column; justify-content: center; padding: 2px 0;"><span style="display: block; line-height: 1.3;">${currentLabel}</span>${slotItem.option ? `<span style="font-size: 0.82em; color: #4A90E2; display: block; font-weight: normal; margin-top: 2px; line-height: 1.2;">↳ 선택: ${slotItem.option}</span>` : ""}</span><div class="excel-qty-control" style="display: flex; align-items: center; align-self: center;"><span class="excel-check-badge">✓</span><button class="qty-btn remove">&times;</button></div>`;
+                                row.innerHTML = `<span class="qty-item-name-btn" style="cursor: pointer; flex: 1; text-align: left; display: flex; flex-direction: column; justify-content: center; padding: 2px 0;"><span style="display: block; line-height: 1.3;">${currentLabel}</span>${slotItem.option ? `<span style="font-size: 0.82em; color: #B2612F; display: block; font-weight: normal; margin-top: 2px; line-height: 1.2;">↳ 선택: ${slotItem.option}</span>` : ""}</span><div class="excel-qty-control" style="display: flex; align-items: center; align-self: center;"><span class="excel-check-badge">✓</span><button class="qty-btn remove">&times;</button></div>`;
                                 bindClickEffect(row.querySelector('.qty-item-name-btn'), (e) => { e.stopPropagation(); if (item.type.includes('-dropdown')) openDropdownForm(item, rowWrapper, slotIndex, currentLabel); else addCartItem(item.name, currentLabel, "", 1, slotIndex); });
                                 bindClickEffect(row.querySelector('.qty-btn.remove'), (e) => { e.stopPropagation(); clearCartItemBySlot(item.name, slotIndex); });
                             } else {
@@ -2001,7 +2001,7 @@ const CONFIG = {
                 photoCard.style.cssText = "padding: 25px 20px; border-radius: 12px; border: 2px dashed #cbd5e1; background: #f8fafc; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; margin-top: 10px;";
                 photoCard.innerHTML = `<div style="font-weight: bold; font-size: 1.15em; color: #1a202c;">📸 사진 찍어서 빠른 견적 받기</div><div style="font-size: 0.88em; color: #64748b; white-space: pre-line; line-height: 1.5; margin-bottom: 5px;">시공할 현장 사진을 촬영하여 올려주시면<br>AI가 사진을 실시간 분석해 1분안에 견적을 계산해 드립니다.</div>`;
                 const uploadBtn = document.createElement('button');
-                uploadBtn.style.cssText = "display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 260px; padding: 12px 24px; background: #4A90E2; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.0em; cursor: pointer; box-shadow: 0 4px 6px rgba(74, 144, 226, 0.2);";
+                uploadBtn.style.cssText = "display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 260px; padding: 12px 24px; background: #B2612F; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 1.0em; cursor: pointer; box-shadow: 0 4px 6px rgba(178, 97, 47, 0.2);";
                 uploadBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>보관된 사진 선택`;
                 bindClickEffect(uploadBtn, () => { document.getElementById('imageInput').click(); });
                 const cameraBtn = document.createElement('button');
@@ -2030,7 +2030,7 @@ const CONFIG = {
                 cartListContainer.style.cssText = "margin-top: 20px; border-top: 2px dashed #e2e8f0; padding-top: 15px; text-align: left; transition: all 0.2s; border-radius: 12px; padding: 12px; background: #f8fafc; border: 1px solid #edf2f7;";
 
                 const cartHeader = document.createElement('div');
-                cartHeader.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.88em; font-weight: bold; color: #4A90E2;";
+                cartHeader.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.88em; font-weight: bold; color: #B2612F;";
                 cartHeader.innerHTML = `<span>🛒 담긴 견적 품목 목록</span> <span>총 ${b2bCart.length}종류</span>`;
                 cartListContainer.appendChild(cartHeader);
 
@@ -2045,7 +2045,7 @@ const CONFIG = {
 
                     const infoSpan = document.createElement('span');
                     infoSpan.style.cssText = "font-weight: 500; color: #334155; display: inline-flex; align-items: center;";
-                    infoSpan.innerHTML = `<span style="color:#4A90E2; font-weight:bold; margin-right:5px;">•</span> ${item.label}${optText}`;
+                    infoSpan.innerHTML = `<span style="color:#B2612F; font-weight:bold; margin-right:5px;">•</span> ${item.label}${optText}`;
 
                     const deleteBtn = document.createElement('button');
                     deleteBtn.innerHTML = "×";
@@ -2080,7 +2080,7 @@ const CONFIG = {
 
                 const submitBtn = document.createElement('button');
                 submitBtn.innerHTML = `🛒 ${b2bCart.length}개 견적내기`;
-                submitBtn.style.cssText = "flex: 1.6; padding: 14px; background: linear-gradient(135deg, #4A90E2, #357ABD); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 0.98em; cursor: pointer; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);";
+                submitBtn.style.cssText = "flex: 1.6; padding: 14px; background: linear-gradient(135deg, #B2612F, #8F4B22); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 0.98em; cursor: pointer; box-shadow: 0 4px 10px rgba(178, 97, 47, 0.3);";
 
                 bindClickEffect(submitBtn, () => {
                     const requestTexts = [];
@@ -2330,28 +2330,28 @@ const CONFIG = {
 
                 const welcomeMsg = `
 <div class="intro-card" style="text-align: center; font-family: sans-serif; padding: 5px 0; width: 100%; box-sizing: border-box;">
-    <h2 style="font-size: 1.5em; font-weight: 800; color: #1a202c; margin: 10px 0 5px; letter-spacing: -0.5px;">필름견적 한번에 OK!</h2>
-    <p style="font-size: 0.95em; color: #4a5568; line-height: 1.5; margin: 0 0 15px;">
-        <strong style="color: #4A90E2; font-weight: 800;">1분이내 견적 OK!</strong>
+    <h2 style="font-family: 'Gowun Batang', serif; font-size: 1.55em; font-weight: 700; color: #241E17; margin: 10px 0 5px; letter-spacing: -0.3px;">필름견적 한번에 OK!</h2>
+    <p style="font-size: 0.95em; color: #6B5B47; line-height: 1.5; margin: 0 0 15px;">
+        <strong style="color: #B2612F; font-weight: 800;">1분이내 견적 OK!</strong>
     </p>
 
-    <div style="background: #ebf8ff; border: 1px dashed #90cdf4; border-radius: 10px; padding: 8px 12px; margin: 0 0 15px; font-size: 0.82em; color: #2b6cb0; line-height: 1.4;">
+    <div style="background: #F6E9D7; border: 1px dashed #D9AF7E; border-radius: 10px; padding: 8px 12px; margin: 0 0 15px; font-size: 0.82em; color: #7A4E23; line-height: 1.4;">
         💬 채팅창에 바로 <strong>"화장실문2개, 샤시2개"</strong>처럼 입력해도 견적이 나와요!
     </div>
 
     <div style="display: none;">
     <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 20px;">
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 75px; height: 75px; border-radius: 50%; background: #ebf8ff; border: 2.5px solid #3182ce; box-shadow: 0 4px 6px rgba(49, 130, 206, 0.15); box-sizing: border-box;">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 75px; height: 75px; border-radius: 50%; background: #F6E9D7; border: 2.5px solid #B2612F; box-shadow: 0 4px 6px rgba(178, 97, 47, 0.15); box-sizing: border-box;">
             <span style="font-size: 1.5em; line-height: 1; margin-bottom: 3px;">🏠</span>
-            <span style="font-size: 0.75em; color: #2b6cb0; font-weight: 800; letter-spacing: -0.5px;">평형별</span>
+            <span style="font-size: 0.75em; color: #7A4E23; font-weight: 800; letter-spacing: -0.5px;">평형별</span>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 75px; height: 75px; border-radius: 50%; background: #ebf8ff; border: 2.5px solid #3182ce; box-shadow: 0 4px 6px rgba(49, 130, 206, 0.15); box-sizing: border-box;">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 75px; height: 75px; border-radius: 50%; background: #F6E9D7; border: 2.5px solid #B2612F; box-shadow: 0 4px 6px rgba(178, 97, 47, 0.15); box-sizing: border-box;">
             <span style="font-size: 1.5em; line-height: 1; margin-bottom: 3px;">🛒</span>
-            <span style="font-size: 0.75em; color: #2b6cb0; font-weight: 800; letter-spacing: -0.5px;">품목별</span>
+            <span style="font-size: 0.75em; color: #7A4E23; font-weight: 800; letter-spacing: -0.5px;">품목별</span>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 75px; height: 75px; border-radius: 50%; background: #ebf8ff; border: 2.5px solid #3182ce; box-shadow: 0 4px 6px rgba(49, 130, 206, 0.15); box-sizing: border-box;">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 75px; height: 75px; border-radius: 50%; background: #F6E9D7; border: 2.5px solid #B2612F; box-shadow: 0 4px 6px rgba(178, 97, 47, 0.15); box-sizing: border-box;">
             <span style="font-size: 1.5em; line-height: 1; margin-bottom: 3px;">📸</span>
-            <span style="font-size: 0.75em; color: #2b6cb0; font-weight: 800; letter-spacing: -0.5px;">사진견적</span>
+            <span style="font-size: 0.75em; color: #7A4E23; font-weight: 800; letter-spacing: -0.5px;">사진견적</span>
         </div>
     </div>
 
@@ -2380,14 +2380,14 @@ const CONFIG = {
         </div>
 
         <div style="position: relative; width: 48px; height: 68px; background: #fff; border: 2px solid #cbd5e0; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.04); padding: 5px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0;">
-            <div style="width: 100%; height: 4px; background: #4A90E2; border-radius: 1px;"></div>
+            <div style="width: 100%; height: 4px; background: #B2612F; border-radius: 1px;"></div>
             <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 4px; flex: 1;">
                 <div style="width: 85%; height: 2px; background: #edf2f7; border-radius: 1px;"></div>
                 <div style="width: 60%; height: 2px; background: #edf2f7; border-radius: 1px;"></div>
                 <div style="width: 90%; height: 2px; background: #edf2f7; border-radius: 1px;"></div>
             </div>
             <div style="display: flex; justify-content: flex-end; align-items: center; line-height: 1;">
-                <span style="font-size: 0.7em; color: #4A90E2; font-weight: bold;">✔</span>
+                <span style="font-size: 0.7em; color: #B2612F; font-weight: bold;">✔</span>
             </div>
         </div>
     </div>
@@ -2398,7 +2398,7 @@ const CONFIG = {
             <span class="welcome-partner-name" style="font-weight: bold; font-size: 1.0em; color: #333; margin-right: 5px;">문의 : ${ceo} ${pos}</span>
             <div class="welcome-partner-socials-container" style="display: inline-block;">${socialHtml}</div>
         </div>
-        <a href="tel:${phone}" class="welcome-partner-phone" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #4A90E2; color: #4A90E2; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); outline: none;">
+        <a href="tel:${phone}" class="welcome-partner-phone" style="display: block; width: 100%; box-sizing: border-box; background: white; border: 2px solid #B2612F; color: #B2612F; text-decoration: none; font-weight: 800; font-size: 1.3em; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); outline: none;">
             📞 <span class="phone-text">${phone}</span>
         </a>
     </div>
@@ -2540,7 +2540,7 @@ const CONFIG = {
             // 5. 최종 견적 산출 버튼
             const submitBtn = document.createElement('button');
             submitBtn.id = "pinSubmitBtn";
-            submitBtn.style.cssText = "display: none; width: 100%; padding: 14px; background: linear-gradient(135deg, #4A90E2, #357ABD); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1.0em; cursor: pointer; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3); margin-top: 10px;";
+            submitBtn.style.cssText = "display: none; width: 100%; padding: 14px; background: linear-gradient(135deg, #B2612F, #8F4B22); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1.0em; cursor: pointer; box-shadow: 0 4px 10px rgba(178, 97, 47, 0.3); margin-top: 10px;";
             submitBtn.innerText = `🛒 핀으로 견적내기 (${flatplanPins.length}개)`;
             container.appendChild(submitBtn);
 
@@ -2975,7 +2975,7 @@ const CONFIG = {
                     tr.innerHTML = `
                         <td><span class="pin-badge">${index + 1}</span></td>
                         <td style="font-weight:600; color:#334155; text-align:left;">${pin.label}</td>
-                        <td style="color:#4A90E2; font-weight:500; text-align:left;">${pin.option || '기본'}</td>
+                        <td style="color:#B2612F; font-weight:500; text-align:left;">${pin.option || '기본'}</td>
                         <td><button class="pin-item-delete-btn" data-index="${index}">&times;</button></td>
                     `;
                     tr.querySelector('.pin-item-delete-btn').onclick = () => {
