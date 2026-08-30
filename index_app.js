@@ -747,15 +747,11 @@ const CONFIG = {
             return overlay;
         }
 
-        // 로딩 오버레이를 제거함. 하단 고정 배너는 플러스회원 본인광고일 때만 이어서 정착시킴
-        // (무료회원 대상 관리자 광고는 로딩화면에서만 보이고, 견적 결과 화면에 계속 붙어있진 않음)
+        // 로딩 오버레이를 제거함. 광고(관리자광고/본인광고 모두)는 로딩화면에서만 보이고,
+        // 견적 결과 화면 하단에는 회원등급 무관하게 더 이상 고정 배너로 남지 않음.
         function hideFullscreenLoading(loading) {
             if (loading && loading._adRotateTimer) clearInterval(loading._adRotateTimer);
             if (loading && loading.parentNode) loading.parentNode.removeChild(loading);
-            const adSource = resolveAdSource(currentPartner);
-            if (adSource.mode === 'own') {
-                addPartnerAdBanner(currentPartnerCode, currentPartner);
-            }
         }
 
         // 서버 응답이 로딩 시작 후 MIN_LOADING_MS보다 빨리 왔다면, 남은 시간만큼 더 기다렸다가
@@ -1484,9 +1480,8 @@ const CONFIG = {
             }, { passive: true });
         }
 
-        // [수정] 견적 산출중 로딩화면 광고는 유지하되(무료회원=관리자광고), 견적 결과 화면 하단에
-        // 계속 붙어있는 고정 배너는 플러스회원 본인광고일 때만 노출하도록 분리함 (호출부인
-        // hideFullscreenLoading에서 mode==='own'일 때만 addPartnerAdBanner를 부르도록 게이트).
+        // [수정] 광고(관리자광고=무료회원 / 본인광고=플러스회원)는 견적산출 로딩화면에서만 노출.
+        // 견적 결과 화면 하단에 계속 붙어있는 고정 배너 기능은 회원등급 무관하게 폐지함.
         function resolveAdSource(data) {
             if (!data) return { mode: 'none', ads: [] };
             const isPlus = data.subscription_status !== '무료회원';
@@ -1497,38 +1492,6 @@ const CONFIG = {
                 ? data.ads.filter(a => a && a.text)
                 : (data.ad_text ? [{ text: data.ad_text, link: data.ad_link || '' }] : []);
             return { mode: adminAds.length > 0 ? 'admin' : 'none', ads: adminAds };
-        }
-
-        // [New] 견적페이지 하단에 제휴/본인 광고 배너 노출 (무료회원=관리자광고, 플러스회원=본인광고)
-        function addPartnerAdBanner(partnerCode, data) {
-            if (partnerCode === 'p_999') return; // 정성필름은 시스템 홍보용 데모 계정 - 하단에 이미 무료체험 CTA가 있어 광고와 자리가 겹침
-            if (document.querySelector('.partner-ad-banner')) return;
-
-            const adSource = resolveAdSource(data);
-            if (adSource.mode === 'none') return;
-            const ad = adSource.ads[0];
-
-            const banner = document.createElement('a');
-            banner.className = 'partner-ad-banner';
-            banner.href = ad.link || '#';
-            if (ad.link) banner.target = '_blank';
-            const badgeHtml = adSource.mode === 'admin' ? '<span class="ad-badge">광고</span>' : '';
-            const photoHtml = ad.image ? `<img class="ad-photo" src="${ad.image}" alt="">` : '';
-            banner.innerHTML = `
-                ${badgeHtml}
-                <div class="ad-banner-row">
-                    ${photoHtml}
-                    <span class="ad-text">${ad.text}</span>
-                </div>
-            `;
-            // 채팅 입력창(chat-input-area) 바로 아래, chat-wrapper 맨 마지막에 끼워넣음
-            // (fixed 포지션 대신 flex 흐름을 이용해 입력창과 안 겹치게 함)
-            const inputArea = document.querySelector('.chat-input-area');
-            if (inputArea && inputArea.parentNode) {
-                inputArea.after(banner);
-            } else {
-                document.body.appendChild(banner);
-            }
         }
 
         // 클릭 효과 바인딩 헬퍼 함수

@@ -556,66 +556,8 @@ body {
             animation: tabShine 2.8s ease-in-out infinite;
         }
 
-        /* [New] 무료회원(광고형) 가맹점 견적페이지 맨 하단(입력창 아래) 제휴광고 배너 - 연회원 전환시 사라짐 */
-        /* chat-wrapper(flex-column) 안에서 채팅 입력창 바로 아래에 in-flow로 삽입되므로 fixed를 쓰지 않음 (입력창과 겹침 방지),
-           너비는 채팅창(chat-wrapper)과 동일하게 자동으로 맞춰짐 */
-        .partner-ad-banner {
-            position: relative;
-            flex-shrink: 0;
-            width: 100%;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            min-height: 64px;
-            background: linear-gradient(135deg, #B2612F, #8F4B22);
-            color: white;
-            text-decoration: none;
-            padding: 14px 16px 20px;
-            text-align: center;
-            font-family: 'Noto Sans KR', sans-serif;
-        }
-
-        /* [수정: 2026-08-28] 눈에 덜 띄게 - 하단 좌측 작은 표시로 이동 (표시광고법상 최소 고지는 유지) */
-        .partner-ad-banner .ad-badge {
-            position: absolute;
-            bottom: 6px;
-            left: 10px;
-            background: none;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.6em;
-            font-weight: 600;
-            padding: 0;
-            letter-spacing: 0.3px;
-        }
-
-        .partner-ad-banner .ad-text {
-            font-size: 0.98em;
-            font-weight: 700;
-            line-height: 1.4;
-        }
-
-        /* 플러스 회원 본인광고에 사진이 있을 때: 사진+문구를 가로로 배치 */
-        .partner-ad-banner .ad-banner-row {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            width: 100%;
-        }
-        .partner-ad-banner .ad-photo {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            object-fit: cover;
-            flex-shrink: 0;
-            border: 1.5px solid rgba(255, 255, 255, 0.4);
-        }
-
-        /* [New] 견적산출 로딩화면(30초) 하단의 큰 광고 - 무료회원(광고형) 가맹점 손님만 봄.
-           로딩이 끝나면 같은 광고가 .partner-ad-banner로 정착됨.
+        /* [New] 견적산출 로딩화면(30초) 하단의 큰 광고 - 무료회원=관리자광고, 플러스회원=본인광고.
+           (견적 결과 화면 하단에 계속 붙어있는 고정 배너 기능은 폐지되어, 광고는 이 로딩화면에서만 노출됨)
            (2026-08-28 확대: 기존보다 훨씬 크고 눈에 띄게) */
         .loading-screen-ad {
             position: relative;
@@ -660,6 +602,12 @@ body {
             font-size: 1.85em;
             font-weight: 800;
             line-height: 1.45;
+            /* [수정] 광고가 10초마다 다른 문구로 바뀔 때 줄 수 차이로 화면이 미세하게 움직이던 문제 -
+               문구 길이와 무관하게 항상 2줄 높이를 확보해서 교체 시 레이아웃이 흔들리지 않게 함 */
+            min-height: 2.9em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .loading-screen-ad .ad-cta {
