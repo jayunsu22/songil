@@ -91,6 +91,7 @@ export default async (request, context) => {
         if (!partnerName) {
             const r2 = new Response(response.body, response);
             r2.headers.set('x-partner-og-debug', 'noname:' + debug);
+            r2.headers.set('cache-control', 'no-store');
             return r2;
         }
 
@@ -115,6 +116,7 @@ export default async (request, context) => {
             .on('meta[name="twitter:description"]', new AttrSetter('content', desc))
             .transform(response);
         rewritten.headers.set('x-partner-og-debug', 'ok:' + debug);
+        rewritten.headers.set('cache-control', 'no-store');
         return rewritten;
     } catch (e) {
         // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게)
