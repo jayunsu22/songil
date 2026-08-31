@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="yearly-banner-full">
                 <div class="yearly-banner-title">🎁 지금 무료회원(광고형)이에요</div>
                 <div class="yearly-banner-line">플러스 회원이 되면 <strong>광고 자리에 내 업체 광고를 넣을 수 있어요</strong></div>
-                <div class="yearly-banner-line yearly-banner-price">월 3만원 (연 36만원)</div>
+                <div class="yearly-banner-line yearly-banner-price">월 3만원 (연 36만원, 부가세 별도)</div>
                 <button type="button" class="yearly-banner-btn">플러스 회원 신청하기</button>
             </div>
             <div class="yearly-banner-compact">
@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         overlay.innerHTML = `
             <div class="yearly-confirm-box">
                 <div class="yearly-confirm-title">🎉 플러스 회원 전환 신청</div>
-                <p class="yearly-confirm-desc">월 3만원(연 36만원)으로 광고 없이, 내 광고도 넣을 수 있어요.<br>등록된 연락처로 곧 안내드릴게요.</p>
+                <p class="yearly-confirm-desc">월 3만원(연 36만원, 부가세 별도)으로 광고 없이, 내 광고도 넣을 수 있어요.<br>등록된 연락처로 곧 안내드릴게요.</p>
                 <div class="yearly-confirm-actions">
                     <button type="button" class="yearly-cancel-btn">취소</button>
                     <button type="button" class="yearly-submit-btn">신청하기</button>
