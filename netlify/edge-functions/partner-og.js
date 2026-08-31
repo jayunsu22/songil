@@ -100,25 +100,24 @@ export default async (request, context) => {
         const desc = isDashboard
             ? `${partnerName} 파트너 관리자페이지입니다.`
             : `${partnerName}의 빠른 필름 견적 서비스입니다.`;
+        const escAttr = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        const escText = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-        class TextSetter {
-            element(el) { el.setInnerContent(title); }
-        }
-        class AttrSetter {
-            constructor(attr, val) { this.attr = attr; this.val = val; }
-            element(el) { el.setAttribute(this.attr, this.val); }
-        }
+        // [수정] HTMLRewriter(스트리밍 파서)를 썼을 때 원인 불명으로 응답이 통째로 원본으로 되돌아가는
+        // 현상이 있어서, 훨씬 단순한 방식(전체 HTML을 문자열로 받아 그대로 텍스트 치환)으로 교체함.
+        // 페이지 용량이 작아서(수 KB) 성능 문제 없음.
+        let html = await response.text();
+        html = html.replace(/<title>[^<]*<\/title>/, `<title>${escText(title)}</title>`);
+        html = html.replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
+        html = html.replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
+        html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
+        html = html.replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
 
-        const rewritten = new HTMLRewriter()
-            .on('title', new TextSetter())
-            .on('meta[property="og:title"]', new AttrSetter('content', title))
-            .on('meta[property="og:description"]', new AttrSetter('content', desc))
-            .on('meta[name="twitter:title"]', new AttrSetter('content', title))
-            .on('meta[name="twitter:description"]', new AttrSetter('content', desc))
-            .transform(response);
-        rewritten.headers.set('cache-control', 'no-store');
-        rewritten.headers.set('x-partner-og-hit', 'matched:' + partnerName);
-        return rewritten;
+        const newHeaders = new Headers(response.headers);
+        newHeaders.set('cache-control', 'no-store');
+        newHeaders.set('x-partner-og-hit', 'matched:' + partnerName);
+        newHeaders.delete('content-length');
+        return new Response(html, { status: response.status, headers: newHeaders });
     } catch (e) {
         // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게)
         try {
