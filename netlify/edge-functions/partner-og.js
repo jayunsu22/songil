@@ -6,16 +6,42 @@
 // 클라이언트에서만 바꿔치기한다. 카카오톡 같은 링크 미리보기 봇은 JS를 실행하지 않고
 // 서버가 내려준 원본 HTML만 읽기 때문에, 항상 정적 기본값만 보여주는 게 원인이었다.
 //
-// 이 Edge Function은 정적 파일 응답을 가로채서, URL의 code(또는 id) 파라미터로
-// 기존 백엔드(webhook)에 업체명을 물어본 뒤, 그 응답 HTML의 <title>/og 태그만 실제
-// 업체명으로 바꿔서 내려준다. 백엔드 조회가 느리거나 실패해도 원본 정적 페이지를
-// 그대로 보여주도록(사이트가 절대 깨지지 않도록) 모든 단계에 안전장치를 둠.
+// [중요] 처음엔 실시간으로 n8n 백엔드(webhook/partner-info 등)를 조회해서 업체명을 가져오는
+// 방식으로 만들었으나, 그 백엔드 응답이 1.5~1.8초 정도 걸려서 Netlify Edge Function의 실행
+// 제한시간을 넘겨버려 응답 자체가 통째로 씹히는 문제가 있었다(에러조차 안 잡힘). 그래서 실시간
+// 조회 대신, 아래 PARTNER_NAMES/DASHBOARD_NAMES 정적 표에서 즉시 찾아 바꿔치기하는 방식으로 변경.
+// -> 새 가맹점이 생기거나 업체명이 바뀌면 이 파일도 같이 업데이트해줘야 함(partners.js와 동일한 유지보수 방식).
 
-const PARTNER_INFO_URL = 'https://primary-production-a6fa.up.railway.app/webhook/partner-info';
-const DASHBOARD_INFO_URL = 'https://primary-production-a6fa.up.railway.app/webhook/dashboard-save';
+const PARTNER_NAMES = {
+    p_001: '섬세한손길',
+    p_002: '3m인테리어필름',
+    p_003: '세모필름',
+    p_004: '테스트필름',
+    p_999: '정성필름',
+    hoho: '호호필름',
+    haha: '하하필름',
+    singi: '신기필름',
+    t1film: '테스트필름',
+    test5: '테스트5',
+    test6: '테스트6',
+};
 
-// index.html 쪽 partners.js와 동일한 매핑(짧은 홍보ID -> 실제 업체코드). 이 파일이 서버(엣지)에서
-// 정적 partners.js를 import할 수 없어 최소한으로 복제해둔 것 - partners.js를 고칠 때 여기도 같이 확인 필요.
+// com_film_dashboard.html?id=<레코드ID> 용 - 레코드ID -> 업체명
+const DASHBOARD_NAMES = {
+    recl7DPCfMjH5osKW: '섬세한손길',
+    recWJ7MMgEtVbby98: '3m인테리어필름',
+    recB6GeWza9e58Q3o: '세모필름',
+    reco1fjkFCMNCW1g3: '테스트필름',
+    recJS9X2s7LyCPrQ0: '정성필름',
+    recyJzc6dKJha4cBY: '신기필름',
+    rec03lbudI0QmIH4E: '테스트필름',
+    recrhyXNVXy15szZ4: '하하필름',
+    recn8M8zwIFaLBMBT: '호호필름',
+    rec45CNMgm5zy8Gdk: '테스트5',
+    recAcziPTWwzUK59v: '테스트6',
+};
+
+// index.html 쪽 partners.js와 동일한 매핑(짧은 홍보ID -> 실제 업체코드).
 const PARTNER_MAPPING = {
     songil: 'p_001',
     hyun: 'p_002',
@@ -25,17 +51,8 @@ const PARTNER_MAPPING = {
     jeongseong_test: 'p_999',
 };
 
-async function fetchWithTimeout(url, ms) {
-    // [수정] AbortController 수동 조합 대신 표준 AbortSignal.timeout()을 사용.
-    // (원인 불명이지만 수동 AbortController 조합에서 실제 유효한 code=p_001 같은 요청에서만
-    //  응답이 통째로 안 돌아오는 현상이 있어 더 단순한 방식으로 교체함)
-    return await fetch(url, { signal: AbortSignal.timeout(ms) });
-}
-
-// [수정] 일반 방문자에게는 이 함수가 아예 개입하지 않게(지연 0) 하고, 카카오톡/문자/SNS 링크 미리보기
-// 봇으로 보이는 요청에서만 실제로 업체명을 조회해서 og 태그를 바꿔치기한다. 일반 사용자는 어차피
-// 페이지 접속 후 JS가 실제 업체명으로 화면을 바꿔주므로, 굳이 모든 방문마다 백엔드를 한번 더 호출해
-// 로딩을 늦출 이유가 없음.
+// 일반 방문자에게는 이 함수가 개입하지 않게(지연 0) 하고, 카카오톡/문자/SNS 링크 미리보기 봇으로
+// 보이는 요청에서만 og 태그를 바꿔치기한다.
 const BOT_UA_PATTERN = /kakaotalk|kakaostory|facebookexternalhit|twitterbot|slackbot|discordbot|telegrambot|whatsapp|line\/|naver.?bot|daumoa|preview/i;
 
 export default async (request, context) => {
@@ -45,16 +62,10 @@ export default async (request, context) => {
     }
 
     const response = await context.next();
-    let debug = 'start';
 
     try {
         const contentType = response.headers.get('content-type') || '';
-        debug = 'contentType=' + contentType;
-        if (!contentType.includes('text/html')) {
-            const r2 = new Response(response.body, response);
-            r2.headers.set('x-partner-og-debug', 'skip:' + debug);
-            return r2;
-        }
+        if (!contentType.includes('text/html')) return response;
 
         const url = new URL(request.url);
         const isDashboard = url.pathname.toLowerCase().includes('com_film_dashboard');
@@ -63,16 +74,7 @@ export default async (request, context) => {
 
         if (isDashboard) {
             const id = url.searchParams.get('id');
-            debug = 'dashboard id=' + id;
-            if (id) {
-                const r = await fetchWithTimeout(`${DASHBOARD_INFO_URL}?id=${encodeURIComponent(id)}`, 2800);
-                debug += ' fetchStatus=' + r.status;
-                if (r.ok) {
-                    const data = await r.json();
-                    partnerName = data.partner_name || data.업체명 || null;
-                    debug += ' name=' + partnerName;
-                }
-            }
+            if (id) partnerName = DASHBOARD_NAMES[id] || null;
         } else {
             let code = url.searchParams.get('code');
             if (!code) {
@@ -81,27 +83,10 @@ export default async (request, context) => {
                     code = PARTNER_MAPPING[path] || path;
                 }
             }
-            debug = 'path=' + url.pathname + ' code=' + code;
-            if (code) {
-                const r = await fetchWithTimeout(`${PARTNER_INFO_URL}?code=${encodeURIComponent(code)}`, 2800);
-                debug += ' fetchStatus=' + r.status;
-                if (r.ok) {
-                    const data = await r.json();
-                    debug += ' success=' + data.success;
-                    if (data.success === 'true' || data.success === true) {
-                        partnerName = data.partner_name || null;
-                        debug += ' name=' + partnerName;
-                    }
-                }
-            }
+            if (code) partnerName = PARTNER_NAMES[code] || null;
         }
 
-        if (!partnerName) {
-            const r2 = new Response(response.body, response);
-            r2.headers.set('x-partner-og-debug', 'noname:' + debug);
-            r2.headers.set('cache-control', 'no-store');
-            return r2;
-        }
+        if (!partnerName) return response;
 
         const title = isDashboard ? `${partnerName} 가맹점페이지` : `${partnerName} 1분견적`;
         const desc = isDashboard
@@ -123,18 +108,11 @@ export default async (request, context) => {
             .on('meta[name="twitter:title"]', new AttrSetter('content', title))
             .on('meta[name="twitter:description"]', new AttrSetter('content', desc))
             .transform(response);
-        rewritten.headers.set('x-partner-og-debug', 'ok:' + debug);
         rewritten.headers.set('cache-control', 'no-store');
         return rewritten;
     } catch (e) {
         // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게)
-        try {
-            const r2 = new Response(response.body, response);
-            r2.headers.set('x-partner-og-debug', 'error:' + debug + ' :: ' + (e && e.message));
-            return r2;
-        } catch (e2) {
-            return response;
-        }
+        return response;
     }
 };
 
