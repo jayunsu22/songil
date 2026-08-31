@@ -134,9 +134,21 @@ export default async (request, context) => {
         }
 
         html = html.replace(/<title>[^<]*<\/title>/, `<title>${escText(title)}</title>`);
+        if (diag === '4') {
+            return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'diag4-after-title' } });
+        }
         html = html.replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
+        if (diag === '5') {
+            return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'diag5-after-ogtitle' } });
+        }
         html = html.replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
+        if (diag === '6') {
+            return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'diag6-after-ogdesc' } });
+        }
         html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
+        if (diag === '7') {
+            return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'diag7-after-twtitle' } });
+        }
         html = html.replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
 
         if (diag === '3') {
