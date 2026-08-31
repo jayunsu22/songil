@@ -26,13 +26,10 @@ const PARTNER_MAPPING = {
 };
 
 async function fetchWithTimeout(url, ms) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ms);
-    try {
-        return await fetch(url, { signal: controller.signal });
-    } finally {
-        clearTimeout(timer);
-    }
+    // [수정] AbortController 수동 조합 대신 표준 AbortSignal.timeout()을 사용.
+    // (원인 불명이지만 수동 AbortController 조합에서 실제 유효한 code=p_001 같은 요청에서만
+    //  응답이 통째로 안 돌아오는 현상이 있어 더 단순한 방식으로 교체함)
+    return await fetch(url, { signal: AbortSignal.timeout(ms) });
 }
 
 export default async (request, context) => {
@@ -57,7 +54,7 @@ export default async (request, context) => {
             const id = url.searchParams.get('id');
             debug = 'dashboard id=' + id;
             if (id) {
-                const r = await fetchWithTimeout(`${DASHBOARD_INFO_URL}?id=${encodeURIComponent(id)}`, 1800);
+                const r = await fetchWithTimeout(`${DASHBOARD_INFO_URL}?id=${encodeURIComponent(id)}`, 2800);
                 debug += ' fetchStatus=' + r.status;
                 if (r.ok) {
                     const data = await r.json();
@@ -75,7 +72,7 @@ export default async (request, context) => {
             }
             debug = 'path=' + url.pathname + ' code=' + code;
             if (code) {
-                const r = await fetchWithTimeout(`${PARTNER_INFO_URL}?code=${encodeURIComponent(code)}`, 1800);
+                const r = await fetchWithTimeout(`${PARTNER_INFO_URL}?code=${encodeURIComponent(code)}`, 2800);
                 debug += ' fetchStatus=' + r.status;
                 if (r.ok) {
                     const data = await r.json();
