@@ -111,11 +111,17 @@ export default async (request, context) => {
         // 페이지 용량이 작아서(수 KB) 성능 문제 없음.
         // [중요] 치환 문자열에 $1/$2처럼 캡처그룹을 참조하는 패턴을 쓰면, 치환할 내용(업체명 등) 안에
         // 우연히 '$' 문자가 섞였을 때 결과가 오염될 수 있어서, 항상 콜백 함수 형태로 치환한다.
+        // [New] 카톡 미리보기 카드 하단에 뜨는 주소 줄이 항상 "1film.co.kr"처럼 도메인만 짧게
+        // 나오는 게 아니라, 실제 클릭된 링크(예: 1film.co.kr/good)까지 끝까지 보이게 og:url도
+        // 실제 요청 주소로 바꿔치기함.
+        const ogUrl = request.url;
+
         const html = await response.text();
         const finalHtml = html
             .replace(/<title>[^<]*<\/title>/, () => `<title>${escText(title)}</title>`)
             .replace(/(<meta property="og:title" content=")[^"]*(")/, (_, p1, p2) => `${p1}${escAttr(title)}${p2}`)
             .replace(/(<meta property="og:description" content=")[^"]*(")/, (_, p1, p2) => `${p1}${escAttr(desc)}${p2}`)
+            .replace(/(<meta property="og:url" content=")[^"]*(")/, (_, p1, p2) => `${p1}${escAttr(ogUrl)}${p2}`)
             .replace(/(<meta name="twitter:title" content=")[^"]*(")/, (_, p1, p2) => `${p1}${escAttr(title)}${p2}`)
             .replace(/(<meta name="twitter:description" content=")[^"]*(")/, (_, p1, p2) => `${p1}${escAttr(desc)}${p2}`);
 
