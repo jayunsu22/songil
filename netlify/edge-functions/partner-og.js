@@ -103,9 +103,18 @@ export default async (request, context) => {
         const escAttr = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
         const escText = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-        // [수정] HTMLRewriter(스트리밍 파서)를 썼을 때 원인 불명으로 응답이 통째로 원본으로 되돌아가는
-        // 현상이 있어서, 훨씬 단순한 방식(전체 HTML을 문자열로 받아 그대로 텍스트 치환)으로 교체함.
-        // 페이지 용량이 작아서(수 KB) 성능 문제 없음.
+        // [임시 디버그] &_diag=1|2|3 쿼리로 세 가지 응답 방식을 한 배포에서 동시에 비교해서
+        // 정확히 어느 단계에서 500이 나는지 격리하기 위한 임시 분기. 원인 찾으면 삭제할 것.
+        const diag = url.searchParams.get('_diag');
+
+        if (diag === '1') {
+            // 가장 단순한 하드코딩 응답 (본문 읽기/치환 전혀 없음)
+            return new Response('diag1-minimal-ok', {
+                status: 200,
+                headers: { 'content-type': 'text/plain', 'x-partner-og-hit': 'diag1' },
+            });
+        }
+
         let html;
         try {
             html = await response.text();
@@ -115,17 +124,29 @@ export default async (request, context) => {
                 headers: { 'content-type': 'text/plain', 'x-partner-og-hit': 'read-error' },
             });
         }
+
+        if (diag === '2') {
+            // 원본 HTML을 읽기만 하고 치환 없이 그대로 재구성 (response.text() 자체가 원인인지 확인)
+            return new Response(html, {
+                status: 200,
+                headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'diag2' },
+            });
+        }
+
         html = html.replace(/<title>[^<]*<\/title>/, `<title>${escText(title)}</title>`);
         html = html.replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
         html = html.replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
         html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
         html = html.replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
 
-        // [중요] 'cache-control': 'no-store' 헤더를 넣으면 이 Netlify Edge Function이
-        // 원인 불명의 "uncaught exception during edge function invocation" 500 에러를
-        // 뱉는 현상을 여러 차례 재현/격리로 확인함(동일 코드에서 이 헤더만 껐다 켰다 하며 검증).
-        // 대신 각기 다른 code/id 쿼리는 요청 경로 자체가 달라서 Netlify가 자연히 별도로 캐싱하므로
-        // (짧은 랜덤 경로 테스트에서 항상 fwd=miss로 확인됨) 캐시 오염 위험은 낮음. 절대 다시 추가하지 말 것.
+        if (diag === '3') {
+            // 정규식 치환까지 다 하되, 헤더를 new Headers()로 명시적으로 구성 (plain object가 원인인지 확인)
+            const h = new Headers();
+            h.set('content-type', 'text/html; charset=UTF-8');
+            h.set('x-partner-og-hit', 'diag3:' + partnerName);
+            return new Response(html, { status: 200, headers: h });
+        }
+
         return new Response(html, {
             status: 200,
             headers: {
