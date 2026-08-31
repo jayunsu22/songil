@@ -113,10 +113,13 @@ export default async (request, context) => {
         html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
         html = html.replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
 
-        const newHeaders = new Headers(response.headers);
+        // [중요] 원본 응답 헤더를 그대로 복사하면 content-encoding(br 압축)/transfer-encoding(chunked)이
+        // 남아있는데, 지금 body는 압축 안 된 순수 텍스트라서 그 헤더들과 실제 내용이 안 맞아 응답이
+        // 깨진다(에러조차 못 잡고 통째로 실패). 그래서 필요한 헤더만 새로 골라서 만든다.
+        const newHeaders = new Headers();
+        newHeaders.set('content-type', 'text/html; charset=UTF-8');
         newHeaders.set('cache-control', 'no-store');
         newHeaders.set('x-partner-og-hit', 'matched:' + partnerName);
-        newHeaders.delete('content-length');
         return new Response(html, { status: response.status, headers: newHeaders });
     } catch (e) {
         // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게)
