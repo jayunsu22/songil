@@ -121,7 +121,13 @@ export default async (request, context) => {
         return rewritten;
     } catch (e) {
         // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게)
-        return response;
+        try {
+            const passthrough = new Response(response.body, response);
+            passthrough.headers.set('x-partner-og-hit', 'error:' + (e && (e.stack || e.message || String(e))).slice(0, 500));
+            return passthrough;
+        } catch (e2) {
+            return response;
+        }
     }
 };
 
