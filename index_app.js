@@ -9,6 +9,11 @@ const CONFIG = {
         let currentPartnerCode = ''; // 가맹점 코드 저장용 (200 Rewrite 대응)
         let chatHistory = []; // 채팅 기록 메모리 저장
 
+        // [수정] 채팅기록을 가맹점별로 분리해서 불러오려면(아래 loadChatHistory), URL 기반
+        // 가맹점 코드가 네트워크 조회(loadPartnerInfo) 전에 먼저 확정돼 있어야 함 - resolvePartnerCodeFromUrl은
+        // 파일 하단에 정의되어 있지만 function 선언이라 호이스팅되어 여기서도 바로 호출 가능함.
+        currentPartnerCode = resolvePartnerCodeFromUrl();
+
         /* ==========================================================================
            [New: 2026-06-14] 2단계/3단계 평면도 핀 꽂기 & 아파트 검색용 글로벌 데이터 및 상태 변수
            ========================================================================== */
@@ -47,8 +52,13 @@ const CONFIG = {
             }
         ];
 
-        // [New] URL에서 code 파라미터 읽어서 가맹점 정보 가져오기
-        async function loadPartnerInfo() {
+        // [New] URL(쿼리스트링 또는 경로)에서 가맹점 코드만 동기적으로 뽑아내는 함수.
+        // [수정] 채팅기록(v2_chat_history)이 가맹점 구분 없이 하나의 localStorage 키를 공유해서,
+        // 같은 브라우저로 A가맹점 테스트 후 B가맹점 페이지를 열면 A의 대화가 B 페이지에도 섞여
+        // 나오던 버그가 있었음(예: 섬세한손길 페이지에 유니아 담당자 정보가 뜸). 채팅기록을 가맹점별로
+        // 분리해서 저장하려면 이 코드값이 "채팅기록을 불러오기 전"에 먼저 확정돼 있어야 해서,
+        // 원래 loadPartnerInfo() 안에서 fetch 직전에 계산하던 로직을 동기 함수로 분리함.
+        function resolvePartnerCodeFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
             let code = urlParams.get('code');
 
@@ -66,12 +76,16 @@ const CONFIG = {
                     }
                 }
             }
+            return code || '';
+        }
+
+        // [New] URL에서 code 파라미터 읽어서 가맹점 정보 가져오기
+        async function loadPartnerInfo() {
+            const code = currentPartnerCode; // resolvePartnerCodeFromUrl()로 이미 전역에 세팅되어 있음
 
             if (!code) {
                 return;
             }
-
-            currentPartnerCode = code; // 가맹점 코드 전역 변수에 저장
 
             try {
                 const res = await fetch(`${CONFIG.partnerUrl}?code=${code}`);
@@ -134,9 +148,16 @@ const CONFIG = {
 
         // 페이지 로드 시 실행 (변수 초기화 완료 후 하단에서 실행됨)
 
+        // [수정] 채팅기록 localStorage 키를 가맹점 코드별로 분리 - 같은 브라우저에서 여러 가맹점
+        // 페이지를 오가며 테스트/이용할 때 다른 가맹점의 대화(및 그 안의 담당자 이름 등)가 섞여
+        // 보이던 버그 수정. currentPartnerCode는 파일 상단에서 URL 기준으로 이미 동기적으로 세팅됨.
+        function getChatHistoryStorageKey() {
+            return 'v2_chat_history_' + (currentPartnerCode || 'default');
+        }
+
         // [New] 채팅 기록 불러오기 (v2_chat_history)
         function loadChatHistory() {
-            const saved = localStorage.getItem('v2_chat_history');
+            const saved = localStorage.getItem(getChatHistoryStorageKey());
             if (saved) {
                 try {
                     chatHistory = JSON.parse(saved);
@@ -157,7 +178,7 @@ const CONFIG = {
         // [New] 채팅 초기화 버튼 기능
         function resetChat() {
             if (!confirm("모든 대화 내용을 삭제하고 새로 시작하시겠습니까?")) return;
-            localStorage.removeItem('v2_chat_history');
+            localStorage.removeItem(getChatHistoryStorageKey());
             location.reload();
         }
 
@@ -643,7 +664,7 @@ const CONFIG = {
                 chatHistory.push({ message: saveContent, sender: sender, isQuote: isQuote });
 
                 try {
-                    localStorage.setItem('v2_chat_history', JSON.stringify(chatHistory));
+                    localStorage.setItem(getChatHistoryStorageKey(), JSON.stringify(chatHistory));
                 } catch (e) {
                     console.warn("로컬스토리지 용량 초과:", e);
                 }
