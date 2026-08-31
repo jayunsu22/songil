@@ -37,10 +37,16 @@ async function fetchWithTimeout(url, ms) {
 
 export default async (request, context) => {
     const response = await context.next();
+    let debug = 'start';
 
     try {
         const contentType = response.headers.get('content-type') || '';
-        if (!contentType.includes('text/html')) return response;
+        debug = 'contentType=' + contentType;
+        if (!contentType.includes('text/html')) {
+            const r2 = new Response(response.body, response);
+            r2.headers.set('x-partner-og-debug', 'skip:' + debug);
+            return r2;
+        }
 
         const url = new URL(request.url);
         const isDashboard = url.pathname.toLowerCase().includes('com_film_dashboard');
@@ -49,11 +55,14 @@ export default async (request, context) => {
 
         if (isDashboard) {
             const id = url.searchParams.get('id');
+            debug = 'dashboard id=' + id;
             if (id) {
                 const r = await fetchWithTimeout(`${DASHBOARD_INFO_URL}?id=${encodeURIComponent(id)}`, 1800);
+                debug += ' fetchStatus=' + r.status;
                 if (r.ok) {
                     const data = await r.json();
                     partnerName = data.partner_name || data.업체명 || null;
+                    debug += ' name=' + partnerName;
                 }
             }
         } else {
@@ -64,18 +73,26 @@ export default async (request, context) => {
                     code = PARTNER_MAPPING[path] || path;
                 }
             }
+            debug = 'path=' + url.pathname + ' code=' + code;
             if (code) {
                 const r = await fetchWithTimeout(`${PARTNER_INFO_URL}?code=${encodeURIComponent(code)}`, 1800);
+                debug += ' fetchStatus=' + r.status;
                 if (r.ok) {
                     const data = await r.json();
+                    debug += ' success=' + data.success;
                     if (data.success === 'true' || data.success === true) {
                         partnerName = data.partner_name || null;
+                        debug += ' name=' + partnerName;
                     }
                 }
             }
         }
 
-        if (!partnerName) return response;
+        if (!partnerName) {
+            const r2 = new Response(response.body, response);
+            r2.headers.set('x-partner-og-debug', 'noname:' + debug);
+            return r2;
+        }
 
         const title = isDashboard ? `${partnerName} 가맹점페이지` : `${partnerName} 1분견적`;
         const desc = isDashboard
@@ -90,16 +107,24 @@ export default async (request, context) => {
             element(el) { el.setAttribute(this.attr, this.val); }
         }
 
-        return new HTMLRewriter()
+        const rewritten = new HTMLRewriter()
             .on('title', new TextSetter())
             .on('meta[property="og:title"]', new AttrSetter('content', title))
             .on('meta[property="og:description"]', new AttrSetter('content', desc))
             .on('meta[name="twitter:title"]', new AttrSetter('content', title))
             .on('meta[name="twitter:description"]', new AttrSetter('content', desc))
             .transform(response);
+        rewritten.headers.set('x-partner-og-debug', 'ok:' + debug);
+        return rewritten;
     } catch (e) {
         // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게)
-        return response;
+        try {
+            const r2 = new Response(response.body, response);
+            r2.headers.set('x-partner-og-debug', 'error:' + debug + ' :: ' + (e && e.message));
+            return r2;
+        } catch (e2) {
+            return response;
+        }
     }
 };
 
