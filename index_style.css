@@ -677,8 +677,9 @@ body {
         /* 연회원 전환 할인 공지는 가맹점 담당자만 보는 관리자페이지(com_film_dashboard.html)로 이동함 */
         /* 단, 정성필름(p_999)은 잠재 파트너 영업용 데모라 예외로 견적페이지에도 노출 (헤더 위, order:-1) */
         .yearly-sales-preview {
-            flex-shrink: 0;
-            order: -1;
+            /* [수정] chat-wrapper(고정, 안 스크롤됨)가 아니라 chat-container 맨 앞(스크롤 영역 안)으로
+               삽입되므로, 헤더처럼 chat-container의 20px 패딩 밖으로 위/좌/우만 흘려보내야 함 */
+            margin: -20px -20px 0 -20px;
             background: linear-gradient(90deg, #ff9a56, #ff6b6b);
             color: white;
             font-family: 'Noto Sans KR', sans-serif;

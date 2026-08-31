@@ -1472,16 +1472,14 @@ const CONFIG = {
                     <a class="yearly-banner-btn" href="apply.html">무료로 시작하기</a>
                 </div>
             `;
-            // chat-wrapper는 flex-direction:column이라 order:-1로 항상 헤더보다 위(맨 앞)에 렌더링됨
-            (document.querySelector('.chat-wrapper') || document.body).appendChild(banner);
-
-            let collapsed = false;
-            window.addEventListener('scroll', () => {
-                if (collapsed || window.scrollY <= 30) return;
-                collapsed = true;
-                banner.classList.remove('expanded');
-                banner.classList.add('collapsed');
-            }, { passive: true });
+            // [수정] chat-wrapper(고정 높이, 스크롤 안 됨)가 아니라 실제로 스크롤되는 chat-container 맨 앞에 넣어서,
+            // 견적 결과가 쌓여 화면을 내리면 이 배너도 다른 대화 내용처럼 같이 위로 밀려 올라가게 함(더 이상 상단 고정 아님).
+            const chatContainer = document.getElementById('chatContainer');
+            if (chatContainer) {
+                chatContainer.insertBefore(banner, chatContainer.firstChild);
+            } else {
+                (document.querySelector('.chat-wrapper') || document.body).appendChild(banner);
+            }
         }
 
         // [수정] 광고(관리자광고=무료회원 / 본인광고=플러스회원)는 견적산출 로딩화면에서만 노출.
