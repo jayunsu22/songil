@@ -1460,9 +1460,11 @@ const CONFIG = {
             banner.innerHTML = `
                 <div class="yearly-banner-full">
                     <div class="yearly-banner-title">🔔 필름실장님 희소식!</div>
-                    <div class="yearly-banner-line">◆ 중요한 견적서 작성도 <strong>자동으로 1분안에 끝!</strong></div>
-                    <div class="yearly-banner-line">◆ 내 견적 홍보할때에도 <strong>내주소만 알려주면 끝!</strong></div>
-                    <div class="yearly-banner-line">◆ 상호, 전화번호만 바꿔서 바로 사용하세요.</div>
+                    <div style="display:inline-block; text-align:left; margin:0 auto;">
+                        <div class="yearly-banner-line">◆ 중요한 견적서 작성도 <strong>자동으로 1분안에 끝!</strong></div>
+                        <div class="yearly-banner-line">◆ 내 견적 홍보할때에도 <strong>내주소만 알려주면 끝!</strong></div>
+                        <div class="yearly-banner-line">◆ <strong>상호, 전화번호</strong>만 바꿔서 바로 사용하세요.</div>
+                    </div>
                     <a class="yearly-banner-btn" href="apply.html">지금 무료로 시작하기 (가입도 1분)</a>
                 </div>
                 <div class="yearly-banner-compact">
