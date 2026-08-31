@@ -11,7 +11,14 @@
 // 제한시간을 넘겨버려 응답 자체가 통째로 씹히는 문제가 있었다(에러조차 안 잡힘). 그래서 실시간
 // 조회 대신, 아래 PARTNER_NAMES/DASHBOARD_NAMES 정적 표에서 즉시 찾아 바꿔치기하는 방식으로 변경.
 // -> 새 가맹점이 생기거나 업체명이 바뀌면 이 파일도 같이 업데이트해줘야 함(partners.js와 동일한 유지보수 방식).
-
+//
+// [디버깅 기록] 한동안 "matched"(실제 업체 코드로 치환하는) 분기에서만 500 "uncaught exception
+// during edge function invocation"이 나서 원인 파악에 오래 걸렸음. 최종 원인: 디버그용
+// 'x-partner-og-hit' 응답 헤더 값에 업체명(한글, 예: '섬세한손길')을 그대로 넣었던 것.
+// HTTP 헤더 값은 ASCII(Latin-1)만 허용되는데, 한글을 넣으면 Headers/Response 생성 시점에
+// 예외가 나고, 그 예외가 catch 블록에서 원본 response.body를 다시 쓰려다(이미 response.text()로
+// 소진됨) 또 실패하면서 내 try/catch로는 전혀 잡히지 않는 플랫폼 레벨 에러로 번졌던 것.
+// -> 교훈: 응답 헤더 값에는 절대 한글/비ASCII 문자를 직접 넣지 말 것 (필요하면 encodeURIComponent).
 const PARTNER_NAMES = {
     p_001: '섬세한손길',
     p_002: '3m인테리어필름',
@@ -66,9 +73,7 @@ export default async (request, context) => {
     try {
         const contentType = response.headers.get('content-type') || '';
         if (!contentType.includes('text/html')) {
-            const passthrough = new Response(response.body, response);
-            passthrough.headers.set('x-partner-og-hit', 'skip-non-html');
-            return passthrough;
+            return response;
         }
 
         const url = new URL(request.url);
@@ -91,9 +96,7 @@ export default async (request, context) => {
         }
 
         if (!partnerName) {
-            const passthrough = new Response(response.body, response);
-            passthrough.headers.set('x-partner-og-hit', 'no-match');
-            return passthrough;
+            return response;
         }
 
         const title = isDashboard ? `${partnerName} 가맹점페이지` : `${partnerName} 1분견적`;
@@ -103,78 +106,31 @@ export default async (request, context) => {
         const escAttr = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
         const escText = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-        // [임시 디버그] &_diag=1|2|3 쿼리로 세 가지 응답 방식을 한 배포에서 동시에 비교해서
-        // 정확히 어느 단계에서 500이 나는지 격리하기 위한 임시 분기. 원인 찾으면 삭제할 것.
-        const diag = url.searchParams.get('_diag');
+        // [수정] HTMLRewriter(스트리밍 파서)를 썼을 때 원인 불명으로 응답이 통째로 원본으로 되돌아가는
+        // 현상이 있어서, 훨씬 단순한 방식(전체 HTML을 문자열로 받아 그대로 텍스트 치환)으로 교체함.
+        // 페이지 용량이 작아서(수 KB) 성능 문제 없음.
+        // [중요] 치환 문자열에 $1/$2처럼 캡처그룹을 참조하는 패턴을 쓰면, 치환할 내용(업체명 등) 안에
+        // 우연히 '$' 문자가 섞였을 때 결과가 오염될 수 있어서, 항상 콜백 함수 형태로 치환한다.
+        const html = await response.text();
+        const finalHtml = html
+            .replace(/<title>[^<]*<\/title>/, () => `<title>${escText(title)}</title>`)
+            .replace(/(<meta property="og:title" content=")[^"]*(")/, (_, p1, p2) => `${p1}${escAttr(title)}${p2}`)
+            .replace(/(<meta property="og:description" content=")[^"]*(")/, (_, p1, p2) => `${p1}${escAttr(desc)}${p2}`)
+            .replace(/(<meta name="twitter:title" content=")[^"]*(")/, (_, p1, p2) => `${p1}${escAttr(title)}${p2}`)
+            .replace(/(<meta name="twitter:description" content=")[^"]*(")/, (_, p1, p2) => `${p1}${escAttr(desc)}${p2}`);
 
-        if (diag === '1') {
-            // 가장 단순한 하드코딩 응답 (본문 읽기/치환 전혀 없음)
-            return new Response('diag1-minimal-ok', {
-                status: 200,
-                headers: { 'content-type': 'text/plain', 'x-partner-og-hit': 'diag1' },
-            });
-        }
-
-        let html;
-        try {
-            html = await response.text();
-        } catch (readErr) {
-            return new Response('read-failed:' + (readErr && readErr.message), {
-                status: 200,
-                headers: { 'content-type': 'text/plain', 'x-partner-og-hit': 'read-error' },
-            });
-        }
-
-        if (diag === '2') {
-            // 원본 HTML을 읽기만 하고 치환 없이 그대로 재구성 (response.text() 자체가 원인인지 확인)
-            return new Response(html, {
-                status: 200,
-                headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'diag2' },
-            });
-        }
-
-        html = html.replace(/<title>[^<]*<\/title>/, `<title>${escText(title)}</title>`);
-        if (diag === '4') {
-            return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'diag4-after-title' } });
-        }
-        html = html.replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
-        if (diag === '5') {
-            return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'diag5-after-ogtitle' } });
-        }
-        html = html.replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
-        if (diag === '6') {
-            return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'diag6-after-ogdesc' } });
-        }
-        html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
-        if (diag === '7') {
-            return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'diag7-after-twtitle' } });
-        }
-        html = html.replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
-
-        if (diag === '3') {
-            // 정규식 치환까지 다 하되, 헤더를 new Headers()로 명시적으로 구성 (plain object가 원인인지 확인)
-            const h = new Headers();
-            h.set('content-type', 'text/html; charset=UTF-8');
-            h.set('x-partner-og-hit', 'diag3:' + partnerName);
-            return new Response(html, { status: 200, headers: h });
-        }
-
-        return new Response(html, {
+        return new Response(finalHtml, {
             status: 200,
             headers: {
                 'content-type': 'text/html; charset=UTF-8',
-                'x-partner-og-hit': 'matched:' + partnerName,
             },
         });
     } catch (e) {
-        // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게)
-        try {
-            const passthrough = new Response(response.body, response);
-            passthrough.headers.set('x-partner-og-hit', 'error:' + (e && (e.stack || e.message || String(e))).slice(0, 500));
-            return passthrough;
-        } catch (e2) {
-            return response;
-        }
+        // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게).
+        // [주의] response.text()를 이미 호출한 뒤라면 response.body는 소진된 상태라 재사용할 수
+        // 없다 - 그래서 여기서 response.body를 다시 감싸려 하지 않고, 애초에 이 시점까지 온 경우는
+        // response.text() 이전 단계(주로 파싱/매핑 로직)에서 난 에러이므로 원본 response를 그대로 반환.
+        return response;
     }
 };
 
