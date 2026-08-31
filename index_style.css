@@ -680,6 +680,10 @@ body {
             /* [수정] chat-wrapper(고정, 안 스크롤됨)가 아니라 chat-container 맨 앞(스크롤 영역 안)으로
                삽입되므로, 헤더처럼 chat-container의 20px 패딩 밖으로 위/좌/우만 흘려보내야 함 */
             margin: -20px -20px 0 -20px;
+            /* [중요] welcome-centered 상태에서 chat-container가 flex column이 되는데, flex-shrink 기본값(1)이면
+               웰컴카드(flex:1)가 남은 공간을 다 차지하려다 이 배너를 눌러 찌그러뜨려서(내용 잘림) 버튼이 잘려보이던 버그.
+               절대 줄어들지 않게 고정해서, 공간이 모자라면 컨테이너가 스크롤되게(overflow-y:auto) 함. */
+            flex-shrink: 0;
             background: linear-gradient(90deg, #ff9a56, #ff6b6b);
             color: white;
             font-family: 'Noto Sans KR', sans-serif;
