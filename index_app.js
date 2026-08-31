@@ -2313,7 +2313,7 @@ const CONFIG = {
     <div style="position: absolute; left: 92px; top: min(150px, 20%); max-width: 210px; z-index: 3;">
         <div style="position: relative; background: #FFFFFF; border-radius: 18px; padding: 16px 20px; box-shadow: 0 12px 28px rgba(101,74,42,0.18);">
             <svg width="32" height="28" viewBox="0 0 32 28" style="position: absolute; bottom: -15px; right: 14px; display: block;"><path d="M0 0 L21 0 Q 31 10 27 25 Q 11 17 0 0 Z" fill="#FFFFFF"/></svg>
-            <h2 class="hero-welcome-title" style="margin: 0; font-size: 19px; font-weight: 800; color: #241E17; letter-spacing: -0.3px; line-height: 1.5; text-align: left;">${partnerName}의<br><span style="color: #B2612F;">24시간</span><br>견적비서입니다.</h2>
+            <h2 class="hero-welcome-title" style="margin: 0; font-size: 16.5px; font-weight: 800; color: #241E17; letter-spacing: -0.3px; line-height: 1.5; text-align: left;">안녕하세요! ${partnerName}의<br><span style="color: #B2612F;">24시간 이용가능한</span><br>필름 견적서비스입니다.</h2>
         </div>
     </div>
 
@@ -2420,7 +2420,7 @@ const CONFIG = {
             const titleEl = welcomeCard.querySelector('.hero-welcome-title');
             if (titleEl) {
                 const partnerName = partnerData.partner_name || '1분견적';
-                titleEl.innerHTML = `${partnerName}의<br><span style="color: #B2612F;">24시간</span><br>견적비서입니다.`;
+                titleEl.innerHTML = `안녕하세요! ${partnerName}의<br><span style="color: #B2612F;">24시간 이용가능한</span><br>필름 견적서비스입니다.`;
             }
 
             // 1. 문의처 담당자명 텍스트 업데이트
