@@ -598,8 +598,10 @@ const CONFIG = {
 
                 // 가맹점 정보 없으면 기본값 (김정헌 실장)
                 const partnerData = currentPartner || {};
-                const ceo = partnerData.ceo_name || '김정헌';
-                const pos = partnerData.position || '실장';
+                // [수정] 담당자 이름을 안 넣고 가입한 가맹점은 개발자 개인 이름(김정헌)이 그대로
+                // 뜨던 버그 - 이제 담당자 이름이 없으면 상호명으로 대신 표시함(예: "유니아 담당자").
+                const ceo = partnerData.ceo_name || partnerData.partner_name || '1분견적';
+                const pos = partnerData.ceo_name ? (partnerData.position || '실장') : '담당자';
                 const phone = partnerData.phone || '010-6657-1222';
 
                 const blog = partnerData.blog_url || '';
@@ -785,13 +787,19 @@ const CONFIG = {
 
             // [New] 웰컴 소개 카드(인트로 카드) 복사 대응
             if (quoteContainer.classList.contains('welcome-card-bubble') || quoteContainer.querySelector('.open-quick-quote-btn')) {
+                // [수정] 여기도 담당자 이름/연락처가 개발자 개인 정보(김정헌, 010-6657-1222)로
+                // 하드코딩되어 있던 버그 - 실제 가맹점 정보로, 담당자 이름이 없으면 상호명으로 대체.
+                const partnerData = currentPartner || {};
+                const ceo = partnerData.ceo_name || partnerName;
+                const pos = partnerData.ceo_name ? (partnerData.position || '실장') : '담당자';
+                const phone = partnerData.phone || '010-6657-1222';
                 lines.push(`📋 [${partnerName} 1분 간편견적 서비스]`);
                 lines.push(`━━━━━━━━━━━━━━━━━━━━`);
                 lines.push(`⚡ 어떤 견적이든 1분내 OK!`);
                 lines.push(`👉 평형별, 품목별, 사진견적으로 빠르고 간편하게 견적을 산출해 드립니다.`);
                 lines.push(`━━━━━━━━━━━━━━━━━━━━`);
-                lines.push(`👤 문의 : 김정헌 실장`);
-                lines.push(`📞 연락처 : 010-6657-1222`);
+                lines.push(`👤 문의 : ${ceo} ${pos}`);
+                lines.push(`📞 연락처 : ${phone}`);
                 lines.push(`━━━━━━━━━━━━━━━━━━━━`);
                 lines.push(`🔗 URL: ${window.location.href}`);
                 return lines.join('\n');
@@ -1213,8 +1221,10 @@ const CONFIG = {
                 console.error(e);
 
                 const partnerData = currentPartner || {};
-                const ceo = partnerData.ceo_name || '김정헌';
-                const pos = partnerData.position || '실장';
+                // [수정] 담당자 이름을 안 넣고 가입한 가맹점은 개발자 개인 이름(김정헌)이 그대로
+                // 뜨던 버그 - 이제 담당자 이름이 없으면 상호명으로 대신 표시함(예: "유니아 담당자").
+                const ceo = partnerData.ceo_name || partnerData.partner_name || '1분견적';
+                const pos = partnerData.ceo_name ? (partnerData.position || '실장') : '담당자';
                 const phone = partnerData.phone || '010-6657-1222';
                 const blog = partnerData.blog_url || '';
                 const insta = partnerData.insta_url || '';
@@ -2288,8 +2298,10 @@ const CONFIG = {
 
                 const partnerData = currentPartner || {};
                 const partnerName = partnerData.partner_name || '1분견적';
-                const ceo = partnerData.ceo_name || '김정헌';
-                const pos = partnerData.position || '실장';
+                // [수정] 담당자 이름을 안 넣고 가입한 가맹점은 개발자 개인 이름(김정헌)이 그대로
+                // 뜨던 버그 - 이제 담당자 이름이 없으면 상호명으로 대신 표시함(예: "유니아 담당자").
+                const ceo = partnerData.ceo_name || partnerData.partner_name || '1분견적';
+                const pos = partnerData.ceo_name ? (partnerData.position || '실장') : '담당자';
                 const phone = partnerData.phone || '010-6657-1222';
 
                 const blog = partnerData.blog_url || '';
@@ -2408,8 +2420,10 @@ const CONFIG = {
             const welcomeCard = document.querySelector('.welcome-card-bubble');
             if (!welcomeCard) return;
 
-            const ceo = partnerData.ceo_name || '김정헌';
-            const pos = partnerData.position || '실장';
+            // [수정] 담당자 이름을 안 넣고 가입한 가맹점은 개발자 개인 이름(김정헌)이 그대로
+            // 뜨던 버그 - 이제 담당자 이름이 없으면 상호명으로 대신 표시함(예: "유니아 담당자").
+            const ceo = partnerData.ceo_name || partnerData.partner_name || '1분견적';
+            const pos = partnerData.ceo_name ? (partnerData.position || '실장') : '담당자';
             const phone = partnerData.phone || '010-6657-1222';
 
             const blog = partnerData.blog_url || '';
@@ -3165,8 +3179,10 @@ const CONFIG = {
                 console.error(e);
 
                 const partnerData = currentPartner || {};
-                const ceo = partnerData.ceo_name || '김정헌';
-                const pos = partnerData.position || '실장';
+                // [수정] 담당자 이름을 안 넣고 가입한 가맹점은 개발자 개인 이름(김정헌)이 그대로
+                // 뜨던 버그 - 이제 담당자 이름이 없으면 상호명으로 대신 표시함(예: "유니아 담당자").
+                const ceo = partnerData.ceo_name || partnerData.partner_name || '1분견적';
+                const pos = partnerData.ceo_name ? (partnerData.position || '실장') : '담당자';
                 const phone = partnerData.phone || '010-6657-1222';
                 
                 const errorMsg = `

@@ -751,7 +751,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('shortId').value = val;
                 currentShortId = val;
             }
-            if (data.ceoName) document.getElementById('mgrName').value = data.ceoName;
+            // [수정] 담당자 이름을 안 넣고 가입하면 이 필드가 빈 채로 남아서, HTML에 박혀있던
+            // 개발자 개인 이름(김정헌)이 실제 값처럼 그대로 노출되던 버그 - 담당자 이름이 없으면
+            // 상호명으로 대신 채워줌.
+            document.getElementById('mgrName').value = data.ceoName || data.partnerName || '';
             if (data.position) document.getElementById('mgrTitle').value = data.position;
             if (data.phone) document.getElementById('mgrPhone').value = data.phone;
             if (data.notice) document.getElementById('quoteNotice').value = data.notice;
