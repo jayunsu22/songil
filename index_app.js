@@ -2212,7 +2212,7 @@ const CONFIG = {
                             <span style="font-weight:bold; font-size:1.15em; color:#1a202c; display:flex; align-items:center; gap:6px;">
                                 🛠️ 1분 간편견적 선택
                             </span>
-                            <button class="modal-close-btn" style="background:none; border:none; font-size:1.7em; font-weight:bold; cursor:pointer; color:#a0aec0; padding:5px; line-height:1; transition:color 0.2s;">&times;</button>
+                            <button class="modal-close-btn" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; font-size:0.85em; font-weight:700; cursor:pointer; color:#4a5568; padding:7px 12px; line-height:1; transition:background 0.2s;">[창닫기]</button>
                         </div>
                         <!-- 모달 스크롤 바디 -->
                         <div class="quick-quote-modal-body" id="modalBody"></div>
