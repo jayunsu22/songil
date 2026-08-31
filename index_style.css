@@ -696,7 +696,7 @@ body {
             align-items: center;
             gap: 5px;
             text-align: center;
-            padding: 12px 16px;
+            padding: 12px 16px 18px;
         }
 
         .yearly-sales-preview .yearly-banner-compact {
@@ -728,7 +728,7 @@ body {
             cursor: pointer;
             white-space: nowrap;
             text-decoration: none;
-            margin-top: 4px;
+            margin-top: 8px;
         }
 
         .yearly-sales-preview .yearly-banner-compact .yearly-banner-btn { margin-top: 0; }

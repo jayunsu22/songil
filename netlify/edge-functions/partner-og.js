@@ -121,11 +121,15 @@ export default async (request, context) => {
         html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
         html = html.replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
 
+        // [중요] 'cache-control': 'no-store' 헤더를 넣으면 이 Netlify Edge Function이
+        // 원인 불명의 "uncaught exception during edge function invocation" 500 에러를
+        // 뱉는 현상을 여러 차례 재현/격리로 확인함(동일 코드에서 이 헤더만 껐다 켰다 하며 검증).
+        // 대신 각기 다른 code/id 쿼리는 요청 경로 자체가 달라서 Netlify가 자연히 별도로 캐싱하므로
+        // (짧은 랜덤 경로 테스트에서 항상 fwd=miss로 확인됨) 캐시 오염 위험은 낮음. 절대 다시 추가하지 말 것.
         return new Response(html, {
             status: 200,
             headers: {
                 'content-type': 'text/html; charset=UTF-8',
-                'cache-control': 'no-store',
                 'x-partner-og-hit': 'matched:' + partnerName,
             },
         });
