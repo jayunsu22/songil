@@ -58,16 +58,14 @@ const PARTNER_MAPPING = {
     jeongseong_test: 'p_999',
 };
 
-// 일반 방문자에게는 이 함수가 개입하지 않게(지연 0) 하고, 카카오톡/문자/SNS 링크 미리보기 봇으로
-// 보이는 요청에서만 og 태그를 바꿔치기한다.
-const BOT_UA_PATTERN = /kakaotalk|kakaostory|facebookexternalhit|twitterbot|slackbot|discordbot|telegrambot|whatsapp|line\/|naver.?bot|daumoa|preview/i;
-
+// [수정] 원래는 카카오톡/페이스북 등 알려진 링크 미리보기 봇의 User-Agent만 걸러서
+// (지연 0을 위해) 그때만 og 태그를 바꿔치기했는데, 밴드(band.us)에 실제로 홍보 게시글을
+// 올려보니 밴드 자체의 미리보기 크롤러 UA가 이 목록에 없어서 개인화가 전혀 안 먹혔던 게
+// 확인됨(실제 밴드 게시글 미리보기 카드가 업체명 없이 "인테리어필름 1분견적"으로만 뜸).
+// 새 플랫폼이 나올 때마다 UA를 하나씩 추가하는 건 계속 구멍이 생기는 방식이라, 아예
+// UA 검사 자체를 없애고 모든 요청에 대해 처리하도록 변경. 문자열 치환 몇 번뿐이라
+// 실제 방문자 체감 지연도 없고, 오히려 브라우저 탭 제목도 처음부터 정확하게 뜨는 장점도 있음.
 export default async (request, context) => {
-    const userAgent = request.headers.get('user-agent') || '';
-    if (!BOT_UA_PATTERN.test(userAgent)) {
-        return context.next();
-    }
-
     const response = await context.next();
 
     try {
