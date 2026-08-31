@@ -106,23 +106,18 @@ export default async (request, context) => {
         // [수정] HTMLRewriter(스트리밍 파서)를 썼을 때 원인 불명으로 응답이 통째로 원본으로 되돌아가는
         // 현상이 있어서, 훨씬 단순한 방식(전체 HTML을 문자열로 받아 그대로 텍스트 치환)으로 교체함.
         // 페이지 용량이 작아서(수 KB) 성능 문제 없음.
-        let html = await response.text();
-        html = html.replace(/<title>[^<]*<\/title>/, `<title>${escText(title)}</title>`);
-        html = html.replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
-        html = html.replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
-        html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${escAttr(title)}$2`);
-        html = html.replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${escAttr(desc)}$2`);
-
-        // [중요] 원본 응답 헤더를 그대로 복사하면 content-encoding(br 압축)/transfer-encoding(chunked)이
-        // 남아있는데, 지금 body는 압축 안 된 순수 텍스트라서 그 헤더들과 실제 내용이 안 맞아 응답이
-        // 깨진다(에러조차 못 잡고 통째로 실패). 그래서 필요한 헤더만 새로 골라서 만든다.
-        return new Response(html, {
+        let html;
+        try {
+            html = await response.text();
+        } catch (readErr) {
+            return new Response('read-failed:' + (readErr && readErr.message), {
+                status: 200,
+                headers: { 'content-type': 'text/plain', 'x-partner-og-hit': 'read-error' },
+            });
+        }
+        return new Response('debug-reached-after-text-read len=' + html.length, {
             status: 200,
-            headers: {
-                'content-type': 'text/html; charset=UTF-8',
-                'cache-control': 'no-store',
-                'x-partner-og-hit': 'matched:' + partnerName,
-            },
+            headers: { 'content-type': 'text/plain', 'x-partner-og-hit': 'after-text-read' },
         });
     } catch (e) {
         // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게)
