@@ -1,6 +1,10 @@
 [build]
   functions = "netlify/functions"
 
+[[edge_functions]]
+  path = "/*"
+  function = "partner-og"
+
 [[headers]]
   for = "/sw.js"
   [headers.values]

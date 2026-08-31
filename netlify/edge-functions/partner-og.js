@@ -103,4 +103,4 @@ export default async (request, context) => {
     }
 };
 
-export const config = { path: '/*' };
+// path 등록은 netlify.toml의 [[edge_functions]] 블록에서 함 (in-source config와 중복 등록 방지)
