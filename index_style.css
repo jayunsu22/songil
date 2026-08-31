@@ -52,8 +52,7 @@ body {
            딱 붙어 보이는 문제가 있었음. 배너 바로 다음에 오는 헤더는 위쪽 마진을 없애고
            대신 정상적인 여백을 줘서 두 블록이 붙어 보이지 않게 함. */
         .yearly-sales-preview + .chat-header {
-            margin-top: 0;
-            padding-top: 16px;
+            margin-top: 14px;
         }
 
         /* [New] 아바타 아이콘 + 타이틀/태그라인/전화번호를 가로로 배치.
