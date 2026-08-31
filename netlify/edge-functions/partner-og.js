@@ -65,7 +65,11 @@ export default async (request, context) => {
 
     try {
         const contentType = response.headers.get('content-type') || '';
-        if (!contentType.includes('text/html')) return response;
+        if (!contentType.includes('text/html')) {
+            const passthrough = new Response(response.body, response);
+            passthrough.headers.set('x-partner-og-hit', 'skip-non-html');
+            return passthrough;
+        }
 
         const url = new URL(request.url);
         const isDashboard = url.pathname.toLowerCase().includes('com_film_dashboard');
@@ -86,7 +90,11 @@ export default async (request, context) => {
             if (code) partnerName = PARTNER_NAMES[code] || null;
         }
 
-        if (!partnerName) return response;
+        if (!partnerName) {
+            const passthrough = new Response(response.body, response);
+            passthrough.headers.set('x-partner-og-hit', 'no-match');
+            return passthrough;
+        }
 
         const title = isDashboard ? `${partnerName} 가맹점페이지` : `${partnerName} 1분견적`;
         const desc = isDashboard
@@ -109,6 +117,7 @@ export default async (request, context) => {
             .on('meta[name="twitter:description"]', new AttrSetter('content', desc))
             .transform(response);
         rewritten.headers.set('cache-control', 'no-store');
+        rewritten.headers.set('x-partner-og-hit', 'matched:' + partnerName);
         return rewritten;
     } catch (e) {
         // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게)
