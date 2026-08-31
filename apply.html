@@ -143,6 +143,29 @@
             margin-bottom: 8px;
         }
 
+        .share-box {
+            background: #fffbe6;
+            border: 1px dashed #f0d264;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 18px;
+            text-align: center;
+        }
+        .share-desc { font-size: 0.82em; color: #7a5c00; font-weight: 700; line-height: 1.5; margin-bottom: 10px; }
+        .share-btn {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            background: #FEE500;
+            color: #3c1e1e;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 0.92em;
+            cursor: pointer;
+        }
+
         .footer-note { text-align: center; font-size: 0.78em; color: #999; margin-top: 16px; line-height: 1.5; }
     </style>
 </head>
@@ -170,6 +193,11 @@
         <div class="form-card" id="resultBox">
             <div class="icon">✅</div>
             <h2 id="resultTitle">신청완료! 바로 사용해보세요</h2>
+
+            <div class="share-box">
+                <div class="share-desc">📌 이 화면을 닫으면 다시 볼 수 없어요! 카톡이나 문자로 지금 나에게 보내서 저장해두세요.</div>
+                <button type="button" class="share-btn" id="shareInfoBtn">📤 카톡/문자로 내 정보 공유하기</button>
+            </div>
 
             <div class="link-section">
                 <div class="link-section-title">📢 견적홍보페이지</div>
@@ -276,6 +304,23 @@
 
                 if (data.success) {
                     document.getElementById('formCard').style.display = 'none';
+
+                    // [New] 이 화면(링크)을 잃어버리지 않도록, 기기의 공유하기(카톡/문자 등)로 바로 보낼 수 있게 함
+                    document.getElementById('shareInfoBtn').addEventListener('click', async () => {
+                        const shareText = `[1분견적] ${companyName} 파트너 정보\n\n📢 견적홍보페이지\n${data.quote_url || ''}\n\n⚙️ 관리자페이지\n${data.dashboard_url || ''}\n\n※ 이 링크를 잃어버리면 다시 찾기 어려우니 꼭 보관해두세요!`;
+                        if (navigator.share) {
+                            try {
+                                await navigator.share({ title: '1분견적 내 정보', text: shareText });
+                            } catch (e) { /* 사용자가 공유를 취소한 경우 - 아무 처리 안 함 */ }
+                        } else {
+                            try {
+                                await navigator.clipboard.writeText(shareText);
+                                alert('이 기기/브라우저는 공유하기를 지원하지 않아서, 대신 클립보드에 복사했어요.\n카톡이나 문자에 붙여넣기 해서 나에게 보내주세요!');
+                            } catch (e) {
+                                alert('공유/복사에 실패했습니다. 위 링크들을 직접 복사해서 저장해 주세요.');
+                            }
+                        }
+                    });
 
                     if (data.quote_url) {
                         document.getElementById('quoteUrlText').innerText = data.quote_url;
