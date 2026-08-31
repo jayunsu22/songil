@@ -32,7 +32,18 @@ async function fetchWithTimeout(url, ms) {
     return await fetch(url, { signal: AbortSignal.timeout(ms) });
 }
 
+// [수정] 일반 방문자에게는 이 함수가 아예 개입하지 않게(지연 0) 하고, 카카오톡/문자/SNS 링크 미리보기
+// 봇으로 보이는 요청에서만 실제로 업체명을 조회해서 og 태그를 바꿔치기한다. 일반 사용자는 어차피
+// 페이지 접속 후 JS가 실제 업체명으로 화면을 바꿔주므로, 굳이 모든 방문마다 백엔드를 한번 더 호출해
+// 로딩을 늦출 이유가 없음.
+const BOT_UA_PATTERN = /kakaotalk|kakaostory|facebookexternalhit|twitterbot|slackbot|discordbot|telegrambot|whatsapp|line\/|naver.?bot|daumoa|preview/i;
+
 export default async (request, context) => {
+    const userAgent = request.headers.get('user-agent') || '';
+    if (!BOT_UA_PATTERN.test(userAgent)) {
+        return context.next();
+    }
+
     const response = await context.next();
     let debug = 'start';
 
