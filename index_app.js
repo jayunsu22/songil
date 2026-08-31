@@ -1459,13 +1459,14 @@ const CONFIG = {
             banner.className = 'yearly-sales-preview expanded';
             banner.innerHTML = `
                 <div class="yearly-banner-full">
-                    <div class="yearly-banner-title">🎁 필름업체 사장님이시라면?</div>
-                    <div class="yearly-banner-line">불황의 시대, 홍보가 절실한 요즘 — <strong>견적서는 AI가 자동으로 1분</strong>만에 끝내드려요</div>
-                    <div class="yearly-banner-line">지금 보시는 이 화면 그대로, <strong>상호·전화번호만 바꾸면</strong> 바로 내 홍보페이지가 됩니다</div>
+                    <div class="yearly-banner-title">🔔 필름실장님 희소식!</div>
+                    <div class="yearly-banner-line">◆ 중요한 견적서 작성도 <strong>자동으로 1분안에 끝!</strong></div>
+                    <div class="yearly-banner-line">◆ 내 견적 홍보할때에도 <strong>내주소만 알려주면 끝!</strong></div>
+                    <div class="yearly-banner-line">◆ 상호, 전화번호만 바꿔서 바로 사용하세요.</div>
                     <a class="yearly-banner-btn" href="apply.html">지금 무료로 시작하기 (가입도 1분)</a>
                 </div>
                 <div class="yearly-banner-compact">
-                    <span class="yearly-banner-text">🎁 필름업체 사장님이시라면 <strong>지금 무료로</strong> 시작하세요!</span>
+                    <span class="yearly-banner-text">🔔 필름실장님 희소식! <strong>지금 무료로</strong> 시작하세요!</span>
                     <a class="yearly-banner-btn" href="apply.html">무료로 시작하기</a>
                 </div>
             `;
