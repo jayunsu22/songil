@@ -1460,8 +1460,9 @@ const CONFIG = {
             banner.innerHTML = `
                 <div class="yearly-banner-full">
                     <div class="yearly-banner-title">🎁 필름업체 사장님이시라면?</div>
-                    <div class="yearly-banner-line">가입즉시 <strong>무료로</strong> 나만의 견적서를 만들어드려요. (1분 완성)</div>
-                    <a class="yearly-banner-btn" href="apply.html">지금 무료로 시작하기</a>
+                    <div class="yearly-banner-line">불황의 시대, 홍보가 절실한 요즘 — <strong>견적서는 AI가 자동으로 1분</strong>만에 끝내드려요</div>
+                    <div class="yearly-banner-line">지금 보시는 이 화면 그대로, <strong>상호·전화번호만 바꾸면</strong> 바로 내 홍보페이지가 됩니다</div>
+                    <a class="yearly-banner-btn" href="apply.html">지금 무료로 시작하기 (가입도 1분)</a>
                 </div>
                 <div class="yearly-banner-compact">
                     <span class="yearly-banner-text">🎁 필름업체 사장님이시라면 <strong>지금 무료로</strong> 시작하세요!</span>
