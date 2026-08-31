@@ -123,7 +123,11 @@ export default async (request, context) => {
 
         return new Response(html, {
             status: 200,
-            headers: { 'content-type': 'text/html; charset=UTF-8', 'x-partner-og-hit': 'full-html-response' },
+            headers: {
+                'content-type': 'text/html; charset=UTF-8',
+                'cache-control': 'no-store',
+                'x-partner-og-hit': 'matched:' + partnerName,
+            },
         });
     } catch (e) {
         // 어떤 이유로든 실패하면 원본 정적 페이지를 그대로 서빙 (사이트가 절대 깨지지 않게)
