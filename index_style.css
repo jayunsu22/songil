@@ -620,15 +620,6 @@ body {
             justify-content: center;
         }
 
-        .loading-screen-ad .ad-cta {
-            margin-top: 4px;
-            font-size: 0.95em;
-            font-weight: 700;
-            background: rgba(255, 255, 255, 0.18);
-            padding: 10px 24px;
-            border-radius: 999px;
-        }
-
         /* [New] 축소된 원형 카운트다운을 대체한, 크게 키운 가로 카운트다운 바 (2026-08-28) */
         .loading-calc-eyebrow {
             font-size: 0.95em;

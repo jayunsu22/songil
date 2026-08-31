@@ -701,13 +701,13 @@ const CONFIG = {
             const firstAd = showAd ? ads[0] : null;
             const adImageHtml = firstAd && firstAd.image ? `<img class="ad-photo" src="${firstAd.image}" alt="">` : '';
             const adBadgeHtml = adSource.mode === 'admin' ? '<span class="ad-badge">광고</span>' : '';
+            // [수정] 로딩화면 광고는 더 이상 링크를 걸지 않음(클릭 불가) - <a> 대신 <div>로 렌더링.
             const adBlockHtml = showAd ? `
-                <a class="loading-screen-ad" href="${firstAd.link || '#'}" target="_blank">
+                <div class="loading-screen-ad">
                     ${adBadgeHtml}
                     ${adImageHtml}
                     <span class="ad-text">${firstAd.text}</span>
-                    <span class="ad-cta">자세히 보기 →</span>
-                </a>
+                </div>
             ` : '';
 
             overlay.innerHTML = `
@@ -738,7 +738,6 @@ const CONFIG = {
                     const nextAd = ads[adIndex];
                     const adEl = overlay.querySelector('.loading-screen-ad');
                     if (!adEl) return;
-                    adEl.href = nextAd.link || '#';
                     const textEl = adEl.querySelector('.ad-text');
                     if (textEl) textEl.textContent = nextAd.text;
                 }, AD_ROTATE_MS);
