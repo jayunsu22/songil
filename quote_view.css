@@ -1,0 +1,117 @@
+/* 견적서 화면. 업자와 소비자가 링크로 열어 보는 페이지.
+   고정폭 정렬에 의존하지 않는다 — 폰 글꼴이 제각각이라 공백으로 맞추면 깨진다. */
+
+body.view { padding-bottom: 40px; }
+
+#vStatus { padding: 60px 20px; text-align: center; color: var(--muted); }
+#vStatus.err { color: #b91c1c; }
+
+#vDoc { max-width: 720px; margin: 0 auto; padding: 0 0 24px; }
+
+/* ---------- 머리말 ---------- */
+.v-head {
+  background: var(--card);
+  padding: 22px 18px 18px;
+  border-bottom: 3px solid var(--accent);
+}
+.v-shop { font-size: 20px; font-weight: 800; }
+.v-tel { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.v-site {
+  margin-top: 14px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.v-meta { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* ---------- 구역 표 ---------- */
+.v-zone { background: var(--card); margin-top: 10px; }
+.v-zone h3 {
+  margin: 0;
+  padding: 11px 18px;
+  font-size: 15px;
+  background: #eef1f6;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.v-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid #f0f1f3;
+}
+.v-line.off { opacity: .45; }
+.v-line.off .v-amt, .v-line.off .v-nm { text-decoration: line-through; }
+.v-chk { flex: 0 0 auto; width: 22px; height: 22px; margin: 0; accent-color: var(--accent); }
+.v-nm { flex: 1 1 auto; }
+.v-qty { color: var(--muted); font-size: 14px; white-space: nowrap; }
+.v-amt {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.v-desc {
+  padding: 0 18px 12px 18px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  white-space: pre-line;
+  border-bottom: 1px solid #f0f1f3;
+}
+
+/* ---------- 합계 ---------- */
+.v-sum { background: var(--card); margin-top: 10px; padding: 6px 18px 18px; }
+.v-row {
+  display: flex; justify-content: space-between;
+  padding: 8px 0;
+  font-variant-numeric: tabular-nums;
+}
+.v-row.total {
+  border-top: 2px solid var(--text);
+  margin-top: 6px;
+  padding-top: 12px;
+  font-size: 20px;
+  font-weight: 800;
+}
+.v-row.total small { font-size: 12px; font-weight: 500; color: var(--muted); }
+
+/* ---------- 안내 ---------- */
+.v-note {
+  background: var(--card);
+  margin-top: 10px;
+  padding: 16px 18px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  white-space: pre-line;
+}
+.v-note b { color: var(--text); display: block; margin-bottom: 6px; font-size: 13px; }
+
+/* ---------- 소비자 조정 ---------- */
+.v-adjbox {
+  background: #fffbe9;
+  border: 1px solid #f0dfa8;
+  border-radius: 12px;
+  margin: 12px 14px 0;
+  padding: 14px;
+  font-size: 14px;
+}
+.v-adjbox p { margin: 0 0 10px; color: #7a5d00; line-height: 1.55; }
+.v-adjbox button {
+  width: 100%; height: 48px;
+  border: none; border-radius: 12px;
+  background: var(--accent); color: #fff;
+  font-size: 15px; font-weight: 700;
+}
+.v-adjbox input[type=tel] {
+  width: 100%; height: 46px;
+  margin-bottom: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 16px;
+  background: #fff;
+}
+.v-adjbox.done { background: #edfaf3; border-color: #a8e0c4; }
+.v-adjbox.done p { color: #05603a; }
