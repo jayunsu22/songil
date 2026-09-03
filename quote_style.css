@@ -1,0 +1,250 @@
+/* 현장견적 도구 전용 스타일.
+   기존 index_style.css 와 분리한다 — 그쪽을 건드리면 1분견적 앱이 깨진다.
+   현장에서 폰으로, 장갑 낀 손으로 쓰는 화면이라 터치 영역을 크게 잡았다. */
+
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --line: #e3e5e9;
+  --text: #1c1e21;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-soft: #eff4ff;
+  --ok: #059669;
+  --bar-h: 64px;
+  --tap: 44px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  margin: 0;
+  padding: 0 0 calc(var(--bar-h) + env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+               "Malgun Gothic", "맑은 고딕", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+/* ---------- 상단 ---------- */
+header {
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+#siteName {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--tap);
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 15px;
+  background: #fff;
+  color: var(--text);
+}
+#sizeSelect {
+  flex: 0 0 auto;
+  height: var(--tap);
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  background: #fff;
+  color: var(--text);
+}
+#resetBtn {
+  flex: 0 0 auto;
+  height: var(--tap);
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ---------- 구역 ---------- */
+.zone {
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.zone > summary {
+  list-style: none;
+  cursor: pointer;
+  min-height: 52px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+.zone > summary::-webkit-details-marker { display: none; }
+.zone > summary::before {
+  content: "▸";
+  color: var(--muted);
+  font-weight: 400;
+  transition: transform .12s;
+}
+.zone[open] > summary::before { transform: rotate(90deg); }
+.zone[open] > summary { border-bottom: 1px solid var(--line); }
+.z-name { flex: 1 1 auto; }
+.z-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 2px 9px;
+  visibility: hidden;
+}
+.z-count.on { visibility: visible; }
+.z-sum { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ---------- 품목 ---------- */
+.item { border-top: 1px solid #f0f1f3; }
+.item:first-child { border-top: none; }
+.item.on { background: var(--accent-soft); }
+
+.item-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.item-head input[type=checkbox] {
+  width: 22px; height: 22px;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+.i-name { flex: 1 1 auto; }
+.i-amt {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ok);
+  font-variant-numeric: tabular-nums;
+}
+
+.item-body {
+  padding: 0 14px 12px 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+/* display:flex 는 UA 스타일의 [hidden]{display:none} 을 덮어쓴다.
+   이게 없으면 체크 안 한 품목에도 수량/난이도 컨트롤이 그대로 보인다. */
+.item-body[hidden] { display: none; }
+.qty { display: flex; align-items: center; gap: 6px; }
+.qty button {
+  width: var(--tap); height: var(--tap);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text);
+}
+.qty button:active { background: #e8ecf5; }
+.qty input {
+  width: 62px; height: var(--tap);
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  background: #fff;
+  color: var(--text);
+}
+.q-unit { color: var(--muted); font-size: 14px; min-width: 22px; }
+.fixed-qty {
+  height: var(--tap);
+  display: flex; align-items: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+.diff {
+  height: var(--tap);
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 15px;
+  background: #fff;
+  color: var(--text);
+}
+
+/* ---------- 전체 조정 ---------- */
+#adjWrap {
+  background: var(--card);
+  border-top: 8px solid var(--bg);
+  border-bottom: 1px solid var(--line);
+  padding: 14px;
+}
+#adjWrap h2 { margin: 0 0 10px; font-size: 15px; }
+.adj-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.adj-row select {
+  height: var(--tap);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 15px;
+  background: #fff;
+  color: var(--text);
+  padding: 0 8px;
+}
+.adj-name { flex: 1 1 auto; min-width: 0; }
+.adj-pct { flex: 0 0 92px; font-weight: 700; }
+#adjSum { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* ---------- 하단 고정 바 ---------- */
+#totalBar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: calc(var(--bar-h) + env(safe-area-inset-bottom, 0px));
+  padding: 0 12px env(safe-area-inset-bottom, 0px);
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -2px 12px rgba(0,0,0,.06);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 30;
+}
+#totalAmount {
+  flex: 1 1 auto;
+  font-size: 21px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+#totalAmount small { font-size: 12px; font-weight: 500; color: var(--muted); }
+#publishBtn {
+  flex: 0 0 auto;
+  height: 46px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+#publishBtn:disabled { background: #b9c0cc; }
+
+/* ---------- 상태 표시 ---------- */
+#status {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+#status.err { color: #b91c1c; }

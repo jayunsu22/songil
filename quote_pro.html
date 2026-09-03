@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>현장견적 - 섬세한손길</title>
+<link rel="stylesheet" href="quote_style.css">
+</head>
+<body>
+
+<header>
+  <input id="siteName" type="text" placeholder="현장명 (예: 레스코 역곡 42평)" autocomplete="off">
+  <select id="sizeSelect" aria-label="평형">
+    <option value="20평">20평</option>
+    <option value="30평">30평</option>
+    <option value="40평" selected>40평</option>
+    <option value="50평">50평</option>
+  </select>
+  <button id="resetBtn" type="button">새 견적</button>
+</header>
+
+<div id="status">마스터 불러오는 중…</div>
+
+<main id="zones"></main>
+
+<section id="adjWrap" hidden>
+  <h2>전체 조정</h2>
+  <div class="adj-row"><select class="adj-name" data-slot="0"></select><select class="adj-pct" data-slot="0"></select></div>
+  <div class="adj-row"><select class="adj-name" data-slot="1"></select><select class="adj-pct" data-slot="1"></select></div>
+  <div class="adj-row"><select class="adj-name" data-slot="2"></select><select class="adj-pct" data-slot="2"></select></div>
+  <div id="adjSum"></div>
+</section>
+
+<footer id="totalBar">
+  <div id="totalAmount">0원</div>
+  <button id="publishBtn" type="button" disabled>견적서 발행</button>
+</footer>
+
+<!-- quote_calc.js 가 먼저 로드되어야 한다 (quote_pro.js 가 QuoteCalc 를 쓴다) -->
+<script src="quote_calc.js"></script>
+<script src="quote_pro.js"></script>
+</body>
+</html>
