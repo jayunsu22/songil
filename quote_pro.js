@@ -390,3 +390,161 @@ loadMaster();
 
 // 상태 유지: 브라우저가 화면을 접었다 펼 때 값이 사라지지 않게 마지막으로 한 번 더 저장
 window.addEventListener('pagehide', persist);
+
+/* =========================================================================
+   발행
+   ========================================================================= */
+
+let 발행결과 = null;   // { 견적코드, opts }
+
+function openPublish() {
+  발행결과 = null;
+  $('#pubBefore').hidden = false;
+  $('#pubAfter').hidden = true;
+  $('#doPublish').disabled = false;
+  $('#doPublish').textContent = '발행하기';
+  $('#pubBack').hidden = false;
+  $('#pubSheet').hidden = false;
+}
+
+function closePublish() {
+  $('#pubBack').hidden = true;
+  $('#pubSheet').hidden = true;
+}
+
+function 링크() {
+  if (!발행결과) return '';
+  // '품목설명 포함'은 저장이 아니라 링크 뒤에 붙는 표시일 뿐이라,
+  // 재발행 없이 같은 견적을 업자용/소비자용으로 각각 보낼 수 있다.
+  return location.origin + '/q/' + 발행결과.견적코드 + ($('#optDesc').checked ? '?d=1' : '');
+}
+
+/* 여러 줄짜리 설명의 둘째 줄부터 앞에 공백을 붙여 한 덩어리로 보이게 한다.
+   (줄 안의 정렬이 아니라 줄머리 들여쓰기라 글꼴 폭과 무관하게 안정적이다) */
+function 들여쓰기(s, pad) {
+  return String(s).trim().replace(/\n/g, '\n' + pad);
+}
+
+/* 카톡은 고정폭 글꼴이 아니라 공백으로 맞춘 정렬이 폰마다 깨진다.
+   그래서 공백 정렬을 아예 쓰지 않는 형태로 만든다. */
+function buildText() {
+  const q = window.__quote;
+  if (!q) return '';
+  const 설명포함 = $('#optDesc').checked;
+  const 부가세 = $('#optVat').checked;
+
+  const L = ['[' + (MASTER.업체명 || '섬세한손길') + '] 인테리어필름 견적'];
+  if (state.현장명) L.push('현장: ' + state.현장명);
+  L.push('');
+
+  let 현재구역 = null;
+  q.result.라인들.forEach((l) => {
+    if (l.구역 !== 현재구역) {
+      if (현재구역 !== null) L.push('');
+      L.push('■ ' + l.구역);
+      현재구역 = l.구역;
+    }
+    L.push('· ' + l.품목명 + ' ' + l.수량 + l.단위 + ' — ' + l.표시금액.toLocaleString('ko-KR') + '원');
+    // 품목설명이 여러 줄이면 둘째 줄부터 들여쓰기가 풀려 다음 품목처럼 보인다.
+    if (설명포함 && l.품목설명) L.push('   ㄴ ' + 들여쓰기(l.품목설명, '     '));
+  });
+
+  L.push('');
+  if ($('#optAdj').checked && q.result.조정_합계율 !== 0) {
+    L.push('소계 ' + q.result.소계.toLocaleString('ko-KR') + '원');
+    L.push('조정 ' + (q.result.조정_합계율 > 0 ? '+' : '')
+      + Math.round(q.result.조정_합계율 * 1000) / 10 + '%');
+  }
+  L.push('합계 ' + q.result.총액.toLocaleString('ko-KR') + '원' + (부가세 ? ' (부가세 별도)' : ''));
+
+  if (설명포함) {
+    // 공통설명은 품목마다 반복하지 않고 맨 아래 한 번만 모은다. 안 그러면 도배된다.
+    const 공통 = [...new Set(q.result.라인들.map((l) => l.공통설명).filter(Boolean))];
+    if (공통.length) { L.push(''); 공통.forEach((c) => L.push('※ ' + 들여쓰기(c, '   '))); }
+    if (MASTER.안내문구) L.push('', MASTER.안내문구.replace(/<[^>]*>/g, '').trim());
+  }
+  return L.join('\n');
+}
+
+async function copy(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    // HTTPS가 아니거나 오래된 안드로이드 웹뷰에는 clipboard API가 없다
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+}
+
+$('#doPublish').addEventListener('click', async () => {
+  const q = window.__quote;
+  if (!q || !q.items.length) { toast('선택한 품목이 없습니다.'); return; }
+
+  const btn = $('#doPublish');
+  btn.disabled = true;
+  btn.textContent = '발행 중…';
+
+  try {
+    const res = await fetch(CONFIG.publishUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        현장명: state.현장명,
+        평형: state.평형,
+        라인들: q.result.라인들,
+        소계: q.result.소계,
+        조정_합계율: q.result.조정_합계율,
+        총액: q.result.총액,
+        조정_내역: 조정목록(),
+        조정내역_표시: $('#optAdj').checked,
+        부가세_별도표기: $('#optVat').checked,
+      }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const j = await res.json();
+    if (!j || !j.견적코드) throw new Error('견적코드 없음');
+
+    발행결과 = { 견적코드: j.견적코드 };
+    $('#pubLink').textContent = 링크();
+    $('#pubBefore').hidden = true;
+    $('#pubAfter').hidden = false;
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '발행하기';
+    toast('발행에 실패했습니다. 통신 상태를 확인해 주세요.');
+  }
+});
+
+// '품목설명 포함'을 켜고 끄면 복사될 링크가 즉시 바뀐다 (재발행 불필요)
+$('#optDesc').addEventListener('change', () => {
+  if (발행결과) $('#pubLink').textContent = 링크();
+});
+
+$('#copyLink').addEventListener('click', async () => {
+  toast(await copy(링크()) ? '링크를 복사했습니다' : '복사에 실패했습니다. 링크를 길게 눌러 복사해 주세요.');
+});
+
+$('#copyText').addEventListener('click', async () => {
+  toast(await copy(buildText()) ? '견적 내용을 복사했습니다' : '복사에 실패했습니다.');
+});
+
+$('#pubClose').addEventListener('click', closePublish);
+$('#pubBack').addEventListener('click', closePublish);

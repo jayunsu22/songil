@@ -248,3 +248,73 @@ header {
   text-align: center;
 }
 #status.err { color: #b91c1c; }
+
+/* ---------- 발행 시트 ---------- */
+#pubBack {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 40;
+}
+#pubSheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 50;
+  background: var(--card);
+  border-radius: 18px 18px 0 0;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+}
+#pubSheet h2 { margin: 0 0 14px; font-size: 17px; }
+
+#pubSheet .opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 8px 0;
+  cursor: pointer;
+}
+#pubSheet .opt input { width: 22px; height: 22px; margin-top: 1px; flex: 0 0 auto; accent-color: var(--accent); }
+#pubSheet .opt em { display: block; font-style: normal; font-size: 13px; color: var(--muted); }
+
+#pubSheet .hint { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 12px 0; }
+
+#pubSheet button {
+  width: 100%;
+  height: 48px;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+#pubSheet button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+#pubSheet button:disabled { opacity: .6; }
+
+#pubLink {
+  margin-top: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  font-size: 14px;
+  word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+#toast {
+  position: fixed;
+  left: 50%; bottom: calc(var(--bar-h) + 24px);
+  transform: translateX(-50%);
+  z-index: 60;
+  background: #1c1e21;
+  color: #fff;
+  padding: 11px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+}
