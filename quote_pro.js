@@ -12,7 +12,9 @@ const 난이도목록  = [1.0, 1.1, 1.2, 1.3, 1.5];
 const 비율목록    = [-0.10, -0.05, 0, 0.05, 0.10, 0.15];
 
 let MASTER = null;
-let state = { 현장명: '', 평형: '40평', 선택: {}, 조정: [null, null, null] };
+// 평형 기본값은 '확인안됨'. 모르는 채로 40평 몰딩 같은 게 잘못 들어가는 것보다
+// 평형별 품목을 아예 안 보여주는 쪽이 안전하다.
+let state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null] };
 
 // 체크_ID -> { item, 행 DOM } 조회용. 매번 전체를 다시 그리지 않기 위해 들고 있는다.
 const ROWS = new Map();
@@ -74,7 +76,7 @@ function boot() {
   if (saved) state = Object.assign(state, saved);
 
   $('#siteName').value = state.현장명 || '';
-  $('#sizeSelect').value = state.평형 || '40평';
+  $('#sizeSelect').value = state.평형 || '확인안됨';
 
   buildAdjust();
   buildAll();
@@ -372,8 +374,11 @@ $('#siteName').addEventListener('input', persist);
 $('#sizeSelect').addEventListener('change', (e) => applySize(e.target.value));
 $('#resetBtn').addEventListener('click', () => {
   if (!confirm('지금 체크한 내용을 모두 지우고 새로 시작할까요?')) return;
-  state = { 현장명: '', 평형: state.평형, 선택: {}, 조정: [null, null, null] };
+  // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
+  // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
+  state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null] };
   $('#siteName').value = '';
+  $('#sizeSelect').value = '확인안됨';
   save(STORAGE_KEY, state);
   syncAdjust();
   buildAll();

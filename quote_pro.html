@@ -11,9 +11,12 @@
 <header>
   <input id="siteName" type="text" placeholder="현장명 (예: 레스코 역곡 42평)" autocomplete="off">
   <select id="sizeSelect" aria-label="평형">
+    <!-- 확인안됨: 평형을 아직 모를 때. 평형별 품목(몰딩/걸레받이/싱크대)이
+         화면에서 빠져서, 모르는 채로 엉뚱한 평형 금액이 들어가는 걸 막는다. -->
+    <option value="확인안됨" selected>확인안됨</option>
     <option value="20평">20평</option>
     <option value="30평">30평</option>
-    <option value="40평" selected>40평</option>
+    <option value="40평">40평</option>
     <option value="50평">50평</option>
   </select>
   <button id="resetBtn" type="button">새 견적</button>
