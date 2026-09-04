@@ -115,3 +115,16 @@ body.view { padding-bottom: 40px; }
 }
 .v-adjbox.done { background: #edfaf3; border-color: #a8e0c4; }
 .v-adjbox.done p { color: #05603a; }
+
+/* 이 견적서에만 붙는 메모 */
+.v-memo {
+  background: #fffbe9;
+  border-left: 4px solid #e0b500;
+  margin-top: 10px;
+  padding: 14px 18px;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-line;
+  color: #4a3800;
+}
+.v-memo b { display: block; margin-bottom: 6px; font-size: 13px; color: #7a5d00; }

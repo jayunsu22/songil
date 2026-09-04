@@ -90,6 +90,12 @@ function render() {
 
   H.push('<div class="v-sum" id="vSum"></div>');
 
+  // 메모는 ?d=1 여부와 무관하게 항상 보여준다. '안방-앞방 연결문 포함' 같은
+  // 내용은 업자도 알아야 하므로 설명 토글로 감추면 안 된다.
+  if (d.메모) {
+    H.push('<div class="v-memo"><b>메모</b>' + esc(d.메모) + '</div>');
+  }
+
   if (설명포함) {
     // 공통설명은 품목마다 반복하면 도배되므로 맨 아래 한 번만 모은다
     const 공통 = [...new Set(d.라인들.map((l) => l.공통설명).filter(Boolean))];
