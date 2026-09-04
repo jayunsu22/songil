@@ -902,7 +902,10 @@ async function openBox() {
         '<div class="box-acts">' +
           '<button type="button" class="box-load">불러오기</button>' +
           // 발행한 적이 없으면 열 견적서가 없다. 버튼을 아예 안 만든다.
-          (x.현장코드 ? '<button type="button" class="box-view">내역보기</button>' : '') +
+          (x.현장코드
+            ? '<button type="button" class="box-view">내역보기</button>'
+            // 이 기능 이전에 발행한 건은 코드가 안 남아 있다. 직접 넣을 길을 둔다.
+            : '<button type="button" class="box-code">코드 넣기</button>') +
           (st.장수 ? '<button type="button" class="box-photodel">사진만 삭제</button>' : '') +
           '<button type="button" class="box-del" aria-label="삭제">✕</button>' +
         '</div>' +
@@ -952,6 +955,31 @@ $('#boxList').addEventListener('click', async (e) => {
   const list = 저장함읽기();
   const 항목 = list.find((x) => x.id === id);
   if (!항목) return;
+
+  if (e.target.classList.contains('box-code')) {
+    const 입력 = prompt(
+      '‘' + 항목.이름 + '’ 의 견적서 코드를 넣어주세요.\n' +
+      '견적서 링크 주소의 /q/ 뒤에 붙은 8글자입니다.\n' +
+      '(예: songil.netlify.app/q/ABCD1234 → ABCD1234)', '');
+    if (입력 === null) return;
+    // 혼동되는 글자(0/O, 1/I/l)를 뺀 32자 알파벳에서 8자다.
+    const 뒤 = 입력.trim().toUpperCase().split('/Q/').pop();   // 주소를 통째로 붙여넣어도 코드만 뽑는다
+    const 코드 = 뒤.split('?')[0].trim();
+    if (!/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/.test(코드)) {
+      alert('코드는 8글자입니다. 다시 확인해 주세요.');
+      return;
+    }
+    const 목록 = 저장함읽기();
+    const k = 목록.findIndex((x) => x.id === 항목.id);
+    if (k >= 0) {
+      목록[k].현장코드 = 코드;
+      if (목록[k].상태) 목록[k].상태.현장코드 = 코드;
+      저장함쓰기(목록);
+    }
+    toast('코드를 넣었습니다');
+    openBox();
+    return;
+  }
 
   if (e.target.classList.contains('box-view')) {
     if (!항목.현장코드) return;

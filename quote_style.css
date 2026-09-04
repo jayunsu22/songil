@@ -432,6 +432,14 @@ header {
   background: #fdf6ea; color: #7c5620;
   font-size: 14px; font-weight: 700;
 }
+/* 이 기능 이전에 발행한 건은 코드가 안 남아 있다. 직접 넣는 버튼.
+   내역보기와 자리가 같으므로 티나지 않게 회색으로 둔다. */
+.box-code {
+  flex: 0 0 auto; height: 40px; padding: 0 12px;
+  border: 1px dashed var(--line); border-radius: 10px;
+  background: #fff; color: var(--muted);
+  font-size: 13px; font-weight: 600;
+}
 
 /* 저장함의 사진 관리 버튼 */
 .box-row .box-photodel {
