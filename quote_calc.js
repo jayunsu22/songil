@@ -8,8 +8,14 @@
   else root.QuoteCalc = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
 
+  // 시공품목정보의 [예상_총금액] 수식과 같은 계산이다.
+  //   IF(평형별_설정길이 > 0, 평형별_설정길이 * 자재소모량, 자재소모량)
+  //     * (자재비단가 + 인건비단가) * 난이도계수
+  //
+  // 자재소모량은 (인건비+자재비) 전체에 곱한다. 자재비에만 곱하는 게 아니다.
+  // 평형별 품목은 화면에서 수량 = 평형별_설정길이 로 넣으므로 같은 결과가 된다.
   function lineAmount(item) {
-    const 단가 = (item.인건비단가 || 0) + (item.자재비단가 || 0) * (item.자재소모량 || 0);
+    const 단가 = ((item.인건비단가 || 0) + (item.자재비단가 || 0)) * (item.자재소모량 || 0);
     return Math.round(단가 * (item.난이도 || 1) * (item.수량 || 0));
   }
 
