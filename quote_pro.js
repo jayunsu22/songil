@@ -15,6 +15,16 @@ const 난이도목록  = [1.0, 1.1, 1.2, 1.3, 1.5];
 // select.value 문자열이 안 맞아서 선택이 0% 로 풀려버린다.
 const 비율목록    = Array.from({ length: 31 }, (_, i) => (i - 15) / 100);
 
+// 사진 저장 계층과 상태. boot() 이 캐시 경로에서 동기로 돌면서 구역장수갱신() 을
+// 부르므로, 이 선언들이 파일 끝에 있으면 그 시점에 TDZ 로 터진다. 위에 둔다.
+const PDB = QuotePhotos.PhotoDB;
+let 장수맵 = {};        // { 구역: 장수 } — 구역 줄 배지용
+let 트레이구역 = null;   // 지금 열려 있는 트레이의 구역
+let 트레이사진 = [];     // 그 구역 사진 (썸네일 URL 포함)
+// 사진 기능을 못 쓰는 브라우저(시크릿 모드 등)에서는 카메라 버튼을 감춘다.
+// 견적 기능 자체는 그대로 돌아가야 한다.
+let 사진가능 = true;
+
 let MASTER = null;
 // 평형 기본값은 '확인안됨'. 모르는 채로 40평 몰딩 같은 게 잘못 들어가는 것보다
 // 평형별 품목을 아예 안 보여주는 쪽이 안전하다.
@@ -79,7 +89,7 @@ async function loadMaster() {
     MASTER = fresh;
     save(MASTER_KEY, fresh);
     if (!cached) boot();
-    else if (바뀜) { buildAll(); refresh(); }
+    else if (바뀜) { buildAll(); 구역장수갱신(); refresh(); }
     setStatus('');
   } catch (e) {
     if (MASTER) setStatus('최신 단가를 못 받았습니다. 저장된 단가로 계속 진행합니다.');
@@ -107,6 +117,7 @@ function boot() {
 
   buildAdjust();
   buildAll();
+  구역장수갱신();
   refresh();
   $('#adjWrap').hidden = false;
 }
@@ -127,6 +138,7 @@ function applySize(새평형) {
   });
   state.평형 = 새평형;
   buildAll();
+  구역장수갱신();
   refresh();
   persist();
 }
@@ -159,6 +171,7 @@ function buildAll() {
       '<span class="z-name">' + esc(표시구역명(z.구역)) + '</span>' +
       (바뀜 ? '<span class="z-orig">' + esc(z.구역) + '</span>' : '') +
       '<button type="button" class="z-edit" aria-label="구역 이름 바꾸기">✎</button>' +
+      '<button type="button" class="z-cam" aria-label="구역 사진">📷</button>' +
       '<span class="z-count"></span><span class="z-sum"></span>';
     det.appendChild(sum);
 
@@ -169,12 +182,20 @@ function buildAll() {
       구역이름바꾸기(z.구역);
     });
 
+    // summary 안의 버튼이라 기본 동작(구역 접기/펴기)을 막아야 한다
+    sum.querySelector('.z-cam').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      사진트레이열기(z.구역);
+    });
+
     items.forEach((item) => det.appendChild(buildItem(item)));
     wrap.appendChild(det);
 
     det._items = items;
     det._count = sum.querySelector('.z-count');
     det._sum = sum.querySelector('.z-sum');
+    det._cam = sum.querySelector('.z-cam');
   });
 }
 
@@ -190,6 +211,7 @@ function 구역이름바꾸기(원래) {
   if (!t || t === 원래) delete state.구역명[원래];
   else state.구역명[원래] = t;
   buildAll();
+  구역장수갱신();
   refresh();
   persist();
 }
@@ -493,6 +515,7 @@ $('#resetBtn').addEventListener('click', () => {
   save(STORAGE_KEY, state);
   syncAdjust();
   buildAll();
+  구역장수갱신();
   refresh();
 });
 
@@ -819,6 +842,7 @@ $('#boxList').addEventListener('click', (e) => {
     $('#relayText').value = state.전달사항 || '';
     syncAdjust();
     buildAll();
+    구역장수갱신();
     refresh();
     save(STORAGE_KEY, state);
     closeBox();
@@ -829,3 +853,112 @@ $('#boxList').addEventListener('click', (e) => {
 $('#boxBtn').addEventListener('click', openBox);
 $('#boxClose').addEventListener('click', closeBox);
 $('#boxBack').addEventListener('click', closeBox);
+
+/* ---------- 현장 사진 ----------
+   사진은 폰 브라우저(IndexedDB)에만 있다. 서버로 안 나간다.
+   구역 안에서 찍고 품목을 태그하면 그 자리에서 견적이 만들어진다. */
+function 사진못씀(e) {
+  사진가능 = false;
+  document.querySelectorAll('.z-cam').forEach((b) => { b.hidden = true; });
+  console.warn('사진 기능을 쓸 수 없습니다:', e);
+}
+
+async function 구역장수갱신() {
+  if (!사진가능) return;
+  try {
+    장수맵 = await PDB.구역장수(현장ID확보());
+  } catch (e) {
+    사진못씀(e);
+    return;
+  }
+  document.querySelectorAll('.zone').forEach((det) => {
+    if (!det._cam) return;
+    const n = 장수맵[det._zone] || 0;
+    det._cam.textContent = n ? '📷 ' + n : '📷';
+    det._cam.classList.toggle('has', n > 0);
+  });
+}
+
+/* 썸네일 objectURL 은 다 쓰면 반드시 풀어준다.
+   안 풀면 사진을 열 때마다 메모리가 쌓여서 폰에서 화면이 느려진다. */
+function 트레이비우기() {
+  트레이사진.forEach((p) => { if (p._url) URL.revokeObjectURL(p._url); });
+  트레이사진 = [];
+}
+
+async function 사진트레이열기(구역) {
+  트레이구역 = 구역;
+  $('#trayTitle').textContent = 표시구역명(구역) + ' 사진';
+  $('#trayBack').hidden = false;
+  $('#traySheet').hidden = false;
+  await 트레이그리기();
+}
+
+async function 트레이그리기() {
+  트레이비우기();
+  try {
+    트레이사진 = await PDB.구역사진(현장ID확보(), 트레이구역);
+  } catch (e) {
+    사진못씀(e);
+    닫기_트레이();
+    return;
+  }
+  const g = $('#trayGrid');
+  $('#trayEmpty').hidden = 트레이사진.length > 0;
+  g.textContent = '';
+  트레이사진.forEach((p, i) => {
+    p._url = URL.createObjectURL(p.thumb);
+    const d = document.createElement('div');
+    d.className = 'ph' + ((p.태그 || []).length ? ' tagged' : '');
+    d.innerHTML = '<img alt="사진 ' + (i + 1) + '" src="' + p._url + '">';
+    d.addEventListener('click', () => 태그화면열기(i));
+    g.appendChild(d);
+  });
+}
+
+function 닫기_트레이() {
+  트레이비우기();
+  $('#trayBack').hidden = true;
+  $('#traySheet').hidden = true;
+  구역장수갱신();
+}
+
+// Task 4 에서 인앱 카메라로 바뀐다. 지금은 파일 선택만 쓴다.
+$('#trayShoot').addEventListener('click', () => { $('#trayFile').click(); });
+
+$('#trayFile').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';           // 같은 파일을 연속으로 고를 수 있게 비운다
+  if (!f) return;
+  await 사진추가(f);
+  await 트레이그리기();
+});
+
+async function 사진추가(file) {
+  try {
+    await PDB.추가(현장ID확보(), 트레이구역, file);
+  } catch (err) {
+    // 저장공간이 꽉 차면 여기로 온다. 조용히 실패하면 찍은 줄 알고 넘어간다.
+    if (err && err.name === 'QuotaExceededError') {
+      toast('저장공간이 부족합니다. 저장함에서 오래된 현장을 지워주세요.');
+    } else {
+      toast('사진을 저장하지 못했습니다.');
+    }
+    console.warn(err);
+  }
+}
+
+$('#trayClose').addEventListener('click', 닫기_트레이);
+$('#trayBack').addEventListener('click', 닫기_트레이);
+
+// Task 5 에서 태그 화면으로 교체된다. 지금은 삭제만 확인한다.
+async function 태그화면열기(i) {
+  const p = 트레이사진[i];
+  if (!p) return;
+  if (!confirm('이 사진을 지울까요?')) return;
+  await PDB.삭제(p.id);
+  await 트레이그리기();
+}
+
+// 폰 저장공간이 부족할 때 크롬이 사진을 임의로 지우지 않게 한다.
+PDB.영구요청();
