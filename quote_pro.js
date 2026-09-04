@@ -561,8 +561,11 @@ function buildText() {
   L.push('');
   if ($('#optAdj').checked && q.result.조정_합계율 !== 0) {
     L.push('소계 ' + q.result.소계.toLocaleString('ko-KR') + '원');
-    L.push('조정 ' + (q.result.조정_합계율 > 0 ? '+' : '')
-      + Math.round(q.result.조정_합계율 * 1000) / 10 + '%');
+    // 견적서 화면과 같은 모양으로 조정 이유(항목명)를 같이 적는다.
+    const 퍼 = (v) => (v > 0 ? '+' : '') + Math.round(v * 1000) / 10 + '%';
+    const 내역 = 조정목록().filter((a) => a && a.항목명 && a.비율);
+    if (내역.length) 내역.forEach((a) => L.push('조정 (' + a.항목명 + ') ' + 퍼(a.비율)));
+    else L.push('조정 ' + 퍼(q.result.조정_합계율));
   }
   L.push('합계 ' + q.result.총액.toLocaleString('ko-KR') + '원' + (부가세 ? ' (부가세 별도)' : ''));
 

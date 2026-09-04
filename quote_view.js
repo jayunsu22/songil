@@ -48,6 +48,11 @@ async function load() {
   }
 }
 
+/* 0.05 -> '+5%'. 소수점 한 자리까지만 보여준다. */
+function 퍼센트(v) {
+  return (v > 0 ? '+' : '') + Math.round(v * 1000) / 10 + '%';
+}
+
 /* 링크에 보여줄 짧은 주소. 실제 이동은 원본 주소로 한다. */
 function 짧게(url) {
   return String(url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -174,8 +179,21 @@ function renderSum() {
 
   if (d.조정내역_표시 && d.조정_합계율 !== 0 && !조정됨) {
     R.push('<div class="v-row"><span>소계</span><span>' + won(d.소계) + '</span></div>');
-    R.push('<div class="v-row"><span>조정</span><span>' +
-      (d.조정_합계율 > 0 ? '+' : '') + Math.round(d.조정_합계율 * 1000) / 10 + '%</span></div>');
+
+    // 조정 이유를 항목명까지 같이 보여준다. '조정 +5%' 만 있으면 받는 쪽이
+    // 왜 붙었는지 몰라서 전화가 온다. 항목명은 발행할 때 조정_내역에 같이 저장된다.
+    // 비율 0인 항목은 뺀다 - 금액에 영향이 없는데 줄만 늘어난다.
+    const 내역 = (d.조정_내역 || []).filter((a) => a && a.항목명 && a.비율);
+    if (내역.length) {
+      내역.forEach((a) => {
+        R.push('<div class="v-row"><span>조정 <span class="v-why">(' +
+          esc(a.항목명) + ')</span></span><span>' + 퍼센트(a.비율) + '</span></div>');
+      });
+    } else {
+      // 항목명 없이 발행된 예전 견적서. 합계율만 보여준다.
+      R.push('<div class="v-row"><span>조정</span><span>' +
+        퍼센트(d.조정_합계율) + '</span></div>');
+    }
   }
   R.push('<div class="v-row total"><span>합계</span><span>' + won(총) +
     (d.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span></div>');

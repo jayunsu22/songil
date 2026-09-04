@@ -127,6 +127,8 @@ body.view { padding-bottom: 40px; }
   font-weight: 800;
 }
 .v-row.total small { font-size: 12px; font-weight: 500; color: var(--muted); }
+/* 조정 줄의 '(거주중)' 같은 이유 표시. 항목명이 금액만큼 튀면 안 된다. */
+.v-row .v-why { color: var(--muted); font-size: 13px; }
 
 /* ---------- 안내 ---------- */
 .v-note {
