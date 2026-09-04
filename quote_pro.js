@@ -208,6 +208,22 @@ function buildItem(item) {
       '</div>';
   }
 
+  // 종류가 여러 개인 품목(샤시: 단창/2중창/시스템)은 드롭다운으로 고른다.
+  // 구역마다 6줄로 늘어놓는 대신 한 줄에서 고르게 하려는 것.
+  // body.innerHTML 을 쓴 뒤에 넣어야 한다 — 먼저 넣으면 innerHTML 이 지워버린다.
+  let 종류 = null;
+  if ((item.옵션들 || []).length > 1) {
+    종류 = document.createElement('select');
+    종류.className = 'kind';
+    item.옵션들.forEach((o, i) => {
+      const op = document.createElement('option');
+      op.value = String(i);
+      op.textContent = o.품목명;
+      종류.appendChild(op);
+    });
+    body.insertBefore(종류, body.firstChild);
+  }
+
   const diff = document.createElement('select');
   diff.className = 'diff';
   난이도목록.forEach((d) => {
@@ -219,7 +235,7 @@ function buildItem(item) {
   body.appendChild(diff);
   box.appendChild(body);
 
-  const row = { item: item, box: box, head: head, body: body, diff: diff,
+  const row = { item: item, box: box, head: head, body: body, diff: diff, kind: 종류,
                 cb: head.querySelector('input'), amt: head.querySelector('.i-amt'),
                 num: body.querySelector('.qnum') };
   ROWS.set(item.체크_ID, row);
@@ -227,7 +243,11 @@ function buildItem(item) {
   /* 이벤트 */
   row.cb.addEventListener('change', () => {
     if (row.cb.checked) {
-      state.선택[item.체크_ID] = { 수량: 평형별 ? (item.평형별_설정길이 || 1) : item.기본수량, 난이도: 1 };
+      state.선택[item.체크_ID] = {
+        수량: 평형별 ? (item.평형별_설정길이 || 1) : item.기본수량,
+        난이도: 1,
+        옵션: 0,          // 종류 드롭다운에서 고른 순번. 종류가 하나뿐이면 항상 0.
+      };
     } else {
       delete state.선택[item.체크_ID];
     }
@@ -243,6 +263,16 @@ function buildItem(item) {
     refresh();
     persist();
   });
+
+  if (종류) {
+    종류.addEventListener('change', () => {
+      const s = state.선택[item.체크_ID];
+      if (!s) return;
+      s.옵션 = parseInt(종류.value, 10) || 0;
+      refresh();
+      persist();
+    });
+  }
 
   if (!평형별) {
     const 바꾸기 = (v) => {
@@ -278,6 +308,7 @@ function syncRow(row) {
   if (s) {
     if (row.num) row.num.value = s.수량;
     row.diff.value = String(s.난이도 || 1);
+    if (row.kind) row.kind.value = String(s.옵션 || 0);
   }
 }
 
@@ -337,26 +368,37 @@ function syncAdjust() {
 }
 
 /* ---------- 계산 및 갱신 ---------- */
+/* 종류 드롭다운에서 고른 옵션. 종류가 하나뿐이면 그 하나를 돌려준다. */
+function 고른옵션(item, s) {
+  const list = item.옵션들 || [];
+  return list[(s && s.옵션) || 0] || list[0] || item;
+}
+
 function 선택품목들() {
   const out = [];
   MASTER.zones.forEach((z) => {
     z.items.forEach((item) => {
       const s = state.선택[item.체크_ID];
       if (!s || !보이는가(item)) return;
+      // 종류를 고르는 품목이면 고른 종류의 단가·설명을 쓴다
+      const o = 고른옵션(item, s);
       out.push({
         체크_ID: item.체크_ID,
         // 바꾼 이름으로 내보낸다. 발행 스냅샷·견적서·카톡 텍스트가 전부 이걸 쓴다.
         구역: 표시구역명(z.구역),
-        품목명: item.표시_품목명,
-        단위: item.단위,
+        // 종류가 여럿이면 견적서에 '샤시1 (시스템샤시)' 처럼 어느 종류인지 남긴다
+        품목명: (item.옵션들 || []).length > 1
+          ? item.표시_품목명 + ' (' + o.품목명 + ')'
+          : item.표시_품목명,
+        단위: o.단위,
         수량: s.수량,
         난이도: s.난이도 || 1,
-        인건비단가: item.인건비단가,
-        자재비단가: item.자재비단가,
-        자재소모량: item.자재소모량,
-        품목설명: item.품목설명,
-        견적기준: item.견적기준,
-        공통설명: item.공통설명,
+        인건비단가: o.인건비단가,
+        자재비단가: o.자재비단가,
+        자재소모량: o.자재소모량,
+        품목설명: o.품목설명,
+        견적기준: o.견적기준,
+        공통설명: o.공통설명,
       });
     });
   });

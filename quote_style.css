@@ -341,3 +341,15 @@ header {
   padding: 0;
 }
 .z-edit:active { background: #e8ecf5; }
+
+/* 종류 선택 (샤시 단창/2중창/시스템) */
+.kind {
+  height: var(--tap);
+  padding: 0 8px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  background: #fff;
+  color: var(--accent);
+}
