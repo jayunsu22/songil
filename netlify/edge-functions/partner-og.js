@@ -87,7 +87,24 @@ export default async (request, context) => {
             const escAttrQ = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
             const escTextQ = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-            let 현장명 = (url.searchParams.get('t') || '').trim().slice(0, 60);
+            // n = base64url 로 담은 현장명(주소를 짧게 하려고 2026-09-04 에 바꿈).
+            // t = 예전 방식(퍼센트 인코딩). 이미 카톡으로 보낸 링크가 살아 있어야
+            // 하므로 둘 다 읽는다. n 이 있으면 n 을 쓴다.
+            let 현장명 = '';
+            const n = (url.searchParams.get('n') || '').trim();
+            if (n) {
+                try {
+                    const b64 = n.replace(/-/g, '+').replace(/_/g, '/');
+                    const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+                    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+                    현장명 = new TextDecoder().decode(bytes);
+                } catch (e) {
+                    // 값이 깨졌으면 이름 없이 기본 제목으로 간다. 페이지는 그대로 나가야 한다.
+                    현장명 = '';
+                }
+            }
+            if (!현장명) 현장명 = (url.searchParams.get('t') || '').trim();
+            현장명 = 현장명.trim().slice(0, 60);
             const qTitle = 현장명 || '섬세한손길 시공 견적서';
             const qDesc = 현장명 ? '섬세한손길 시공 견적서' : '인테리어필름 시공 견적서입니다.';
 

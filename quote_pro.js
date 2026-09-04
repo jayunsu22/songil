@@ -604,13 +604,26 @@ function 링크() {
   // '품목설명 포함'은 저장이 아니라 링크 뒤에 붙는 표시일 뿐이라,
   // 재발행 없이 같은 견적을 업자용/소비자용으로 각각 보낼 수 있다.
   //
-  // t = 현장명. 카톡 미리보기 카드 제목에 쓴다. Edge Function 이 이 값을
-  // 읽어 og:title 을 바꾸는데, 백엔드 조회 없이 문자열만 읽으므로 안전하다.
+  // n = 현장명(base64url). 카톡 미리보기 카드 제목에 쓴다. Edge Function 이
+  // 이 값을 읽어 og:title 을 바꾸는데, 백엔드 조회 없이 문자열만 읽으므로 안전하다.
+  //
+  // 예전엔 t= 에 그냥 넣었는데, 한글 한 글자가 주소에서 %EC%9A%B0 처럼 9글자로
+  // 부풀어 현장명 16자가 104자가 됐다. base64url 은 3바이트를 4글자로 담아
+  // 같은 이름이 51자가 된다 (주소 전체 144자 -> 91자).
   const p = new URLSearchParams();
   if ($('#optDesc').checked) p.set('d', '1');
-  if (발행결과.현장명) p.set('t', 발행결과.현장명);
+  if (발행결과.현장명) p.set('n', b64u(발행결과.현장명));
   const qs = p.toString();
   return location.origin + '/q/' + 발행결과.견적코드 + (qs ? '?' + qs : '');
+}
+
+/* 한글을 base64url 로. URLSearchParams 가 다시 % 로 감싸지 않도록
+   +, /, = 를 빼고 -, _ 만 쓴다. */
+function b64u(글) {
+  const bytes = new TextEncoder().encode(글);
+  let bin = '';
+  bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin).split('+').join('-').split('/').join('_').split('=').join('');
 }
 
 /* 여러 줄짜리 설명의 둘째 줄부터 앞에 공백을 붙여 한 덩어리로 보이게 한다.
