@@ -510,7 +510,14 @@ function 링크() {
   if (!발행결과) return '';
   // '품목설명 포함'은 저장이 아니라 링크 뒤에 붙는 표시일 뿐이라,
   // 재발행 없이 같은 견적을 업자용/소비자용으로 각각 보낼 수 있다.
-  return location.origin + '/q/' + 발행결과.견적코드 + ($('#optDesc').checked ? '?d=1' : '');
+  //
+  // t = 현장명. 카톡 미리보기 카드 제목에 쓴다. Edge Function 이 이 값을
+  // 읽어 og:title 을 바꾸는데, 백엔드 조회 없이 문자열만 읽으므로 안전하다.
+  const p = new URLSearchParams();
+  if ($('#optDesc').checked) p.set('d', '1');
+  if (발행결과.현장명) p.set('t', 발행결과.현장명);
+  const qs = p.toString();
+  return location.origin + '/q/' + 발행결과.견적코드 + (qs ? '?' + qs : '');
 }
 
 /* 여러 줄짜리 설명의 둘째 줄부터 앞에 공백을 붙여 한 덩어리로 보이게 한다.
@@ -621,7 +628,7 @@ $('#doPublish').addEventListener('click', async () => {
     const j = await res.json();
     if (!j || !j.견적코드) throw new Error('견적코드 없음');
 
-    발행결과 = { 견적코드: j.견적코드 };
+    발행결과 = { 견적코드: j.견적코드, 현장명: state.현장명 };
     $('#pubLink').textContent = 링크();
     $('#pubBefore').hidden = true;
     $('#pubAfter').hidden = false;
@@ -647,3 +654,133 @@ $('#copyText').addEventListener('click', async () => {
 
 $('#pubClose').addEventListener('click', closePublish);
 $('#pubBack').addEventListener('click', closePublish);
+
+/* =========================================================================
+   링크 열기 · 다시 발행 · 저장함
+   ========================================================================= */
+
+$('#openLink').addEventListener('click', () => {
+  const u = 링크();
+  if (u) window.open(u, '_blank', 'noopener');
+});
+
+/* 고쳐서 다시 발행: 새 견적코드로 새로 저장한다.
+   이미 보낸 링크를 덮어쓰지 않는다 — 업자가 어제 받은 링크의 금액이
+   말없이 바뀌면 사고다. 옛 링크는 그대로 살아 있고 새 링크가 하나 더 생긴다. */
+$('#rePublish').addEventListener('click', () => {
+  발행결과 = null;
+  $('#pubAfter').hidden = true;
+  $('#pubBefore').hidden = false;
+  $('#doPublish').disabled = false;
+  $('#doPublish').textContent = '발행하기';
+  $('#pubSheet').scrollTop = 0;
+  toast('내용을 고친 뒤 발행하기를 누르세요');
+});
+
+/* ---------- 저장함 ----------
+   작성 중인 내용은 자동저장되지만 한 건뿐이다. 현장을 여러 곳 도는 날에는
+   앞 현장 견적이 덮여버리므로, 이름을 붙여 따로 담아둘 수 있게 한다. */
+const BOX_KEY = 'quote_pro_box_v1';
+
+function 저장함읽기() {
+  const v = load(BOX_KEY);
+  return Array.isArray(v) ? v : [];
+}
+
+function 저장함쓰기(list) {
+  save(BOX_KEY, list);
+}
+
+$('#saveDraft').addEventListener('click', () => {
+  persist();
+  const 건수 = Object.keys(state.선택).length;
+  if (!건수) { toast('체크한 품목이 없습니다.'); return; }
+
+  const 이름 = (state.현장명 || '').trim() || prompt('저장할 이름을 적어주세요.', '') || '';
+  if (!이름.trim()) { toast('이름이 없어 저장하지 않았습니다.'); return; }
+
+  const list = 저장함읽기();
+  const 항목 = {
+    id: Date.now(),
+    이름: 이름.trim(),
+    저장일시: new Date().toISOString(),
+    건수: 건수,
+    총액: (window.__quote && window.__quote.result.총액) || 0,
+    상태: JSON.parse(JSON.stringify(state)),
+  };
+  // 같은 이름이 있으면 덮어쓴다. 같은 현장을 두 번 저장했을 때 목록이 지저분해진다.
+  const i = list.findIndex((x) => x.이름 === 항목.이름);
+  if (i >= 0) list[i] = 항목; else list.unshift(항목);
+
+  저장함쓰기(list.slice(0, 30));   // 폰 저장공간이 한정되어 30건까지만
+  toast('‘' + 항목.이름 + '’ 저장함에 담았습니다');
+});
+
+function openBox() {
+  const list = 저장함읽기();
+  const L = $('#boxList');
+  if (!list.length) {
+    L.innerHTML = '<p class="hint">아직 저장한 견적이 없습니다.</p>';
+  } else {
+    L.innerHTML = list.map((x) =>
+      '<div class="box-row" data-id="' + x.id + '">' +
+        '<div class="box-info">' +
+          '<b>' + esc(x.이름) + '</b>' +
+          '<span>' + 짧은날짜(x.저장일시) + ' · ' + x.건수 + '개 · ' + won(x.총액) + '</span>' +
+        '</div>' +
+        '<button type="button" class="box-load">불러오기</button>' +
+        '<button type="button" class="box-del" aria-label="삭제">✕</button>' +
+      '</div>').join('');
+  }
+  $('#boxBack').hidden = false;
+  $('#boxSheet').hidden = false;
+}
+
+function closeBox() {
+  $('#boxBack').hidden = true;
+  $('#boxSheet').hidden = true;
+}
+
+function 짧은날짜(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return (d.getMonth() + 1) + '/' + d.getDate() + ' ' +
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+$('#boxList').addEventListener('click', (e) => {
+  const row = e.target.closest('.box-row');
+  if (!row) return;
+  const id = +row.dataset.id;
+  const list = 저장함읽기();
+  const 항목 = list.find((x) => x.id === id);
+  if (!항목) return;
+
+  if (e.target.classList.contains('box-del')) {
+    if (!confirm('‘' + 항목.이름 + '’ 을(를) 저장함에서 지울까요?')) return;
+    저장함쓰기(list.filter((x) => x.id !== id));
+    openBox();
+    return;
+  }
+
+  if (e.target.classList.contains('box-load')) {
+    if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
+    state = Object.assign(
+      { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '' },
+      항목.상태
+    );
+    $('#siteName').value = state.현장명 || '';
+    $('#sizeSelect').value = state.평형 || '확인안됨';
+    $('#memoText').value = state.메모 || '';
+    syncAdjust();
+    buildAll();
+    refresh();
+    save(STORAGE_KEY, state);
+    closeBox();
+    toast('‘' + 항목.이름 + '’ 불러왔습니다');
+  }
+});
+
+$('#boxBtn').addEventListener('click', openBox);
+$('#boxClose').addEventListener('click', closeBox);
+$('#boxBack').addEventListener('click', closeBox);

@@ -75,6 +75,35 @@ export default async (request, context) => {
         }
 
         const url = new URL(request.url);
+
+        // [New] 현장견적 견적서 링크(/q/<코드>).
+        // 카톡 미리보기 카드 제목에 현장명을 띄운다.
+        //
+        // [중요] 여기서 백엔드를 조회하면 안 된다. 예전에 업체명을 실시간 조회로
+        // 가져오게 만들었다가 응답이 1.5~1.8초 걸려 Edge Function 제한시간을 넘겨
+        // 응답이 통째로 씹힌 사고가 있었다(위 주석 참조). 그래서 현장명을 링크의
+        // ?t= 파라미터에 실어 보내고 여기서는 문자열만 읽는다 — 네트워크 호출 0회.
+        if (url.pathname.startsWith('/q/')) {
+            const escAttrQ = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            const escTextQ = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            let 현장명 = (url.searchParams.get('t') || '').trim().slice(0, 60);
+            const qTitle = 현장명 || '섬세한손길 시공 견적서';
+            const qDesc = 현장명 ? '섬세한손길 시공 견적서' : '인테리어필름 시공 견적서입니다.';
+
+            const qHtml = await response.text();
+            const out = qHtml
+                .replace(/<title>[^<]*<\/title>/, () => `<title>${escTextQ(qTitle)}</title>`)
+                .replace(/(<meta property="og:title" content=")[^"]*(")/, (_, a, b) => `${a}${escAttrQ(qTitle)}${b}`)
+                .replace(/(<meta property="og:description" content=")[^"]*(")/, (_, a, b) => `${a}${escAttrQ(qDesc)}${b}`);
+
+            // 응답 헤더에는 한글을 절대 넣지 않는다 (HTTP 헤더는 ASCII만 허용 - 과거 500 사고 원인)
+            return new Response(out, {
+                status: 200,
+                headers: { 'content-type': 'text/html; charset=UTF-8' },
+            });
+        }
+
         const isDashboard = url.pathname.toLowerCase().includes('com_film_dashboard');
 
         let partnerName = null;

@@ -19,6 +19,7 @@
     <option value="40평">40평</option>
     <option value="50평">50평</option>
   </select>
+  <button id="boxBtn" type="button">저장함</button>
   <button id="resetBtn" type="button">새 견적</button>
 </header>
 
@@ -63,11 +64,23 @@
     <div id="pubLink"></div>
     <button id="copyLink" class="primary" type="button">링크 복사</button>
     <button id="copyText" type="button">텍스트 복사</button>
+    <button id="openLink" type="button">링크 열기</button>
+    <button id="rePublish" type="button">고쳐서 다시 발행</button>
     <p class="hint" id="pubNote">‘품목설명 포함’은 지금 켜고 끄면 복사될 링크가 바로 바뀝니다.
-      나머지 두 개를 바꾸려면 다시 발행해야 합니다.</p>
+      메모·조정내역·부가세를 고쳤으면 <b>다시 발행</b>을 눌러야 반영됩니다.
+      이미 보낸 링크는 그대로 살아 있습니다.</p>
   </div>
 
+  <button id="saveDraft" type="button">이 견적 저장함에 담기</button>
   <button id="pubClose" type="button">닫기</button>
+</section>
+
+<div id="boxBack" hidden></div>
+<section id="boxSheet" hidden aria-label="저장함">
+  <h2>저장함</h2>
+  <p class="hint">저장해 둔 견적을 불러오면 지금 작성 중인 내용은 대체됩니다.</p>
+  <div id="boxList"></div>
+  <button id="boxClose" type="button">닫기</button>
 </section>
 
 <div id="toast" hidden></div>
