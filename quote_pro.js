@@ -21,11 +21,23 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' };
+let state = { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
   return (state.구역명 && state.구역명[원래]) || 원래;
+}
+
+/* 현장ID: 사진이 매달리는 키. 견적 하나(=현장 하나)에 대응한다.
+   저장함에 담을 때 사진을 옮기지 않고 이 ID만 같이 기록한다 —
+   그래야 저장을 깜빡해도 사진이 다른 현장으로 새지 않는다.
+   이 기능 이전에 저장된 견적은 현장ID 가 없으므로 불러올 때 새로 발급한다. */
+function 현장ID확보() {
+  if (!state.현장ID) {
+    state.현장ID = QuotePhotos.새현장ID();
+    save(STORAGE_KEY, state);
+  }
+  return state.현장ID;
 }
 
 // 체크_ID -> { item, 행 DOM } 조회용. 매번 전체를 다시 그리지 않기 위해 들고 있는다.
@@ -86,6 +98,7 @@ function setStatus(msg, isErr) {
 function boot() {
   const saved = load(STORAGE_KEY);
   if (saved) state = Object.assign(state, saved);
+  현장ID확보();
 
   $('#siteName').value = state.현장명 || '';
   $('#sizeSelect').value = state.평형 || '확인안됨';
@@ -471,7 +484,8 @@ $('#resetBtn').addEventListener('click', () => {
   if (!confirm('지금 체크한 내용을 모두 지우고 새로 시작할까요?')) return;
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' };
+  state = { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' };
+  현장ID확보();     // 새 현장이 시작됐다. 사진이 앞 현장에 섞이면 안 된다.
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
   $('#memoText').value = '';
@@ -733,6 +747,7 @@ $('#saveDraft').addEventListener('click', () => {
     저장일시: new Date().toISOString(),
     건수: 건수,
     총액: (window.__quote && window.__quote.result.총액) || 0,
+    현장ID: 현장ID확보(),   // 목록에서 사진 장수를 세려면 여기서 바로 읽혀야 한다
     상태: JSON.parse(JSON.stringify(state)),
   };
   // 같은 이름이 있으면 덮어쓴다. 같은 현장을 두 번 저장했을 때 목록이 지저분해진다.
@@ -793,9 +808,11 @@ $('#boxList').addEventListener('click', (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' },
+      { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' },
       항목.상태
     );
+    if (!state.현장ID) state.현장ID = 항목.현장ID || '';
+    현장ID확보();     // 예전에 저장한 건은 현장ID 가 없다. 새로 발급해도 사진이 없어 문제없다.
     $('#siteName').value = state.현장명 || '';
     $('#sizeSelect').value = state.평형 || '확인안됨';
     $('#memoText').value = state.메모 || '';
