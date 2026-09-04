@@ -25,13 +25,19 @@ body.view { padding-bottom: 40px; }
 
 /* ---------- 구역 표 ---------- */
 .v-zone { background: var(--card); margin-top: 10px; }
+/* 구역 머리글. 품목 줄과 확실히 구분되어야 눈으로 훑을 때 구역이 잡힌다.
+   옅은 회색만으로는 흰 품목 줄과 잘 안 갈라져서, 푸른 톤 + 왼쪽 강조선을 넣었다. */
 .v-zone h3 {
   margin: 0;
-  padding: 11px 18px;
+  padding: 12px 18px 12px 15px;
   font-size: 15px;
-  background: #eef1f6;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: #17356a;
+  background: #dbe5f5;
+  border-top: 1px solid #b9cbe8;
+  border-bottom: 1px solid #b9cbe8;
+  border-left: 4px solid var(--accent);
 }
 .v-line {
   display: flex;
