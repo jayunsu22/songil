@@ -1006,14 +1006,145 @@ async function 사진추가(file) {
 $('#trayClose').addEventListener('click', 닫기_트레이);
 $('#trayBack').addEventListener('click', 닫기_트레이);
 
-// Task 5 에서 태그 화면으로 교체된다. 지금은 삭제만 확인한다.
-async function 태그화면열기(i) {
-  const p = 트레이사진[i];
-  if (!p) return;
-  if (!confirm('이 사진을 지울까요?')) return;
-  await PDB.삭제(p.id);
-  await 트레이그리기();
-}
 
 // 폰 저장공간이 부족할 때 크롬이 사진을 임의로 지우지 않게 한다.
 PDB.영구요청();
+
+/* ---------- 태그 화면 ----------
+   사진을 크게 띄우고 그 구역 품목을 체크박스로 놓는다.
+   품목 목록은 마스터를 그대로 쓰므로, 에어테이블에 품목을 추가하면
+   여기에도 자동으로 나온다. 두 군데 관리할 일이 없다. */
+let 태그index = 0;
+let 태그URL = null;
+
+async function 태그화면열기(i) {
+  태그index = i;
+  $('#tagBack').hidden = false;
+  $('#tagSheet').hidden = false;
+  태그그리기();
+}
+
+function 태그그리기() {
+  const p = 트레이사진[태그index];
+  if (!p) { 태그닫기(); return; }
+
+  // 큰 사진은 원본 blob 을 쓴다. 격자와 달리 한 장뿐이라 부담이 없다.
+  if (태그URL) URL.revokeObjectURL(태그URL);
+  태그URL = URL.createObjectURL(p.blob);
+  $('#tagImg').src = 태그URL;
+
+  $('#tagTitle').textContent = 표시구역명(트레이구역) + ' 품목 태그';
+  $('#tagPos').textContent = (태그index + 1) + '/' + 트레이사진.length;
+  $('#tagPrev').disabled = 태그index === 0;
+  $('#tagNext').disabled = 태그index >= 트레이사진.length - 1;
+
+  // 평형 필터를 견적 화면과 똑같이 건다. 여기서만 보여주면 태그는 되는데
+  // 견적에는 안 나타나는 품목이 생긴다.
+  const zone = MASTER.zones.find((z) => z.구역 === 트레이구역);
+  const items = zone ? zone.items.filter(보이는가) : [];
+  const 태그 = p.태그 || [];
+
+  const L = $('#tagList');
+  L.textContent = '';
+  items.forEach((item) => {
+    const lb = document.createElement('label');
+    lb.innerHTML =
+      '<input type="checkbox" data-id="' + esc(item.체크_ID) + '"' +
+      (태그.indexOf(item.체크_ID) >= 0 ? ' checked' : '') + '>' +
+      '<span>' + esc(item.표시_품목명) + '</span>';
+    L.appendChild(lb);
+  });
+
+  // 마스터에서 사라진 품목을 태그해 둔 경우(품목명을 바꿨거나 지웠을 때).
+  // 견적에는 안 넣지만 화면에서 숨기면 사용자가 영문을 모른다.
+  const 있는ID = new Set(items.map((x) => x.체크_ID));
+  태그.filter((id) => !있는ID.has(id)).forEach((id) => {
+    const lb = document.createElement('label');
+    lb.className = 'gone';
+    lb.innerHTML = '<input type="checkbox" data-id="' + esc(id) + '" checked>' +
+      '<span>(없어진 품목)</span>';
+    L.appendChild(lb);
+  });
+
+  L.querySelectorAll('input').forEach((cb) => {
+    cb.addEventListener('change', () => 태그바꿈(cb.dataset.id, cb.checked));
+  });
+}
+
+/* 태그 ↔ 견적 체크 연동.
+   - 태그하면 그 품목이 수량 1로 체크된다. 이미 체크돼 있으면 수량을 안 건드린다.
+   - 태그를 풀면, 그 현장의 어느 사진에도 그 품목이 안 남았을 때만 체크가 풀린다.
+   - 태그는 "그 순간에만" 견적에 쓴다. 화면을 다시 그릴 때마다 반영하지 않는다.
+     그래야 견적 화면에서 뺀 품목이 자꾸 되살아나지 않는다. */
+async function 태그바꿈(체크_ID, 켜짐) {
+  const p = 트레이사진[태그index];
+  if (!p) return;
+
+  const 태그 = (p.태그 || []).slice();
+  const at = 태그.indexOf(체크_ID);
+  if (켜짐 && at < 0) 태그.push(체크_ID);
+  if (!켜짐 && at >= 0) 태그.splice(at, 1);
+  p.태그 = 태그;
+
+  try {
+    await PDB.태그저장(p.id, 태그);
+  } catch (e) {
+    toast('태그를 저장하지 못했습니다.');
+    console.warn(e);
+    return;
+  }
+
+  const row = ROWS.get(체크_ID);
+  if (!row) return;      // 마스터에 없는 품목. 견적에는 넣지 않는다.
+
+  if (켜짐) {
+    if (!state.선택[체크_ID]) {
+      const 평형별 = row.item.적용평형 !== '공통';
+      state.선택[체크_ID] = {
+        수량: 평형별 ? (row.item.평형별_설정길이 || 1) : row.item.기본수량,
+        난이도: 1,
+        옵션: 0,   // 종류(샤시 단창/2중창/시스템)는 견적 화면에서 고른다
+      };
+    }
+  } else {
+    // 현장 전체를 다시 읽는다. 다른 구역 사진이 같은 품목을 태그했을 수 있다.
+    let 전체 = [];
+    try { 전체 = await PDB.현장사진(현장ID확보()); } catch (e) { 전체 = 트레이사진; }
+    if (QuotePhotos.태그해제후_체크뺄까(체크_ID, 전체)) {
+      delete state.선택[체크_ID];
+    }
+  }
+
+  syncRow(row);
+  refresh();
+  persist();
+}
+
+function 태그닫기() {
+  if (태그URL) { URL.revokeObjectURL(태그URL); 태그URL = null; }
+  $('#tagImg').removeAttribute('src');
+  $('#tagBack').hidden = true;
+  $('#tagSheet').hidden = true;
+  트레이그리기();     // 태그 점 표시를 갱신한다
+}
+
+$('#tagPrev').addEventListener('click', () => { if (태그index > 0) { 태그index--; 태그그리기(); } });
+$('#tagNext').addEventListener('click', () => {
+  if (태그index < 트레이사진.length - 1) { 태그index++; 태그그리기(); }
+});
+
+$('#tagDel').addEventListener('click', async () => {
+  const p = 트레이사진[태그index];
+  if (!p) return;
+  if (!confirm('이 사진을 지울까요?\n되돌릴 수 없습니다.')) return;
+  await PDB.삭제(p.id);
+  // 사진이 지워져도 견적 체크는 그대로 둔다. 사진을 지운 것과
+  // 그 품목을 시공 안 하는 것은 다른 얘기다.
+  트레이사진.splice(태그index, 1);
+  if (태그index >= 트레이사진.length) 태그index = 트레이사진.length - 1;
+  if (!트레이사진.length) { 태그닫기(); return; }
+  태그그리기();
+});
+
+$('#tagClose').addEventListener('click', 태그닫기);
+$('#tagBack').addEventListener('click', 태그닫기);
