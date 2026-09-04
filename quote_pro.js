@@ -9,7 +9,7 @@ const CONFIG = {
 const STORAGE_KEY = 'quote_pro_state_v1';
 const MASTER_KEY  = 'quote_pro_master_v1';
 const 난이도목록  = [1.0, 1.1, 1.2, 1.3, 1.5];
-const 비율목록    = [-0.10, -0.05, 0, 0.05, 0.10, 0.15];
+const 비율목록    = [-0.15, -0.10, -0.05, 0, 0.05, 0.10, 0.15];
 
 let MASTER = null;
 // 평형 기본값은 '확인안됨'. 모르는 채로 40평 몰딩 같은 게 잘못 들어가는 것보다
