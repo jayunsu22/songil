@@ -105,8 +105,11 @@ function render() {
       H.push('<div class="v-zone"><h3>' + esc(l.구역) + '</h3>');
       현재구역 = l.구역;
     }
+    // 체크박스는 업자용·소비자용 모두 나온다. 업자도 견적을 낼 때
+    // 품목을 빼고 넣어가며 금액을 맞춰봐야 하기 때문이다.
+    // (품목설명 표시 여부와는 별개다 - 예전에는 둘이 묶여 있었다)
     H.push('<div class="v-line" data-i="' + i + '">' +
-      (설명포함 ? '<input type="checkbox" class="v-chk" checked data-i="' + i + '">' : '') +
+      '<input type="checkbox" class="v-chk" checked data-i="' + i + '">' +
       '<span class="v-nm">' + esc(l.품목명) + '</span>' +
       '<span class="v-qty">' + esc(l.수량) + esc(l.단위) + '</span>' +
       '<span class="v-amt">' + won(l.표시금액) + '</span>' +
@@ -158,16 +161,16 @@ function render() {
   $v('#vDoc').innerHTML = H.join('');
   renderSum();
 
-  if (설명포함) {
-    document.querySelectorAll('.v-chk').forEach((cb) => {
-      cb.addEventListener('change', () => {
-        const i = +cb.dataset.i;
-        if (cb.checked) 해제.delete(i); else 해제.add(i);
-        document.querySelector('.v-line[data-i="' + i + '"]').classList.toggle('off', !cb.checked);
-        renderSum();
-      });
+  // 체크박스를 그리는 곳과 이벤트를 다는 곳이 따로 있다. 한쪽만 풀면
+  // 네모는 보이는데 눌러도 금액이 안 바뀐다.
+  document.querySelectorAll('.v-chk').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const i = +cb.dataset.i;
+      if (cb.checked) 해제.delete(i); else 해제.add(i);
+      document.querySelector('.v-line[data-i="' + i + '"]').classList.toggle('off', !cb.checked);
+      renderSum();
     });
-  }
+  });
 }
 
 /* 조정 후 총액은 남은 표시금액의 합이다.
@@ -208,8 +211,8 @@ function renderSum() {
   renderInquiry(조정됨);
 }
 
-/* 소비자용(?d=1)에서 품목을 빼면 문의 버튼이 나타난다.
-   업자에게 보낸 견적서에서 품목이 빠지면 곤란하므로 여기서만 동작한다. */
+/* 품목을 빼면 그 아래에 문의 버튼이 나타난다. 업자용·소비자용 모두 나온다.
+   업자가 '이렇게 빼고 얼마' 를 물어오는 것도 정상적인 흐름이라 막지 않는다. */
 function renderInquiry(조정됨) {
   let box = $v('#vAdj');
   if (!조정됨) { if (box) box.remove(); return; }
