@@ -14,7 +14,15 @@ const 비율목록    = [-0.10, -0.05, 0, 0.05, 0.10, 0.15];
 let MASTER = null;
 // 평형 기본값은 '확인안됨'. 모르는 채로 40평 몰딩 같은 게 잘못 들어가는 것보다
 // 평형별 품목을 아예 안 보여주는 쪽이 안전하다.
-let state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null] };
+//
+// 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
+// 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
+let state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {} };
+
+// 화면·견적서·텍스트에 나갈 구역 이름
+function 표시구역명(원래) {
+  return (state.구역명 && state.구역명[원래]) || 원래;
+}
 
 // 체크_ID -> { item, 행 DOM } 조회용. 매번 전체를 다시 그리지 않기 위해 들고 있는다.
 const ROWS = new Map();
@@ -107,6 +115,12 @@ function applySize(새평형) {
 /* ---------- 화면 그리기 ---------- */
 function buildAll() {
   const wrap = $('#zones');
+  // 이름을 바꾸거나 평형을 바꿀 때 화면을 다시 그리는데,
+  // 그때 펼쳐둔 구역이 전부 접히면 하던 작업을 놓친다.
+  const 이전 = [...wrap.querySelectorAll('.zone')];
+  const 열린구역 = new Set(이전.filter((d) => d.open).map((d) => d._zone));
+  const 첫빌드 = 이전.length === 0;
+
   wrap.textContent = '';
   ROWS.clear();
 
@@ -116,13 +130,25 @@ function buildAll() {
 
     const det = document.createElement('details');
     det.className = 'zone';
-    if (zi === 0) det.open = true;   // 전체공통은 거의 매번 보게 되므로 펼쳐둔다
+    det._zone = z.구역;
+    // 전체공통은 거의 매번 보게 되므로 처음엔 펼쳐둔다
+    det.open = 첫빌드 ? (zi === 0) : 열린구역.has(z.구역);
 
+    const 바뀜 = !!(state.구역명 && state.구역명[z.구역]);
     const sum = document.createElement('summary');
     sum.innerHTML =
-      '<span class="z-name">' + esc(z.구역) + '</span>' +
+      '<span class="z-name">' + esc(표시구역명(z.구역)) + '</span>' +
+      (바뀜 ? '<span class="z-orig">' + esc(z.구역) + '</span>' : '') +
+      '<button type="button" class="z-edit" aria-label="구역 이름 바꾸기">✎</button>' +
       '<span class="z-count"></span><span class="z-sum"></span>';
     det.appendChild(sum);
+
+    // summary 안의 버튼이라 기본 동작(구역 접기/펴기)을 막아야 한다
+    sum.querySelector('.z-edit').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      구역이름바꾸기(z.구역);
+    });
 
     items.forEach((item) => det.appendChild(buildItem(item)));
     wrap.appendChild(det);
@@ -131,6 +157,22 @@ function buildAll() {
     det._count = sum.querySelector('.z-count');
     det._sum = sum.querySelector('.z-sum');
   });
+}
+
+/* 이번 견적에서만 쓰는 구역 이름. 평면도에 '서재' 처럼 적혀 오면 그대로 쓴다.
+   에어테이블 마스터는 건드리지 않고, '새 견적' 하면 원래 이름으로 돌아간다. */
+function 구역이름바꾸기(원래) {
+  const 새이름 = prompt(
+    '‘' + 원래 + '’ 을(를) 뭐라고 부를까요?\n이번 견적에서만 바뀝니다.',
+    표시구역명(원래)
+  );
+  if (새이름 === null) return;            // 취소
+  const t = 새이름.trim();
+  if (!t || t === 원래) delete state.구역명[원래];
+  else state.구역명[원래] = t;
+  buildAll();
+  refresh();
+  persist();
 }
 
 function buildItem(item) {
@@ -303,7 +345,8 @@ function 선택품목들() {
       if (!s || !보이는가(item)) return;
       out.push({
         체크_ID: item.체크_ID,
-        구역: z.구역,
+        // 바꾼 이름으로 내보낸다. 발행 스냅샷·견적서·카톡 텍스트가 전부 이걸 쓴다.
+        구역: 표시구역명(z.구역),
         품목명: item.표시_품목명,
         단위: item.단위,
         수량: s.수량,
@@ -376,7 +419,7 @@ $('#resetBtn').addEventListener('click', () => {
   if (!confirm('지금 체크한 내용을 모두 지우고 새로 시작할까요?')) return;
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null] };
+  state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {} };
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
   save(STORAGE_KEY, state);
