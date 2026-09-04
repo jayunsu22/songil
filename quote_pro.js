@@ -31,7 +31,7 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
+let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -534,7 +534,7 @@ $('#resetBtn').addEventListener('click', async () => {
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
+  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
   현장ID확보();     // 새 현장이 시작됐다. 사진이 앞 현장에 섞이면 안 된다.
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
@@ -736,6 +736,18 @@ $('#doPublish').addEventListener('click', async () => {
     if (!j || !j.견적코드) throw new Error('견적코드 없음');
 
     발행결과 = { 견적코드: j.견적코드, 현장명: state.현장명 };
+    // 저장함에서 '내역보기' 로 실제 발행된 견적서를 열려면 코드가 남아 있어야 한다.
+    // 저장함에 이미 담긴 현장이면 그쪽 코드도 같이 갱신한다 - 담아둔 뒤에 발행하거나
+    // 고쳐서 다시 발행하는 순서가 다 가능하기 때문이다.
+    state.현장코드 = j.견적코드;
+    save(STORAGE_KEY, state);
+    const 목록 = 저장함읽기();
+    const k = 목록.findIndex((x) => x.현장ID && x.현장ID === state.현장ID);
+    if (k >= 0) {
+      목록[k].현장코드 = j.견적코드;
+      if (목록[k].상태) 목록[k].상태.현장코드 = j.견적코드;
+      저장함쓰기(목록);
+    }
     링크표시();
     $('#pubBefore').hidden = true;
     $('#pubAfter').hidden = false;
@@ -823,6 +835,7 @@ $('#saveDraft').addEventListener('click', () => {
     건수: 건수,
     총액: (window.__quote && window.__quote.result.총액) || 0,
     현장ID: 현장ID확보(),   // 목록에서 사진 장수를 세려면 여기서 바로 읽혀야 한다
+    현장코드: state.현장코드 || '',   // 발행했으면 '내역보기' 로 그 견적서를 연다
     상태: JSON.parse(JSON.stringify(state)),
   };
   // 같은 이름이 있으면 덮어쓴다. 같은 현장을 두 번 저장했을 때 목록이 지저분해진다.
@@ -879,14 +892,20 @@ async function openBox() {
     L.innerHTML = list.map((x) => {
       const st = 통계[x.현장ID] || { 장수: 0, 용량: 0 };
       const 사진줄 = st.장수 ? ' · 사진 ' + st.장수 + '장 (' + MB(st.용량) + ')' : '';
+      // 버튼이 넷이라 한 줄에 안 들어간다. 정보 줄과 버튼 줄을 위아래로 나눈다.
       return '<div class="box-row" data-id="' + x.id + '">' +
         '<div class="box-info">' +
           '<b>' + esc(x.이름) + '</b>' +
-          '<span>' + 짧은날짜(x.저장일시) + ' · ' + x.건수 + '개 · ' + won(x.총액) + 사진줄 + '</span>' +
+          '<span>' + 짧은날짜(x.저장일시) + ' · ' + x.건수 + '개 · ' + won(x.총액) + 사진줄 +
+            (x.현장코드 ? '' : ' · 미발행') + '</span>' +
         '</div>' +
-        '<button type="button" class="box-load">불러오기</button>' +
-        (st.장수 ? '<button type="button" class="box-photodel">사진만 삭제</button>' : '') +
-        '<button type="button" class="box-del" aria-label="삭제">✕</button>' +
+        '<div class="box-acts">' +
+          '<button type="button" class="box-load">불러오기</button>' +
+          // 발행한 적이 없으면 열 견적서가 없다. 버튼을 아예 안 만든다.
+          (x.현장코드 ? '<button type="button" class="box-view">내역보기</button>' : '') +
+          (st.장수 ? '<button type="button" class="box-photodel">사진만 삭제</button>' : '') +
+          '<button type="button" class="box-del" aria-label="삭제">✕</button>' +
+        '</div>' +
       '</div>';
     }).join('');
   }
@@ -934,6 +953,16 @@ $('#boxList').addEventListener('click', async (e) => {
   const 항목 = list.find((x) => x.id === id);
   if (!항목) return;
 
+  if (e.target.classList.contains('box-view')) {
+    if (!항목.현장코드) return;
+    // 발행 시점 그대로의 견적서를 새 탭에서 연다. 작성 화면은 건드리지 않는다.
+    const p = new URLSearchParams();
+    p.set('d', '1');
+    if (항목.이름) p.set('t', 항목.이름);
+    window.open(location.origin + '/q/' + 항목.현장코드 + '?' + p.toString(), '_blank');
+    return;
+  }
+
   if (e.target.classList.contains('box-photodel')) {
     const ph = await PDB.현장사진(항목.현장ID || '');
     if (!ph.length) return;
@@ -960,10 +989,11 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' },
+      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' },
       항목.상태
     );
     if (!state.현장ID) state.현장ID = 항목.현장ID || '';
+    if (!state.현장코드) state.현장코드 = 항목.현장코드 || '';
     현장ID확보();     // 예전에 저장한 건은 현장ID 가 없다. 새로 발급해도 사진이 없어 문제없다.
     $('#siteName').value = state.현장명 || '';
     $('#sizeSelect').value = state.평형 || '확인안됨';
