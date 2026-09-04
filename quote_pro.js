@@ -502,8 +502,25 @@ $('#siteName').addEventListener('input', persist);
 $('#memoText').addEventListener('input', persist);
 $('#relayText').addEventListener('input', persist);
 $('#sizeSelect').addEventListener('change', (e) => applySize(e.target.value));
-$('#resetBtn').addEventListener('click', () => {
-  if (!confirm('지금 체크한 내용을 모두 지우고 새로 시작할까요?')) return;
+$('#resetBtn').addEventListener('click', async () => {
+  // 사진이 있는데 저장함에 안 담았다면 그냥 시작하면 안 된다.
+  // 견적은 사라지고 사진만 남아 '소속 없는 사진' 이 된다.
+  const 담김 = 저장함읽기().some((x) => x.현장ID === state.현장ID);
+  let 사진들 = [];
+  if (사진가능 && state.현장ID) {
+    try { 사진들 = await PDB.현장사진(state.현장ID); } catch (e) { 사진들 = []; }
+  }
+  if (사진들.length && !담김) {
+    const 답 = confirm(
+      '사진 ' + 사진들.length + '장이 있습니다.\n' +
+      '저장함에 담지 않으면 견적은 사라지고 사진만 남습니다.\n\n' +
+      '확인 = 사진을 지우고 새로 시작\n취소 = 그만두기 (저장함에 먼저 담으세요)'
+    );
+    if (!답) return;
+    await PDB.현장삭제(state.현장ID);
+  } else if (!confirm('지금 체크한 내용을 모두 지우고 새로 시작할까요?')) {
+    return;
+  }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
   state = { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' };
@@ -777,26 +794,87 @@ $('#saveDraft').addEventListener('click', () => {
   const i = list.findIndex((x) => x.이름 === 항목.이름);
   if (i >= 0) list[i] = 항목; else list.unshift(항목);
 
-  저장함쓰기(list.slice(0, 30));   // 폰 저장공간이 한정되어 30건까지만
-  toast('‘' + 항목.이름 + '’ 저장함에 담았습니다');
+  // 예전에는 slice(0,30) 으로 31번째에서 가장 오래된 걸 말없이 버렸다.
+  // 사진이 붙은 뒤로는 두 달 뒤 시공하려던 현장이 소리 없이 사라지는 셈이라
+  // 자동으로 버리지 않고 사용자가 고르게 한다.
+  if (i < 0 && list.length > 30) {
+    list.shift();      // 방금 unshift 한 것을 되돌린다
+    alert('저장함이 30건으로 꽉 찼습니다.\n저장함에서 필요 없는 현장을 지운 뒤 다시 담아주세요.');
+    openBox();
+    return;
+  }
+  저장함쓰기(list);
+  if (list.length >= 25) toast('저장함이 ' + list.length + '건입니다. 30건까지 담을 수 있습니다.');
+  else toast('‘' + 항목.이름 + '’ 저장함에 담았습니다');
 });
 
-function openBox() {
+function MB(바이트) {
+  if (!바이트) return '0MB';
+  return (바이트 / 1048576).toFixed(1) + 'MB';
+}
+
+/* 현장ID -> { 장수, 용량 }. 저장함 목록과 '소속 없는 사진' 계산에 함께 쓴다. */
+async function 현장별사진통계() {
+  const out = {};
+  if (!사진가능) return out;
+  let ids = [];
+  try { ids = await PDB.모든현장ID(); } catch (e) { return out; }
+  for (const id of ids) {
+    const list = await PDB.현장사진(id);
+    out[id] = { 장수: list.length, 용량: QuotePhotos.사진용량합(list) };
+  }
+  return out;
+}
+
+async function openBox() {
   const list = 저장함읽기();
+  const 통계 = await 현장별사진통계();
   const L = $('#boxList');
+
+  // 시트 맨 위에 전체 사용량. 얼마나 쌓였는지 여기서만 알 수 있다.
+  const 총장수 = Object.values(통계).reduce((s, v) => s + v.장수, 0);
+  const 총용량 = Object.values(통계).reduce((s, v) => s + v.용량, 0);
+  const 합계줄 = $('#boxTotal');
+  합계줄.textContent = 총장수 ? '사진 ' + 총장수 + '장 · ' + MB(총용량) + ' 사용 중' : '';
+  합계줄.hidden = !총장수;
+
   if (!list.length) {
     L.innerHTML = '<p class="hint">아직 저장한 견적이 없습니다.</p>';
   } else {
-    L.innerHTML = list.map((x) =>
-      '<div class="box-row" data-id="' + x.id + '">' +
+    L.innerHTML = list.map((x) => {
+      const st = 통계[x.현장ID] || { 장수: 0, 용량: 0 };
+      const 사진줄 = st.장수 ? ' · 사진 ' + st.장수 + '장 (' + MB(st.용량) + ')' : '';
+      return '<div class="box-row" data-id="' + x.id + '">' +
         '<div class="box-info">' +
           '<b>' + esc(x.이름) + '</b>' +
-          '<span>' + 짧은날짜(x.저장일시) + ' · ' + x.건수 + '개 · ' + won(x.총액) + '</span>' +
+          '<span>' + 짧은날짜(x.저장일시) + ' · ' + x.건수 + '개 · ' + won(x.총액) + 사진줄 + '</span>' +
         '</div>' +
         '<button type="button" class="box-load">불러오기</button>' +
+        (st.장수 ? '<button type="button" class="box-photodel">사진만 삭제</button>' : '') +
         '<button type="button" class="box-del" aria-label="삭제">✕</button>' +
-      '</div>').join('');
+      '</div>';
+    }).join('');
   }
+
+  // 저장함에 없는 현장의 사진. 안 보이는 곳에서 용량만 먹는 사진이
+  // 생기지 않게 하는 안전장치다.
+  const 담긴ID = new Set(list.map((x) => x.현장ID).filter(Boolean));
+  담긴ID.add(state.현장ID);          // 지금 작성 중인 건은 고아가 아니다
+  const 고아 = Object.keys(통계).filter((id) => !담긴ID.has(id));
+  if (고아.length) {
+    const 장수 = 고아.reduce((s, id) => s + 통계[id].장수, 0);
+    const 용량 = 고아.reduce((s, id) => s + 통계[id].용량, 0);
+    L.insertAdjacentHTML('beforeend',
+      '<div class="box-orphan">소속 없는 사진 ' + 장수 + '장 (' + MB(용량) + ')' +
+      '<button type="button" id="orphanDel">전부 삭제</button></div>');
+    $('#orphanDel').addEventListener('click', async () => {
+      if (!confirm('소속 없는 사진 ' + 장수 + '장을 지울까요?\n되돌릴 수 없습니다.')) return;
+      for (const id of 고아) await PDB.현장삭제(id);
+      toast('사진 ' + 장수 + '장을 지웠습니다');
+      openBox();
+    });
+  }
+
   $('#boxBack').hidden = false;
   $('#boxSheet').hidden = false;
 }
@@ -813,7 +891,7 @@ function 짧은날짜(iso) {
     String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 
-$('#boxList').addEventListener('click', (e) => {
+$('#boxList').addEventListener('click', async (e) => {
   const row = e.target.closest('.box-row');
   if (!row) return;
   const id = +row.dataset.id;
@@ -821,12 +899,28 @@ $('#boxList').addEventListener('click', (e) => {
   const 항목 = list.find((x) => x.id === id);
   if (!항목) return;
 
-  if (e.target.classList.contains('box-del')) {
-    if (!confirm('‘' + 항목.이름 + '’ 을(를) 저장함에서 지울까요?')) return;
-    저장함쓰기(list.filter((x) => x.id !== id));
+  if (e.target.classList.contains('box-photodel')) {
+    const ph = await PDB.현장사진(항목.현장ID || '');
+    if (!ph.length) return;
+    if (!confirm('‘' + 항목.이름 + '’ 의 사진 ' + ph.length + '장을 지울까요?\n견적은 남습니다.')) return;
+    await PDB.현장삭제(항목.현장ID);
+    toast('사진 ' + ph.length + '장을 지웠습니다');
     openBox();
     return;
   }
+
+  if (e.target.classList.contains('box-del')) {
+    const ph = 항목.현장ID ? await PDB.현장사진(항목.현장ID) : [];
+    const 말 = ph.length
+      ? '‘' + 항목.이름 + '’ 을(를) 지울까요?\n사진 ' + ph.length + '장도 같이 지워집니다.'
+      : '‘' + 항목.이름 + '’ 을(를) 지울까요?';
+    if (!confirm(말)) return;
+    if (항목.현장ID) await PDB.현장삭제(항목.현장ID);
+    저장함쓰기(저장함읽기().filter((x) => x.id !== 항목.id));
+    openBox();
+    return;
+  }
+
 
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;

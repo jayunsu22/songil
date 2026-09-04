@@ -418,3 +418,25 @@ header {
   border: 1px solid var(--line); border-radius: 10px;
   background: #fff; color: var(--muted); font-size: 15px;
 }
+
+/* 저장함의 사진 관리 버튼 */
+.box-row .box-photodel {
+  flex: 0 0 auto;
+  min-height: var(--tap);
+  padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: #fff; color: var(--muted);
+  font-size: 13px;
+}
+.box-orphan {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 12px; padding: 12px;
+  border: 1px dashed var(--line); border-radius: 12px;
+  font-size: 13px; color: var(--muted);
+}
+.box-orphan button {
+  margin-left: auto;
+  min-height: 38px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: #fff; font-size: 13px;
+}
