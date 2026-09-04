@@ -31,7 +31,7 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' };
+let state = { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -489,6 +489,10 @@ function persist() {
   state.현장명 = $('#siteName').value.trim();
   state.메모 = $('#memoText').value.trim();
   state.전달사항 = $('#relayText').value.trim();
+  // 기본 문구 그대로면 저장하지 않는다. 저장해 버리면 나중에 품목을 바꿔도
+  // 문구가 옛날 것으로 굳어버린다.
+  const 적은글 = ($('#noteText').value || '').trim();
+  state.안내문구 = (적은글 && 적은글 !== 기본안내문구().trim()) ? 적은글 : '';
   save(STORAGE_KEY, state);
 }
 
@@ -500,6 +504,13 @@ function esc(s) {
 /* ---------- 헤더 이벤트 ---------- */
 $('#siteName').addEventListener('input', persist);
 $('#memoText').addEventListener('input', persist);
+$('#noteText').addEventListener('input', persist);
+$('#noteReset').addEventListener('click', () => {
+  state.안내문구 = '';
+  $('#noteText').value = 기본안내문구();
+  save(STORAGE_KEY, state);
+  toast('기본 문구로 되돌렸습니다');
+});
 $('#relayText').addEventListener('input', persist);
 $('#sizeSelect').addEventListener('change', (e) => applySize(e.target.value));
 $('#resetBtn').addEventListener('click', async () => {
@@ -523,12 +534,13 @@ $('#resetBtn').addEventListener('click', async () => {
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' };
+  state = { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
   현장ID확보();     // 새 현장이 시작됐다. 사진이 앞 현장에 섞이면 안 된다.
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
   $('#memoText').value = '';
   $('#relayText').value = '';
+  $('#noteText').value = '';
   save(STORAGE_KEY, state);
   syncAdjust();
   buildAll();
@@ -553,8 +565,27 @@ window.addEventListener('pagehide', persist);
 
 let 발행결과 = null;   // { 견적코드, opts }
 
+/* 견적서에 평소 나가는 안내문구를 그대로 만들어 준다.
+   1) 체크한 품목들의 공통설명(중복 제거) 2) 가맹점 공통 안내문구
+   발행 창에서 이 글을 고치면 이 견적서에서만 그 둘을 대신한다. */
+function 기본안내문구() {
+  const q = window.__quote;
+  const 덩어리 = [];
+  if (q && q.result) {
+    const 공통 = [...new Set(q.result.라인들.map((l) => l.공통설명).filter(Boolean))];
+    if (공통.length) 덩어리.push(공통.join('\n'));
+  }
+  if (MASTER && MASTER.안내문구) {
+    덩어리.push(MASTER.안내문구.replace(/<[^>]*>/g, '').trim());
+  }
+  return 덩어리.join('\n\n');
+}
+
 function openPublish() {
   발행결과 = null;
+  // 손대지 않았으면 평소 나가는 문구를 그대로 보여준다. 빈 칸을 주면
+  // 무엇을 고치는 건지 몰라서 아무도 안 쓴다.
+  $('#noteText').value = state.안내문구 || 기본안내문구();
   $('#pubBefore').hidden = false;
   $('#pubAfter').hidden = true;
   $('#doPublish').disabled = false;
@@ -633,7 +664,10 @@ function buildText() {
   // 그 함수는 둘째 줄부터만 밀어서, 첫 줄만 왼쪽으로 튀어나온다.
   if (state.전달사항) L.push('', '[소비자 전달사항]', state.전달사항);
 
-  if (설명포함) {
+  // 이 견적에만 쓰는 안내문구를 적었으면 그것만 넣는다 (견적서 화면과 같다)
+  if (state.안내문구) {
+    L.push('', state.안내문구);
+  } else if (설명포함) {
     // 공통설명은 품목마다 반복하지 않고 맨 아래 한 번만 모은다. 안 그러면 도배된다.
     const 공통 = [...new Set(q.result.라인들.map((l) => l.공통설명).filter(Boolean))];
     if (공통.length) { L.push(''); 공통.forEach((c) => L.push('※ ' + 들여쓰기(c, '   '))); }
@@ -694,6 +728,7 @@ $('#doPublish').addEventListener('click', async () => {
         부가세_별도표기: $('#optVat').checked,
         메모: state.메모,
         소비자_전달사항: state.전달사항,
+        안내문구_수정: state.안내문구,
       }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -925,7 +960,7 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' },
+      { 현장ID: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' },
       항목.상태
     );
     if (!state.현장ID) state.현장ID = 항목.현장ID || '';
@@ -934,6 +969,7 @@ $('#boxList').addEventListener('click', async (e) => {
     $('#sizeSelect').value = state.평형 || '확인안됨';
     $('#memoText').value = state.메모 || '';
     $('#relayText').value = state.전달사항 || '';
+    $('#noteText').value = state.안내문구 || '';
     syncAdjust();
     buildAll();
     구역장수갱신();

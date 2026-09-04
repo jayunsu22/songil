@@ -54,6 +54,12 @@
   <label class="memo-label" for="relayText">소비자 전달사항 <em>업자가 고객에게 꼭 전달할 시공범위</em></label>
   <textarea id="relayText" rows="3" placeholder="예: 현관문은 안쪽면만 시공합니다.&#10;붙박이장, 싱크대, 샤시는 모두 앞쪽면만 시공합니다."></textarea>
 
+  <!-- 평소에는 품목 공통설명 + 가맹점 공통 안내문구가 자동으로 나간다.
+       이 칸을 고치면 이 견적서에서만 그 둘을 대신한다. -->
+  <label class="memo-label" for="noteText">시공 안내문구 <em>고치면 이 견적서에만 적용됩니다</em></label>
+  <textarea id="noteText" rows="5"></textarea>
+  <button id="noteReset" class="link-btn" type="button">기본 문구로 되돌리기</button>
+
   <label class="opt"><input type="checkbox" id="optDesc" checked>
     <span>품목설명 포함 <em>소비자에게 보낼 때 켜세요</em></span></label>
   <label class="opt"><input type="checkbox" id="optAdj">

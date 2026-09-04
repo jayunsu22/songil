@@ -132,15 +132,21 @@ function render() {
     H.push('<div class="v-relay"><b>소비자 전달사항</b>' + esc(d.소비자_전달사항) + '</div>');
   }
 
-  if (설명포함) {
-    // 공통설명은 품목마다 반복하면 도배되므로 맨 아래 한 번만 모은다
-    const 공통 = [...new Set(d.라인들.map((l) => l.공통설명).filter(Boolean))];
-    if (공통.length) {
-      H.push('<div class="v-note"><b>시공 안내</b>' + esc(공통.join('\n')) + '</div>');
+  // 이 견적서에만 쓰는 안내문구를 적어 보냈으면 그것만 보여준다.
+  // 품목 공통설명과 가맹점 공통 안내문구를 둘 다 대신한다.
+  if (d.안내문구_수정) {
+    H.push('<div class="v-note"><b>시공 안내</b>' + esc(d.안내문구_수정) + '</div>');
+  } else {
+    if (설명포함) {
+      // 공통설명은 품목마다 반복하면 도배되므로 맨 아래 한 번만 모은다
+      const 공통 = [...new Set(d.라인들.map((l) => l.공통설명).filter(Boolean))];
+      if (공통.length) {
+        H.push('<div class="v-note"><b>시공 안내</b>' + esc(공통.join('\n')) + '</div>');
+      }
     }
-  }
-  if (d.안내문구) {
-    H.push('<div class="v-note">' + esc(d.안내문구.replace(/<[^>]*>/g, '').trim()) + '</div>');
+    if (d.안내문구) {
+      H.push('<div class="v-note">' + esc(d.안내문구.replace(/<[^>]*>/g, '').trim()) + '</div>');
+    }
   }
 
   // 견적서 맨 끝에 명함. 이미지는 2160px 원본을 1080px JPEG(42KB)로 줄여 넣었다 -
