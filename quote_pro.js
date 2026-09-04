@@ -629,7 +629,7 @@ $('#doPublish').addEventListener('click', async () => {
     if (!j || !j.견적코드) throw new Error('견적코드 없음');
 
     발행결과 = { 견적코드: j.견적코드, 현장명: state.현장명 };
-    $('#pubLink').textContent = 링크();
+    링크표시();
     $('#pubBefore').hidden = true;
     $('#pubAfter').hidden = false;
   } catch (e) {
@@ -639,9 +639,18 @@ $('#doPublish').addEventListener('click', async () => {
   }
 });
 
+/* 화면에는 한글이 그대로 보이게 디코딩해서 띄운다. 퍼센트 인코딩된 주소를
+   그대로 보여주면 알아볼 수가 없다. 복사·열기는 인코딩된 원본을 쓴다. */
+function 링크표시() {
+  const u = 링크();
+  let 보기 = u;
+  try { 보기 = decodeURIComponent(u).replace(/\+/g, ' '); } catch (e) { /* 원본 유지 */ }
+  $('#pubLink').textContent = 보기;
+}
+
 // '품목설명 포함'을 켜고 끄면 복사될 링크가 즉시 바뀐다 (재발행 불필요)
 $('#optDesc').addEventListener('change', () => {
-  if (발행결과) $('#pubLink').textContent = 링크();
+  if (발행결과) 링크표시();
 });
 
 $('#copyLink').addEventListener('click', async () => {
