@@ -48,6 +48,11 @@ async function load() {
   }
 }
 
+/* 링크에 보여줄 짧은 주소. 실제 이동은 원본 주소로 한다. */
+function 짧게(url) {
+  return String(url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
 function 날짜(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -60,12 +65,31 @@ function render() {
   const d = DATA;
   const H = [];
 
+  // 머리말은 명함처럼 한 장의 카드로 묶는다. 업체명/연락처/블로그/1분견적 주소를
+  // 한 덩어리로 보여주고, 그 아래 구분선 뒤에 이 견적서 자체의 정보를 둔다.
+  const 연락 = [];
+  if (d.연락처) {
+    연락.push('<a href="tel:' + esc(d.연락처.replace(/[^0-9+]/g, '')) + '">' +
+      '<span class="v-ico">전화</span><span>' + esc(d.연락처) + '</span></a>');
+  }
+  // 주소는 https:// 를 떼고 보여준다. 폰 화면이 좁아 줄이 넘어가면 카드가 흐트러진다.
+  if (d.블로그주소) {
+    연락.push('<a href="' + esc(d.블로그주소) + '" target="_blank" rel="noopener">' +
+      '<span class="v-ico">블로그</span><span>' + esc(짧게(d.블로그주소)) + '</span></a>');
+  }
+  if (d.홍보주소) {
+    연락.push('<a href="' + esc(d.홍보주소) + '" target="_blank" rel="noopener">' +
+      '<span class="v-ico">1분견적</span><span>' + esc(짧게(d.홍보주소)) + '</span></a>');
+  }
+
   H.push('<div class="v-head">' +
     '<div class="v-shop">' + esc(d.업체명) + '</div>' +
-    (d.연락처 ? '<div class="v-tel">' + esc(d.연락처) + '</div>' : '') +
-    (d.현장명 ? '<div class="v-site">' + esc(d.현장명) + '</div>' : '') +
-    '<div class="v-meta">인테리어필름 시공 견적서 · ' + 날짜(d.발행일시) +
-      (d.평형 ? ' · ' + esc(d.평형) : '') + '</div>' +
+    (연락.length ? '<div class="v-contact">' + 연락.join('') + '</div>' : '') +
+    '<div class="v-headfoot">' +
+      (d.현장명 ? '<div class="v-site">' + esc(d.현장명) + '</div>' : '') +
+      '<div class="v-meta">인테리어필름 시공 견적서 · ' + 날짜(d.발행일시) +
+        (d.평형 ? ' · ' + esc(d.평형) : '') + '</div>' +
+    '</div>' +
     '</div>');
 
   // 구역별로 묶어서 표로 그린다. 고정폭 정렬을 쓰지 않으므로 폰마다 안 깨진다.
@@ -113,6 +137,12 @@ function render() {
   if (d.안내문구) {
     H.push('<div class="v-note">' + esc(d.안내문구.replace(/<[^>]*>/g, '').trim()) + '</div>');
   }
+
+  // 견적서 맨 끝에 명함. 이미지는 2160px 원본을 1080px JPEG(42KB)로 줄여 넣었다 -
+  // 원본 2.8MB 를 그대로 쓰면 현장에서 데이터로 열 때 한참 걸린다.
+  H.push('<div class="v-card">' +
+    '<img src="/quote_card.jpg" alt="' + esc(d.업체명) + ' 명함" loading="lazy" ' +
+    'width="1080" height="600"></div>');
 
   $v('#vDoc').innerHTML = H.join('');
   renderSum();

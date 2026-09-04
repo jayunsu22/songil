@@ -8,20 +8,66 @@ body.view { padding-bottom: 40px; }
 
 #vDoc { max-width: 720px; margin: 0 auto; padding: 0 0 24px; }
 
-/* ---------- 머리말 ---------- */
+/* ---------- 머리말 (명함 카드) ---------- */
+/* 업체명·연락처·블로그·1분견적 주소를 한 장의 카드로 묶는다.
+   아래 구역표는 화면 끝까지 꽉 차는 판이라, 머리말만 양옆을 띄우고
+   모서리를 둥글려서 '명함 한 장이 얹혀 있는' 모양으로 구분한다. */
 .v-head {
   background: var(--card);
-  padding: 22px 18px 18px;
-  border-bottom: 3px solid #9c6f2e;
+  margin: 12px 12px 0;
+  padding: 18px 18px 16px;
+  border: 1px solid #e6dccc;
+  border-top: 4px solid #9c6f2e;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(60, 40, 15, .07);
 }
-.v-shop { font-size: 20px; font-weight: 800; }
-.v-tel { font-size: 14px; color: var(--muted); margin-top: 2px; }
-.v-site {
-  margin-top: 14px;
-  font-size: 17px;
+.v-shop { font-size: 21px; font-weight: 800; letter-spacing: -0.4px; }
+
+.v-contact { margin-top: 12px; display: grid; gap: 8px; }
+.v-contact a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  color: var(--text);
+  text-decoration: none;
+  /* 긴 주소가 카드 밖으로 삐져나가지 않게. 폰 화면이 좁다. */
+  min-width: 0;
+  word-break: break-all;
+}
+/* 아이콘 대신 글자 딱지를 쓴다. 이모지는 안드로이드/아이폰에서
+   모양과 폭이 제각각이라 줄이 어긋난다. */
+.v-ico {
+  flex: 0 0 auto;
+  width: 52px;
+  padding: 2px 0;
+  border-radius: 5px;
+  background: #f1e7d6;
+  color: #7c5620;
+  font-size: 11px;
   font-weight: 700;
+  text-align: center;
+  letter-spacing: -0.3px;
 }
+
+.v-headfoot {
+  margin-top: 15px;
+  padding-top: 14px;
+  border-top: 1px solid #efe7db;
+}
+.v-site { font-size: 17px; font-weight: 700; }
 .v-meta { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* ---------- 맨 끝 명함 ---------- */
+.v-card { margin: 14px 12px 0; }
+.v-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid #e6dccc;
+  box-shadow: 0 1px 3px rgba(60, 40, 15, .07);
+}
 
 /* ---------- 구역 표 ---------- */
 .v-zone { background: var(--card); margin-top: 10px; }
