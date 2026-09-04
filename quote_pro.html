@@ -101,6 +101,16 @@
   <button id="trayClose" type="button">닫기</button>
 </section>
 
+<div id="camBack" hidden></div>
+<section id="camSheet" hidden aria-label="촬영">
+  <video id="camVideo" playsinline muted></video>
+  <div id="camBar">
+    <button id="camClose" type="button">닫기</button>
+    <button id="camShot" type="button" aria-label="촬영"></button>
+    <span id="camCount">0장</span>
+  </div>
+</section>
+
 <div id="toast" hidden></div>
 
 <!-- quote_calc.js 가 먼저 로드되어야 한다 (quote_pro.js 가 QuoteCalc 를 쓴다) -->

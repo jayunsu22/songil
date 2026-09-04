@@ -61,3 +61,29 @@
 }
 .z-cam:active { background: #e8ecf5; }
 .z-cam.has { border-color: #9c6f2e; color: #7c5620; font-weight: 700; }
+
+/* 인앱 카메라. 전체화면으로 띄우고 셔터를 누르면 그 자리에서 저장돼
+   연달아 찍을 수 있다. 폰 기본 카메라 앱을 거치면 한 장마다 앱 전환·확인이
+   들어가 20장 찍는 데 60번 넘게 탭해야 한다. */
+#camSheet {
+  position: fixed; inset: 0; z-index: 60;
+  background: #000;
+  display: flex; flex-direction: column;
+}
+#camVideo { flex: 1 1 auto; width: 100%; min-height: 0; object-fit: cover; }
+#camBar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: #000;
+}
+#camBar button { border: none; background: none; color: #fff; font-size: 15px; }
+#camShot {
+  width: 68px; height: 68px;
+  border-radius: 50% !important;
+  background: #fff !important;
+  border: 4px solid #bbb !important;
+  padding: 0;
+}
+#camShot:active { background: #ddd !important; }
+#camCount { color: #fff; font-size: 14px; min-width: 44px; text-align: right; }

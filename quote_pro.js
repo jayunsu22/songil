@@ -923,8 +923,63 @@ function 닫기_트레이() {
   구역장수갱신();
 }
 
-// Task 4 에서 인앱 카메라로 바뀐다. 지금은 파일 선택만 쓴다.
-$('#trayShoot').addEventListener('click', () => { $('#trayFile').click(); });
+/* 인앱 카메라. 셔터를 눌러도 화면이 유지돼 연달아 찍을 수 있다.
+   권한이 없거나 카메라가 없으면 폰 기본 카메라(<input capture>)로 떨어진다. */
+let 스트림 = null;
+let 이번촬영 = 0;
+
+$('#trayShoot').addEventListener('click', 카메라열기);
+
+async function 카메라열기() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $('#trayFile').click();
+    return;
+  }
+  try {
+    스트림 = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } },
+      audio: false,
+    });
+  } catch (e) {
+    // 권한 거부·카메라 없음. 느리지만 동작은 하는 길로 보낸다.
+    toast('카메라를 열 수 없어 폰 카메라로 넘어갑니다.');
+    console.warn(e);
+    $('#trayFile').click();
+    return;
+  }
+  이번촬영 = 0;
+  $('#camCount').textContent = '0장';
+  const v = $('#camVideo');
+  v.srcObject = 스트림;
+  await v.play().catch(() => {});
+  $('#camBack').hidden = false;
+  $('#camSheet').hidden = false;
+}
+
+function 카메라닫기() {
+  // 트랙을 안 끄면 카메라 표시등이 계속 켜져 있고 배터리를 먹는다.
+  if (스트림) { 스트림.getTracks().forEach((t) => t.stop()); 스트림 = null; }
+  $('#camVideo').srcObject = null;
+  $('#camBack').hidden = true;
+  $('#camSheet').hidden = true;
+  트레이그리기();
+}
+
+$('#camShot').addEventListener('click', async () => {
+  const v = $('#camVideo');
+  if (!v.videoWidth) return;            // 아직 첫 프레임이 안 왔다
+  const cv = document.createElement('canvas');
+  cv.width = v.videoWidth;
+  cv.height = v.videoHeight;
+  cv.getContext('2d').drawImage(v, 0, 0);
+  const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.92));
+  if (!blob) { toast('사진을 만들지 못했습니다.'); return; }
+  await 사진추가(blob);                  // 여기서 다시 1600px 로 줄여 저장한다
+  이번촬영 += 1;
+  $('#camCount').textContent = 이번촬영 + '장';
+});
+
+$('#camClose').addEventListener('click', 카메라닫기);
 
 $('#trayFile').addEventListener('change', async (e) => {
   const f = e.target.files && e.target.files[0];
