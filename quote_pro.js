@@ -17,7 +17,7 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '' };
+let state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -86,6 +86,7 @@ function boot() {
   $('#siteName').value = state.현장명 || '';
   $('#sizeSelect').value = state.평형 || '확인안됨';
   $('#memoText').value = state.메모 || '';
+  $('#relayText').value = state.전달사항 || '';
 
   buildAdjust();
   buildAll();
@@ -448,6 +449,7 @@ function refresh() {
 function persist() {
   state.현장명 = $('#siteName').value.trim();
   state.메모 = $('#memoText').value.trim();
+  state.전달사항 = $('#relayText').value.trim();
   save(STORAGE_KEY, state);
 }
 
@@ -459,15 +461,17 @@ function esc(s) {
 /* ---------- 헤더 이벤트 ---------- */
 $('#siteName').addEventListener('input', persist);
 $('#memoText').addEventListener('input', persist);
+$('#relayText').addEventListener('input', persist);
 $('#sizeSelect').addEventListener('change', (e) => applySize(e.target.value));
 $('#resetBtn').addEventListener('click', () => {
   if (!confirm('지금 체크한 내용을 모두 지우고 새로 시작할까요?')) return;
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '' };
+  state = { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' };
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
   $('#memoText').value = '';
+  $('#relayText').value = '';
   save(STORAGE_KEY, state);
   syncAdjust();
   buildAll();
@@ -562,6 +566,12 @@ function buildText() {
   // 내용은 받는 쪽이 꼭 알아야 할 것이라 설명 토글로 감추면 안 된다.
   if (state.메모) L.push('', '[메모] ' + 들여쓰기(state.메모, '       '));
 
+  // 전달사항도 항상 넣는다. 업자가 자기 고객에게 그대로 옮겨 적을 문구라,
+  // 품목설명을 끄고 업자에게 보낼 때야말로 꼭 붙어 있어야 한다.
+  // 제목을 한 줄 위에 따로 두므로 들여쓰기()를 쓰면 안 된다.
+  // 그 함수는 둘째 줄부터만 밀어서, 첫 줄만 왼쪽으로 튀어나온다.
+  if (state.전달사항) L.push('', '[소비자 전달사항]', state.전달사항);
+
   if (설명포함) {
     // 공통설명은 품목마다 반복하지 않고 맨 아래 한 번만 모은다. 안 그러면 도배된다.
     const 공통 = [...new Set(q.result.라인들.map((l) => l.공통설명).filter(Boolean))];
@@ -622,6 +632,7 @@ $('#doPublish').addEventListener('click', async () => {
         조정내역_표시: $('#optAdj').checked,
         부가세_별도표기: $('#optVat').checked,
         메모: state.메모,
+        소비자_전달사항: state.전달사항,
       }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -775,12 +786,13 @@ $('#boxList').addEventListener('click', (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '' },
+      { 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '' },
       항목.상태
     );
     $('#siteName').value = state.현장명 || '';
     $('#sizeSelect').value = state.평형 || '확인안됨';
     $('#memoText').value = state.메모 || '';
+    $('#relayText').value = state.전달사항 || '';
     syncAdjust();
     buildAll();
     refresh();

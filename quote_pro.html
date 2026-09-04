@@ -47,6 +47,12 @@
   <label class="memo-label" for="memoText">메모 <em>견적서와 카톡에 그대로 나갑니다</em></label>
   <textarea id="memoText" rows="2" placeholder="예: 안방-앞방 연결문 포함 / 실외기실은 방2에 딸림"></textarea>
 
+  <!-- 업자가 자기 고객에게 옮겨 적을 시공범위 안내. 메모와 따로 둔다 -
+       메모는 업자에게 하는 말이고, 이건 업자를 거쳐 소비자에게 가는 말이라
+       성격이 달라서 한 칸에 섞어 쓰면 업자가 어디까지 전달할지 헷갈린다. -->
+  <label class="memo-label" for="relayText">소비자 전달사항 <em>업자가 고객에게 꼭 전달할 시공범위</em></label>
+  <textarea id="relayText" rows="3" placeholder="예: 현관문은 안쪽면만 시공합니다.&#10;붙박이장, 싱크대, 샤시는 모두 앞쪽면만 시공합니다."></textarea>
+
   <label class="opt"><input type="checkbox" id="optDesc" checked>
     <span>품목설명 포함 <em>소비자에게 보낼 때 켜세요</em></span></label>
   <label class="opt"><input type="checkbox" id="optAdj">

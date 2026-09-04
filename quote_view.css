@@ -134,3 +134,18 @@ body.view { padding-bottom: 40px; }
   color: #4a3800;
 }
 .v-memo b { display: block; margin-bottom: 6px; font-size: 13px; color: #7a5d00; }
+
+/* 소비자 전달사항. 업자가 자기 고객에게 옮겨 적어야 하는 시공범위 안내다.
+   메모(노란톤)와 나란히 놓이므로 색을 갈라놔야 둘을 헷갈리지 않는다.
+   구역 머리글의 갈색과 같은 계열인 벽돌톤을 썼다. */
+.v-relay {
+  background: #fdf0ea;
+  border-left: 4px solid #b45a34;
+  margin-top: 10px;
+  padding: 14px 18px;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-line;
+  color: #5a2a12;
+}
+.v-relay b { display: block; margin-bottom: 6px; font-size: 13px; color: #9c4520; }

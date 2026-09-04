@@ -357,7 +357,8 @@ header {
 /* 견적서 메모 */
 .memo-label { display: block; font-size: 14px; font-weight: 700; margin-top: 4px; }
 .memo-label em { font-style: normal; font-weight: 500; font-size: 13px; color: var(--muted); margin-left: 4px; }
-#memoText {
+#memoText,
+#relayText {
   width: 100%;
   margin: 6px 0 4px;
   padding: 10px 12px;
