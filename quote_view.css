@@ -95,19 +95,23 @@ body.view { padding-bottom: 40px; }
 .v-line.off { opacity: .45; }
 .v-line.off .v-amt, .v-line.off .v-nm { text-decoration: line-through; }
 .v-chk { flex: 0 0 auto; width: 22px; height: 22px; margin: 0; accent-color: var(--accent); }
-.v-nm { flex: 1 1 auto; }
+/* 품목명은 견적서에서 제일 먼저 읽는 글자다. 금액과 비슷한 무게로 키웠다. */
+.v-nm { flex: 1 1 auto; font-size: 16px; font-weight: 700; }
 .v-qty { color: var(--muted); font-size: 14px; white-space: nowrap; }
 .v-amt {
   flex: 0 0 auto;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* 품목설명. 13px 은 폰에서 너무 작아 안 읽힌다.
+   '현관문은 안쪽면만' 같은 문구를 못 읽으면 나중에 분쟁이 난다. */
 .v-desc {
-  padding: 0 18px 12px 18px;
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.55;
+  padding: 0 18px 13px 18px;
+  font-size: 16px;
+  color: #5b6270;
+  line-height: 1.6;
   white-space: pre-line;
   border-bottom: 1px solid #f0f1f3;
 }
@@ -135,12 +139,12 @@ body.view { padding-bottom: 40px; }
   background: var(--card);
   margin-top: 10px;
   padding: 16px 18px;
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.6;
+  font-size: 15px;
+  color: #5b6270;
+  line-height: 1.65;
   white-space: pre-line;
 }
-.v-note b { color: var(--text); display: block; margin-bottom: 6px; font-size: 13px; }
+.v-note b { color: var(--text); display: block; margin-bottom: 8px; font-size: 15px; }
 
 /* ---------- 소비자 조정 ---------- */
 .v-adjbox {

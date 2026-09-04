@@ -11,7 +11,7 @@
 
 <header>
   <input id="siteName" type="text" placeholder="현장명 (예: 레스코 역곡 42평)" autocomplete="off">
-  <select id="sizeSelect" aria-label="평형">
+  <select id="sizeSelect" aria-label="평형" autocomplete="off">
     <!-- 확인안됨: 평형을 아직 모를 때. 평형별 품목(몰딩/걸레받이/싱크대)이
          화면에서 빠져서, 모르는 채로 엉뚱한 평형 금액이 들어가는 걸 막는다. -->
     <option value="확인안됨" selected>확인안됨</option>
@@ -98,7 +98,10 @@
   <div id="trayGrid"></div>
   <!-- 카메라 권한이 없을 때 쓰는 길. Task 4 에서 인앱 카메라가 앞에 붙는다. -->
   <input type="file" id="trayFile" accept="image/*" capture="environment" hidden>
+  <!-- capture 없이 두면 앨범에서 고른다. 여러 장 한꺼번에 받는다. -->
+  <input type="file" id="trayPick" accept="image/*" multiple hidden>
   <button id="trayShoot" class="primary" type="button">촬영</button>
+  <button id="trayAlbum" type="button">앨범에서 가져오기</button>
   <button id="trayClose" type="button">닫기</button>
 </section>
 

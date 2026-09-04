@@ -225,7 +225,7 @@ function buildItem(item) {
   const head = document.createElement('label');
   head.className = 'item-head';
   head.innerHTML =
-    '<input type="checkbox">' +
+    '<input type="checkbox" autocomplete="off">' +
     '<span class="i-name">' + esc(item.표시_품목명) + '</span>' +
     '<span class="i-amt"></span>';
   box.appendChild(head);
@@ -243,7 +243,7 @@ function buildItem(item) {
     body.innerHTML =
       '<div class="qty">' +
         '<button type="button" class="minus" aria-label="줄이기">−</button>' +
-        '<input type="number" class="qnum" inputmode="numeric" min="1" max="' + item.최대수량 + '">' +
+        '<input type="number" class="qnum" inputmode="numeric" autocomplete="off" min="1" max="' + item.최대수량 + '">' +
         '<span class="q-unit">' + esc(item.단위) + '</span>' +
         '<button type="button" class="plus" aria-label="늘리기">+</button>' +
       '</div>';
@@ -1072,6 +1072,29 @@ function 카메라닫기() {
   트레이그리기();
 }
 
+let 오디오 = null;
+function 셔터소리() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!오디오) 오디오 = new AC();
+    if (오디오.state === 'suspended') 오디오.resume();
+    const t = 오디오.currentTime;
+    // 짧고 높은 '틱' 두 번. 진짜 셔터음처럼 딱딱 끊기게 만든다.
+    [0, 0.055].forEach((지연, i) => {
+      const osc = 오디오.createOscillator();
+      const g = 오디오.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(i ? 1500 : 2200, t + 지연);
+      g.gain.setValueAtTime(0.0001, t + 지연);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 지연 + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 지연 + 0.035);
+      osc.connect(g); g.connect(오디오.destination);
+      osc.start(t + 지연); osc.stop(t + 지연 + 0.04);
+    });
+  } catch (e) { /* 소리는 부가 기능이다. 안 나도 촬영은 되어야 한다. */ }
+}
+
 $('#camShot').addEventListener('click', async () => {
   const v = $('#camVideo');
   if (!v.videoWidth) return;            // 아직 첫 프레임이 안 왔다
@@ -1079,6 +1102,7 @@ $('#camShot').addEventListener('click', async () => {
   cv.width = v.videoWidth;
   cv.height = v.videoHeight;
   cv.getContext('2d').drawImage(v, 0, 0);
+  셔터소리();
   const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.92));
   if (!blob) { toast('사진을 만들지 못했습니다.'); return; }
   await 사진추가(blob);                  // 여기서 다시 1600px 로 줄여 저장한다
@@ -1087,6 +1111,23 @@ $('#camShot').addEventListener('click', async () => {
 });
 
 $('#camClose').addEventListener('click', 카메라닫기);
+
+$('#trayAlbum').addEventListener('click', () => { $('#trayPick').click(); });
+
+$('#trayPick').addEventListener('change', async (e) => {
+  const files = [...(e.target.files || [])];
+  e.target.value = '';
+  if (!files.length) return;
+  let 실패 = 0;
+  for (const f of files) {
+    const ok = await 사진추가(f);
+    if (!ok) 실패 += 1;
+  }
+  await 트레이그리기();
+  구역장수갱신();
+  if (실패) toast(실패 + '장을 넣지 못했습니다.');
+  else toast(files.length + '장 넣었습니다');
+});
 
 $('#trayFile').addEventListener('change', async (e) => {
   const f = e.target.files && e.target.files[0];
@@ -1099,6 +1140,7 @@ $('#trayFile').addEventListener('change', async (e) => {
 async function 사진추가(file) {
   try {
     await PDB.추가(현장ID확보(), 트레이구역, file);
+    return true;
   } catch (err) {
     // 저장공간이 꽉 차면 여기로 온다. 조용히 실패하면 찍은 줄 알고 넘어간다.
     if (err && err.name === 'QuotaExceededError') {
@@ -1107,6 +1149,7 @@ async function 사진추가(file) {
       toast('사진을 저장하지 못했습니다.');
     }
     console.warn(err);
+    return false;
   }
 }
 
@@ -1116,6 +1159,18 @@ $('#trayBack').addEventListener('click', 닫기_트레이);
 
 // 폰 저장공간이 부족할 때 크롬이 사진을 임의로 지우지 않게 한다.
 PDB.영구요청();
+
+/* 크롬은 새로고침·뒤로가기·탭 복원 때 체크박스와 select 값을 제 마음대로 되살린다.
+   그러면 화면에는 체크돼 있는데 state 에는 없어서, 수량 줄도 안 나오고
+   총액이 0원인 채로 발행 버튼이 꺼져 있는 이상한 상태가 된다.
+   autocomplete=off 로 막고, 복원이 끝나는 pageshow 시점에 한 번 더 맞춘다. */
+window.addEventListener('pageshow', () => {
+  if (!MASTER) return;
+  $('#sizeSelect').value = state.평형 || '확인안됨';
+  $('#siteName').value = state.현장명 || '';
+  ROWS.forEach((row) => syncRow(row));
+  refresh();
+});
 
 /* ---------- 태그 화면 ----------
    사진을 크게 띄우고 그 구역 품목을 체크박스로 놓는다.
