@@ -1004,8 +1004,21 @@ async function 트레이그리기() {
     p._url = URL.createObjectURL(p.thumb);
     const d = document.createElement('div');
     d.className = 'ph' + ((p.태그 || []).length ? ' tagged' : '');
-    d.innerHTML = '<img alt="사진 ' + (i + 1) + '" src="' + p._url + '">';
+    d.innerHTML = '<img alt="사진 ' + (i + 1) + '" src="' + p._url + '">' +
+      '<button type="button" class="del" aria-label="사진 삭제">✕</button>';
     d.addEventListener('click', () => 태그화면열기(i));
+    // 삭제는 사진 열기보다 먼저 잡아야 한다. 안 그러면 태그 화면이 같이 열린다.
+    d.querySelector('.del').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const 건 = (p.태그 || []).length;
+      const 말 = 건
+        ? '이 사진을 지울까요?\n품목 ' + 건 + '개가 태그돼 있습니다.\n(견적 체크는 그대로 남습니다)'
+        : '이 사진을 지울까요?';
+      if (!confirm(말)) return;
+      await PDB.삭제(p.id);
+      await 트레이그리기();
+      구역장수갱신();
+    });
     g.appendChild(d);
   });
 }
@@ -1110,9 +1123,11 @@ PDB.영구요청();
    여기에도 자동으로 나온다. 두 군데 관리할 일이 없다. */
 let 태그index = 0;
 let 태그URL = null;
+let 태그구역 = null;   // 태그 화면에서 지금 고른 구역. 사진의 구역과 다를 수 있다.
 
 async function 태그화면열기(i) {
   태그index = i;
+  태그구역 = 트레이구역;      // 사진을 찍은 구역부터 보여준다
   $('#tagBack').hidden = false;
   $('#tagSheet').hidden = false;
   태그그리기();
@@ -1132,11 +1147,38 @@ function 태그그리기() {
   $('#tagPrev').disabled = 태그index === 0;
   $('#tagNext').disabled = 태그index >= 트레이사진.length - 1;
 
+  태그목록그리기();
+}
+
+/* 구역 탭과 품목 목록만 다시 그린다. 탭을 눌렀을 때 사진까지 다시 만들면
+   objectURL 이 새로 생기면서 화면이 한 번 깜빡인다. */
+function 태그목록그리기() {
+  const p = 트레이사진[태그index];
+  if (!p) return;
+  const 태그 = p.태그 || [];
+
+  // 현관에서 찍어도 거실 문이 같이 나온다. 사진의 구역에만 묶어두면
+  // 태그할 수 없는 품목이 생겨서, 구역을 탭으로 골라 쓰게 한다.
+  const T = $('#tagZones');
+  T.textContent = '';
+  let 켜진탭 = null;
+  MASTER.zones.forEach((z) => {
+    const 걸린수 = z.items.filter((it) => 태그.indexOf(it.체크_ID) >= 0).length;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tz' + (z.구역 === 태그구역 ? ' on' : '') + (걸린수 ? ' has' : '');
+    b.textContent = 표시구역명(z.구역) + (걸린수 ? ' ' + 걸린수 : '');
+    b.addEventListener('click', () => { 태그구역 = z.구역; 태그목록그리기(); });
+    if (z.구역 === 태그구역) 켜진탭 = b;
+    T.appendChild(b);
+  });
+  // 사진의 구역이 목록 뒤쪽이면 탭이 화면 밖에 있다. 보이게 끌어온다.
+  if (켜진탭) 켜진탭.scrollIntoView({ block: 'nearest', inline: 'center' });
+
   // 평형 필터를 견적 화면과 똑같이 건다. 여기서만 보여주면 태그는 되는데
   // 견적에는 안 나타나는 품목이 생긴다.
-  const zone = MASTER.zones.find((z) => z.구역 === 트레이구역);
+  const zone = MASTER.zones.find((z) => z.구역 === 태그구역);
   const items = zone ? zone.items.filter(보이는가) : [];
-  const 태그 = p.태그 || [];
 
   const L = $('#tagList');
   L.textContent = '';
@@ -1149,19 +1191,39 @@ function 태그그리기() {
     L.appendChild(lb);
   });
 
-  // 마스터에서 사라진 품목을 태그해 둔 경우(품목명을 바꿨거나 지웠을 때).
+  // 어느 구역에도 없는 품목을 태그해 둔 경우(품목명을 바꿨거나 지웠을 때).
   // 견적에는 안 넣지만 화면에서 숨기면 사용자가 영문을 모른다.
-  const 있는ID = new Set(items.map((x) => x.체크_ID));
-  태그.filter((id) => !있는ID.has(id)).forEach((id) => {
-    const lb = document.createElement('label');
-    lb.className = 'gone';
-    lb.innerHTML = '<input type="checkbox" data-id="' + esc(id) + '" checked>' +
-      '<span>(없어진 품목)</span>';
-    L.appendChild(lb);
-  });
+  // 사진의 원래 구역 탭에서만 보여준다 - 모든 탭에 뜨면 지저분하다.
+  if (태그구역 === 트레이구역) {
+    const 모든ID = new Set();
+    MASTER.zones.forEach((z) => z.items.forEach((it) => 모든ID.add(it.체크_ID)));
+    태그.filter((id) => !모든ID.has(id)).forEach((id) => {
+      const lb = document.createElement('label');
+      lb.className = 'gone';
+      lb.innerHTML = '<input type="checkbox" data-id="' + esc(id) + '" checked>' +
+        '<span>(없어진 품목)</span>';
+      L.appendChild(lb);
+    });
+  }
 
   L.querySelectorAll('input').forEach((cb) => {
     cb.addEventListener('change', () => 태그바꿈(cb.dataset.id, cb.checked));
+  });
+}
+
+/* 탭에 붙는 개수 표시만 고친다. 목록을 다시 그리면 체크할 때마다
+   탭 스크롤이 원위치로 튀어서 쓰기 불편하다. */
+function 탭숫자갱신() {
+  const p = 트레이사진[태그index];
+  if (!p) return;
+  const 태그 = p.태그 || [];
+  const 버튼들 = $('#tagZones').children;
+  MASTER.zones.forEach((z, i) => {
+    const b = 버튼들[i];
+    if (!b) return;
+    const 걸린수 = z.items.filter((it) => 태그.indexOf(it.체크_ID) >= 0).length;
+    b.textContent = 표시구역명(z.구역) + (걸린수 ? ' ' + 걸린수 : '');
+    b.classList.toggle('has', 걸린수 > 0);
   });
 }
 
@@ -1187,6 +1249,7 @@ async function 태그바꿈(체크_ID, 켜짐) {
     console.warn(e);
     return;
   }
+  탭숫자갱신();
 
   const row = ROWS.get(체크_ID);
   if (!row) return;      // 마스터에 없는 품목. 견적에는 넣지 않는다.

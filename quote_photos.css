@@ -123,3 +123,54 @@
   margin-top: 0;
 }
 #tagPos { font-size: 14px; color: var(--muted); min-width: 48px; text-align: center; }
+
+/* 태그 화면의 구역 탭. 현관에서 찍어도 거실 문이 같이 나오는 식이라
+   사진의 구역에만 묶어두면 태그할 수 없는 품목이 생긴다. */
+#tagZones {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding-bottom: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#tagZones::-webkit-scrollbar { display: none; }
+#tagZones .tz {
+  flex: 0 0 auto;
+  width: auto !important;
+  min-height: 38px;
+  margin-top: 0;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* 지금 보고 있는 구역 */
+#tagZones .tz.on {
+  background: #4a3416;
+  border-color: #4a3416;
+  color: #fff;
+}
+/* 이 사진에서 이미 태그한 게 있는 구역. 어디를 손댔는지 한눈에 보여야 한다. */
+#tagZones .tz.has:not(.on) { border-color: #9c6f2e; color: #7c5620; }
+
+/* 트레이 썸네일의 삭제 버튼 */
+#trayGrid .ph .del {
+  position: absolute;
+  top: 3px; right: 3px;
+  width: 26px; height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  font-size: 15px;
+  line-height: 26px;
+  text-align: center;
+}
+#trayGrid .ph .del:active { background: rgba(0,0,0,.8); }
