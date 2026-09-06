@@ -56,7 +56,7 @@
   function 저장함버튼갱신() {
     var b = $('저장함버튼');
     b.hidden = 저장목록.length === 0;
-    b.textContent = '⭐ 저장함 ' + 저장목록.length + '개';
+    b.textContent = '⭐ 즐겨찾기 저장함 ' + 저장목록.length + '개';
     b.setAttribute('aria-pressed', String(보기 === '저장함'));
   }
 
@@ -68,19 +68,98 @@
     return base + '?f=' + 제품들.map(function (p) { return encodeURIComponent(p.키); }).join(',');
   }
 
-  async function 공유하기(제품들, 제목) {
+  // 카카오톡 인앱 브라우저(안드로이드 WebView)에는 navigator.share 가 아예 없다.
+  // 그래서 폰에서 공유를 눌러도 시스템 공유창이 안 뜨고 조용히 복사만 됐다.
+  // 있으면 시스템 공유창을 쓰고, 없으면 우리가 만든 공유창을 띄운다.
+  function 공유하기(제품들, 제목) {
     var url = 공유주소(제품들);
-    // 폰에서는 카톡 등으로 바로 넘길 수 있다. 안 되면 주소를 복사해 준다.
     if (navigator.share) {
-      try { await navigator.share({ title: 제목, url: url }); return; }
-      catch (e) { if (e && e.name === 'AbortError') return; }
+      navigator.share({ title: 제목, url: url }).catch(function (e) {
+        if (e && e.name === 'AbortError') return;   // 사용자가 닫은 것
+        공유창(제목, url);
+      });
+      return;
     }
-    try {
-      await navigator.clipboard.writeText(url);
-      알림('링크를 복사했습니다');
-    } catch (e) {
-      알림('복사에 실패했습니다. 주소창을 길게 눌러 복사해 주세요');
+    공유창(제목, url);
+  }
+
+  // 인앱 브라우저에서도 실제로 동작하는 것만 넣는다.
+  // 카카오톡으로 바로 보내기는 카카오 JS SDK 와 앱키가 있어야 해서 지금은 넣지 못한다.
+  function 공유창(제목, url) {
+    var 덮 = document.createElement('div');
+    덮.className = '덮개 공유덮개';
+
+    var 시트 = document.createElement('div');
+    시트.className = '공유시트';
+    시트.setAttribute('role', 'dialog');
+    시트.setAttribute('aria-label', '공유하기');
+
+    var 머리 = document.createElement('div');
+    머리.className = '공유머리';
+    머리.textContent = 제목;
+    시트.appendChild(머리);
+
+    var 주소칸 = document.createElement('div');
+    주소칸.className = '공유주소';
+    주소칸.textContent = url;
+    시트.appendChild(주소칸);
+
+    var 닫기 = function () { 덮.remove(); document.body.style.overflow = ''; };
+
+    [
+      ['📋  링크 복사', function () {
+        복사(url).then(function (ok) {
+          알림(ok ? '링크를 복사했습니다. 카톡에 붙여넣기 하세요' : '복사에 실패했습니다');
+        });
+        닫기();
+      }],
+      ['💬  문자로 보내기', function () {
+        // sms: 는 인앱 브라우저에서도 문자 앱이 열린다.
+        location.href = 'sms:?body=' + encodeURIComponent(제목 + String.fromCharCode(10) + url);
+        닫기();
+      }],
+    ].forEach(function (쌍) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = '공유항목';
+      b.textContent = 쌍[0];
+      b.addEventListener('click', 쌍[1]);
+      시트.appendChild(b);
+    });
+
+    var 취소 = document.createElement('button');
+    취소.type = 'button';
+    취소.className = '공유취소';
+    취소.textContent = '취소';
+    취소.addEventListener('click', 닫기);
+    시트.appendChild(취소);
+
+    덮.appendChild(시트);
+    덮.addEventListener('click', function (e) { if (e.target === 덮) 닫기(); });
+    document.body.appendChild(덮);
+    document.body.style.overflow = 'hidden';
+  }
+
+  // 인앱 브라우저·http 환경에서는 navigator.clipboard 가 없을 수 있다.
+  // index_app.js 에서 쓰던 것과 같은 대비책을 둔다.
+  function 복사(글) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(글).then(function () { return true; },
+                                                    function () { return 옛복사(글); });
     }
+    return Promise.resolve(옛복사(글));
+  }
+  function 옛복사(글) {
+    var t = document.createElement('textarea');
+    t.value = 글;
+    t.style.position = 'fixed';
+    t.style.opacity = '0';
+    document.body.appendChild(t);
+    t.focus(); t.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(t);
+    return ok;
   }
 
   var 알림타이머 = null;
@@ -465,9 +544,9 @@
         return 전체.filter(function (p) { return p.키 === k; })[0];
       }).filter(Boolean).sort(M.훑어보기정렬(null));
       결과그리기(저장된.map(function (p) { return { 제품: p, 등급: null }; }),
-        저장된.length ? '<b>저장함</b> ' + 저장된.length + '개' : '',
+        저장된.length ? '<b>즐겨찾기 저장함</b> ' + 저장된.length + '개' : '',
         null,
-        저장된.length ? { 글: '저장함 공유하기', 동작: function () {
+        저장된.length ? { 글: '즐겨찾기 전체 공유하기', 동작: function () {
           공유하기(저장된, '필름 ' + 저장된.length + '개');
         } } : null);
       return;
@@ -692,14 +771,14 @@
     var 저장버튼 = document.createElement('button');
     저장버튼.type = 'button';
     var 저장문구 = function () {
-      저장버튼.textContent = 저장됨(p) ? '★ 저장됨' : '☆ 저장';
+      저장버튼.textContent = 저장됨(p) ? '★ 즐겨찾기 저장됨' : '☆ 즐겨찾기 저장';
       저장버튼.setAttribute('aria-pressed', String(저장됨(p)));
     };
     저장문구();
     저장버튼.addEventListener('click', function () {
       저장토글(p);
       저장문구();
-      알림(저장됨(p) ? '저장함에 담았습니다' : '저장함에서 뺐습니다');
+      알림(저장됨(p) ? '즐겨찾기에 담았습니다' : '즐겨찾기에서 뺐습니다');
       // 저장함을 보고 있는 중이면 목록도 바로 갱신한다.
       if (보기 === '저장함') 검색();
     });

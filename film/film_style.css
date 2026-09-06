@@ -327,3 +327,38 @@ main { max-width: 720px; margin: 0 auto; padding: 0 14px; }
 .결과머리 .좁힘 { color: var(--옅은글자); font-weight: 400; }
 
 .결과하단 { margin-top: 12px; }
+
+/* ---------- 공유창 ----------
+   카카오톡 인앱 브라우저(안드로이드 WebView)에는 navigator.share 가 없어서
+   시스템 공유창이 안 뜬다. 그때 대신 띄우는 창. */
+.공유시트 {
+  width: 100%; max-width: 460px;
+  background: var(--바탕);
+  border-radius: 16px 16px 0 0;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+@media (min-width: 460px) { .공유시트 { border-radius: 16px; } }
+
+.공유머리 {
+  font-size: 15px; font-weight: 600; margin-bottom: 6px;
+  word-break: break-all; line-height: 1.4;
+}
+.공유주소 {
+  font-size: 12px; color: var(--흐린글자); margin-bottom: 14px;
+  word-break: break-all; line-height: 1.5;
+  background: var(--판); border: 1px solid var(--선);
+  border-radius: 8px; padding: 8px 10px;
+  max-height: 72px; overflow: hidden;
+}
+.공유항목 {
+  display: block; width: 100%; padding: 14px 16px; margin-bottom: 8px;
+  background: var(--판); color: var(--글자);
+  border: 1px solid var(--선); border-radius: var(--둥글);
+  font: inherit; font-size: 15px; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.공유취소 {
+  display: block; width: 100%; padding: 13px;
+  background: none; color: var(--흐린글자);
+  border: none; font: inherit; font-size: 15px; cursor: pointer;
+}
