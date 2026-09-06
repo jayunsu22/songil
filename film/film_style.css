@@ -4,7 +4,9 @@
   --글자: #1b1b19;
   --흐린글자: #6c6c64;
   --옅은글자: #9a9a91;
-  --바탕: #f7f6f2;
+  /* 카드가 흰색이라 바탕이 흰색에 가까우면 카드 경계가 흐려진다.
+     화이트 필름 169개를 늘어놓는 화면이라 그 차이가 특히 크게 온다. 바탕을 한 단 낮춘다. */
+  --바탕: #eceae2;
   --판: #ffffff;
   --선: #e7e5dd;
   --진한선: #d2cfc4;
@@ -15,6 +17,11 @@
   --포인트옅은: #f2ece4;
   --경고: #96591b;
   --경고옅은: #fbf1e3;
+  /* 필름 견본을 얹는 바탕. 흰 판 위에 화이트·아이보리 필름을 올리면 경계가 사라져
+     무슨 색인지 분간이 안 된다(업체가 가장 많이 고르는 구간이 하필 거기다).
+     색을 판단할 때 주변을 중간 회색으로 두는 것은 색채 관리의 표준 방식이다(ISO 3664).
+     따뜻한 회색을 쓰면 그 기운이 필름 색에 옮겨 붙어 보이므로 일부러 무채색으로 둔다. */
+  --견본판: #7b7b7b;
   --둥글: 12px;
   --그림자: 0 1px 2px rgba(28,28,24,.05), 0 6px 16px rgba(28,28,24,.06);
 }
@@ -308,10 +315,20 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
    화면을 다 먹고 정작 보러 온 코드와 사양이 스크롤 아래로 밀린다. */
 .상세이미지 {
   display: block; width: 100%; height: 38vh; max-height: 300px;
-  object-fit: cover; border-radius: var(--둥글);
-  background: var(--선); margin-bottom: 14px;
+  object-fit: cover; border-radius: 8px;
+  background: var(--선);
 }
-.상세칩 { display: block; width: 100%; height: 180px; border-radius: var(--둥글); margin-bottom: 14px; }
+.상세칩 { display: block; width: 100%; height: 180px; border-radius: 8px; }
+
+/* 견본을 중간 회색 위에 얹는다. 사진 액자의 매트지와 같은 역할이다. */
+.견본바탕 {
+  background: var(--견본판);
+  border-radius: var(--둥글);
+  padding: 12px;
+  margin-bottom: 14px;
+}
+/* 회색 위에서도 견본의 가장자리가 또렷하도록 안쪽에 얇은 선을 하나 둔다. */
+.견본바탕 .상세이미지, .견본바탕 .상세칩 { outline: 1px solid rgba(0,0,0,.18); outline-offset: -1px; }
 
 .표 { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 14px; }
 .표 th, .표 td { padding: 9px 0; border-bottom: 1px solid var(--선); text-align: left; vertical-align: top; }

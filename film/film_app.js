@@ -279,14 +279,19 @@
           link: { mobileWebUrl: 하나, webUrl: 하나 },
         };
       });
-      window.Kakao.Share.sendDefault({
+      // 머리 이미지가 없으면 카드가 글씨만 있는 밋밋한 상자로 보인다.
+      // 이미지가 있는 첫 제품을 대표로 쓴다(PDF 출처 5건은 제품 사진이 아니라 시공사례라 뺀다).
+      var 대표 = 제품들.filter(function (q) { return 필름이미지(q); })[0];
+      var 보낼것 = {
         objectType: 'list',
         headerTitle: '필름 ' + 제품들.length + '개',
         headerLink: 링크,
         contents: 항목,
         buttons: [{ title: '전체 보기', link: 링크 }],
         installTalk: true,
-      });
+      };
+      if (대표) 보낼것.headerImageUrl = 필름이미지(대표);
+      window.Kakao.Share.sendDefault(보낼것);
       return;
     }
 
@@ -1060,18 +1065,24 @@
     머리.appendChild(닫);
     el.appendChild(머리);
 
+    // 견본은 중간 회색 바탕 위에 얹는다. 흰 판 위에 올리면 화이트·아이보리 필름이
+    // 배경과 붙어버려 무슨 색인지 분간이 안 된다. 브랜드 홈페이지들도 같은 이유로
+    // 견본 뒤에 짙은 바탕을 깐다.
+    var 바탕 = document.createElement('div');
+    바탕.className = '견본바탕';
     if (p.사진무효) {
       var 칩 = document.createElement('span');
-      칩.className = '상세칩' + (밝은가(p) ? ' 밝음' : '');
+      칩.className = '상세칩';
       칩.style.background = p.HEX;
-      el.appendChild(칩);
+      바탕.appendChild(칩);
     } else {
       var img = document.createElement('img');
-      img.className = '상세이미지' + (밝은가(p) ? ' 밝음' : '');
+      img.className = '상세이미지';
       img.alt = 브랜드(p.제조사) + ' ' + 제목(p);
       img.src = 'img/card/' + encodeURIComponent(p.키) + '.webp';
-      el.appendChild(img);
+      바탕.appendChild(img);
     }
+    el.appendChild(바탕);
 
     // 사용자가 알아야 할 한계를 숨기지 않는다.
     if (p.코드미확인) {
