@@ -485,3 +485,67 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
   -webkit-tap-highlight-color: transparent;
 }
 .목록머리 .목록설명 { margin-top: 3px; font-size: 12px; color: var(--옅은글자); }
+
+/* ---------- 사진 검색 광고 화면 ----------
+
+   1분견적의 견적 로딩 광고와 같은 방식이다. 다만 거기는 서버가 실제로 오래 걸리고
+   여기는 색 매칭이 즉시 끝나므로, 사진 한 장에 한 번만 띄운다(film_ad.js 참고). */
+.광고덮개 {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 20px;
+  background: rgba(247, 246, 242, .92);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+.광고속 { width: 100%; max-width: 380px; text-align: center; }
+.광고눈썹 { font-size: 14px; font-weight: 600; color: var(--포인트); }
+
+.광고바 {
+  position: relative; width: 100%; height: 62px; margin-top: 10px;
+  border-radius: 18px; background: #e4e1d8; overflow: hidden;
+  box-shadow: 0 10px 26px rgba(28,28,24,.10);
+}
+.광고바채움 {
+  height: 100%; width: 100%; border-radius: 18px;
+  background: linear-gradient(90deg, #a8825f, #6b5344);
+  transition: width 1s linear;
+}
+.광고바글 {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -0.3px;
+  text-shadow: 0 2px 6px rgba(0,0,0,.2); pointer-events: none;
+}
+.광고안내 { margin: 9px 0 0; font-size: 13px; color: var(--흐린글자); line-height: 1.6; }
+
+.광고칸 {
+  position: relative; margin-top: 22px; width: min(380px, 96%);
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 34px 24px; border-radius: 22px;
+  background: linear-gradient(135deg, #8a6a52, #5b4534);
+  color: #fff; text-align: center;
+  box-shadow: 0 20px 44px rgba(91, 69, 52, .34);
+}
+.광고칸 .표시 {
+  position: absolute; bottom: 10px; left: 14px;
+  font-size: 10px; font-weight: 600; color: rgba(255,255,255,.45); letter-spacing: .3px;
+}
+.광고칸 .사진 {
+  width: 76px; height: 76px; border-radius: 16px; object-fit: cover;
+  border: 3px solid rgba(255,255,255,.35);
+}
+.광고칸 .글 { font-size: 19px; font-weight: 700; line-height: 1.45; }
+/* 전화번호는 눌러서 바로 걸리는 것이 광고의 목적이다. */
+.광고칸 .전화 {
+  display: inline-block; padding: 11px 22px; border-radius: 999px;
+  background: rgba(255,255,255,.94); color: #5b4534;
+  font-size: 20px; font-weight: 800; letter-spacing: -0.3px; text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 유입 경로별 첫 화면 한 줄 */
+.경로띠 {
+  margin: 0 0 12px; padding: 11px 14px;
+  background: var(--포인트옅은); border-radius: var(--둥글);
+  font-size: 13px; line-height: 1.55; color: var(--포인트진);
+}

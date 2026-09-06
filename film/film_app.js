@@ -72,6 +72,7 @@
     }
     묶기();
     저장함버튼갱신();
+    경로적용();
     기록목록 = 기록읽기();
     기록그리기();
     $('기록지우기').addEventListener('click', function () {
@@ -191,6 +192,105 @@
     바.querySelector('.센글').innerHTML =
       '<b>' + 고른것.length + '개</b> 선택 (최대 ' + 최대고르기 + '개)';
     if (목몸) 목몸.classList.add('바있음');
+  }
+
+  /* ---------- 사진 검색 광고 화면 ----------
+
+     1분견적의 견적 로딩 광고와 같은 방식이다. 다만 거기는 서버가 실제로 20~30초 걸리는
+     동안 띄우는 것이고, 여기 색 매칭은 1밀리초도 안 걸린다. 이 대기는 순전히 광고를 위한
+     것이므로 사진 한 장에 한 번만 띄운다 — 탭할 때마다 막으면 도구를 못 쓴다.
+     (시공기사는 사진 한 장에서 문틀·몰딩·벽을 여러 번 찍어본다.) */
+
+  var 광고본사진 = false;      // 이 사진에서 광고를 이미 봤는가
+
+  function 광고설정() { return (typeof FilmAd !== 'undefined' && FilmAd) || null; }
+
+  function 광고띄우기(끝나면) {
+    var 설정 = 광고설정();
+    var 광고들 = (설정 && 설정.광고들) || [];
+    if (!설정 || !설정.켜기 || !광고들.length) { 끝나면(); return; }
+
+    var 총초 = Math.max(1, 설정.초 || 10);
+    var 덮 = document.createElement('div');
+    덮.className = '광고덮개';
+    덮.setAttribute('role', 'status');
+    덮.setAttribute('aria-live', 'polite');
+
+    var 첫 = 광고들[0];
+    덮.innerHTML =
+      '<div class="광고속">' +
+        '<div class="광고눈썹">' + 이스케이프(설정.머리 || '') + '</div>' +
+        '<div class="광고바">' +
+          '<div class="광고바채움"></div>' +
+          '<div class="광고바글"><span class="광고초">' + 총초 + '</span>초</div>' +
+        '</div>' +
+        '<p class="광고안내">' + 이스케이프(설정.안내 || '') + '</p>' +
+      '</div>' +
+      '<div class="광고칸">' +
+        '<span class="표시">광고</span>' +
+        (첫.사진 ? '<img class="사진" src="' + 이스케이프(첫.사진) + '" alt="">' : '') +
+        '<span class="글">' + 이스케이프(첫.글 || '') + '</span>' +
+        (첫.전화 ? '<a class="전화" href="tel:' + 이스케이프(첫.전화) + '">' + 이스케이프(첫.전화) + '</a>' : '') +
+      '</div>';
+    document.body.appendChild(덮);
+    몸잠금();
+
+    var 남음 = 총초;
+    var 초시계 = setInterval(function () {
+      남음--;
+      var 채움 = 덮.querySelector('.광고바채움');
+      var 숫자 = 덮.querySelector('.광고초');
+      if (채움) 채움.style.width = Math.max(0, (남음 / 총초) * 100) + '%';
+      if (숫자) 숫자.textContent = Math.max(0, 남음);
+      if (남음 > 0) return;
+      clearInterval(초시계);
+      clearInterval(회전시계);
+      덮.remove();
+      몸잠금풀기();
+      끝나면();
+    }, 1000);
+
+    // 광고가 여러 개면 번갈아 보여준다.
+    var 회전시계 = null;
+    if (광고들.length > 1) {
+      var 번 = 0;
+      회전시계 = setInterval(function () {
+        번 = (번 + 1) % 광고들.length;
+        var a = 광고들[번];
+        var 글 = 덮.querySelector('.광고칸 .글');
+        var 전 = 덮.querySelector('.광고칸 .전화');
+        if (글) 글.textContent = a.글 || '';
+        if (전 && a.전화) { 전.textContent = a.전화; 전.href = 'tel:' + a.전화; }
+      }, Math.max(2, 설정.회전초 || 5) * 1000);
+    }
+  }
+
+  /* ---------- 유입 경로 ----------
+
+     ?c=pro  인테리어 업체에게 직접 보내는 주소
+     ?c=band 인테리어필름 밴드에 올리는 주소
+     한 번 들어오면 이 폰에 남겨서, 다음에 주소 없이 들어와도 같은 문구를 본다. */
+
+  var 경로키 = 'filmdamoa_channel_v1';
+
+  function 경로적용() {
+    var 설정 = 광고설정();
+    var 표 = (설정 && 설정.경로) || {};
+    var q = new URLSearchParams(location.search).get('c');
+    var 지금 = null;
+    if (q && 표[q]) {
+      지금 = q;
+      try { localStorage.setItem(경로키, q); } catch (e) { /* 무시 */ }
+    } else {
+      try { 지금 = localStorage.getItem(경로키); } catch (e) { 지금 = null; }
+    }
+    if (!지금 || !표[지금]) return;
+
+    var 띠 = document.createElement('p');
+    띠.className = '경로띠';
+    띠.textContent = 표[지금].문구;
+    var 입구 = document.querySelector('.입구');
+    if (입구) 입구.insertBefore(띠, 입구.firstChild);
   }
 
   /* ---------- 최근 본 필름 (기록) ----------
@@ -813,6 +913,7 @@
         입구전환('사진');
         원본캔버스 = cv;
         보정계수 = 조명계수구하기(cv);
+        광고본사진 = false;      // 사진 한 장에 한 번만 광고를 띄운다
         $('사진안내').hidden = false;
         $('사진칸').hidden = false;
         결과그리기([], '사진에서 찾으려는 부분을 눌러보세요');
@@ -873,6 +974,13 @@
     $('뽑힌색').hidden = false;
 
     질의 = { lab: 색.대표색, 대비폭: 색.대비폭 };
+
+    // 사진에서 처음 색을 뽑는 순간에만 광고를 띄운다. 두 번째 탭부터는 바로 나온다.
+    if (!광고본사진) {
+      광고본사진 = true;
+      광고띄우기(검색);
+      return;
+    }
     검색();
   }
 
