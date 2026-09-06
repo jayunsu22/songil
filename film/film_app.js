@@ -31,6 +31,10 @@
   var 브랜드표시 = { 'LX': 'LX지인', '현대': '현대보닥' };
   function 브랜드(v) { return 브랜드표시[v] || v; }
 
+  // 화이트·베이지처럼 밝은 필름은 흰 카드 위에서 경계가 사라진다.
+  // 업체가 가장 많이 고르는 구간이 바로 여기라, 경계가 안 보이면 비교 자체가 안 된다.
+  function 밝은가(p) { return !!(p && p.lab && p.lab.L >= 78); }
+
   function 이스케이프(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -98,6 +102,80 @@
     return 저장목록.map(function (k) {
       return 전체.filter(function (p) { return p.키 === k; })[0];
     }).filter(Boolean);
+  }
+
+  /* ---------- 여러 개 골라 한 번에 공유 ----------
+
+     실제 영업이 그렇게 돌아간다. 고객에게 "이 중에 고르세요" 하고 2~3개를 보낸다.
+     낱개 공유를 세 번 하면 카톡에 세 개의 카드가 흩어져서 비교가 안 된다.
+     최대 3개로 묶는 이유: 카카오 리스트 템플릿이 3개까지 미리보기를 보여주고,
+     사람이 한 번에 비교해서 고를 수 있는 개수도 그 정도다. */
+
+  var 최대고르기 = 3;
+  var 고른것 = [];          // 제품 키 배열
+
+  function 고른제품들() {
+    return 고른것.map(function (k) {
+      return 전체.filter(function (p) { return p.키 === k; })[0];
+    }).filter(Boolean);
+  }
+
+  function 고르기전환(p) {
+    var i = 고른것.indexOf(p.키);
+    if (i >= 0) 고른것.splice(i, 1);
+    else if (고른것.length >= 최대고르기) { 알림('최대 ' + 최대고르기 + '개까지 고를 수 있습니다'); return; }
+    else 고른것.push(p.키);
+    고른것다시그리기();
+  }
+
+  function 고르기비우기() {
+    if (!고른것.length) return;
+    고른것 = [];
+    고른것다시그리기();
+  }
+
+  // 카드는 본문 결과와 목록 덮개 두 곳에 있다. 다시 만들지 않고 표시만 갱신한다.
+  // 표시 로직은 고른표시() 한 곳에만 둔다 — 같은 계산을 두 벌 두면 반드시 어긋난다.
+  function 고른것다시그리기() {
+    var 카드들 = document.querySelectorAll('.카드');
+    for (var i = 0; i < 카드들.length; i++) {
+      var 카 = 카드들[i], 단 = 카.querySelector('.고르기');
+      if (단 && 카.제품) 고른표시(카, 단, 카.제품);
+    }
+    고른바그리기();
+  }
+
+  function 고른바그리기() {
+    var 바 = document.querySelector('.고른바');
+    var 목몸 = document.querySelector('.목록몸');
+    if (!고른것.length) {
+      if (바) 바.remove();
+      if (목몸) 목몸.classList.remove('바있음');
+      return;
+    }
+    if (!바) {
+      바 = document.createElement('div');
+      바.className = '고른바';
+      바.innerHTML = '<span class="센글"></span>';
+
+      var 풀 = document.createElement('button');
+      풀.type = 'button'; 풀.className = '풀기'; 풀.textContent = '해제';
+      풀.addEventListener('click', 고르기비우기);
+      바.appendChild(풀);
+
+      var 공 = document.createElement('button');
+      공.type = 'button'; 공.className = '공유'; 공.textContent = '공유하기';
+      공.addEventListener('click', function () {
+        var 목 = 고른제품들();
+        if (!목.length) return;
+        공유하기(목, '필름 ' + 목.length + '개');
+      });
+      바.appendChild(공);
+      document.body.appendChild(바);
+    }
+    바.querySelector('.센글').innerHTML =
+      '<b>' + 고른것.length + '개</b> 선택 (최대 ' + 최대고르기 + '개)';
+    if (목몸) 목몸.classList.add('바있음');
   }
 
   /* ---------- 공유 ---------- */
@@ -338,7 +416,7 @@
       if (군 === '우드') {
         var 대표 = 대표제품(속한);
         var img = document.createElement('img');
-        img.className = '미리';
+        img.className = '미리' + (밝은가(대표제품(속한)) ? ' 밝음' : '');
         img.loading = 'lazy';
         img.decoding = 'async';
         img.alt = '';
@@ -348,7 +426,7 @@
       } else {
         var 대표2 = 속한[Math.floor(속한.length / 2)];
         var 칩 = document.createElement('span');
-        칩.className = '미리';
+        칩.className = '미리' + (밝은가(대표2) ? ' 밝음' : '');
         칩.style.background = 대표2 ? 대표2.HEX : '#ddd';
         b.appendChild(칩);
       }
@@ -389,6 +467,7 @@
     if ($('목록덮개').hidden) return;
     $('목록덮개').hidden = true;
     목록상태 = null;
+    고르기비우기();
     몸잠금풀기();
   }
 
@@ -455,6 +534,7 @@
 
     판.appendChild(몸);
     몸.scrollTop = 0;
+    고른바그리기();
   }
 
   /* ---------- 브랜드 필터 ---------- */
@@ -778,17 +858,18 @@
     var b = document.createElement('button');
     b.type = 'button';
     b.className = '카드';
+    b.제품 = p;
 
     // 색상출처가 PDF 카탈로그인 건은 미러링한 이미지가 시공사례 사진이라 제품이 아니다.
     // 그런 사진을 보여주면 사용자가 그게 필름 무늬라고 오해한다. 색칩으로 대체한다.
     if (p.사진무효) {
       var 칩 = document.createElement('span');
-      칩.className = '칩썸';
+      칩.className = '칩썸' + (밝은가(p) ? ' 밝음' : '');
       칩.style.background = p.HEX;
       b.appendChild(칩);
     } else {
       var img = document.createElement('img');
-      img.className = '썸';
+      img.className = '썸' + (밝은가(p) ? ' 밝음' : '');
       img.loading = 'lazy';
       img.decoding = 'async';
       img.alt = 브랜드(p.제조사) + ' ' + 제목(p);
@@ -805,7 +886,27 @@
     b.appendChild(몸);
 
     b.addEventListener('click', function () { 상세열기(p, x); });
+
+    // 여러 개를 한 번에 공유하려면 카드마다 고르는 자리가 있어야 한다.
+    // 카드 본체를 누르면 상세가 열리는 동작은 그대로 두고, 동그란 단추만 따로 받는다.
+    var 고 = document.createElement('button');
+    고.type = 'button';
+    고.className = '고르기';
+    고.addEventListener('click', function (e) {
+      e.stopPropagation();          // 카드 클릭(상세 열기)까지 번지면 안 된다
+      고르기전환(p);
+    });
+    b.appendChild(고);
+    고른표시(b, 고, p);
     return b;
+  }
+
+  function 고른표시(카드, 단추, p) {
+    var 켜짐 = 고른것.indexOf(p.키) >= 0;
+    단추.setAttribute('aria-pressed', 켜짐 ? 'true' : 'false');
+    단추.setAttribute('aria-label', (켜짐 ? '선택 해제' : '공유할 필름으로 선택') + ' ' + 제목(p));
+    단추.textContent = 켜짐 ? '✓' : '';
+    카드.classList.toggle('골라짐', 켜짐);
   }
 
   // 코드미확인 14건은 코드 자리에 제품명이 들어 있다. 그걸 코드처럼 보여주면 안 된다.
@@ -830,12 +931,12 @@
 
     if (p.사진무효) {
       var 칩 = document.createElement('span');
-      칩.className = '상세칩';
+      칩.className = '상세칩' + (밝은가(p) ? ' 밝음' : '');
       칩.style.background = p.HEX;
       el.appendChild(칩);
     } else {
       var img = document.createElement('img');
-      img.className = '상세이미지';
+      img.className = '상세이미지' + (밝은가(p) ? ' 밝음' : '');
       img.alt = 브랜드(p.제조사) + ' ' + 제목(p);
       img.src = 'img/card/' + encodeURIComponent(p.키) + '.webp';
       el.appendChild(img);
