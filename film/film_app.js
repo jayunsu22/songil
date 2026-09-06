@@ -114,33 +114,61 @@
 
   function 절대주소(경로) { return location.origin + location.pathname.replace(/[^/]*$/, '') + 경로; }
 
-  function 카카오보내기(제품들, 제목, url) {
-    var p = 제품들[0];
-    // 이미지는 있으면 좋고 없어도 카드는 나간다. 우리 썸네일은 WebP 인데
-    // 카카오가 WebP 를 받아주는지 확인되지 않아, 실패해도 깨지지 않게 둔다.
-    var 이미지 = (p && !p.사진무효)
-      ? 절대주소('img/card/' + encodeURIComponent(p.키) + '.webp')
-      : '';
-    var 설명 = 제품들.length > 1
-      ? '필름 ' + 제품들.length + '개'
-      : (p ? [브랜드(p.제조사), p.HEX, p.카테고리].filter(Boolean).join(' · ') : '');
+  function 필름이미지(p) {
+    return (p && !p.사진무효) ? 절대주소('img/card/' + encodeURIComponent(p.키) + '.webp') : '';
+  }
+  function 필름설명(p) {
+    return p ? [브랜드(p.제조사), p.HEX, p.카테고리].filter(Boolean).join(' · ') : '';
+  }
 
+  function 카카오보내기(제품들, 제목, url) {
+    var 링크 = { mobileWebUrl: url, webUrl: url };
+
+    // 여러 개를 보낼 때는 리스트 템플릿을 쓴다. 피드 템플릿은 구조상 카드 하나에
+    // 이미지 하나라서, 즐겨찾기 3개를 보내도 한 개만 보낸 것처럼 보인다.
+    // 리스트는 각 필름이 제 이미지와 제 링크를 갖는다.
+    // 카카오 리스트 템플릿은 항목 2~3개만 허용하므로 앞의 3개까지만 싣고,
+    // 전체 개수는 머리말에 적는다.
+    if (제품들.length >= 2) {
+      var 항목 = 제품들.slice(0, 3).map(function (p) {
+        var 하나 = 공유주소([p]);
+        return {
+          title: 브랜드(p.제조사) + ' ' + 제목표시(p),
+          description: 필름설명(p),
+          imageUrl: 필름이미지(p),
+          link: { mobileWebUrl: 하나, webUrl: 하나 },
+        };
+      });
+      window.Kakao.Share.sendDefault({
+        objectType: 'list',
+        headerTitle: '필름 ' + 제품들.length + '개',
+        headerLink: 링크,
+        contents: 항목,
+        buttons: [{ title: '전체 보기', link: 링크 }],
+        installTalk: true,
+      });
+      return;
+    }
+
+    var p = 제품들[0];
     window.Kakao.Share.sendDefault({
       objectType: 'feed',
       content: {
         title: 제목,
-        description: 설명,
-        imageUrl: 이미지,
-        link: { mobileWebUrl: url, webUrl: url },
+        description: 필름설명(p),
+        imageUrl: 필름이미지(p),
+        link: 링크,
       },
-      buttons: [{ title: '필름 보기', link: { mobileWebUrl: url, webUrl: url } }],
+      buttons: [{ title: '필름 보기', link: 링크 }],
       installTalk: true,
     });
   }
 
+  // 쉼표(?f=a,b)를 쓰지 않는다. 카카오처럼 링크를 검사·가공하는 중계자를 거치면
+  // 쉼표가 인코딩되거나 잘려서 클릭이 깨진다. 반복 파라미터(?f=a&f=b)는 안전하다.
   function 공유주소(제품들) {
-    return location.origin + location.pathname + '?f=' +
-      제품들.map(function (p) { return encodeURIComponent(p.키); }).join(',');
+    return location.origin + location.pathname + '?' +
+      제품들.map(function (p) { return 'f=' + encodeURIComponent(p.키); }).join('&');
   }
 
   // 카카오톡 인앱 브라우저(안드로이드 WebView)에는 navigator.share 가 아예 없다.
@@ -550,10 +578,15 @@
 
   // 공유 링크로 들어온 경우 그 목록을 바로 덮개로 보여준다.
   function 공유링크처리() {
-    var f = new URLSearchParams(location.search).get('f');
-    if (!f) return;
-    var 받은 = f.split(',').map(function (x) {
-      var k = decodeURIComponent(x);
+    var q = new URLSearchParams(location.search);
+    var 값들 = q.getAll('f');
+    if (!값들.length) return;
+    // 반복 파라미터(?f=a&f=b)가 기본이고, 예전에 공유된 쉼표 형식(?f=a,b)도 그대로 읽는다.
+    var 키들 = [];
+    값들.forEach(function (v) {
+      v.split(',').forEach(function (x) { if (x) 키들.push(x); });
+    });
+    var 받은 = 키들.map(function (k) {
       return 전체.filter(function (p) { return p.키 === k; })[0];
     }).filter(Boolean);
     if (!받은.length) { 알림('공유된 필름을 찾지 못했습니다'); return; }
@@ -777,6 +810,7 @@
 
   // 코드미확인 14건은 코드 자리에 제품명이 들어 있다. 그걸 코드처럼 보여주면 안 된다.
   function 제목(p) { return p.코드미확인 ? (p.색상명 || p.코드) : p.코드; }
+  var 제목표시 = 제목;
 
   function 상세열기(p, 결과) {
     var el = $('상세');
