@@ -48,8 +48,17 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
 
 /* ---------- 머리 ---------- */
 
+/* 제목 줄과 본문이 같은 바탕에 놓이면 어디까지가 머리인지 구분이 안 된다.
+   머리를 흰 띠로 만들어 화면 폭 전체에 깔고 아래에 선을 하나 둔다.
+   띠는 화면 끝까지 가고 안쪽 내용만 본문과 같은 폭(720px)으로 묶는다. */
 .top {
-  max-width: 720px; margin: 0 auto; padding: 22px 16px 16px;
+  background: var(--판);
+  border-bottom: 1px solid var(--선);
+  box-shadow: 0 1px 3px rgba(28,28,24,.04);
+  margin-bottom: 18px;
+}
+.머리속 {
+  max-width: 720px; margin: 0 auto; padding: 18px 16px 15px;
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
 }
 .top .제목칸 { min-width: 0; }
