@@ -43,7 +43,7 @@
     </div>
 
     <!-- 3. 컬러별 보기. 첫 화면을 간결하게 두려고 접어둔다. -->
-    <button type="button" class="펼침버튼" id="컬러버튼" aria-expanded="false" aria-controls="컬러칸">
+    <button type="button" class="펼침버튼" id="컬러버튼" aria-expanded="true" aria-controls="컬러칸">
       <span class="펼침글">🎨 필름 컬러별 보기</span>
       <span class="화살" aria-hidden="true">▾</span>
     </button>
@@ -51,7 +51,7 @@
   </section>
 
   <!-- 컬러별 보기 내용. 일반색이 먼저, 우드가 아래. 탭 없이 한 화면에 다 보인다. -->
-  <section class="컬러칸" id="컬러칸" hidden>
+  <section class="컬러칸" id="컬러칸">
     <h2 class="묶음제목">일반 색상</h2>
     <div class="분류격자" id="일반격자"></div>
     <h2 class="묶음제목">우드</h2>

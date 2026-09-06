@@ -833,6 +833,9 @@
       if (!this.value.trim() && 글자) { 글자 = ''; 검색(); }
     });
 
+    // 첫 화면은 컬러칸을 펼친 채로 시작한다(index.html 에서 열어 둠).
+    // 접혀 있으면 첫 화면에 검색창 몇 개만 남아 볼 것이 없다.
+    // 코드·사진으로 찾기 시작하면 입구전환()이 알아서 접는다.
     $('컬러버튼').addEventListener('click', function () {
       var 열림 = this.getAttribute('aria-expanded') === 'true';
       if (열림) { 입구전환(null); return; }   // 접기
