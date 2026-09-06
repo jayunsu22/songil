@@ -1006,19 +1006,20 @@
     var p = x.제품;
     var b = document.createElement('button');
     b.type = 'button';
-    b.className = '카드';
+    // 밝은 필름은 카드째로 회색 테를 두른다. 흰 카드 위에서는 경계가 사라지기 때문이다.
+    b.className = '카드' + (밝은가(p) ? ' 밝은카드' : '');
     b.제품 = p;
 
     // 색상출처가 PDF 카탈로그인 건은 미러링한 이미지가 시공사례 사진이라 제품이 아니다.
     // 그런 사진을 보여주면 사용자가 그게 필름 무늬라고 오해한다. 색칩으로 대체한다.
     if (p.사진무효) {
       var 칩 = document.createElement('span');
-      칩.className = '칩썸' + (밝은가(p) ? ' 밝음' : '');
+      칩.className = '칩썸';
       칩.style.background = p.HEX;
       b.appendChild(칩);
     } else {
       var img = document.createElement('img');
-      img.className = '썸' + (밝은가(p) ? ' 밝음' : '');
+      img.className = '썸';
       img.loading = 'lazy';
       img.decoding = 'async';
       img.alt = 브랜드(p.제조사) + ' ' + 제목(p);
