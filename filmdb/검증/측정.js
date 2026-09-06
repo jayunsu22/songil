@@ -20,41 +20,20 @@ async function 사진준비(파일) {
   return { data, 폭: info.width, 높이: info.height };
 }
 
-// 사진 전체에서 조명색을 추정한다.
-//  '흰점' : 가장 밝은 쪽 픽셀들을 흰색으로 보고 그 색을 기준 삼는다 (종이·벽지가 있는 사진에 맞다)
-//  '회색' : 화면 전체 평균이 회색이라고 보는 고전적인 그레이월드
-function 조명추정(사진, 방식) {
-  const N = 사진.폭 * 사진.높이;
-  if (방식 === '회색') {
-    let r = 0, g = 0, b = 0;
-    for (let i = 0; i < N; i++) { r += 사진.data[i * 4]; g += 사진.data[i * 4 + 1]; b += 사진.data[i * 4 + 2]; }
-    return [r / N, g / N, b / N];
+// 조명 추정은 화소가 백만 개라 느리다. 격자로 걸러 뽑아도 추정값은 사실상 같다.
+// 이 간격은 film_app.js 의 것과 반드시 같아야 한다.
+const 표본간격 = 4;
+
+function 조명표본(사진) {
+  const 뽑음 = [];
+  for (let y = 0; y < 사진.높이; y += 표본간격) for (let x = 0; x < 사진.폭; x += 표본간격) {
+    const i = (y * 사진.폭 + x) * 4;
+    뽑음.push(사진.data[i], 사진.data[i + 1], 사진.data[i + 2], 사진.data[i + 3]);
   }
-  // 밝기 상위 2% 픽셀의 평균색
-  const 밝기 = new Float32Array(N);
-  for (let i = 0; i < N; i++) 밝기[i] = 0.299 * 사진.data[i * 4] + 0.587 * 사진.data[i * 4 + 1] + 0.114 * 사진.data[i * 4 + 2];
-  const 정렬 = Float32Array.from(밝기).sort();
-  const 문턱 = 정렬[Math.floor(N * 0.98)];
-  let r = 0, g = 0, b = 0, n = 0;
-  for (let i = 0; i < N; i++) if (밝기[i] >= 문턱) { r += 사진.data[i * 4]; g += 사진.data[i * 4 + 1]; b += 사진.data[i * 4 + 2]; n++; }
-  return n ? [r / n, g / n, b / n] : [255, 255, 255];
+  return 뽑음;
 }
 
-// 조명색이 회색이 되도록 채널별로 곱해준다 (폰 카메라). 초록을 기준으로 맞춘다.
-function 보정하기(사진, 방식) {
-  const [r, g, b] = 조명추정(사진, 방식);
-  const kr = g / Math.max(1, r), kb = g / Math.max(1, b);
-  const 새 = new Uint8Array(사진.data.length);
-  for (let i = 0; i < 사진.폭 * 사진.높이; i++) {
-    새[i * 4] = Math.min(255, 사진.data[i * 4] * kr);
-    새[i * 4 + 1] = 사진.data[i * 4 + 1];
-    새[i * 4 + 2] = Math.min(255, 사진.data[i * 4 + 2] * kb);
-    새[i * 4 + 3] = 255;
-  }
-  return { ...사진, data: 새, 조명: [r, g, b] };
-}
-
-function 원영역(사진, cx, cy, 반지름) {
+function 원영역(사진, cx, cy, 반지름, 계수) {
   const x0 = Math.max(0, cx - 반지름), y0 = Math.max(0, cy - 반지름);
   const x1 = Math.min(사진.폭, cx + 반지름), y1 = Math.min(사진.높이, cy + 반지름);
   const 뽑음 = [], r2 = 반지름 * 반지름;
@@ -64,7 +43,7 @@ function 원영역(사진, cx, cy, 반지름) {
     const i = (y * 사진.폭 + x) * 4;
     뽑음.push(사진.data[i], 사진.data[i + 1], 사진.data[i + 2], 사진.data[i + 3]);
   }
-  return C.영역색(뽑음);
+  return C.영역색(계수 ? C.조명보정(뽑음, 계수.이득, 계수.검은점) : 뽑음);
 }
 
 async function 재기(옵션 = {}) {
@@ -72,13 +51,18 @@ async function 재기(옵션 = {}) {
   const 검색옵션 = { 개수: 옵션.개수 ?? 30, 대비가중치: 옵션.대비가중치, kL: 옵션.kL, 상한: 옵션.상한 };
   const 기록 = [];
   for (const 쪽 of 점목록) {
-    let 사진 = await 사진준비(쪽.파일);
-    if (옵션.보정) 사진 = 보정하기(사진, 옵션.보정);
+    const 사진 = await 사진준비(쪽.파일);
+    // 앱과 똑같이: 조명은 사진 전체에서 한 번 추정하고, 뽑은 화소에만 이득을 곱한다.
+    // 앱과 똑같이: 사진 한 장에서 계수를 한 번 만들고, 뽑은 화소에만 적용한다.
+    const 계수 = 옵션.보정 ? C.보정계수(조명표본(사진), {
+      방식: 옵션.보정, 지수: 옵션.지수, 한계: 옵션.한계,
+      기준: 옵션.기준, 검은점빼기: 옵션.검은점빼기, 검은점분위: 옵션.검은점분위, 무채색문턱: 옵션.무채색문턱, 세기: 옵션.세기, 검은점상한비: 옵션.검은점상한비, 검은점절대상한: 옵션.검은점절대상한,
+    }) : null;
     const 반지름 = Math.max(8, Math.round(사진.폭 * 반지름비));
     for (const pt of 쪽.점) {
       const 정답 = 전체.find(p => 노멀(p.코드) === 노멀(pt.코드));
       if (!정답) { 기록.push({ 쪽: 쪽.쪽, 코드: pt.코드, 순위: null, 사유: 'DB에 없음' }); continue; }
-      const 색 = 원영역(사진, Math.round(pt.x * 사진.폭), Math.round(pt.y * 사진.높이), 반지름);
+      const 색 = 원영역(사진, Math.round(pt.x * 사진.폭), Math.round(pt.y * 사진.높이), 반지름, 계수);
       if (!색) { 기록.push({ 쪽: 쪽.쪽, 코드: pt.코드, 순위: null, 사유: '색 못 뽑음' }); continue; }
       const 질의 = { lab: 색.대표색, 대비폭: 색.대비폭 };
       const 결과 = M.검색(전체, 질의, null, 검색옵션);

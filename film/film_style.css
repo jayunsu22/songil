@@ -430,3 +430,20 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
 
 /* 목록 덮개가 떠 있을 때 바가 목록을 가리지 않도록 아래 여백을 준다. */
 .목록몸.바있음 { padding-bottom: 78px; }
+
+/* ---------- 최근 본 필름 ----------
+
+   현장에서 색을 찾다 보면 조금 전에 본 것을 다시 찾게 된다. 검색을 다시 하면
+   그 목록은 사라지므로, 열어본 것과 공유한 것을 이 폰에 남겨 둔다. */
+.기록칸 { padding: 0 0 30px; }
+.기록머리 {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin: 18px 0 10px;
+}
+.기록머리 h2 { margin: 0; font-size: 14px; font-weight: 600; color: var(--흐린글자); }
+.기록지우기 {
+  flex: 0 0 auto; padding: 6px 12px; border-radius: 999px;
+  background: var(--판); color: var(--흐린글자); border: 1px solid var(--선);
+  font: inherit; font-size: 12px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}

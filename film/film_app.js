@@ -65,6 +65,14 @@
     $('필터').hidden = false;
     묶기();
     저장함버튼갱신();
+    기록목록 = 기록읽기();
+    기록그리기();
+    $('기록지우기').addEventListener('click', function () {
+      기록목록 = [];
+      기록쓰기();
+      기록그리기();
+      알림('기록을 지웠습니다');
+    });
     공유링크처리();
   }
 
@@ -178,6 +186,60 @@
     if (목몸) 목몸.classList.add('바있음');
   }
 
+  /* ---------- 최근 본 필름 (기록) ----------
+
+     현장에서는 조금 전에 본 필름을 다시 찾는 일이 잦은데, 검색을 다시 하면
+     그 결과는 사라진다. 그래서 '열어본 것' 과 '공유한 것' 을 이 폰에 남긴다.
+     즐겨찾기와 다른 점: 즐겨찾기는 손으로 고르는 것이고, 이건 저절로 쌓인다.
+
+     30개인 이유는 검색 결과 개수와 같은 값을 쓴 것이다. 그보다 길어지면
+     스크롤만 길어지고 정작 최근 것을 찾기 어려워진다. */
+
+  var 기록키 = 'filmdamoa_recent_v1';
+  var 기록목록 = [];               // 제품 키. 앞이 최근.
+  var 기록최대 = 결과개수;
+
+  function 기록읽기() {
+    try {
+      var v = JSON.parse(localStorage.getItem(기록키) || '[]');
+      return Array.isArray(v) ? v.slice(0, 기록최대) : [];
+    } catch (e) { return []; }
+  }
+  function 기록쓰기() {
+    try { localStorage.setItem(기록키, JSON.stringify(기록목록)); } catch (e) { /* 무시 */ }
+  }
+  function 기록추가(제품들) {
+    var 바뀜 = false;
+    // 뒤에서부터 넣어야 여러 개를 한 번에 넣을 때 원래 순서가 앞쪽에 유지된다.
+    [].concat(제품들).reverse().forEach(function (p) {
+      if (!p || !p.키) return;
+      var i = 기록목록.indexOf(p.키);
+      if (i === 0) return;
+      if (i > 0) 기록목록.splice(i, 1);
+      기록목록.unshift(p.키);
+      바뀜 = true;
+    });
+    if (!바뀜) return;
+    if (기록목록.length > 기록최대) 기록목록.length = 기록최대;
+    기록쓰기();
+    기록그리기();
+  }
+  function 기록제품들() {
+    return 기록목록.map(function (k) {
+      return 전체.filter(function (p) { return p.키 === k; })[0];
+    }).filter(Boolean);
+  }
+  function 기록그리기() {
+    var 칸 = $('기록칸'), 격 = $('기록격자');
+    var 목 = 기록제품들();
+    칸.hidden = 목.length === 0;
+    if (!목.length) { 격.innerHTML = ''; return; }
+    $('기록제목').textContent = '최근 본 필름 ' + 목.length + '개' +
+      (목.length >= 기록최대 ? ' (최대 ' + 기록최대 + '개)' : '');
+    격.innerHTML = '';
+    목.forEach(function (p) { 격.appendChild(카드만들기({ 제품: p, 등급: null })); });
+  }
+
   /* ---------- 공유 ---------- */
 
   // JavaScript 키는 공개용이다. 소스에 박혀도 되는 값이고,
@@ -245,14 +307,19 @@
   // 쉼표(?f=a,b)를 쓰지 않는다. 카카오처럼 링크를 검사·가공하는 중계자를 거치면
   // 쉼표가 인코딩되거나 잘려서 클릭이 깨진다. 반복 파라미터(?f=a&f=b)는 안전하다.
   function 공유주소(제품들) {
+    // 주소에 한글을 넣지 않는다. 키(예: '현대_S248')를 쓰면 퍼센트 인코딩이 들어가는데,
+    // 카카오처럼 링크를 검사·가공하는 중계자를 거치면 % 가 다시 인코딩되어(%EC → %25EC)
+    // 클릭이 깨진다. 쉼표 때 겪은 것과 같은 부류의 문제다.
+    // 레코드 id 는 순수 영숫자(rec024JQMaq1Qlswa)라 어떤 중계자를 거쳐도 변하지 않는다.
     return location.origin + location.pathname + '?' +
-      제품들.map(function (p) { return 'f=' + encodeURIComponent(p.키); }).join('&');
+      제품들.map(function (p) { return 'r=' + p.id; }).join('&');
   }
 
   // 카카오톡 인앱 브라우저(안드로이드 WebView)에는 navigator.share 가 아예 없다.
   // 그래서 폰에서 공유를 눌러도 시스템 공유창이 안 뜨고 조용히 복사만 됐다.
   // 있으면 시스템 공유창을 쓰고, 없으면 우리가 만든 공유창을 띄운다.
   function 공유하기(제품들, 제목) {
+    기록추가(제품들);
     var url = 공유주소(제품들);
 
     // 카카오톡 공유가 가능하면 우리 창을 먼저 띄운다.
@@ -587,6 +654,7 @@
     if (어느 !== '사진') {
       질의 = null;
       원본캔버스 = null;
+      보정계수 = null;
       $('사진칸').hidden = true;
       $('탭표시').hidden = true;
       $('뽑힌색').hidden = true;
@@ -659,16 +727,21 @@
   // 공유 링크로 들어온 경우 그 목록을 바로 덮개로 보여준다.
   function 공유링크처리() {
     var q = new URLSearchParams(location.search);
-    var 값들 = q.getAll('f');
-    if (!값들.length) return;
-    // 반복 파라미터(?f=a&f=b)가 기본이고, 예전에 공유된 쉼표 형식(?f=a,b)도 그대로 읽는다.
-    var 키들 = [];
-    값들.forEach(function (v) {
+    // r= 은 레코드 id(현재 형식), f= 는 키(예전에 나간 링크). 이미 카톡에 돌아다니는
+    // 링크들이 있으므로 옛 형식도 계속 읽어야 한다.
+    var id들 = [], 키들 = [];
+    q.getAll('r').forEach(function (v) {
+      v.split(',').forEach(function (x) { if (x) id들.push(x); });
+    });
+    q.getAll('f').forEach(function (v) {
       v.split(',').forEach(function (x) { if (x) 키들.push(x); });
     });
-    var 받은 = 키들.map(function (k) {
+    if (!id들.length && !키들.length) return;
+    var 받은 = id들.map(function (v) {
+      return 전체.filter(function (p) { return p.id === v; })[0];
+    }).concat(키들.map(function (k) {
       return 전체.filter(function (p) { return p.키 === k; })[0];
-    }).filter(Boolean);
+    })).filter(Boolean);
     if (!받은.length) { 알림('공유된 필름을 찾지 못했습니다'); return; }
     목록열기({ 제목: '공유받은 필름', 곁: 받은.length + '개', 제품들: 받은 });
   }
@@ -676,6 +749,21 @@
   /* ---------- 사진 ---------- */
 
   var 원본캔버스 = null;
+  var 보정계수 = null;      // 이 사진의 조명 보정 계수. 사진을 올릴 때 한 번 구한다.
+
+  // 조명 보정 설정. 2026-09-06 실사진 87건 측정에서 고른 값이다.
+  //   흰점        화면에서 가장 밝은 쪽(흰 종이·흰 벽)을 흰색으로 본다
+  //   기준 245    그 흰색이 245 가 되도록 밀어 노출까지 맞춘다
+  //   검은점빼기  유리·인화면에서 번진 빛이 모든 채널에 더해 놓은 바닥값을 뺀다
+  //   무채색문턱  가장 밝은 쪽이 뚜렷한 색이면(창문·색등) 노출은 건드리지 않고 색만 맞춘다
+  //   세기 0.6    추정한 만큼을 60% 만 되돌린다
+  //
+  // 세기를 1 이 아니라 0.6 으로 둔 이유가 중요하다. 건별로 재보니
+  //   세기 1.0 → 74% 가 좋아지고 20% 가 나빠지며, 그중 10% 는 ΔE 가 2 이상 크게 나빠진다
+  //   세기 0.6 → 83% 가 좋아지고 11% 가 나빠지며, 크게 나빠지는 건은 0% 다
+  // '가장 밝은 것은 완전한 무채색' 이라는 가정이 늘 조금 틀리기 때문이다.
+  // 끝까지 되돌리면 그 틀린 만큼이 그대로 오차가 된다. 부분만 되돌리는 쪽이 안전하다.
+  var 보정설정 = { 방식: '흰점', 기준: 245, 검은점빼기: true, 한계: 2.5, 무채색문턱: 0.18, 세기: 0.6 };
 
   function 사진받기(e) {
     var file = e.target.files && e.target.files[0];
@@ -697,6 +785,7 @@
 
         입구전환('사진');
         원본캔버스 = cv;
+        보정계수 = 조명계수구하기(cv);
         $('사진안내').hidden = false;
         $('사진칸').hidden = false;
         결과그리기([], '사진에서 찾으려는 부분을 눌러보세요');
@@ -704,6 +793,29 @@
       .catch(function () {
         alert('사진을 읽지 못했습니다. 다른 사진으로 시도해 주세요.');
       });
+  }
+
+  // 사진 한 장에서 조명 보정 계수를 한 번만 구한다. 탭할 때마다 다시 하면 느리고,
+  // 무엇보다 탭 위치에 따라 보정이 달라져서 같은 색판을 두 번 찍으면 다른 색이 나온다.
+  //
+  // 격자로 걸러 뽑는 이유는 속도다. 100만 화소를 다 넣으나 1/16 만 넣으나 추정값은 사실상 같다.
+  // 이 간격은 filmdb/검증/측정.js 의 것과 같아야 측정값이 앱 동작과 일치한다.
+  var 표본간격 = 4;
+
+  function 조명계수구하기(cv) {
+    try {
+      var d = cv.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, cv.width, cv.height).data;
+      var 뽑음 = [];
+      for (var y = 0; y < cv.height; y += 표본간격) {
+        for (var x = 0; x < cv.width; x += 표본간격) {
+          var i = (y * cv.width + x) * 4;
+          뽑음.push(d[i], d[i + 1], d[i + 2], d[i + 3]);
+        }
+      }
+      return C.보정계수(뽑음, 보정설정);
+    } catch (e) {
+      return null;   // 보정을 못 해도 검색 자체는 되어야 한다
+    }
   }
 
   function 캔버스탭(e) {
@@ -756,7 +868,7 @@
         뽑음.push(d[i], d[i + 1], d[i + 2], d[i + 3]);
       }
     }
-    return C.영역색(뽑음);
+    return C.영역색(보정계수 ? C.조명보정(뽑음, 보정계수.이득, 보정계수.검은점) : 뽑음);
   }
 
   // Lab -> RGB. 표시 전용이며 매칭은 Lab 으로만 한다.
@@ -812,7 +924,17 @@
         return;
       }
       if (!결과.length) { 결과그리기([], ''); return; }
-      결과그리기(결과, '이 <b>' + 결과.length + '개</b> 중에 있습니다. 비교해서 고르세요.');
+
+      // 상한을 5 에서 12 로 늘리면서 결과가 거의 항상 30개 나온다.
+      // 가장 가까운 것이 ΔE 12 인데도 "이 중에 있습니다" 라고 하면 거짓말이다.
+      // 제일 가까운 색이 얼마나 가까운지에 따라 말을 바꾼다.
+      var 최고 = 결과[0].ΔE;
+      var 머리글 = 최고 <= 2
+        ? '거의 같은 색을 찾았습니다. 아래에서 비교해 보세요.'
+        : (최고 <= 5
+            ? '이 <b>' + 결과.length + '개</b> 중에 있습니다. 비교해서 고르세요.'
+            : '<b>딱 맞는 색은 없습니다.</b> 가까운 순서로 보여드립니다.');
+      결과그리기(결과, 머리글);
       return;
     }
 
@@ -914,6 +1036,7 @@
   var 제목표시 = 제목;
 
   function 상세열기(p, 결과) {
+    기록추가(p);
     var el = $('상세');
     el.innerHTML = '';
 
