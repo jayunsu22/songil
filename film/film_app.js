@@ -509,7 +509,8 @@
       b.addEventListener('click', function () {
         목록열기({
           제목: 군 === '우드' ? x.값 + ' 우드' : x.값,
-          곁: (x.설명 ? x.설명 + ' · ' : '') + x.건수 + '개',
+          곁: x.건수 + '개',
+          설명: x.설명 || '',
           제품들: 속한,
           정렬이름: x.값,
         });
@@ -548,8 +549,10 @@
     var 줄 = document.createElement('div');
     줄.className = '줄';
     var 왼 = document.createElement('div');
-    왼.innerHTML = '<h2>' + 이스케이프(목록상태.제목) + '</h2>' +
-                   (목록상태.곁 ? '<div class="곁">' + 이스케이프(목록상태.곁) + '</div>' : '');
+    왼.innerHTML = '<h2>' + 이스케이프(목록상태.제목) +
+                   (목록상태.곁 ? ' <span class="곁">(' + 이스케이프(목록상태.곁) + ')</span>' : '') +
+                   '</h2>' +
+                   (목록상태.설명 ? '<div class="목록설명">' + 이스케이프(목록상태.설명) + '</div>' : '');
     줄.appendChild(왼);
     var 닫 = document.createElement('button');
     닫.type = 'button'; 닫.className = '닫기'; 닫.textContent = '✕';
@@ -618,18 +621,23 @@
     var 후보 = M.필터후보(대상 || 전체, '제조사');
     if (후보.length < 2) return;
 
-    var 줄 = document.createElement('div');
-    줄.className = '필터줄';
-    var 라벨 = document.createElement('span');
+    // 예전에는 칩을 한 줄에 늘어놓고 가로로 밀어 보게 했는데, 브랜드가 6개라
+    // 폰 화면에서 뒤쪽 두세 개가 잘려 보이지도 않았다. 있는 줄도 모르는 필터는 없는 것과 같다.
+    // 줄바꿈 격자에 담고 이름과 건수를 위아래로 나눠 한 화면에 다 보이게 한다.
+    var 라벨 = document.createElement('div');
     라벨.className = '칩분류';
     라벨.textContent = '브랜드';
-    줄.appendChild(라벨);
+    상자.appendChild(라벨);
+
+    var 줄 = document.createElement('div');
+    줄.className = '필터줄';
 
     후보.forEach(function (x) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = '칩버튼';
-      b.textContent = 브랜드(x.값) + ' ' + x.건수;
+      b.innerHTML = '<span class="이름">' + 이스케이프(브랜드(x.값)) + '</span>' +
+                    '<span class="건수">' + x.건수 + '</span>';
       var 켜짐 = (필터.제조사 || []).indexOf(x.값) >= 0;
       b.setAttribute('aria-pressed', String(켜짐));
       b.addEventListener('click', function () {
