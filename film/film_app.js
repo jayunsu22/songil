@@ -102,6 +102,42 @@
 
   /* ---------- 공유 ---------- */
 
+  // JavaScript 키는 공개용이다. 소스에 박혀도 되는 값이고,
+  // developers.kakao.com 에 등록한 웹 도메인에서만 동작하는 것이 잠금장치다.
+  var 카카오키 = 'ee8944e8f43350a56405a34c31ef6f85';
+  var 카카오됨 = false;
+  try {
+    if (window.Kakao && !window.Kakao.isInitialized()) window.Kakao.init(카카오키);
+    카카오됨 = !!(window.Kakao && window.Kakao.isInitialized() &&
+                 window.Kakao.Share && window.Kakao.Share.sendDefault);
+  } catch (e) { 카카오됨 = false; }
+
+  function 절대주소(경로) { return location.origin + location.pathname.replace(/[^/]*$/, '') + 경로; }
+
+  function 카카오보내기(제품들, 제목, url) {
+    var p = 제품들[0];
+    // 이미지는 있으면 좋고 없어도 카드는 나간다. 우리 썸네일은 WebP 인데
+    // 카카오가 WebP 를 받아주는지 확인되지 않아, 실패해도 깨지지 않게 둔다.
+    var 이미지 = (p && !p.사진무효)
+      ? 절대주소('img/card/' + encodeURIComponent(p.키) + '.webp')
+      : '';
+    var 설명 = 제품들.length > 1
+      ? '필름 ' + 제품들.length + '개'
+      : (p ? [브랜드(p.제조사), p.HEX, p.카테고리].filter(Boolean).join(' · ') : '');
+
+    window.Kakao.Share.sendDefault({
+      objectType: 'feed',
+      content: {
+        title: 제목,
+        description: 설명,
+        imageUrl: 이미지,
+        link: { mobileWebUrl: url, webUrl: url },
+      },
+      buttons: [{ title: '필름 보기', link: { mobileWebUrl: url, webUrl: url } }],
+      installTalk: true,
+    });
+  }
+
   function 공유주소(제품들) {
     return location.origin + location.pathname + '?f=' +
       제품들.map(function (p) { return encodeURIComponent(p.키); }).join(',');
@@ -112,19 +148,26 @@
   // 있으면 시스템 공유창을 쓰고, 없으면 우리가 만든 공유창을 띄운다.
   function 공유하기(제품들, 제목) {
     var url = 공유주소(제품들);
+
+    // 카카오톡 공유가 가능하면 우리 창을 먼저 띄운다.
+    // 시스템 공유창은 주소만 넘기고, 그러면 카톡이 페이지의 OG 태그를 긁어가서
+    // 어느 필름을 보내든 똑같은 카드가 된다. 우리 창의 카카오톡 항목은
+    // 그 필름의 썸네일과 코드가 담긴 카드를 보낸다.
+    if (카카오됨) { 공유창(제목, url, 제품들); return; }
+
     if (navigator.share) {
       navigator.share({ title: 제목, url: url }).catch(function (e) {
         if (e && e.name === 'AbortError') return;   // 사용자가 닫은 것
-        공유창(제목, url);
+        공유창(제목, url, 제품들);
       });
       return;
     }
-    공유창(제목, url);
+    공유창(제목, url, 제품들);
   }
 
   // 인앱 브라우저에서도 실제로 동작하는 것만 넣는다.
   // 카카오톡으로 바로 보내기는 카카오 JS SDK 와 앱키가 있어야 해서 지금은 넣지 못한다.
-  function 공유창(제목, url) {
+  function 공유창(제목, url, 공유대상) {
     var 덮 = document.createElement('div');
     덮.className = '덮개 공유덮개';
 
@@ -145,7 +188,15 @@
 
     var 닫기 = function () { 덮.remove(); 몸잠금풀기(); };
 
-    [
+    var 항목들 = [];
+    if (카카오됨 && 공유대상 && 공유대상.length) {
+      항목들.push(['💛  카카오톡으로 보내기', function () {
+        try { 카카오보내기(공유대상, 제목, url); }
+        catch (e) { 알림('카카오톡 공유에 실패했습니다. 링크를 복사해 주세요'); }
+        닫기();
+      }]);
+    }
+    항목들.push(
       ['📋  링크 복사', function () {
         복사(url).then(function (ok) {
           알림(ok ? '링크를 복사했습니다. 카톡에 붙여넣기 하세요' : '복사에 실패했습니다');
@@ -156,8 +207,8 @@
         // sms: 는 인앱 브라우저에서도 문자 앱이 열린다.
         location.href = 'sms:?body=' + encodeURIComponent(제목 + String.fromCharCode(10) + url);
         닫기();
-      }],
-    ].forEach(function (쌍) {
+      }]);
+    항목들.forEach(function (쌍) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = '공유항목';
