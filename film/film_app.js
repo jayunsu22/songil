@@ -57,10 +57,9 @@
     var el = $('연락처');
     if (!el || !문 || !문.전화) return;
     el.href = 'tel:' + 문.전화;
-    el.setAttribute('aria-label', (문.머리 || '') + ' ' + (문.상호 || '') + ' ' + 문.전화 + ' 전화하기');
+    el.setAttribute('aria-label', (문.머리 || '') + ' ' + 문.전화 + ' 전화하기');
     el.innerHTML =
       (문.머리 ? '<span class="머리">' + 이스케이프(문.머리) + '</span>' : '') +
-      (문.상호 ? '<span class="상호">' + 이스케이프(문.상호) + '</span>' : '') +
       '<span class="전화">' + 이스케이프(문.전화) + '</span>';
     el.hidden = false;
   }
