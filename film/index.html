@@ -26,12 +26,15 @@
       <button type="submit" class="코드버튼">검색</button>
     </form>
 
-    <!-- 2. 사진으로 찾기 -->
-    <label class="큰버튼" id="사진버튼">
-      <input type="file" accept="image/*" id="사진입력" hidden>
-      <span class="아이콘" aria-hidden="true">📷</span>
-      <span>사진 올려서 찾기</span>
-    </label>
+    <!-- 2. 사진으로 찾기. 즐겨찾기와 한 줄에 둔다 -->
+    <div class="주요줄">
+      <label class="큰버튼" id="사진버튼">
+        <input type="file" accept="image/*" id="사진입력" hidden>
+        <span class="아이콘" aria-hidden="true">📷</span>
+        <span>사진으로 찾기</span>
+      </label>
+      <button type="button" class="즐겨찾기버튼" id="저장함버튼" hidden></button>
+    </div>
 
     <!-- 3. 컬러별 보기. 첫 화면을 간결하게 두려고 접어둔다. -->
     <button type="button" class="펼침버튼" id="컬러버튼" aria-expanded="false" aria-controls="컬러칸">
@@ -39,7 +42,6 @@
       <span class="화살" aria-hidden="true">▾</span>
     </button>
 
-    <button type="button" class="즐겨찾기버튼" id="저장함버튼" hidden></button>
   </section>
 
   <!-- 컬러별 보기 내용. 일반색이 먼저, 우드가 아래. 탭 없이 한 화면에 다 보인다. -->

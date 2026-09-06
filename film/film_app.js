@@ -92,7 +92,7 @@
   function 저장함버튼갱신() {
     var b = $('저장함버튼');
     b.hidden = 저장목록.length === 0;
-    b.textContent = '⭐ 즐겨찾기 저장함 ' + 저장목록.length + '개';
+    b.textContent = '⭐ 즐겨찾기 ' + 저장목록.length + '개';
   }
   function 저장된제품들() {
     return 저장목록.map(function (k) {
@@ -470,6 +470,31 @@
     상자.appendChild(줄);
   }
 
+  /* ---------- 입구 전환 ----------
+     찾는 방법은 세 가지(코드·사진·컬러별)인데, 하나를 쓰면 앞서 쓰던 것이
+     화면에 남아 쌓이면 안 된다. 코드로 찾았는데 위에 사진과 컬러 목록이
+     그대로 있으면 지금 무엇을 보고 있는 건지 알 수가 없다.
+     그래서 입구를 하나 열면 나머지는 정리한다. */
+  function 입구전환(어느) {
+    if (어느 !== '사진') {
+      질의 = null;
+      원본캔버스 = null;
+      $('사진칸').hidden = true;
+      $('탭표시').hidden = true;
+      $('뽑힌색').hidden = true;
+      $('사진입력').value = '';   // 같은 사진을 다시 골라도 change 가 뜨게 한다
+    }
+    if (어느 !== '코드') {
+      글자 = '';
+      $('글자입력').value = '';
+    }
+    if (어느 !== '컬러') {
+      $('컬러버튼').setAttribute('aria-expanded', 'false');
+      $('컬러칸').hidden = true;
+    }
+    목록닫기();
+  }
+
   /* ---------- 묶기 ---------- */
 
   function 묶기() {
@@ -477,7 +502,10 @@
 
     $('코드폼').addEventListener('submit', function (e) {
       e.preventDefault();
-      글자 = $('글자입력').value.trim();
+      var 값 = $('글자입력').value.trim();
+      입구전환('코드');
+      글자 = 값;
+      $('글자입력').value = 값;
       $('글자입력').blur();
       검색();
     });
@@ -488,8 +516,11 @@
 
     $('컬러버튼').addEventListener('click', function () {
       var 열림 = this.getAttribute('aria-expanded') === 'true';
-      this.setAttribute('aria-expanded', String(!열림));
-      $('컬러칸').hidden = 열림;
+      if (열림) { 입구전환(null); return; }   // 접기
+      입구전환('컬러');
+      this.setAttribute('aria-expanded', 'true');
+      $('컬러칸').hidden = false;
+      결과그리기([], '');
     });
 
     $('저장함버튼').addEventListener('click', function () {
@@ -551,12 +582,8 @@
         cv.getContext('2d', { willReadFrequently: true }).drawImage(bmp, 0, 0, w, h);
         bmp.close();
 
+        입구전환('사진');
         원본캔버스 = cv;
-        질의 = null;
-        글자 = ''; $('글자입력').value = '';
-        목록닫기();
-        $('탭표시').hidden = true;
-        $('뽑힌색').hidden = true;
         $('사진안내').hidden = false;
         $('사진칸').hidden = false;
         결과그리기([], '사진에서 찾으려는 부분을 눌러보세요');
