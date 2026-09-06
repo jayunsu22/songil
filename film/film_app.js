@@ -1,10 +1,10 @@
-// 필름다모아 화면.
+// 1분견적 필름찾기 — 화면.
 //
 // 계산은 전부 film_color.js / film_match.js 가 한다. 여기는 화면만 다룬다.
-// 그렇게 나눠야 순위 규칙을 node 로 테스트할 수 있고, 실사진으로 가중치를 조정할 때
-// 화면 코드를 건드리지 않는다.
+// 그렇게 나눠야 순위·분류 규칙을 node 로 테스트할 수 있고, 실사진으로 가중치를
+// 조정할 때 화면 코드를 건드리지 않는다.
 //
-// 서버를 쓰지 않는다. film-db.json(gzip 151KB)을 한 번 받아 브라우저에서 전부 계산한다.
+// 서버를 쓰지 않는다. film-db.json 을 한 번 받아 브라우저에서 전부 계산한다.
 // 2,118건 ΔE2000 계산은 1ms 미만이라 사진을 다시 누를 때마다 즉시 갱신된다.
 // 사진은 업로드하지 않는다. 캔버스에서 읽고 끝이다.
 
@@ -15,12 +15,9 @@
   var M = window.FilmMatch;
 
   var 전체 = [];
-  var 질의 = null;               // { lab, 대비폭? }  사진·색 입력
-  var 글자 = '';                 // 코드·이름 입력
-  var 필터 = {};                 // { 제조사: [...] }
-  var 선택분류 = null;           // { 군: '우드'|'일반색', 이름: '밝은' } — 훑어보기 선택
-  var 현재군 = '우드';
-  var 보기 = null;               // '저장함' | '공유받음' | null
+  var 질의 = null;      // { lab, 대비폭? } — 사진에서 뽑은 색
+  var 글자 = '';        // 코드·이름 입력
+  var 필터 = {};        // { 제조사: [...] }
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -29,11 +26,45 @@
   var 브랜드표시 = { 'LX': 'LX지인', '현대': '현대보닥' };
   function 브랜드(v) { return 브랜드표시[v] || v; }
 
-  /* ---------- 저장함 ----------
+  function 이스케이프(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /* ---------- 시작 ---------- */
+
+  fetch('film-db.json')
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(시작)
+    .catch(function (e) {
+      $('총건수').textContent = '데이터를 불러오지 못했습니다 (' + e.message + ')';
+    });
+
+  function 시작(목록) {
+    전체 = 목록;
+    var 브랜드수 = new Set(목록.map(function (p) { return p.제조사; })).size;
+    $('총건수').textContent =
+      브랜드수 + '개사 ' + 목록.length.toLocaleString() + '개 제품에서 찾습니다';
+
+    저장목록 = 저장읽기();
+    분류그리기();
+    필터그리기($('필터'));
+    $('필터').hidden = false;
+    묶기();
+    저장함버튼갱신();
+    공유링크처리();
+  }
+
+  /* ---------- 저장함 (즐겨찾기) ----------
      서버를 쓰지 않는다. 이 폰(브라우저)에만 저장한다.
      로그인을 걸면 즉시성이라는 이 도구의 장점이 사라지고, 정작 저장이 필요한
-     순간(현장에서 고르는 중)에 가입하라고 막게 된다. 공유는 URL 로 해결되므로
-     여러 기기를 오가는 것도 링크로 된다. */
+     순간(현장에서 고르는 중)에 가입하라고 막게 된다.
+     여러 기기를 오가는 것은 공유 링크로 해결되므로 동기화가 없어도 막히지 않는다. */
+
   var 저장키 = 'filmdamoa_saved_v1';
   var 저장목록 = [];
 
@@ -57,15 +88,18 @@
     var b = $('저장함버튼');
     b.hidden = 저장목록.length === 0;
     b.textContent = '⭐ 즐겨찾기 저장함 ' + 저장목록.length + '개';
-    b.setAttribute('aria-pressed', String(보기 === '저장함'));
+  }
+  function 저장된제품들() {
+    return 저장목록.map(function (k) {
+      return 전체.filter(function (p) { return p.키 === k; })[0];
+    }).filter(Boolean);
   }
 
-  /* ---------- 공유 ----------
-     선택한 필름을 주소에 실어 보낸다. 받는 사람도 가입이 필요 없고 서버도 없다.
-     견적서 링크를 줄일 때 쓴 방식과 같은 생각이다. */
+  /* ---------- 공유 ---------- */
+
   function 공유주소(제품들) {
-    var base = location.origin + location.pathname;
-    return base + '?f=' + 제품들.map(function (p) { return encodeURIComponent(p.키); }).join(',');
+    return location.origin + location.pathname + '?f=' +
+      제품들.map(function (p) { return encodeURIComponent(p.키); }).join(',');
   }
 
   // 카카오톡 인앱 브라우저(안드로이드 WebView)에는 navigator.share 가 아예 없다.
@@ -104,7 +138,7 @@
     주소칸.textContent = url;
     시트.appendChild(주소칸);
 
-    var 닫기 = function () { 덮.remove(); document.body.style.overflow = ''; };
+    var 닫기 = function () { 덮.remove(); 몸잠금풀기(); };
 
     [
       ['📋  링크 복사', function () {
@@ -137,15 +171,16 @@
     덮.appendChild(시트);
     덮.addEventListener('click', function (e) { if (e.target === 덮) 닫기(); });
     document.body.appendChild(덮);
-    document.body.style.overflow = 'hidden';
+    몸잠금();
   }
 
   // 인앱 브라우저·http 환경에서는 navigator.clipboard 가 없을 수 있다.
   // index_app.js 에서 쓰던 것과 같은 대비책을 둔다.
   function 복사(글) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      return navigator.clipboard.writeText(글).then(function () { return true; },
-                                                    function () { return 옛복사(글); });
+      return navigator.clipboard.writeText(글).then(
+        function () { return true; },
+        function () { return 옛복사(글); });
     }
     return Promise.resolve(옛복사(글));
   }
@@ -175,205 +210,48 @@
     알림타이머 = setTimeout(function () { d.remove(); }, 2200);
   }
 
-  /* ---------- 시작 ---------- */
+  // 덮개가 여러 겹 뜰 수 있어서(목록 위에 상세, 그 위에 공유창) 열린 개수를 센다.
+  // 하나만 닫혔다고 스크롤을 풀어버리면 뒤에 남은 덮개 뒤로 본문이 스크롤된다.
+  var 잠금수 = 0;
+  function 몸잠금() { 잠금수++; document.body.style.overflow = 'hidden'; }
+  function 몸잠금풀기() { 잠금수 = Math.max(0, 잠금수 - 1); if (!잠금수) document.body.style.overflow = ''; }
 
-  fetch('film-db.json')
-    .then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(시작)
-    .catch(function (e) {
-      $('총건수').textContent = '데이터를 불러오지 못했습니다 (' + e.message + ')';
-    });
+  /* ---------- 컬러별 보기 ---------- */
 
-  function 시작(목록) {
-    전체 = 목록;
-    var 브랜드수 = new Set(목록.map(function (p) { return p.제조사; })).size;
-    $('총건수').textContent = brandLine(브랜드수, 목록.length);
-    저장목록 = 저장읽기();
-    필터그리기();
-    묶기();
-    저장함버튼갱신();
-
-    // 공유 링크로 들어온 경우 그 목록을 바로 보여준다.
-    var f = new URLSearchParams(location.search).get('f');
-    if (f) {
-      var 키들 = f.split(',').map(function (x) { return decodeURIComponent(x); });
-      var 받은 = 키들.map(function (k) {
-        return 전체.filter(function (p) { return p.키 === k; })[0];
-      }).filter(Boolean);
-      if (받은.length) {
-        보기 = '공유받음';
-        공유받음목록 = 받은;
-        검색();
-        return;
-      }
-      알림('공유된 필름을 찾지 못했습니다');
-    }
-    결과그리기([], '');
+  function 분류그리기() {
+    칸에분류(그리기대상('일반색'), $('일반격자'), '일반색');
+    칸에분류(그리기대상('우드'), $('우드격자'), '우드');
   }
-
-  var 공유받음목록 = [];
-
-  // 저장함/공유받음 보기는 '그 목록만' 보여주는 상태다. 사용자가 다른 조작을 하면
-  // 거기서 빠져나와야 한다. 안 그러면 공유 링크로 들어온 사람이 그 목록에 갇힌다.
-  function 보기해제() {
-    if (!보기) return;
-    보기 = null;
-    공유받음목록 = [];
-    저장함버튼갱신();
-  }
-
-  function brandLine(브랜드수, 건수) {
-    return 브랜드수 + '개사 ' + 건수.toLocaleString() + '개 제품에서 찾습니다';
-  }
-
-  /* ---------- 필터 칩 ---------- */
-
-  // 칩 목록을 데이터에서 만든다. 브랜드가 늘어나면 칩도 저절로 늘어난다.
-  // 한솔이 6번째로 들어왔고 앞으로도 추가된다. 목록을 코드에 박아두면 그때마다 고쳐야 한다.
-  function 필터그리기() {
-    var 상자 = $('필터');
-    상자.innerHTML = '';
-    // 종류·밝기 칩은 없앴다. 우드/일반색 훑어보기 분류가 그 둘을 이미 담고 있어서
-    // 같은 일을 하는 조작이 두 벌이 되면 사용자가 헷갈린다. 브랜드만 남긴다.
-    [['제조사', '브랜드']].forEach(function (쌍) {
-      var 키 = 쌍[0], 이름 = 쌍[1];
-      var 후보 = M.필터후보(전체, 키);
-      if (후보.length < 2) return;
-
-      var 줄 = document.createElement('div');
-      줄.className = '필터줄';
-      var 라벨 = document.createElement('span');
-      라벨.className = '칩분류';
-      라벨.textContent = 이름;
-      줄.appendChild(라벨);
-
-      후보.forEach(function (x) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = '칩버튼';
-        b.textContent = 브랜드(x.값) + ' ' + x.건수;
-        b.setAttribute('aria-pressed', 'false');
-        b.addEventListener('click', function () {
-          보기해제();
-          var 켬 = b.getAttribute('aria-pressed') === 'true';
-          b.setAttribute('aria-pressed', 켬 ? 'false' : 'true');
-          필터[키] = (필터[키] || []).filter(function (v) { return v !== x.값; });
-          if (!켬) 필터[키].push(x.값);
-          검색();
-        });
-        줄.appendChild(b);
-      });
-      상자.appendChild(줄);
-    });
-    상자.hidden = false;
-  }
-
-  /* ---------- 입구 전환 ---------- */
-
-  function 칸열기(어느) {
-    $('사진칸').hidden = 어느 !== '사진' || !사진준비됨;
-    $('분류칸').hidden = 어느 !== '분류';
-    $('글자칸').hidden = 어느 !== '글자';
-    $('색버튼').setAttribute('aria-pressed', String(어느 === '분류'));
-    $('글자버튼').setAttribute('aria-pressed', String(어느 === '글자'));
-  }
-
-  var 사진준비됨 = false;
-
-  function 묶기() {
-    $('사진입력').addEventListener('change', 사진받기);
-
-    $('색버튼').addEventListener('click', function () {
-      보기해제();
-      var 켬 = $('색버튼').getAttribute('aria-pressed') === 'true';
-      칸열기(켬 ? null : '분류');
-      if (켬) { 선택분류 = null; 검색(); }
-      else 분류그리기();
-    });
-
-    $('저장함버튼').addEventListener('click', function () {
-      보기 = (보기 === '저장함') ? null : '저장함';
-      if (보기 === '저장함') { 선택분류 = null; 글자 = ''; $('글자입력').value = ''; 칸열기(null); }
-      저장함버튼갱신();
-      검색();
-    });
-
-    $('군우드').addEventListener('click', function () { 군바꾸기('우드'); });
-    $('군일반').addEventListener('click', function () { 군바꾸기('일반색'); });
-
-    $('글자버튼').addEventListener('click', function () {
-      보기해제();
-      var 켬 = $('글자버튼').getAttribute('aria-pressed') === 'true';
-      // 코드를 아는 사람에게 분류 필터를 걸면 안 된다. 훑어보기가 아니라 정확한 조회다.
-      // '아주 밝은 우드' 를 보던 중에 CW469(짙은 우드)를 치면 0개가 나오는데,
-      // 화면만 보면 "그런 코드가 없나 보다" 로 오해한다.
-      if (!켬) { 선택분류 = null; 분류그리기(); }
-      칸열기(켬 ? null : '글자');
-      if (!켬) setTimeout(function () { $('글자입력').focus(); }, 50);
-      else { 글자 = ''; $('글자입력').value = ''; 검색(); }
-    });
-
-    $('글자입력').addEventListener('input', function () {
-      보기해제();
-      글자 = this.value.trim();
-      검색();
-    });
-
-    var cv = $('캔버스');
-    cv.addEventListener('click', 캔버스탭);
-
-    $('덮개').addEventListener('click', function (e) {
-      if (e.target === $('덮개')) 상세닫기();
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') 상세닫기();
-    });
-  }
-
-  /* ---------- 색·톤으로 훑어보기 ---------- */
-
-  function 군바꾸기(군) {
-    보기해제();
-    현재군 = 군;
-    선택분류 = null;
-    $('군우드').setAttribute('aria-pressed', String(군 === '우드'));
-    $('군일반').setAttribute('aria-pressed', String(군 === '일반색'));
-    분류그리기();
-    검색();
-  }
+  function 그리기대상(군) { return M.분류목록(전체, 군); }
 
   // 각 분류의 얼굴로 쓸 제품 하나를 고른다.
-  // 그 분류의 한가운데 밝기이면서, 이미지가 가장 깨끗한(균일도 낮은) 것을 고른다.
+  // 그 분류의 한가운데 밝기이면서 이미지가 가장 깨끗한(균일도 낮은) 것을 고른다.
   // 연출 사진이나 조명 그라데이션이 심한 것을 얼굴로 내세우면 분류를 오해하게 된다.
   function 대표제품(목록) {
     var 후보 = 목록.filter(function (p) { return !p.사진무효; });
     if (!후보.length) return 목록[0] || null;
     var Ls = 후보.map(function (p) { return p.lab.L; }).sort(function (a, b) { return a - b; });
     var 가운데 = Ls[Ls.length >> 1];
-    // 한가운데 밝기 근처 30% 안에서 가장 깨끗한 것
     var 가까운 = 후보.slice().sort(function (a, b) {
       return Math.abs(a.lab.L - 가운데) - Math.abs(b.lab.L - 가운데);
     }).slice(0, Math.max(1, Math.round(후보.length * 0.3)));
-    가까운.sort(function (a, b) { return (a.균일도 == null ? 99 : a.균일도) - (b.균일도 == null ? 99 : b.균일도); });
+    가까운.sort(function (a, b) {
+      return (a.균일도 == null ? 99 : a.균일도) - (b.균일도 == null ? 99 : b.균일도);
+    });
     return 가까운[0];
   }
 
-  function 분류그리기() {
-    var 상자 = $('분류격자');
+  function 칸에분류(목록, 상자, 군) {
     상자.innerHTML = '';
-    M.분류목록(전체, 현재군).forEach(function (x) {
-      var 속한 = M.분류목록보기(전체, 현재군, x.값);
+    목록.forEach(function (x) {
+      var 속한 = M.분류목록보기(전체, 군, x.값);
       var b = document.createElement('button');
       b.type = 'button';
       b.className = '분류버튼';
-      b.setAttribute('aria-pressed', String(!!선택분류 && 선택분류.이름 === x.값));
 
       // 우드는 무늬가 핵심이라 실제 제품 썸네일을 보여준다.
       // 일반색은 무늬가 없으니 납작한 색칩이 오히려 잘 읽힌다.
-      if (현재군 === '우드') {
+      if (군 === '우드') {
         var 대표 = 대표제품(속한);
         var img = document.createElement('img');
         img.className = '미리';
@@ -400,20 +278,200 @@
       b.appendChild(몸);
 
       b.addEventListener('click', function () {
-        보기해제();
-        var 켬 = 선택분류 && 선택분류.이름 === x.값;
-        선택분류 = 켬 ? null : { 군: 현재군, 이름: x.값 };
-        분류그리기();
-        검색();
+        목록열기({
+          제목: 군 === '우드' ? x.값 + ' 우드' : x.값,
+          곁: (x.설명 ? x.설명 + ' · ' : '') + x.건수 + '개',
+          제품들: 속한,
+          정렬이름: x.값,
+        });
       });
       상자.appendChild(b);
     });
   }
 
+  /* ---------- 목록 덮개 ----------
+     분류·즐겨찾기·공유받은 목록을 화면 위에 덮어서 보여준다.
+     본문(검색창·사진)을 밀어내지 않아서 닫으면 하던 자리로 그대로 돌아온다. */
+
+  var 목록상태 = null;
+
+  function 목록열기(옵션) {
+    목록상태 = 옵션;
+    목록그리기();
+    $('목록덮개').hidden = false;
+    몸잠금();
+  }
+  function 목록닫기() {
+    if ($('목록덮개').hidden) return;
+    $('목록덮개').hidden = true;
+    목록상태 = null;
+    몸잠금풀기();
+  }
+
+  function 목록그리기() {
+    if (!목록상태) return;
+    var 판 = $('목록판');
+    판.innerHTML = '';
+
+    var 머리 = document.createElement('div');
+    머리.className = '목록머리';
+    var 줄 = document.createElement('div');
+    줄.className = '줄';
+    var 왼 = document.createElement('div');
+    왼.innerHTML = '<h2>' + 이스케이프(목록상태.제목) + '</h2>' +
+                   (목록상태.곁 ? '<div class="곁">' + 이스케이프(목록상태.곁) + '</div>' : '');
+    줄.appendChild(왼);
+    var 닫 = document.createElement('button');
+    닫.type = 'button'; 닫.className = '닫기'; 닫.textContent = '✕';
+    닫.setAttribute('aria-label', '닫기');
+    닫.addEventListener('click', 목록닫기);
+    줄.appendChild(닫);
+    머리.appendChild(줄);
+
+    // 브랜드 필터는 훑어볼 때 가장 자주 쓰므로 목록 안에도 둔다.
+    var 필칸 = document.createElement('div');
+    필칸.className = '필터';
+    필칸.style.margin = '10px 0 0';
+    필터그리기(필칸);
+    머리.appendChild(필칸);
+    판.appendChild(머리);
+
+    var 몸 = document.createElement('div');
+    몸.className = '목록몸';
+
+    var 보일것 = 목록상태.제품들
+      .filter(function (p) { return M.통과(p, 필터); })
+      .sort(M.훑어보기정렬(목록상태.정렬이름 || null));
+
+    if (!보일것.length) {
+      var 빈 = document.createElement('div');
+      빈.className = '빈결과';
+      빈.textContent = '이 브랜드에는 해당하는 제품이 없습니다.';
+      몸.appendChild(빈);
+    } else {
+      var 격 = document.createElement('div');
+      격.className = '격자';
+      보일것.forEach(function (p) { 격.appendChild(카드만들기({ 제품: p, 등급: null })); });
+      몸.appendChild(격);
+    }
+
+    if (목록상태.공유 && 보일것.length) {
+      var 감 = document.createElement('div');
+      감.className = '결과하단';
+      var 공 = document.createElement('button');
+      공.type = 'button';
+      공.className = '상세버튼 주된';
+      공.textContent = 목록상태.공유;
+      공.addEventListener('click', function () {
+        공유하기(보일것, '필름 ' + 보일것.length + '개');
+      });
+      감.appendChild(공);
+      몸.appendChild(감);
+    }
+
+    판.appendChild(몸);
+    몸.scrollTop = 0;
+  }
+
+  /* ---------- 브랜드 필터 ---------- */
+
+  // 칩 목록을 데이터에서 만든다. 한솔이 6번째로 들어왔고 앞으로도 추가된다.
+  // 목록을 코드에 박아두면 그때마다 고쳐야 한다.
+  // 같은 필터 상태를 본문과 목록 덮개 두 곳에 그리므로 컨테이너를 받는다.
+  function 필터그리기(상자) {
+    상자.innerHTML = '';
+    var 후보 = M.필터후보(전체, '제조사');
+    if (후보.length < 2) return;
+
+    var 줄 = document.createElement('div');
+    줄.className = '필터줄';
+    var 라벨 = document.createElement('span');
+    라벨.className = '칩분류';
+    라벨.textContent = '브랜드';
+    줄.appendChild(라벨);
+
+    후보.forEach(function (x) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = '칩버튼';
+      b.textContent = 브랜드(x.값) + ' ' + x.건수;
+      var 켜짐 = (필터.제조사 || []).indexOf(x.값) >= 0;
+      b.setAttribute('aria-pressed', String(켜짐));
+      b.addEventListener('click', function () {
+        var 켬 = b.getAttribute('aria-pressed') === 'true';
+        필터.제조사 = (필터.제조사 || []).filter(function (v) { return v !== x.값; });
+        if (!켬) 필터.제조사.push(x.값);
+        필터그리기($('필터'));          // 본문 쪽도 같이 맞춘다
+        if (목록상태) 목록그리기();      // 목록이 열려 있으면 즉시 반영
+        else 검색();
+      });
+      줄.appendChild(b);
+    });
+    상자.appendChild(줄);
+  }
+
+  /* ---------- 묶기 ---------- */
+
+  function 묶기() {
+    $('사진입력').addEventListener('change', 사진받기);
+
+    $('코드폼').addEventListener('submit', function (e) {
+      e.preventDefault();
+      글자 = $('글자입력').value.trim();
+      $('글자입력').blur();
+      검색();
+    });
+    // 지우면 결과도 즉시 지운다. 검색 버튼을 다시 누르게 만들 이유가 없다.
+    $('글자입력').addEventListener('input', function () {
+      if (!this.value.trim() && 글자) { 글자 = ''; 검색(); }
+    });
+
+    $('컬러버튼').addEventListener('click', function () {
+      var 열림 = this.getAttribute('aria-expanded') === 'true';
+      this.setAttribute('aria-expanded', String(!열림));
+      $('컬러칸').hidden = 열림;
+    });
+
+    $('저장함버튼').addEventListener('click', function () {
+      var 목 = 저장된제품들();
+      목록열기({
+        제목: '즐겨찾기 저장함',
+        곁: 목.length + '개',
+        제품들: 목,
+        공유: '즐겨찾기 전체 공유하기',
+      });
+    });
+
+    $('캔버스').addEventListener('click', 캔버스탭);
+
+    $('덮개').addEventListener('click', function (e) { if (e.target === $('덮개')) 상세닫기(); });
+    $('목록덮개').addEventListener('click', function (e) { if (e.target === $('목록덮개')) 목록닫기(); });
+
+    // 위에 있는 것부터 닫는다. 상세를 보다 ESC 를 누르면 상세만 닫히고 목록은 남아야 한다.
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var 공 = document.querySelector('.공유덮개');
+      if (공) { 공.remove(); 몸잠금풀기(); return; }
+      if (!$('덮개').hidden) { 상세닫기(); return; }
+      목록닫기();
+    });
+  }
+
+  // 공유 링크로 들어온 경우 그 목록을 바로 덮개로 보여준다.
+  function 공유링크처리() {
+    var f = new URLSearchParams(location.search).get('f');
+    if (!f) return;
+    var 받은 = f.split(',').map(function (x) {
+      var k = decodeURIComponent(x);
+      return 전체.filter(function (p) { return p.키 === k; })[0];
+    }).filter(Boolean);
+    if (!받은.length) { 알림('공유된 필름을 찾지 못했습니다'); return; }
+    목록열기({ 제목: '공유받은 필름', 곁: 받은.length + '개', 제품들: 받은 });
+  }
+
   /* ---------- 사진 ---------- */
 
-  var 원본캔버스 = null;   // 색을 읽는 원본 해상도
-  var 표시배율 = 1;
+  var 원본캔버스 = null;
 
   function 사진받기(e) {
     var file = e.target.files && e.target.files[0];
@@ -433,14 +491,14 @@
         cv.getContext('2d', { willReadFrequently: true }).drawImage(bmp, 0, 0, w, h);
         bmp.close();
 
-        보기해제();
         원본캔버스 = cv;
-        사진준비됨 = true;
         질의 = null;
+        글자 = ''; $('글자입력').value = '';
+        목록닫기();
         $('탭표시').hidden = true;
         $('뽑힌색').hidden = true;
         $('사진안내').hidden = false;
-        칸열기('사진');
+        $('사진칸').hidden = false;
         결과그리기([], '사진에서 찾으려는 부분을 눌러보세요');
       })
       .catch(function () {
@@ -452,10 +510,11 @@
     if (!원본캔버스) return;
     var cv = 원본캔버스;
     var r = cv.getBoundingClientRect();
-    표시배율 = cv.width / r.width;
+    if (r.width < 5) return;
+    var 배율 = cv.width / r.width;
 
-    var x = Math.round((e.clientX - r.left) * 표시배율);
-    var y = Math.round((e.clientY - r.top) * 표시배율);
+    var x = Math.round((e.clientX - r.left) * 배율);
+    var y = Math.round((e.clientY - r.top) * 배율);
 
     // 한 픽셀이 아니라 주변 원 영역을 읽는다. 한 점만 읽으면 노이즈 하나에 결과가 뒤집힌다.
     var 반지름 = Math.max(8, Math.round(cv.width * 0.035));
@@ -464,15 +523,14 @@
 
     // 탭 위치 표시. 어디를 찍었는지 보여야 다시 찍을 판단이 선다.
     var 표 = $('탭표시');
-    표.style.left = ((x / 표시배율)) + 'px';
-    표.style.top = ((y / 표시배율)) + 'px';
+    표.style.left = (x / 배율) + 'px';
+    표.style.top = (y / 배율) + 'px';
     표.hidden = false;
     $('사진안내').hidden = true;
 
-    $('색칩').style.background = C.rgb를hex(
-      labRgb(색.대표색)[0], labRgb(색.대표색)[1], labRgb(색.대표색)[2]);
-    $('색코드').textContent = C.rgb를hex(
-      labRgb(색.대표색)[0], labRgb(색.대표색)[1], labRgb(색.대표색)[2]);
+    var hex = C.rgb를hex.apply(null, labRgb(색.대표색));
+    $('색칩').style.background = hex;
+    $('색코드').textContent = hex;
     $('뽑힌색').hidden = false;
 
     질의 = { lab: 색.대표색, 대비폭: 색.대비폭 };
@@ -514,108 +572,59 @@
     ];
   }
 
-  /* ---------- 검색 ---------- */
-
-  // 선택한 분류는 필터로 작동한다. 사진을 올린 상태에서 '짙은 우드'를 누르면
-  // 짙은 우드 안에서만 사진과 가까운 것을 찾는다 -- 조작 두 개가 싸우지 않는다.
-  function 대상목록() {
-    if (!선택분류) return 전체;
-    // 한 제품이 여러 분류에 속할 수 있다. 경계에 걸린 제품은 양쪽에서 다 보여야 한다.
-    return 전체.filter(function (p) {
-      return M.속하나(p, 선택분류.군, 선택분류.이름);
-    });
-  }
-
-  // 정렬은 film_match 의 훑어보기정렬() 하나만 쓴다.
-  // 화면에 따로 만들어 뒀더니 film_match 만 고쳤을 때 화면이 안 따라와서
-  // 블랙이 '가장 검은 것부터'로 안 바뀌는 버그가 났다. 정렬 규칙은 한 곳에만 둔다.
-  function 정렬() {
-    return M.훑어보기정렬(선택분류 ? 선택분류.이름 : null);
-  }
-
-  function 분류이름() {
-    return 선택분류 ? (선택분류.군 === '우드' ? 선택분류.이름 + ' 우드' : 선택분류.이름) : '';
-  }
+  /* ---------- 검색 (사진 · 코드) ---------- */
 
   function 검색() {
-    // 저장함과 공유받은 목록은 다른 조건과 섞이지 않는다. 그 자체가 하나의 목록이다.
-    if (보기 === '저장함') {
-      var 저장된 = 저장목록.map(function (k) {
-        return 전체.filter(function (p) { return p.키 === k; })[0];
-      }).filter(Boolean).sort(M.훑어보기정렬(null));
-      결과그리기(저장된.map(function (p) { return { 제품: p, 등급: null }; }),
-        저장된.length ? '<b>즐겨찾기 저장함</b> ' + 저장된.length + '개' : '',
-        null,
-        저장된.length ? { 글: '즐겨찾기 전체 공유하기', 동작: function () {
-          공유하기(저장된, '필름 ' + 저장된.length + '개');
-        } } : null);
-      return;
-    }
-    if (보기 === '공유받음') {
-      결과그리기(공유받음목록.map(function (p) { return { 제품: p, 등급: null }; }),
-        '<b>공유받은 필름</b> ' + 공유받음목록.length + '개');
-      return;
-    }
-
-    var 대상 = 대상목록();
-
-    // 글자 검색은 색과 별개다. 코드를 아는 사람은 색이 필요 없다.
+    // 코드·이름 검색은 색과 별개다. 코드를 아는 사람은 색이 필요 없다.
     if (글자) {
       var 낮 = 글자.toLowerCase();
-      var 목 = 대상.filter(function (p) {
+      var 목 = 전체.filter(function (p) {
         if (!M.통과(p, 필터)) return false;
         return (p.코드 && p.코드.toLowerCase().indexOf(낮) >= 0) ||
                (p.색상명 && p.색상명.toLowerCase().indexOf(낮) >= 0);
-      }).sort(정렬()).slice(0, 60);
+      }).sort(M.훑어보기정렬(null)).slice(0, 60);
       결과그리기(목.map(function (p) { return { 제품: p, 등급: null }; }),
-        목.length ? '<b>' + 목.length + '개</b> 찾음' + (목.length >= 60 ? ' (많아서 60개까지만)' : '') : '');
+        목.length
+          ? '<b>' + 목.length + '개</b> 찾음' + (목.length >= 60 ? ' (많아서 60개까지만)' : '')
+          : '');
       return;
     }
 
-    // 사진이나 색이 있으면 그것과 가까운 순으로.
     if (질의) {
-      var 결과 = M.검색(대상, 질의, 필터, { 개수: 10 });
+      var 결과 = M.검색(전체, 질의, 필터, { 개수: 10 });
 
-      // 좁힌 분류 안에 없을 때, 그냥 "없습니다" 로 끝내면 사용자는 왜 없는지 모른다.
-      // 분류를 풀면 몇 개가 있는지 알려주고 바로 풀 수 있게 한다.
-      // (파란 필름 분류 안에서 회색 문짝을 찾으면 0개가 나오는 게 당연한데,
-      //  화면만 보면 "이 색은 아예 없나 보다" 로 오해한다.)
-      if (!결과.length && 선택분류) {
-        var 밖 = M.검색(전체, 질의, 필터, { 개수: 10 });
+      // 브랜드를 좁혀둔 채로 0개가 나오면 사용자는 왜 없는지 모른다.
+      // 목록에서 켠 필터가 본문 검색에도 계속 걸려 있는 상황이라 특히 헷갈린다.
+      // 풀면 몇 개가 있는지 알려주고 바로 풀 수 있게 한다.
+      if (!결과.length && (필터.제조사 || []).length) {
+        var 밖 = M.검색(전체, 질의, null, { 개수: 10 });
         결과그리기([], '', 밖.length ? {
-          안내: '‘' + 분류이름() + '’ 안에는 비슷한 제품이 없습니다.',
-          버튼: '분류를 풀고 다시 찾기 (' + 밖.length + '개)',
-          동작: function () { 선택분류 = null; 분류그리기(); 검색(); },
+          안내: '고른 브랜드에는 비슷한 제품이 없습니다.',
+          버튼: '브랜드 필터를 풀고 다시 찾기 (' + 밖.length + '개)',
+          동작: function () {
+            필터.제조사 = [];
+            필터그리기($('필터'));
+            if (목록상태) 목록그리기();
+            검색();
+          },
         } : null);
         return;
       }
       if (!결과.length) { 결과그리기([], ''); return; }
-      결과그리기(결과, '이 <b>' + 결과.length + '개</b> 중에 있습니다. 비교해서 고르세요.' +
-        (선택분류 ? ' <span class="좁힘">(' + 이스케이프(분류이름()) + ' 안에서)</span>' : ''));
-      return;
-    }
-
-    // 질의 없이 분류만 골랐으면 그 분류를 통째로 훑어본다.
-    if (선택분류) {
-      var 목록 = 대상.filter(function (p) { return M.통과(p, 필터); }).sort(정렬());
-      결과그리기(목록.map(function (p) { return { 제품: p, 등급: null }; }),
-        '<b>' + 이스케이프(분류이름()) + '</b> ' + 목록.length + '개');
+      결과그리기(결과, '이 <b>' + 결과.length + '개</b> 중에 있습니다. 비교해서 고르세요.');
       return;
     }
 
     결과그리기([], '');
   }
 
-  /* ---------- 결과 ---------- */
-
-  function 결과그리기(목록, 머리, 제안, 하단) {
+  function 결과그리기(목록, 머리, 제안) {
     $('결과머리').innerHTML = 머리 || '';
     var 격자 = $('격자');
     격자.innerHTML = '';
-    var 옛하단 = document.querySelector('.결과하단');
-    if (옛하단) 옛하단.remove();
 
     if (!목록.length) {
+      if (!질의 && !글자) return;   // 첫 화면에서는 빈 상자를 띄우지 않는다
       var 빈 = document.createElement('div');
       빈.className = '빈결과';
 
@@ -632,31 +641,16 @@
         return;
       }
 
-      if (질의 || 글자) {
-        빈.textContent = 글자
-          ? '해당하는 코드·이름이 없습니다.'
-          : '비슷한 제품이 없습니다. 다른 부분을 눌러보거나 분류·브랜드를 풀어보세요.';
-      } else {
-        빈.textContent = 머리 || '사진을 올리거나 색을 골라주세요.';
-      }
+      빈.textContent = 글자
+        ? '해당하는 코드·이름이 없습니다.'
+        : '비슷한 제품이 없습니다. 사진의 다른 부분을 눌러보세요.';
       격자.appendChild(빈);
       return;
     }
-
     목록.forEach(function (x) { 격자.appendChild(카드만들기(x)); });
-
-    if (하단) {
-      var 감 = document.createElement('div');
-      감.className = '결과하단';
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = '상세버튼 주된';
-      b.textContent = 하단.글;
-      b.addEventListener('click', 하단.동작);
-      감.appendChild(b);
-      격자.parentNode.appendChild(감);
-    }
   }
+
+  /* ---------- 카드 · 상세 ---------- */
 
   function 카드만들기(x) {
     var p = x.제품;
@@ -676,7 +670,7 @@
       img.className = '썸';
       img.loading = 'lazy';
       img.decoding = 'async';
-      img.alt = p.제조사 + ' ' + p.코드;
+      img.alt = 브랜드(p.제조사) + ' ' + 제목(p);
       img.src = 'img/grid/' + encodeURIComponent(p.키) + '.webp';
       b.appendChild(img);
     }
@@ -694,11 +688,7 @@
   }
 
   // 코드미확인 14건은 코드 자리에 제품명이 들어 있다. 그걸 코드처럼 보여주면 안 된다.
-  function 제목(p) {
-    return p.코드미확인 ? (p.색상명 || p.코드) : p.코드;
-  }
-
-  /* ---------- 상세 ---------- */
+  function 제목(p) { return p.코드미확인 ? (p.색상명 || p.코드) : p.코드; }
 
   function 상세열기(p, 결과) {
     var el = $('상세');
@@ -724,7 +714,7 @@
     } else {
       var img = document.createElement('img');
       img.className = '상세이미지';
-      img.alt = p.제조사 + ' ' + p.코드;
+      img.alt = 브랜드(p.제조사) + ' ' + 제목(p);
       img.src = 'img/card/' + encodeURIComponent(p.키) + '.webp';
       el.appendChild(img);
     }
@@ -756,15 +746,13 @@
     if (p.명도) 줄.push(['밝기', p.명도]);
     if (p.광택) 줄.push(['광택', p.광택]);
     if (p.방염) 줄.push(['방염', '방염 등급 제품']);
-    if (결과 && 결과.등급) {
-      줄.push(['색 차이', 결과.등급 + ' (ΔE ' + 결과.ΔE.toFixed(2) + ')']);
-    }
+    if (결과 && 결과.등급) 줄.push(['색 차이', 결과.등급 + ' (ΔE ' + 결과.ΔE.toFixed(2) + ')']);
     표.innerHTML = 줄.map(function (r) {
       return '<tr><th>' + 이스케이프(r[0]) + '</th><td>' + 이스케이프(String(r[1])) + '</td></tr>';
     }).join('');
     el.appendChild(표);
 
-    // 저장·공유는 제품 정보 바로 아래에 둔다. 정보를 보고 판단한 직후가 누를 때다.
+    // 저장·공유는 정보 바로 아래에 둔다. 정보를 보고 판단한 직후가 누를 때다.
     var 동작 = document.createElement('div');
     동작.className = '상세동작';
 
@@ -779,8 +767,11 @@
       저장토글(p);
       저장문구();
       알림(저장됨(p) ? '즐겨찾기에 담았습니다' : '즐겨찾기에서 뺐습니다');
-      // 저장함을 보고 있는 중이면 목록도 바로 갱신한다.
-      if (보기 === '저장함') 검색();
+      if (목록상태 && 목록상태.공유) {          // 즐겨찾기 목록을 보고 있으면 즉시 반영
+        목록상태.제품들 = 저장된제품들();
+        목록상태.곁 = 목록상태.제품들.length + '개';
+        목록그리기();
+      }
     });
     동작.appendChild(저장버튼);
 
@@ -812,12 +803,11 @@
 
     $('덮개').hidden = false;
     el.scrollTop = 0;
-    document.body.style.overflow = 'hidden';
+    몸잠금();
   }
 
   function 대체품보이기(p, el) {
     var 결과 = M.타브랜드대체품(전체, p, { 개수: 8 });
-
     var 옛 = el.querySelector('.대체품');
     if (옛) 옛.remove();
 
@@ -848,13 +838,8 @@
   }
 
   function 상세닫기() {
+    if ($('덮개').hidden) return;
     $('덮개').hidden = true;
-    document.body.style.overflow = '';
-  }
-
-  function 이스케이프(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    몸잠금풀기();
   }
 })();

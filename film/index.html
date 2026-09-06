@@ -3,33 +3,51 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>필름다모아 — 필름 색상 찾기</title>
+<title>1분견적 필름찾기</title>
 <meta name="description" content="사진 한 장으로 6개사 인테리어필름 2,118개 중 비슷한 색을 찾습니다.">
-<meta property="og:title" content="필름다모아 — 필름 색상 찾기">
+<meta property="og:title" content="1분견적 필름찾기">
 <meta property="og:description" content="사진 한 장으로 6개사 인테리어필름 2,118개 중 비슷한 색을 찾습니다.">
 <link rel="stylesheet" href="film_style.css">
 </head>
 <body>
 
 <header class="top">
-  <h1>필름다모아</h1>
+  <h1>1분견적 필름찾기</h1>
   <p class="sub" id="총건수">불러오는 중…</p>
 </header>
 
 <main>
 
-  <!-- 입구 3개 -->
   <section class="입구">
+    <!-- 1. 코드로 찾기. 코드를 아는 사람이 가장 빠르게 가는 길이라 맨 위에 둔다. -->
+    <form class="코드줄" id="코드폼" autocomplete="off">
+      <input type="search" id="글자입력" placeholder="필름 넘버를 입력하세요 (예: PS010)"
+             inputmode="search" enterkeyhint="search" aria-label="필름 넘버 또는 색상명">
+      <button type="submit" class="코드버튼">검색</button>
+    </form>
+
+    <!-- 2. 사진으로 찾기 -->
     <label class="큰버튼" id="사진버튼">
       <input type="file" accept="image/*" id="사진입력" hidden>
-      <span class="아이콘">📷</span>
-      <span>사진으로 찾기</span>
+      <span class="아이콘" aria-hidden="true">📷</span>
+      <span>사진 올려서 찾기</span>
     </label>
-    <div class="작은버튼들">
-      <button type="button" class="작은버튼" id="색버튼">🎨 색으로 고르기</button>
-      <button type="button" class="작은버튼" id="글자버튼">🔍 코드·이름</button>
-    </div>
-    <button type="button" class="작은버튼 저장함버튼" id="저장함버튼" hidden></button>
+
+    <!-- 3. 컬러별 보기. 첫 화면을 간결하게 두려고 접어둔다. -->
+    <button type="button" class="펼침버튼" id="컬러버튼" aria-expanded="false" aria-controls="컬러칸">
+      <span class="펼침글">🎨 필름 컬러별 보기</span>
+      <span class="화살" aria-hidden="true">▾</span>
+    </button>
+
+    <button type="button" class="즐겨찾기버튼" id="저장함버튼" hidden></button>
+  </section>
+
+  <!-- 컬러별 보기 내용. 일반색이 먼저, 우드가 아래. 탭 없이 한 화면에 다 보인다. -->
+  <section class="컬러칸" id="컬러칸" hidden>
+    <h2 class="묶음제목">일반 색상</h2>
+    <div class="분류격자" id="일반격자"></div>
+    <h2 class="묶음제목">우드</h2>
+    <div class="분류격자 우드격자" id="우드격자"></div>
   </section>
 
   <!-- 사진 -->
@@ -47,24 +65,9 @@
     </div>
   </section>
 
-  <!-- 색·톤으로 훑어보기 -->
-  <section class="분류칸" id="분류칸" hidden>
-    <div class="군탭" role="tablist">
-      <button type="button" class="군버튼" id="군우드" aria-pressed="true">🪵 우드</button>
-      <button type="button" class="군버튼" id="군일반" aria-pressed="false">🎨 일반색</button>
-    </div>
-    <div class="분류격자" id="분류격자"></div>
-  </section>
-
-  <!-- 글자 검색 -->
-  <section class="글자칸" id="글자칸" hidden>
-    <input type="search" id="글자입력" placeholder="코드 또는 색상명 (예: CW469, 오크)" autocomplete="off">
-  </section>
-
-  <!-- 필터 -->
   <section class="필터" id="필터" hidden></section>
 
-  <!-- 결과 -->
+  <!-- 사진·코드 검색 결과 -->
   <section class="결과칸">
     <p class="결과머리" id="결과머리"></p>
     <div class="격자" id="격자"></div>
@@ -72,8 +75,13 @@
 
 </main>
 
-<!-- 상세 -->
-<div class="덮개" id="덮개" hidden>
+<!-- 목록 덮개: 분류·즐겨찾기·공유받은 목록을 화면 위에 덮어서 보여준다 -->
+<div class="덮개 목록덮개" id="목록덮개" hidden>
+  <div class="목록판" id="목록판" role="dialog" aria-modal="true" aria-label="필름 목록"></div>
+</div>
+
+<!-- 제품 상세 -->
+<div class="덮개 상세덮개" id="덮개" hidden>
   <div class="상세" id="상세" role="dialog" aria-modal="true" aria-label="제품 상세"></div>
 </div>
 
