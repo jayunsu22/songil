@@ -327,6 +327,15 @@
     });
   }
 
+  // 옅은 것에서 짙은 것 순. 무작위로 늘어놓으면 눈으로 훑을 수가 없다.
+  // 명도가 같으면 채도가 낮은(더 무채색인) 쪽을 앞에 둔다 -- 같은 밝기 안에서도
+  // 흐린 것에서 진한 것으로 이어져야 줄이 매끄럽다.
+  function 옅은순(a, b) {
+    if (b.lab.L !== a.lab.L) return b.lab.L - a.lab.L;
+    return 채도(a.lab) - 채도(b.lab);
+  }
+  function 채도(lab) { return Math.sqrt(lab.a * lab.a + lab.b * lab.b); }
+
   function 분류이름() {
     return 선택분류 ? (선택분류.군 === '우드' ? 선택분류.이름 + ' 우드' : 선택분류.이름) : '';
   }
@@ -341,7 +350,7 @@
         if (!M.통과(p, 필터)) return false;
         return (p.코드 && p.코드.toLowerCase().indexOf(낮) >= 0) ||
                (p.색상명 && p.색상명.toLowerCase().indexOf(낮) >= 0);
-      }).slice(0, 60);
+      }).sort(옅은순).slice(0, 60);
       결과그리기(목.map(function (p) { return { 제품: p, 등급: null }; }),
         목.length ? '<b>' + 목.length + '개</b> 찾음' + (목.length >= 60 ? ' (많아서 60개까지만)' : '') : '');
       return;
@@ -371,9 +380,8 @@
     }
 
     // 질의 없이 분류만 골랐으면 그 분류를 통째로 훑어본다.
-    // 밝은 것부터 어두운 것 순이라 비슷한 것이 옆에 모인다.
     if (선택분류) {
-      var 목록 = 대상.filter(function (p) { return M.통과(p, 필터); });
+      var 목록 = 대상.filter(function (p) { return M.통과(p, 필터); }).sort(옅은순);
       결과그리기(목록.map(function (p) { return { 제품: p, 등급: null }; }),
         '<b>' + 이스케이프(분류이름()) + '</b> ' + 목록.length + '개');
       return;
