@@ -422,12 +422,12 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
    문제가 있는 구간에만 붙으니 '여기는 눈여겨봐야 하는 색' 이라는 신호도 된다. */
 .카드.밝은카드 {
   background: var(--견본판); border-color: var(--견본판);
-  padding: 5px;
+  padding: 2.5px;
 }
-.카드.밝은카드 .썸, .카드.밝은카드 .칩썸 { border-radius: 6px; }
-.카드.밝은카드 .몸 { background: var(--판); border-radius: 6px; margin-top: 5px; padding: 6px 5px 8px; }
+.카드.밝은카드 .썸, .카드.밝은카드 .칩썸 { border-radius: 7px; }
+.카드.밝은카드 .몸 { background: var(--판); border-radius: 7px; margin-top: 2.5px; padding: 6px 7px 8px; }
 /* 고르기 단추가 회색 테에 걸치지 않도록 안쪽으로 들인다. */
-.카드.밝은카드 .고르기 { top: 11px; right: 11px; }
+.카드.밝은카드 .고르기 { top: 8px; right: 8px; }
 
 /* ---------- 여러 개 골라 한 번에 공유 ---------- */
 
