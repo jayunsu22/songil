@@ -124,25 +124,42 @@ main { max-width: 720px; margin: 0 auto; padding: 0 14px; }
 .뽑힌색 code { font-size: 12px; color: var(--흐린글자); }
 .뽑힌색 .힌트 { margin-left: auto; font-size: 12px; color: var(--옅은글자); }
 
-/* ---------- 색 고르기 ---------- */
+/* ---------- 색·톤으로 훑어보기 ---------- */
 
-.색칸 { margin-bottom: 14px; }
-.색고르기 {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px; background: var(--판);
+.분류칸 { margin-bottom: 14px; }
+
+.군탭 { display: flex; gap: 6px; margin-bottom: 10px; }
+.군버튼 {
+  flex: 1; padding: 10px;
+  background: var(--판); color: var(--흐린글자);
   border: 1px solid var(--선); border-radius: var(--둥글);
-  font-size: 14px; cursor: pointer;
+  font: inherit; font-size: 14px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.색고르기 input[type=color] {
-  width: 46px; height: 34px; padding: 0;
-  border: 1px solid var(--진한선); border-radius: 6px;
-  background: none; cursor: pointer;
+.군버튼[aria-pressed="true"] {
+  border-color: var(--포인트); background: var(--포인트옅은);
+  color: var(--포인트); font-weight: 600;
 }
-.빠른색 { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.빠른색 button {
-  width: 34px; height: 34px; border-radius: 6px;
-  border: 1px solid var(--진한선); cursor: pointer; padding: 0;
+
+.분류격자 {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
 }
+
+/* 우드는 색칩이 아니라 실제 제품 썸네일을 보여준다. 나뭇결은 색만으로는 감이 안 온다.
+   일반색은 반대로 납작한 색칩이 더 잘 읽힌다. */
+.분류버튼 {
+  background: var(--판); border: 1px solid var(--선);
+  border-radius: var(--둥글); overflow: hidden;
+  padding: 0; font: inherit; cursor: pointer; text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.분류버튼[aria-pressed="true"] { border-color: var(--포인트); border-width: 2px; }
+.분류버튼 .미리 { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; background: var(--선); }
+.분류버튼 .몸 { padding: 6px 8px 8px; }
+.분류버튼 .이름 { font-size: 13px; font-weight: 600; line-height: 1.3; }
+.분류버튼 .설명 { font-size: 11px; color: var(--옅은글자); line-height: 1.35; }
+.분류버튼 .건수 { font-size: 11px; color: var(--흐린글자); margin-top: 2px; }
 
 /* ---------- 글자 검색 ---------- */
 
@@ -272,3 +289,11 @@ main { max-width: 720px; margin: 0 auto; padding: 0 14px; }
 .상세버튼.주된 { background: var(--포인트); border-color: var(--포인트); color: #fff; }
 
 .소제목 { margin: 18px 0 8px; font-size: 14px; font-weight: 600; }
+
+.결과머리 .좁힘 { color: var(--옅은글자); font-weight: 400; }
+.빈결과버튼 {
+  display: block; margin: 12px auto 0; padding: 9px 16px;
+  background: var(--포인트); color: #fff; border: none;
+  border-radius: var(--둥글); font: inherit; font-size: 14px; font-weight: 600;
+  cursor: pointer;
+}

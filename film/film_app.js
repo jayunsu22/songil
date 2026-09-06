@@ -17,7 +17,9 @@
   var 전체 = [];
   var 질의 = null;               // { lab, 대비폭? }  사진·색 입력
   var 글자 = '';                 // 코드·이름 입력
-  var 필터 = {};                 // { 제조사: [...], 카테고리: [...], 명도: [...] }
+  var 필터 = {};                 // { 제조사: [...] }
+  var 선택분류 = null;           // { 군: '우드'|'일반색', 이름: '밝은' } — 훑어보기 선택
+  var 현재군 = '우드';
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -53,7 +55,9 @@
   function 필터그리기() {
     var 상자 = $('필터');
     상자.innerHTML = '';
-    [['제조사', '브랜드'], ['카테고리', '종류'], ['명도', '밝기']].forEach(function (쌍) {
+    // 종류·밝기 칩은 없앴다. 우드/일반색 훑어보기 분류가 그 둘을 이미 담고 있어서
+    // 같은 일을 하는 조작이 두 벌이 되면 사용자가 헷갈린다. 브랜드만 남긴다.
+    [['제조사', '브랜드']].forEach(function (쌍) {
       var 키 = 쌍[0], 이름 = 쌍[1];
       var 후보 = M.필터후보(전체, 키);
       if (후보.length < 2) return;
@@ -89,9 +93,9 @@
 
   function 칸열기(어느) {
     $('사진칸').hidden = 어느 !== '사진' || !사진준비됨;
-    $('색칸').hidden = 어느 !== '색';
+    $('분류칸').hidden = 어느 !== '분류';
     $('글자칸').hidden = 어느 !== '글자';
-    $('색버튼').setAttribute('aria-pressed', String(어느 === '색'));
+    $('색버튼').setAttribute('aria-pressed', String(어느 === '분류'));
     $('글자버튼').setAttribute('aria-pressed', String(어느 === '글자'));
   }
 
@@ -102,9 +106,13 @@
 
     $('색버튼').addEventListener('click', function () {
       var 켬 = $('색버튼').getAttribute('aria-pressed') === 'true';
-      칸열기(켬 ? null : '색');
-      if (!켬) 색적용($('색입력').value);
+      칸열기(켬 ? null : '분류');
+      if (켬) { 선택분류 = null; 검색(); }
+      else 분류그리기();
     });
+
+    $('군우드').addEventListener('click', function () { 군바꾸기('우드'); });
+    $('군일반').addEventListener('click', function () { 군바꾸기('일반색'); });
 
     $('글자버튼').addEventListener('click', function () {
       var 켬 = $('글자버튼').getAttribute('aria-pressed') === 'true';
@@ -113,14 +121,10 @@
       else { 글자 = ''; $('글자입력').value = ''; 검색(); }
     });
 
-    $('색입력').addEventListener('input', function () { 색적용(this.value); });
-
     $('글자입력').addEventListener('input', function () {
       글자 = this.value.trim();
       검색();
     });
-
-    빠른색그리기();
 
     var cv = $('캔버스');
     cv.addEventListener('click', 캔버스탭);
@@ -133,31 +137,79 @@
     });
   }
 
-  // DB 에 실제로 많은 색 계열을 빠른 선택으로 둔다.
-  function 빠른색그리기() {
-    var 색들 = ['#F2EFE9', '#D8CBB6', '#B29F77', '#8A6F4D', '#5E4A33',
-                '#C9C7C2', '#8C8A85', '#4A4A47', '#22211F', '#3A4552'];
-    var 상자 = $('빠른색');
-    색들.forEach(function (h) {
+  /* ---------- 색·톤으로 훑어보기 ---------- */
+
+  function 군바꾸기(군) {
+    현재군 = 군;
+    선택분류 = null;
+    $('군우드').setAttribute('aria-pressed', String(군 === '우드'));
+    $('군일반').setAttribute('aria-pressed', String(군 === '일반색'));
+    분류그리기();
+    검색();
+  }
+
+  // 각 분류의 얼굴로 쓸 제품 하나를 고른다.
+  // 그 분류의 한가운데 밝기이면서, 이미지가 가장 깨끗한(균일도 낮은) 것을 고른다.
+  // 연출 사진이나 조명 그라데이션이 심한 것을 얼굴로 내세우면 분류를 오해하게 된다.
+  function 대표제품(목록) {
+    var 후보 = 목록.filter(function (p) { return !p.사진무효; });
+    if (!후보.length) return 목록[0] || null;
+    var Ls = 후보.map(function (p) { return p.lab.L; }).sort(function (a, b) { return a - b; });
+    var 가운데 = Ls[Ls.length >> 1];
+    // 한가운데 밝기 근처 30% 안에서 가장 깨끗한 것
+    var 가까운 = 후보.slice().sort(function (a, b) {
+      return Math.abs(a.lab.L - 가운데) - Math.abs(b.lab.L - 가운데);
+    }).slice(0, Math.max(1, Math.round(후보.length * 0.3)));
+    가까운.sort(function (a, b) { return (a.균일도 == null ? 99 : a.균일도) - (b.균일도 == null ? 99 : b.균일도); });
+    return 가까운[0];
+  }
+
+  function 분류그리기() {
+    var 상자 = $('분류격자');
+    상자.innerHTML = '';
+    M.분류목록(전체, 현재군).forEach(function (x) {
+      var 속한 = M.분류목록보기(전체, 현재군, x.값);
       var b = document.createElement('button');
       b.type = 'button';
-      b.style.background = h;
-      b.title = h;
-      b.setAttribute('aria-label', h + ' 로 검색');
+      b.className = '분류버튼';
+      b.setAttribute('aria-pressed', String(!!선택분류 && 선택분류.이름 === x.값));
+
+      // 우드는 무늬가 핵심이라 실제 제품 썸네일을 보여준다.
+      // 일반색은 무늬가 없으니 납작한 색칩이 오히려 잘 읽힌다.
+      if (현재군 === '우드') {
+        var 대표 = 대표제품(속한);
+        var img = document.createElement('img');
+        img.className = '미리';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.alt = '';
+        if (대표 && !대표.사진무효) img.src = 'img/grid/' + encodeURIComponent(대표.키) + '.webp';
+        else if (대표) img.style.background = 대표.HEX;
+        b.appendChild(img);
+      } else {
+        var 대표2 = 속한[Math.floor(속한.length / 2)];
+        var 칩 = document.createElement('span');
+        칩.className = '미리';
+        칩.style.background = 대표2 ? 대표2.HEX : '#ddd';
+        b.appendChild(칩);
+      }
+
+      var 몸 = document.createElement('div');
+      몸.className = '몸';
+      몸.innerHTML =
+        '<div class="이름">' + 이스케이프(x.값) + '</div>' +
+        (x.설명 ? '<div class="설명">' + 이스케이프(x.설명) + '</div>' : '') +
+        '<div class="건수">' + x.건수 + '개</div>';
+      b.appendChild(몸);
+
       b.addEventListener('click', function () {
-        $('색입력').value = h;
-        색적용(h);
+        var 켬 = 선택분류 && 선택분류.이름 === x.값;
+        선택분류 = 켬 ? null : { 군: 현재군, 이름: x.값 };
+        분류그리기();
+        검색();
       });
       상자.appendChild(b);
     });
-  }
-
-  function 색적용(hex) {
-    var lab = C.hex를lab(hex);
-    if (!lab) return;
-    // 색만 고른 경우에는 대비폭이 없다. film_match 가 알아서 벌점 없이 색으로만 정렬한다.
-    질의 = { lab: lab };
-    검색();
   }
 
   /* ---------- 사진 ---------- */
@@ -265,11 +317,27 @@
 
   /* ---------- 검색 ---------- */
 
+  // 선택한 분류는 필터로 작동한다. 사진을 올린 상태에서 '짙은 우드'를 누르면
+  // 짙은 우드 안에서만 사진과 가까운 것을 찾는다 -- 조작 두 개가 싸우지 않는다.
+  function 대상목록() {
+    if (!선택분류) return 전체;
+    // 한 제품이 여러 분류에 속할 수 있다. 경계에 걸린 제품은 양쪽에서 다 보여야 한다.
+    return 전체.filter(function (p) {
+      return M.속하나(p, 선택분류.군, 선택분류.이름);
+    });
+  }
+
+  function 분류이름() {
+    return 선택분류 ? (선택분류.군 === '우드' ? 선택분류.이름 + ' 우드' : 선택분류.이름) : '';
+  }
+
   function 검색() {
+    var 대상 = 대상목록();
+
     // 글자 검색은 색과 별개다. 코드를 아는 사람은 색이 필요 없다.
     if (글자) {
       var 낮 = 글자.toLowerCase();
-      var 목 = 전체.filter(function (p) {
+      var 목 = 대상.filter(function (p) {
         if (!M.통과(p, 필터)) return false;
         return (p.코드 && p.코드.toLowerCase().indexOf(낮) >= 0) ||
                (p.색상명 && p.색상명.toLowerCase().indexOf(낮) >= 0);
@@ -279,19 +347,44 @@
       return;
     }
 
-    if (!질의) { 결과그리기([], ''); return; }
+    // 사진이나 색이 있으면 그것과 가까운 순으로.
+    if (질의) {
+      var 결과 = M.검색(대상, 질의, 필터, { 개수: 10 });
 
-    var 결과 = M.검색(전체, 질의, 필터, { 개수: 10 });
-    if (!결과.length) {
-      결과그리기([], '');
+      // 좁힌 분류 안에 없을 때, 그냥 "없습니다" 로 끝내면 사용자는 왜 없는지 모른다.
+      // 분류를 풀면 몇 개가 있는지 알려주고 바로 풀 수 있게 한다.
+      // (파란 필름 분류 안에서 회색 문짝을 찾으면 0개가 나오는 게 당연한데,
+      //  화면만 보면 "이 색은 아예 없나 보다" 로 오해한다.)
+      if (!결과.length && 선택분류) {
+        var 밖 = M.검색(전체, 질의, 필터, { 개수: 10 });
+        결과그리기([], '', 밖.length ? {
+          안내: '‘' + 분류이름() + '’ 안에는 비슷한 제품이 없습니다.',
+          버튼: '분류를 풀고 다시 찾기 (' + 밖.length + '개)',
+          동작: function () { 선택분류 = null; 분류그리기(); 검색(); },
+        } : null);
+        return;
+      }
+      if (!결과.length) { 결과그리기([], ''); return; }
+      결과그리기(결과, '이 <b>' + 결과.length + '개</b> 중에 있습니다. 비교해서 고르세요.' +
+        (선택분류 ? ' <span class="좁힘">(' + 이스케이프(분류이름()) + ' 안에서)</span>' : ''));
       return;
     }
-    결과그리기(결과, '이 <b>' + 결과.length + '개</b> 중에 있습니다. 비교해서 고르세요.');
+
+    // 질의 없이 분류만 골랐으면 그 분류를 통째로 훑어본다.
+    // 밝은 것부터 어두운 것 순이라 비슷한 것이 옆에 모인다.
+    if (선택분류) {
+      var 목록 = 대상.filter(function (p) { return M.통과(p, 필터); });
+      결과그리기(목록.map(function (p) { return { 제품: p, 등급: null }; }),
+        '<b>' + 이스케이프(분류이름()) + '</b> ' + 목록.length + '개');
+      return;
+    }
+
+    결과그리기([], '');
   }
 
   /* ---------- 결과 ---------- */
 
-  function 결과그리기(목록, 머리) {
+  function 결과그리기(목록, 머리, 제안) {
     $('결과머리').innerHTML = 머리 || '';
     var 격자 = $('격자');
     격자.innerHTML = '';
@@ -299,10 +392,24 @@
     if (!목록.length) {
       var 빈 = document.createElement('div');
       빈.className = '빈결과';
+
+      // 막다른 골목에서 빠져나갈 길을 같이 준다.
+      if (제안) {
+        빈.textContent = 제안.안내;
+        var 풀기 = document.createElement('button');
+        풀기.type = 'button';
+        풀기.className = '빈결과버튼';
+        풀기.textContent = 제안.버튼;
+        풀기.addEventListener('click', 제안.동작);
+        빈.appendChild(풀기);
+        격자.appendChild(빈);
+        return;
+      }
+
       if (질의 || 글자) {
         빈.textContent = 글자
           ? '해당하는 코드·이름이 없습니다.'
-          : '비슷한 제품이 없습니다. 다른 부분을 눌러보거나 필터를 풀어보세요.';
+          : '비슷한 제품이 없습니다. 다른 부분을 눌러보거나 분류·브랜드를 풀어보세요.';
       } else {
         빈.textContent = 머리 || '사진을 올리거나 색을 골라주세요.';
       }

@@ -26,7 +26,7 @@
       <span>사진으로 찾기</span>
     </label>
     <div class="작은버튼들">
-      <button type="button" class="작은버튼" id="색버튼">🎨 색으로</button>
+      <button type="button" class="작은버튼" id="색버튼">🎨 색으로 고르기</button>
       <button type="button" class="작은버튼" id="글자버튼">🔍 코드·이름</button>
     </div>
   </section>
@@ -46,13 +46,13 @@
     </div>
   </section>
 
-  <!-- 색 직접 고르기 -->
-  <section class="색칸" id="색칸" hidden>
-    <label class="색고르기">
-      <input type="color" id="색입력" value="#B29F77">
-      <span>색을 고르세요</span>
-    </label>
-    <div class="빠른색" id="빠른색"></div>
+  <!-- 색·톤으로 훑어보기 -->
+  <section class="분류칸" id="분류칸" hidden>
+    <div class="군탭" role="tablist">
+      <button type="button" class="군버튼" id="군우드" aria-pressed="true">🪵 우드</button>
+      <button type="button" class="군버튼" id="군일반" aria-pressed="false">🎨 일반색</button>
+    </div>
+    <div class="분류격자" id="분류격자"></div>
   </section>
 
   <!-- 글자 검색 -->
