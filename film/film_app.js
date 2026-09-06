@@ -20,6 +20,7 @@
   var 필터 = {};                 // { 제조사: [...] }
   var 선택분류 = null;           // { 군: '우드'|'일반색', 이름: '밝은' } — 훑어보기 선택
   var 현재군 = '우드';
+  var 보기 = null;               // '저장함' | '공유받음' | null
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -27,6 +28,73 @@
   // 그 값이 이미지 파일명(제조사_코드)에 쓰여서, 고치면 2,118장이 전부 깨진다.
   var 브랜드표시 = { 'LX': 'LX지인', '현대': '현대보닥' };
   function 브랜드(v) { return 브랜드표시[v] || v; }
+
+  /* ---------- 저장함 ----------
+     서버를 쓰지 않는다. 이 폰(브라우저)에만 저장한다.
+     로그인을 걸면 즉시성이라는 이 도구의 장점이 사라지고, 정작 저장이 필요한
+     순간(현장에서 고르는 중)에 가입하라고 막게 된다. 공유는 URL 로 해결되므로
+     여러 기기를 오가는 것도 링크로 된다. */
+  var 저장키 = 'filmdamoa_saved_v1';
+  var 저장목록 = [];
+
+  function 저장읽기() {
+    try {
+      var v = JSON.parse(localStorage.getItem(저장키) || '[]');
+      return Array.isArray(v) ? v : [];
+    } catch (e) { return []; }   // 시크릿 모드 등에서 접근이 막힐 수 있다
+  }
+  function 저장쓰기() {
+    try { localStorage.setItem(저장키, JSON.stringify(저장목록)); } catch (e) { /* 무시 */ }
+    저장함버튼갱신();
+  }
+  function 저장됨(p) { return 저장목록.indexOf(p.키) >= 0; }
+  function 저장토글(p) {
+    var i = 저장목록.indexOf(p.키);
+    if (i >= 0) 저장목록.splice(i, 1); else 저장목록.push(p.키);
+    저장쓰기();
+  }
+  function 저장함버튼갱신() {
+    var b = $('저장함버튼');
+    b.hidden = 저장목록.length === 0;
+    b.textContent = '⭐ 저장함 ' + 저장목록.length + '개';
+    b.setAttribute('aria-pressed', String(보기 === '저장함'));
+  }
+
+  /* ---------- 공유 ----------
+     선택한 필름을 주소에 실어 보낸다. 받는 사람도 가입이 필요 없고 서버도 없다.
+     견적서 링크를 줄일 때 쓴 방식과 같은 생각이다. */
+  function 공유주소(제품들) {
+    var base = location.origin + location.pathname;
+    return base + '?f=' + 제품들.map(function (p) { return encodeURIComponent(p.키); }).join(',');
+  }
+
+  async function 공유하기(제품들, 제목) {
+    var url = 공유주소(제품들);
+    // 폰에서는 카톡 등으로 바로 넘길 수 있다. 안 되면 주소를 복사해 준다.
+    if (navigator.share) {
+      try { await navigator.share({ title: 제목, url: url }); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      알림('링크를 복사했습니다');
+    } catch (e) {
+      알림('복사에 실패했습니다. 주소창을 길게 눌러 복사해 주세요');
+    }
+  }
+
+  var 알림타이머 = null;
+  function 알림(글) {
+    var 옛 = document.querySelector('.알림');
+    if (옛) 옛.remove();
+    var d = document.createElement('div');
+    d.className = '알림';
+    d.setAttribute('role', 'status');
+    d.textContent = 글;
+    document.body.appendChild(d);
+    clearTimeout(알림타이머);
+    알림타이머 = setTimeout(function () { d.remove(); }, 2200);
+  }
 
   /* ---------- 시작 ---------- */
 
@@ -44,9 +112,38 @@
     전체 = 목록;
     var 브랜드수 = new Set(목록.map(function (p) { return p.제조사; })).size;
     $('총건수').textContent = brandLine(브랜드수, 목록.length);
+    저장목록 = 저장읽기();
     필터그리기();
     묶기();
+    저장함버튼갱신();
+
+    // 공유 링크로 들어온 경우 그 목록을 바로 보여준다.
+    var f = new URLSearchParams(location.search).get('f');
+    if (f) {
+      var 키들 = f.split(',').map(function (x) { return decodeURIComponent(x); });
+      var 받은 = 키들.map(function (k) {
+        return 전체.filter(function (p) { return p.키 === k; })[0];
+      }).filter(Boolean);
+      if (받은.length) {
+        보기 = '공유받음';
+        공유받음목록 = 받은;
+        검색();
+        return;
+      }
+      알림('공유된 필름을 찾지 못했습니다');
+    }
     결과그리기([], '');
+  }
+
+  var 공유받음목록 = [];
+
+  // 저장함/공유받음 보기는 '그 목록만' 보여주는 상태다. 사용자가 다른 조작을 하면
+  // 거기서 빠져나와야 한다. 안 그러면 공유 링크로 들어온 사람이 그 목록에 갇힌다.
+  function 보기해제() {
+    if (!보기) return;
+    보기 = null;
+    공유받음목록 = [];
+    저장함버튼갱신();
   }
 
   function brandLine(브랜드수, 건수) {
@@ -81,6 +178,7 @@
         b.textContent = 브랜드(x.값) + ' ' + x.건수;
         b.setAttribute('aria-pressed', 'false');
         b.addEventListener('click', function () {
+          보기해제();
           var 켬 = b.getAttribute('aria-pressed') === 'true';
           b.setAttribute('aria-pressed', 켬 ? 'false' : 'true');
           필터[키] = (필터[키] || []).filter(function (v) { return v !== x.값; });
@@ -110,23 +208,37 @@
     $('사진입력').addEventListener('change', 사진받기);
 
     $('색버튼').addEventListener('click', function () {
+      보기해제();
       var 켬 = $('색버튼').getAttribute('aria-pressed') === 'true';
       칸열기(켬 ? null : '분류');
       if (켬) { 선택분류 = null; 검색(); }
       else 분류그리기();
     });
 
+    $('저장함버튼').addEventListener('click', function () {
+      보기 = (보기 === '저장함') ? null : '저장함';
+      if (보기 === '저장함') { 선택분류 = null; 글자 = ''; $('글자입력').value = ''; 칸열기(null); }
+      저장함버튼갱신();
+      검색();
+    });
+
     $('군우드').addEventListener('click', function () { 군바꾸기('우드'); });
     $('군일반').addEventListener('click', function () { 군바꾸기('일반색'); });
 
     $('글자버튼').addEventListener('click', function () {
+      보기해제();
       var 켬 = $('글자버튼').getAttribute('aria-pressed') === 'true';
+      // 코드를 아는 사람에게 분류 필터를 걸면 안 된다. 훑어보기가 아니라 정확한 조회다.
+      // '아주 밝은 우드' 를 보던 중에 CW469(짙은 우드)를 치면 0개가 나오는데,
+      // 화면만 보면 "그런 코드가 없나 보다" 로 오해한다.
+      if (!켬) { 선택분류 = null; 분류그리기(); }
       칸열기(켬 ? null : '글자');
       if (!켬) setTimeout(function () { $('글자입력').focus(); }, 50);
       else { 글자 = ''; $('글자입력').value = ''; 검색(); }
     });
 
     $('글자입력').addEventListener('input', function () {
+      보기해제();
       글자 = this.value.trim();
       검색();
     });
@@ -145,6 +257,7 @@
   /* ---------- 색·톤으로 훑어보기 ---------- */
 
   function 군바꾸기(군) {
+    보기해제();
     현재군 = 군;
     선택분류 = null;
     $('군우드').setAttribute('aria-pressed', String(군 === '우드'));
@@ -208,6 +321,7 @@
       b.appendChild(몸);
 
       b.addEventListener('click', function () {
+        보기해제();
         var 켬 = 선택분류 && 선택분류.이름 === x.값;
         선택분류 = 켬 ? null : { 군: 현재군, 이름: x.값 };
         분류그리기();
@@ -240,6 +354,7 @@
         cv.getContext('2d', { willReadFrequently: true }).drawImage(bmp, 0, 0, w, h);
         bmp.close();
 
+        보기해제();
         원본캔버스 = cv;
         사진준비됨 = true;
         질의 = null;
@@ -332,20 +447,37 @@
     });
   }
 
-  // 옅은 것에서 짙은 것 순. 무작위로 늘어놓으면 눈으로 훑을 수가 없다.
-  // 명도가 같으면 채도가 낮은(더 무채색인) 쪽을 앞에 둔다 -- 같은 밝기 안에서도
-  // 흐린 것에서 진한 것으로 이어져야 줄이 매끄럽다.
-  function 옅은순(a, b) {
-    if (b.lab.L !== a.lab.L) return b.lab.L - a.lab.L;
-    return 채도(a.lab) - 채도(b.lab);
+  // 정렬은 film_match 의 훑어보기정렬() 하나만 쓴다.
+  // 화면에 따로 만들어 뒀더니 film_match 만 고쳤을 때 화면이 안 따라와서
+  // 블랙이 '가장 검은 것부터'로 안 바뀌는 버그가 났다. 정렬 규칙은 한 곳에만 둔다.
+  function 정렬() {
+    return M.훑어보기정렬(선택분류 ? 선택분류.이름 : null);
   }
-  function 채도(lab) { return Math.sqrt(lab.a * lab.a + lab.b * lab.b); }
 
   function 분류이름() {
     return 선택분류 ? (선택분류.군 === '우드' ? 선택분류.이름 + ' 우드' : 선택분류.이름) : '';
   }
 
   function 검색() {
+    // 저장함과 공유받은 목록은 다른 조건과 섞이지 않는다. 그 자체가 하나의 목록이다.
+    if (보기 === '저장함') {
+      var 저장된 = 저장목록.map(function (k) {
+        return 전체.filter(function (p) { return p.키 === k; })[0];
+      }).filter(Boolean).sort(M.훑어보기정렬(null));
+      결과그리기(저장된.map(function (p) { return { 제품: p, 등급: null }; }),
+        저장된.length ? '<b>저장함</b> ' + 저장된.length + '개' : '',
+        null,
+        저장된.length ? { 글: '저장함 공유하기', 동작: function () {
+          공유하기(저장된, '필름 ' + 저장된.length + '개');
+        } } : null);
+      return;
+    }
+    if (보기 === '공유받음') {
+      결과그리기(공유받음목록.map(function (p) { return { 제품: p, 등급: null }; }),
+        '<b>공유받은 필름</b> ' + 공유받음목록.length + '개');
+      return;
+    }
+
     var 대상 = 대상목록();
 
     // 글자 검색은 색과 별개다. 코드를 아는 사람은 색이 필요 없다.
@@ -355,7 +487,7 @@
         if (!M.통과(p, 필터)) return false;
         return (p.코드 && p.코드.toLowerCase().indexOf(낮) >= 0) ||
                (p.색상명 && p.색상명.toLowerCase().indexOf(낮) >= 0);
-      }).sort(옅은순).slice(0, 60);
+      }).sort(정렬()).slice(0, 60);
       결과그리기(목.map(function (p) { return { 제품: p, 등급: null }; }),
         목.length ? '<b>' + 목.length + '개</b> 찾음' + (목.length >= 60 ? ' (많아서 60개까지만)' : '') : '');
       return;
@@ -386,7 +518,7 @@
 
     // 질의 없이 분류만 골랐으면 그 분류를 통째로 훑어본다.
     if (선택분류) {
-      var 목록 = 대상.filter(function (p) { return M.통과(p, 필터); }).sort(옅은순);
+      var 목록 = 대상.filter(function (p) { return M.통과(p, 필터); }).sort(정렬());
       결과그리기(목록.map(function (p) { return { 제품: p, 등급: null }; }),
         '<b>' + 이스케이프(분류이름()) + '</b> ' + 목록.length + '개');
       return;
@@ -397,10 +529,12 @@
 
   /* ---------- 결과 ---------- */
 
-  function 결과그리기(목록, 머리, 제안) {
+  function 결과그리기(목록, 머리, 제안, 하단) {
     $('결과머리').innerHTML = 머리 || '';
     var 격자 = $('격자');
     격자.innerHTML = '';
+    var 옛하단 = document.querySelector('.결과하단');
+    if (옛하단) 옛하단.remove();
 
     if (!목록.length) {
       var 빈 = document.createElement('div');
@@ -431,6 +565,18 @@
     }
 
     목록.forEach(function (x) { 격자.appendChild(카드만들기(x)); });
+
+    if (하단) {
+      var 감 = document.createElement('div');
+      감.className = '결과하단';
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = '상세버튼 주된';
+      b.textContent = 하단.글;
+      b.addEventListener('click', 하단.동작);
+      감.appendChild(b);
+      격자.parentNode.appendChild(감);
+    }
   }
 
   function 카드만들기(x) {
@@ -538,6 +684,35 @@
       return '<tr><th>' + 이스케이프(r[0]) + '</th><td>' + 이스케이프(String(r[1])) + '</td></tr>';
     }).join('');
     el.appendChild(표);
+
+    // 저장·공유는 제품 정보 바로 아래에 둔다. 정보를 보고 판단한 직후가 누를 때다.
+    var 동작 = document.createElement('div');
+    동작.className = '상세동작';
+
+    var 저장버튼 = document.createElement('button');
+    저장버튼.type = 'button';
+    var 저장문구 = function () {
+      저장버튼.textContent = 저장됨(p) ? '★ 저장됨' : '☆ 저장';
+      저장버튼.setAttribute('aria-pressed', String(저장됨(p)));
+    };
+    저장문구();
+    저장버튼.addEventListener('click', function () {
+      저장토글(p);
+      저장문구();
+      알림(저장됨(p) ? '저장함에 담았습니다' : '저장함에서 뺐습니다');
+      // 저장함을 보고 있는 중이면 목록도 바로 갱신한다.
+      if (보기 === '저장함') 검색();
+    });
+    동작.appendChild(저장버튼);
+
+    var 공유버튼 = document.createElement('button');
+    공유버튼.type = 'button';
+    공유버튼.textContent = '공유';
+    공유버튼.addEventListener('click', function () {
+      공유하기([p], 브랜드(p.제조사) + ' ' + 제목(p));
+    });
+    동작.appendChild(공유버튼);
+    el.appendChild(동작);
 
     if (p.상세URL) {
       var a = document.createElement('a');
