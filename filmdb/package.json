@@ -1,0 +1,9 @@
+{
+  "name": "filmdb-pipeline",
+  "private": true,
+  "version": "1.0.0",
+  "description": "필름 컬러 DB 수집/미러링/색추출 파이프라인. 사이트 배포와 무관한 빌드 전용 의존성.",
+  "dependencies": {
+    "sharp": "^0.34.4"
+  }
+}
