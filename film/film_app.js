@@ -23,6 +23,11 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
+  // 화면에 보일 브랜드 이름. 데이터의 제조사 값은 건드리지 않는다 --
+  // 그 값이 이미지 파일명(제조사_코드)에 쓰여서, 고치면 2,118장이 전부 깨진다.
+  var 브랜드표시 = { 'LX': 'LX지인', '현대': '현대보닥' };
+  function 브랜드(v) { return 브랜드표시[v] || v; }
+
   /* ---------- 시작 ---------- */
 
   fetch('film-db.json')
@@ -73,7 +78,7 @@
         var b = document.createElement('button');
         b.type = 'button';
         b.className = '칩버튼';
-        b.textContent = x.값 + ' ' + x.건수;
+        b.textContent = 브랜드(x.값) + ' ' + x.건수;
         b.setAttribute('aria-pressed', 'false');
         b.addEventListener('click', function () {
           var 켬 = b.getAttribute('aria-pressed') === 'true';
@@ -454,7 +459,7 @@
     var 몸 = document.createElement('div');
     몸.className = '몸';
     몸.innerHTML =
-      '<div class="브랜드">' + 이스케이프(p.제조사) + '</div>' +
+      '<div class="브랜드">' + 이스케이프(브랜드(p.제조사)) + '</div>' +
       '<div class="코드">' + 이스케이프(제목(p)) + '</div>' +
       (x.등급 ? '<div class="등급">' + x.등급 + '</div>' : '');
     b.appendChild(몸);
@@ -477,7 +482,7 @@
     var 머리 = document.createElement('div');
     머리.className = '상세머리';
     머리.innerHTML =
-      '<div><div class="브랜드">' + 이스케이프(p.제조사) + '</div>' +
+      '<div><div class="브랜드">' + 이스케이프(브랜드(p.제조사)) + '</div>' +
       '<h2>' + 이스케이프(제목(p)) + '</h2></div>';
     var 닫 = document.createElement('button');
     닫.className = '닫기'; 닫.type = 'button'; 닫.textContent = '✕';
