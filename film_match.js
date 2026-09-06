@@ -260,9 +260,19 @@
         .filter(function (d) { return m.has(d.이름); })
         .map(function (d) { return { 값: d.이름, 설명: d.설명, 건수: m.get(d.이름) }; });
     }
-    return [...m.entries()]
+    // 일반색도 건수 순이 아니라 색 순서로 고정한다. 우드를 밝기 순으로 둔 것과 같은 이유다.
+    // 특히 화이트는 업체가 가장 많이 고르는 분류인데, 건수 순으로 두면 4번째로 밀린다.
+    // 무채색 사다리(밝은->어두운) -> 따뜻한 중성 -> 유채색 순으로 늘어놓는다.
+    const 색순서 = ['화이트', '라이트그레이', '그레이', '블랙', '베이지', '브라운'];
+    const 있는것 = [...m.entries()];
+    const 앞 = 색순서
+      .filter(function (n) { return m.has(n); })
+      .map(function (n) { return { 값: n, 설명: null, 건수: m.get(n) }; });
+    const 뒤 = 있는것
+      .filter(function (e) { return 색순서.indexOf(e[0]) < 0; })
       .sort(function (a, b) { return b[1] - a[1]; })
       .map(function (e) { return { 값: e[0], 설명: null, 건수: e[1] }; });
+    return 앞.concat(뒤);
   }
 
   // 한 분류에 속한 제품을 밝은 것부터 어두운 것 순으로. 색 순이라 비슷한 것이 옆에 모인다.
