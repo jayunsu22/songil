@@ -1,1 +1,7 @@
 샘플사진/
+.env
+.env.*
+filmdb/cache/
+filmdb/node_modules/
+filmdb/package-lock.json
+filmdb/mirror/
