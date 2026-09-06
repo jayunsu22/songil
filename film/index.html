@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>필름다모아 — 필름 색상 찾기</title>
+<meta name="description" content="사진 한 장으로 6개사 인테리어필름 2,118개 중 비슷한 색을 찾습니다.">
+<meta property="og:title" content="필름다모아 — 필름 색상 찾기">
+<meta property="og:description" content="사진 한 장으로 6개사 인테리어필름 2,118개 중 비슷한 색을 찾습니다.">
+<link rel="stylesheet" href="film_style.css">
+</head>
+<body>
+
+<header class="top">
+  <h1>필름다모아</h1>
+  <p class="sub" id="총건수">불러오는 중…</p>
+</header>
+
+<main>
+
+  <!-- 입구 3개 -->
+  <section class="입구">
+    <label class="큰버튼" id="사진버튼">
+      <input type="file" accept="image/*" id="사진입력" hidden>
+      <span class="아이콘">📷</span>
+      <span>사진으로 찾기</span>
+    </label>
+    <div class="작은버튼들">
+      <button type="button" class="작은버튼" id="색버튼">🎨 색으로</button>
+      <button type="button" class="작은버튼" id="글자버튼">🔍 코드·이름</button>
+    </div>
+  </section>
+
+  <!-- 사진 -->
+  <section class="사진칸" id="사진칸" hidden>
+    <div class="캔버스감싸기">
+      <canvas id="캔버스"></canvas>
+      <div class="탭표시" id="탭표시" hidden></div>
+      <p class="안내" id="사진안내">사진에서 찾으려는 부분을 눌러보세요</p>
+    </div>
+    <div class="뽑힌색" id="뽑힌색" hidden>
+      <span class="라벨">뽑힌 색</span>
+      <span class="칩" id="색칩"></span>
+      <code id="색코드"></code>
+      <span class="힌트">다시 누르면 갱신</span>
+    </div>
+  </section>
+
+  <!-- 색 직접 고르기 -->
+  <section class="색칸" id="색칸" hidden>
+    <label class="색고르기">
+      <input type="color" id="색입력" value="#B29F77">
+      <span>색을 고르세요</span>
+    </label>
+    <div class="빠른색" id="빠른색"></div>
+  </section>
+
+  <!-- 글자 검색 -->
+  <section class="글자칸" id="글자칸" hidden>
+    <input type="search" id="글자입력" placeholder="코드 또는 색상명 (예: CW469, 오크)" autocomplete="off">
+  </section>
+
+  <!-- 필터 -->
+  <section class="필터" id="필터" hidden></section>
+
+  <!-- 결과 -->
+  <section class="결과칸">
+    <p class="결과머리" id="결과머리"></p>
+    <div class="격자" id="격자"></div>
+  </section>
+
+</main>
+
+<!-- 상세 -->
+<div class="덮개" id="덮개" hidden>
+  <div class="상세" id="상세" role="dialog" aria-modal="true" aria-label="제품 상세"></div>
+</div>
+
+<script src="/film_color.js"></script>
+<script src="/film_match.js"></script>
+<script src="film_app.js"></script>
+</body>
+</html>

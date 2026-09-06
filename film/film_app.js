@@ -1,0 +1,486 @@
+// 필름다모아 화면.
+//
+// 계산은 전부 film_color.js / film_match.js 가 한다. 여기는 화면만 다룬다.
+// 그렇게 나눠야 순위 규칙을 node 로 테스트할 수 있고, 실사진으로 가중치를 조정할 때
+// 화면 코드를 건드리지 않는다.
+//
+// 서버를 쓰지 않는다. film-db.json(gzip 151KB)을 한 번 받아 브라우저에서 전부 계산한다.
+// 2,118건 ΔE2000 계산은 1ms 미만이라 사진을 다시 누를 때마다 즉시 갱신된다.
+// 사진은 업로드하지 않는다. 캔버스에서 읽고 끝이다.
+
+(function () {
+  'use strict';
+
+  var C = window.FilmColor;
+  var M = window.FilmMatch;
+
+  var 전체 = [];
+  var 질의 = null;               // { lab, 대비폭? }  사진·색 입력
+  var 글자 = '';                 // 코드·이름 입력
+  var 필터 = {};                 // { 제조사: [...], 카테고리: [...], 명도: [...] }
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- 시작 ---------- */
+
+  fetch('film-db.json')
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(시작)
+    .catch(function (e) {
+      $('총건수').textContent = '데이터를 불러오지 못했습니다 (' + e.message + ')';
+    });
+
+  function 시작(목록) {
+    전체 = 목록;
+    var 브랜드수 = new Set(목록.map(function (p) { return p.제조사; })).size;
+    $('총건수').textContent = brandLine(브랜드수, 목록.length);
+    필터그리기();
+    묶기();
+    결과그리기([], '');
+  }
+
+  function brandLine(브랜드수, 건수) {
+    return 브랜드수 + '개사 ' + 건수.toLocaleString() + '개 제품에서 찾습니다';
+  }
+
+  /* ---------- 필터 칩 ---------- */
+
+  // 칩 목록을 데이터에서 만든다. 브랜드가 늘어나면 칩도 저절로 늘어난다.
+  // 한솔이 6번째로 들어왔고 앞으로도 추가된다. 목록을 코드에 박아두면 그때마다 고쳐야 한다.
+  function 필터그리기() {
+    var 상자 = $('필터');
+    상자.innerHTML = '';
+    [['제조사', '브랜드'], ['카테고리', '종류'], ['명도', '밝기']].forEach(function (쌍) {
+      var 키 = 쌍[0], 이름 = 쌍[1];
+      var 후보 = M.필터후보(전체, 키);
+      if (후보.length < 2) return;
+
+      var 줄 = document.createElement('div');
+      줄.className = '필터줄';
+      var 라벨 = document.createElement('span');
+      라벨.className = '칩분류';
+      라벨.textContent = 이름;
+      줄.appendChild(라벨);
+
+      후보.forEach(function (x) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = '칩버튼';
+        b.textContent = x.값 + ' ' + x.건수;
+        b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', function () {
+          var 켬 = b.getAttribute('aria-pressed') === 'true';
+          b.setAttribute('aria-pressed', 켬 ? 'false' : 'true');
+          필터[키] = (필터[키] || []).filter(function (v) { return v !== x.값; });
+          if (!켬) 필터[키].push(x.값);
+          검색();
+        });
+        줄.appendChild(b);
+      });
+      상자.appendChild(줄);
+    });
+    상자.hidden = false;
+  }
+
+  /* ---------- 입구 전환 ---------- */
+
+  function 칸열기(어느) {
+    $('사진칸').hidden = 어느 !== '사진' || !사진준비됨;
+    $('색칸').hidden = 어느 !== '색';
+    $('글자칸').hidden = 어느 !== '글자';
+    $('색버튼').setAttribute('aria-pressed', String(어느 === '색'));
+    $('글자버튼').setAttribute('aria-pressed', String(어느 === '글자'));
+  }
+
+  var 사진준비됨 = false;
+
+  function 묶기() {
+    $('사진입력').addEventListener('change', 사진받기);
+
+    $('색버튼').addEventListener('click', function () {
+      var 켬 = $('색버튼').getAttribute('aria-pressed') === 'true';
+      칸열기(켬 ? null : '색');
+      if (!켬) 색적용($('색입력').value);
+    });
+
+    $('글자버튼').addEventListener('click', function () {
+      var 켬 = $('글자버튼').getAttribute('aria-pressed') === 'true';
+      칸열기(켬 ? null : '글자');
+      if (!켬) setTimeout(function () { $('글자입력').focus(); }, 50);
+      else { 글자 = ''; $('글자입력').value = ''; 검색(); }
+    });
+
+    $('색입력').addEventListener('input', function () { 색적용(this.value); });
+
+    $('글자입력').addEventListener('input', function () {
+      글자 = this.value.trim();
+      검색();
+    });
+
+    빠른색그리기();
+
+    var cv = $('캔버스');
+    cv.addEventListener('click', 캔버스탭);
+
+    $('덮개').addEventListener('click', function (e) {
+      if (e.target === $('덮개')) 상세닫기();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') 상세닫기();
+    });
+  }
+
+  // DB 에 실제로 많은 색 계열을 빠른 선택으로 둔다.
+  function 빠른색그리기() {
+    var 색들 = ['#F2EFE9', '#D8CBB6', '#B29F77', '#8A6F4D', '#5E4A33',
+                '#C9C7C2', '#8C8A85', '#4A4A47', '#22211F', '#3A4552'];
+    var 상자 = $('빠른색');
+    색들.forEach(function (h) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.style.background = h;
+      b.title = h;
+      b.setAttribute('aria-label', h + ' 로 검색');
+      b.addEventListener('click', function () {
+        $('색입력').value = h;
+        색적용(h);
+      });
+      상자.appendChild(b);
+    });
+  }
+
+  function 색적용(hex) {
+    var lab = C.hex를lab(hex);
+    if (!lab) return;
+    // 색만 고른 경우에는 대비폭이 없다. film_match 가 알아서 벌점 없이 색으로만 정렬한다.
+    질의 = { lab: lab };
+    검색();
+  }
+
+  /* ---------- 사진 ---------- */
+
+  var 원본캔버스 = null;   // 색을 읽는 원본 해상도
+  var 표시배율 = 1;
+
+  function 사진받기(e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    // imageOrientation 을 빼면 안 된다. 폰으로 세로로 찍은 사진의 EXIF 회전이 무시되어
+    // 옆으로 누운 채 들어간다. quote_photos.js 에서 같은 문제를 겪었다.
+    createImageBitmap(file, { imageOrientation: 'from-image' })
+      .then(function (bmp) {
+        var 최대 = 1400;
+        var 배 = Math.min(1, 최대 / Math.max(bmp.width, bmp.height));
+        var w = Math.max(1, Math.round(bmp.width * 배));
+        var h = Math.max(1, Math.round(bmp.height * 배));
+
+        var cv = $('캔버스');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d', { willReadFrequently: true }).drawImage(bmp, 0, 0, w, h);
+        bmp.close();
+
+        원본캔버스 = cv;
+        사진준비됨 = true;
+        질의 = null;
+        $('탭표시').hidden = true;
+        $('뽑힌색').hidden = true;
+        $('사진안내').hidden = false;
+        칸열기('사진');
+        결과그리기([], '사진에서 찾으려는 부분을 눌러보세요');
+      })
+      .catch(function () {
+        alert('사진을 읽지 못했습니다. 다른 사진으로 시도해 주세요.');
+      });
+  }
+
+  function 캔버스탭(e) {
+    if (!원본캔버스) return;
+    var cv = 원본캔버스;
+    var r = cv.getBoundingClientRect();
+    표시배율 = cv.width / r.width;
+
+    var x = Math.round((e.clientX - r.left) * 표시배율);
+    var y = Math.round((e.clientY - r.top) * 표시배율);
+
+    // 한 픽셀이 아니라 주변 원 영역을 읽는다. 한 점만 읽으면 노이즈 하나에 결과가 뒤집힌다.
+    var 반지름 = Math.max(8, Math.round(cv.width * 0.035));
+    var 색 = 영역읽기(cv, x, y, 반지름);
+    if (!색) return;
+
+    // 탭 위치 표시. 어디를 찍었는지 보여야 다시 찍을 판단이 선다.
+    var 표 = $('탭표시');
+    표.style.left = ((x / 표시배율)) + 'px';
+    표.style.top = ((y / 표시배율)) + 'px';
+    표.hidden = false;
+    $('사진안내').hidden = true;
+
+    $('색칩').style.background = C.rgb를hex(
+      labRgb(색.대표색)[0], labRgb(색.대표색)[1], labRgb(색.대표색)[2]);
+    $('색코드').textContent = C.rgb를hex(
+      labRgb(색.대표색)[0], labRgb(색.대표색)[1], labRgb(색.대표색)[2]);
+    $('뽑힌색').hidden = false;
+
+    질의 = { lab: 색.대표색, 대비폭: 색.대비폭 };
+    검색();
+  }
+
+  // 원 안의 픽셀만 모아 film_color 의 영역색() 에 넘긴다.
+  // 사각형이 아니라 원인 이유: 손가락이 가리키는 건 점이지 상자가 아니다.
+  function 영역읽기(cv, cx, cy, 반지름) {
+    var x0 = Math.max(0, cx - 반지름), y0 = Math.max(0, cy - 반지름);
+    var x1 = Math.min(cv.width, cx + 반지름), y1 = Math.min(cv.height, cy + 반지름);
+    var w = x1 - x0, h = y1 - y0;
+    if (w < 3 || h < 3) return null;
+
+    var d = cv.getContext('2d', { willReadFrequently: true }).getImageData(x0, y0, w, h).data;
+    var 뽑음 = [];
+    var r2 = 반지름 * 반지름;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var dx = (x0 + x) - cx, dy = (y0 + y) - cy;
+        if (dx * dx + dy * dy > r2) continue;
+        var i = (y * w + x) * 4;
+        뽑음.push(d[i], d[i + 1], d[i + 2], d[i + 3]);
+      }
+    }
+    return C.영역색(뽑음);
+  }
+
+  // Lab -> RGB. 표시 전용이며 매칭은 Lab 으로만 한다.
+  function labRgb(lab) {
+    var f = function (t) { return t > 0.206893 ? t * t * t : (t - 16 / 116) / 7.787; };
+    var fy = (lab.L + 16) / 116, fx = fy + lab.a / 500, fz = fy - lab.b / 200;
+    var X = f(fx) * 0.95047, Y = f(fy), Z = f(fz) * 1.08883;
+    var g = function (c) { return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; };
+    return [
+      g(X * 3.2406 + Y * -1.5372 + Z * -0.4986) * 255,
+      g(X * -0.9689 + Y * 1.8758 + Z * 0.0415) * 255,
+      g(X * 0.0557 + Y * -0.2040 + Z * 1.0570) * 255,
+    ];
+  }
+
+  /* ---------- 검색 ---------- */
+
+  function 검색() {
+    // 글자 검색은 색과 별개다. 코드를 아는 사람은 색이 필요 없다.
+    if (글자) {
+      var 낮 = 글자.toLowerCase();
+      var 목 = 전체.filter(function (p) {
+        if (!M.통과(p, 필터)) return false;
+        return (p.코드 && p.코드.toLowerCase().indexOf(낮) >= 0) ||
+               (p.색상명 && p.색상명.toLowerCase().indexOf(낮) >= 0);
+      }).slice(0, 60);
+      결과그리기(목.map(function (p) { return { 제품: p, 등급: null }; }),
+        목.length ? '<b>' + 목.length + '개</b> 찾음' + (목.length >= 60 ? ' (많아서 60개까지만)' : '') : '');
+      return;
+    }
+
+    if (!질의) { 결과그리기([], ''); return; }
+
+    var 결과 = M.검색(전체, 질의, 필터, { 개수: 10 });
+    if (!결과.length) {
+      결과그리기([], '');
+      return;
+    }
+    결과그리기(결과, '이 <b>' + 결과.length + '개</b> 중에 있습니다. 비교해서 고르세요.');
+  }
+
+  /* ---------- 결과 ---------- */
+
+  function 결과그리기(목록, 머리) {
+    $('결과머리').innerHTML = 머리 || '';
+    var 격자 = $('격자');
+    격자.innerHTML = '';
+
+    if (!목록.length) {
+      var 빈 = document.createElement('div');
+      빈.className = '빈결과';
+      if (질의 || 글자) {
+        빈.textContent = 글자
+          ? '해당하는 코드·이름이 없습니다.'
+          : '비슷한 제품이 없습니다. 다른 부분을 눌러보거나 필터를 풀어보세요.';
+      } else {
+        빈.textContent = 머리 || '사진을 올리거나 색을 골라주세요.';
+      }
+      격자.appendChild(빈);
+      return;
+    }
+
+    목록.forEach(function (x) { 격자.appendChild(카드만들기(x)); });
+  }
+
+  function 카드만들기(x) {
+    var p = x.제품;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = '카드';
+
+    // 색상출처가 PDF 카탈로그인 건은 미러링한 이미지가 시공사례 사진이라 제품이 아니다.
+    // 그런 사진을 보여주면 사용자가 그게 필름 무늬라고 오해한다. 색칩으로 대체한다.
+    if (p.사진무효) {
+      var 칩 = document.createElement('span');
+      칩.className = '칩썸';
+      칩.style.background = p.HEX;
+      b.appendChild(칩);
+    } else {
+      var img = document.createElement('img');
+      img.className = '썸';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.alt = p.제조사 + ' ' + p.코드;
+      img.src = 'img/grid/' + encodeURIComponent(p.키) + '.webp';
+      b.appendChild(img);
+    }
+
+    var 몸 = document.createElement('div');
+    몸.className = '몸';
+    몸.innerHTML =
+      '<div class="브랜드">' + 이스케이프(p.제조사) + '</div>' +
+      '<div class="코드">' + 이스케이프(제목(p)) + '</div>' +
+      (x.등급 ? '<div class="등급">' + x.등급 + '</div>' : '');
+    b.appendChild(몸);
+
+    b.addEventListener('click', function () { 상세열기(p, x); });
+    return b;
+  }
+
+  // 코드미확인 14건은 코드 자리에 제품명이 들어 있다. 그걸 코드처럼 보여주면 안 된다.
+  function 제목(p) {
+    return p.코드미확인 ? (p.색상명 || p.코드) : p.코드;
+  }
+
+  /* ---------- 상세 ---------- */
+
+  function 상세열기(p, 결과) {
+    var el = $('상세');
+    el.innerHTML = '';
+
+    var 머리 = document.createElement('div');
+    머리.className = '상세머리';
+    머리.innerHTML =
+      '<div><div class="브랜드">' + 이스케이프(p.제조사) + '</div>' +
+      '<h2>' + 이스케이프(제목(p)) + '</h2></div>';
+    var 닫 = document.createElement('button');
+    닫.className = '닫기'; 닫.type = 'button'; 닫.textContent = '✕';
+    닫.setAttribute('aria-label', '닫기');
+    닫.addEventListener('click', 상세닫기);
+    머리.appendChild(닫);
+    el.appendChild(머리);
+
+    if (p.사진무효) {
+      var 칩 = document.createElement('span');
+      칩.className = '상세칩';
+      칩.style.background = p.HEX;
+      el.appendChild(칩);
+    } else {
+      var img = document.createElement('img');
+      img.className = '상세이미지';
+      img.alt = p.제조사 + ' ' + p.코드;
+      img.src = 'img/card/' + encodeURIComponent(p.키) + '.webp';
+      el.appendChild(img);
+    }
+
+    // 사용자가 알아야 할 한계를 숨기지 않는다.
+    if (p.코드미확인) {
+      el.appendChild(주의만들기(
+        '제조사가 아직 제품 코드를 공개하지 않은 신제품입니다. ' +
+        '위 이름은 제품명이며 발주용 코드가 아닙니다. 대리점에 확인이 필요합니다.'));
+    }
+    if (p.색출처) {
+      el.appendChild(주의만들기(
+        '이 제품의 색은 인쇄 카탈로그에서 얻은 값입니다(제조사 사이트에 견본 이미지가 없음). ' +
+        '인쇄색이라 다른 제품과 기준이 미세하게 다를 수 있습니다.'));
+    }
+    if (p.균일도 != null && p.균일도 > 15) {
+      el.appendChild(주의만들기(
+        '견본 이미지의 색이 위치에 따라 크게 다릅니다(메탈처럼 보는 각도에 따라 색이 변하는 제품일 수 있음). ' +
+        '대표색 하나로는 실물을 표현하기 어려우니 반드시 실물 견본을 확인하세요.'));
+    }
+
+    var 표 = document.createElement('table');
+    표.className = '표';
+    var 줄 = [];
+    if (p.색상명 && !p.코드미확인) 줄.push(['색상명', p.색상명]);
+    if (p.코드미확인) 줄.push(['코드', '미확정']);
+    줄.push(['색상', p.HEX + (p.색상계열 ? ' · ' + p.색상계열 : '')]);
+    if (p.카테고리) 줄.push(['종류', p.카테고리 + (p.세부분류 && p.세부분류 !== p.카테고리 ? ' · ' + p.세부분류 : '')]);
+    if (p.명도) 줄.push(['밝기', p.명도]);
+    if (p.광택) 줄.push(['광택', p.광택]);
+    if (p.방염) 줄.push(['방염', '방염 등급 제품']);
+    if (결과 && 결과.등급) {
+      줄.push(['색 차이', 결과.등급 + ' (ΔE ' + 결과.ΔE.toFixed(2) + ')']);
+    }
+    표.innerHTML = 줄.map(function (r) {
+      return '<tr><th>' + 이스케이프(r[0]) + '</th><td>' + 이스케이프(String(r[1])) + '</td></tr>';
+    }).join('');
+    el.appendChild(표);
+
+    if (p.상세URL) {
+      var a = document.createElement('a');
+      a.className = '상세버튼';
+      a.href = p.상세URL; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.textContent = '제조사 페이지에서 보기';
+      el.appendChild(a);
+    }
+
+    // 자재상·시공기사가 매일 겪는 질문이다. "재고가 없다, 다른 브랜드로 뭐가 제일 가깝나".
+    // 측정 결과 86.7% 가 타 브랜드에 ΔE 2 이내 대체품을 갖는다. 사진 매칭보다 성공률이 높다.
+    var 교차 = document.createElement('button');
+    교차.type = 'button';
+    교차.className = '상세버튼 주된';
+    교차.textContent = '다른 브랜드에서 비슷한 것 찾기';
+    교차.addEventListener('click', function () { 대체품보이기(p, el); });
+    el.appendChild(교차);
+
+    $('덮개').hidden = false;
+    el.scrollTop = 0;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function 대체품보이기(p, el) {
+    var 결과 = M.타브랜드대체품(전체, p, { 개수: 8 });
+
+    var 옛 = el.querySelector('.대체품');
+    if (옛) 옛.remove();
+
+    var 감 = document.createElement('div');
+    감.className = '대체품';
+    var 제 = document.createElement('p');
+    제.className = '소제목';
+    제.textContent = 결과.length
+      ? '다른 브랜드의 비슷한 제품 ' + 결과.length + '개'
+      : '다른 브랜드에 비슷한 제품이 없습니다';
+    감.appendChild(제);
+
+    if (결과.length) {
+      var 격 = document.createElement('div');
+      격.className = '격자';
+      결과.forEach(function (x) { 격.appendChild(카드만들기(x)); });
+      감.appendChild(격);
+    }
+    el.appendChild(감);
+    감.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function 주의만들기(글) {
+    var d = document.createElement('div');
+    d.className = '주의';
+    d.textContent = 글;
+    return d;
+  }
+
+  function 상세닫기() {
+    $('덮개').hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  function 이스케이프(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+})();

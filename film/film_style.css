@@ -1,0 +1,274 @@
+/* 필름다모아. 모바일 우선 — 시공기사는 현장에서 폰으로 본다. */
+
+:root {
+  --글자: #1c1c1a;
+  --흐린글자: #6b6b64;
+  --옅은글자: #96968d;
+  --바탕: #faf9f6;
+  --판: #ffffff;
+  --선: #e4e2da;
+  --진한선: #cfccc1;
+  --포인트: #2f6f4e;
+  --포인트옅은: #edf4ef;
+  --경고: #9a5b1c;
+  --경고옅은: #fbf1e4;
+  --둥글: 10px;
+}
+
+* { box-sizing: border-box; }
+
+/* 클래스에 display 를 주면 브라우저 기본 [hidden]{display:none} 을 이겨버린다.
+   .덮개 는 display:flex 라서, hidden 을 켜도 빈 상세 패널이 화면에 그대로 떠 있었다.
+   숨김은 항상 이겨야 하므로 여기서 못을 박는다. */
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  padding: 0 0 40px;
+  background: var(--바탕);
+  color: var(--글자);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+        "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+}
+
+main { max-width: 720px; margin: 0 auto; padding: 0 14px; }
+
+/* ---------- 머리 ---------- */
+
+.top {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 18px 14px 12px;
+}
+.top h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.top .sub { margin: 2px 0 0; font-size: 13px; color: var(--흐린글자); }
+
+/* ---------- 입구 ---------- */
+
+.입구 { margin-bottom: 16px; }
+
+.큰버튼 {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 20px 16px;
+  background: var(--포인트); color: #fff;
+  border-radius: var(--둥글);
+  font-size: 17px; font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.큰버튼:active { transform: scale(0.99); }
+.큰버튼 .아이콘 { font-size: 20px; }
+
+.작은버튼들 { display: flex; gap: 8px; margin-top: 8px; }
+.작은버튼 {
+  flex: 1; padding: 11px 8px;
+  background: var(--판); color: var(--글자);
+  border: 1px solid var(--선); border-radius: var(--둥글);
+  font: inherit; font-size: 14px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.작은버튼[aria-pressed="true"] {
+  border-color: var(--포인트); background: var(--포인트옅은); color: var(--포인트);
+  font-weight: 600;
+}
+
+/* ---------- 사진 ---------- */
+
+.사진칸 { margin-bottom: 14px; }
+
+/* 감싸개도 사진 크기에 맞춰 줄인다. 전체 폭으로 두면 세로 사진 좌우에 검은 띠가 크게 남는다.
+   fit-content + margin auto 로 사진에 딱 붙이고 가운데 놓는다. */
+.캔버스감싸기 {
+  position: relative;
+  width: fit-content; max-width: 100%; margin: 0 auto;
+  background: #000; border-radius: var(--둥글); overflow: hidden;
+  line-height: 0;
+}
+/* width:100% + object-fit:contain 으로 두면 세로 사진일 때 좌우로 검은 여백이 크게 남는다.
+   요소 자체가 사진 크기에 맞게 줄어들도록 auto 로 두고 가운데 정렬한다.
+   그래야 탭 좌표 계산도 그림 영역과 정확히 일치한다 — 여백을 눌러 엉뚱한 색이 잡히지 않는다. */
+#캔버스 {
+  display: block; width: auto; height: auto;
+  max-width: 100%; max-height: 46vh;
+  margin: 0 auto;
+  touch-action: manipulation; cursor: crosshair;
+}
+
+/* 탭한 자리 표시. 사용자가 '어디를 찍었는지' 보여야 다시 찍을 판단이 선다. */
+.탭표시 {
+  position: absolute; width: 30px; height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 2px solid #fff; border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.45);
+  pointer-events: none;
+}
+
+.캔버스감싸기 .안내 {
+  position: absolute; left: 8px; top: 8px; margin: 0;
+  padding: 3px 9px; border-radius: 999px;
+  background: rgba(0,0,0,.5); color: #fff;
+  font-size: 12px; line-height: 1.6;
+}
+
+.뽑힌색 {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 10px;
+}
+.뽑힌색 .라벨 { font-size: 13px; color: var(--흐린글자); }
+.뽑힌색 .칩 {
+  width: 24px; height: 24px; border-radius: 5px;
+  border: 1px solid var(--진한선);
+}
+.뽑힌색 code { font-size: 12px; color: var(--흐린글자); }
+.뽑힌색 .힌트 { margin-left: auto; font-size: 12px; color: var(--옅은글자); }
+
+/* ---------- 색 고르기 ---------- */
+
+.색칸 { margin-bottom: 14px; }
+.색고르기 {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px; background: var(--판);
+  border: 1px solid var(--선); border-radius: var(--둥글);
+  font-size: 14px; cursor: pointer;
+}
+.색고르기 input[type=color] {
+  width: 46px; height: 34px; padding: 0;
+  border: 1px solid var(--진한선); border-radius: 6px;
+  background: none; cursor: pointer;
+}
+.빠른색 { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.빠른색 button {
+  width: 34px; height: 34px; border-radius: 6px;
+  border: 1px solid var(--진한선); cursor: pointer; padding: 0;
+}
+
+/* ---------- 글자 검색 ---------- */
+
+.글자칸 { margin-bottom: 14px; }
+#글자입력 {
+  width: 100%; padding: 12px 14px;
+  border: 1px solid var(--선); border-radius: var(--둥글);
+  background: var(--판); font: inherit; font-size: 15px;
+}
+#글자입력:focus { outline: 2px solid var(--포인트); outline-offset: -1px; }
+
+/* ---------- 필터 ---------- */
+
+.필터 { margin-bottom: 14px; }
+.필터줄 {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.필터줄::-webkit-scrollbar { display: none; }
+.필터줄 + .필터줄 { margin-top: 4px; }
+
+.칩버튼 {
+  flex: 0 0 auto; padding: 6px 12px;
+  background: var(--판); color: var(--흐린글자);
+  border: 1px solid var(--선); border-radius: 999px;
+  font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.칩버튼[aria-pressed="true"] {
+  background: var(--포인트); border-color: var(--포인트);
+  color: #fff; font-weight: 600;
+}
+.칩분류 {
+  flex: 0 0 auto; align-self: center;
+  font-size: 12px; color: var(--옅은글자); padding-right: 2px;
+}
+
+/* ---------- 결과 ---------- */
+
+.결과머리 {
+  margin: 0 0 8px; font-size: 14px; color: var(--흐린글자); min-height: 22px;
+}
+.결과머리 b { color: var(--글자); }
+
+.격자 {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(102px, 1fr));
+}
+
+.카드 {
+  background: var(--판); border: 1px solid var(--선);
+  border-radius: var(--둥글); overflow: hidden;
+  cursor: pointer; text-align: left; padding: 0; font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.카드:active { border-color: var(--진한선); }
+.카드 .썸 { display: block; width: 100%; aspect-ratio: 1/1; object-fit: cover; background: var(--선); }
+.카드 .칩썸 { display: block; width: 100%; aspect-ratio: 1/1; }
+.카드 .몸 { padding: 7px 8px 9px; }
+.카드 .브랜드 { font-size: 11px; color: var(--옅은글자); }
+.카드 .코드 { font-size: 13px; font-weight: 600; word-break: break-all; line-height: 1.35; }
+.카드 .등급 { margin-top: 3px; font-size: 11px; color: var(--포인트); }
+.카드 .등급.멀다 { color: var(--옅은글자); }
+
+.빈결과 {
+  grid-column: 1 / -1; padding: 28px 12px; text-align: center;
+  color: var(--흐린글자); font-size: 14px;
+  background: var(--판); border: 1px dashed var(--진한선); border-radius: var(--둥글);
+}
+
+/* ---------- 상세 ---------- */
+
+.덮개 {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(20,20,18,.55);
+  display: flex; align-items: flex-end; justify-content: center;
+  overscroll-behavior: contain;
+}
+.상세 {
+  width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto;
+  background: var(--바탕);
+  border-radius: 16px 16px 0 0;
+  padding: 14px 16px calc(24px + env(safe-area-inset-bottom));
+}
+@media (min-width: 560px) {
+  .덮개 { align-items: center; }
+  .상세 { border-radius: 16px; max-height: 88vh; }
+}
+
+.상세머리 { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.상세머리 h2 { margin: 0; font-size: 18px; line-height: 1.35; word-break: break-all; }
+.상세머리 .브랜드 { font-size: 13px; color: var(--흐린글자); }
+.닫기 {
+  margin-left: auto; flex: 0 0 auto;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--선); background: var(--판);
+  font-size: 17px; line-height: 1; cursor: pointer; color: var(--흐린글자);
+}
+
+/* 높이를 반드시 묶어둔다. 필름 견본은 세로로 아주 긴 이미지가 섞여 있다
+   (영림 원본은 1260x2800 — 실물 900x2000mm 규격 그대로). 그대로 두면 이미지 하나가
+   화면을 다 먹어서, 정작 보러 온 코드와 사양이 스크롤 아래로 밀린다. */
+.상세이미지 {
+  display: block; width: 100%; height: 38vh; max-height: 300px;
+  object-fit: cover; border-radius: var(--둥글);
+  background: var(--선); margin-bottom: 12px;
+}
+.상세칩 { display: block; width: 100%; height: 180px; border-radius: var(--둥글); margin-bottom: 12px; }
+
+.표 { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 12px; }
+.표 th, .표 td { padding: 7px 0; border-bottom: 1px solid var(--선); text-align: left; vertical-align: top; }
+.표 th { width: 88px; font-weight: 400; color: var(--흐린글자); }
+
+.주의 {
+  padding: 9px 12px; margin-bottom: 12px;
+  background: var(--경고옅은); color: var(--경고);
+  border-radius: 8px; font-size: 13px; line-height: 1.55;
+}
+
+.상세버튼 {
+  display: block; width: 100%; padding: 13px;
+  background: var(--판); color: var(--글자);
+  border: 1px solid var(--진한선); border-radius: var(--둥글);
+  font: inherit; font-size: 15px; font-weight: 600; text-align: center;
+  cursor: pointer; text-decoration: none; margin-bottom: 8px;
+}
+.상세버튼.주된 { background: var(--포인트); border-color: var(--포인트); color: #fff; }
+
+.소제목 { margin: 18px 0 8px; font-size: 14px; font-weight: 600; }
