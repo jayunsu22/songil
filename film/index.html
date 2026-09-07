@@ -60,20 +60,38 @@
       <button type="button" class="즐겨찾기버튼" id="저장함버튼" hidden></button>
     </div>
 
-    <!-- 3. 컬러별 보기. 첫 화면을 간결하게 두려고 접어둔다. -->
-    <button type="button" class="펼침버튼" id="컬러버튼" aria-expanded="true" aria-controls="컬러칸">
-      <span class="펼침글">🎨 필름 컬러별 보기</span>
-      <span class="화살" aria-hidden="true">▾</span>
-    </button>
-
   </section>
 
-  <!-- 컬러별 보기 내용. 일반색이 먼저, 우드가 아래. 탭 없이 한 화면에 다 보인다. -->
-  <section class="컬러칸" id="컬러칸">
-    <h2 class="묶음제목">일반 색상</h2>
-    <div class="분류격자" id="일반격자"></div>
-    <h2 class="묶음제목">우드</h2>
-    <div class="분류격자 우드격자" id="우드격자"></div>
+  <!-- 3. 훑어보기. 색으로 볼지 재질로 볼지 고른다.
+       탭줄과 내용을 한 상자 안에 넣는다. 예전에는 버튼과 내용이 따로 놓인 두 상자라
+       그 사이가 벌어져 보였다. 한 상자로 만들면 벌어질 틈 자체가 없다.
+
+       두 축을 나눈 이유: 색만으로 훑으면 '화이트' 안에 매끈한 솔리드와 돌 무늬가
+       섞여서 나온다. 필름을 고를 때 색과 재질은 따로 정하는 일이 많다. -->
+  <section class="훑기">
+    <div class="탭줄">
+      <div class="탭묶음">
+        <button type="button" class="탭 켜짐" id="색탭">🎨 컬러별</button>
+        <button type="button" class="탭" id="재질탭">◈ 재질별</button>
+      </div>
+      <button type="button" class="접기" id="접기버튼" aria-expanded="true" aria-controls="컬러칸" aria-label="접기/펴기">
+        <span class="화살" aria-hidden="true">▾</span>
+      </button>
+    </div>
+
+    <div class="컬러칸" id="컬러칸">
+      <!-- 컬러별: 일반색이 먼저, 우드가 아래 -->
+      <div class="탭내용" id="색내용">
+        <h2 class="묶음제목">일반 색상</h2>
+        <div class="분류격자" id="일반격자"></div>
+        <h2 class="묶음제목">우드</h2>
+        <div class="분류격자 우드격자" id="우드격자"></div>
+      </div>
+      <!-- 재질별: 우드는 여기 없다. 컬러별의 밝기 5단계가 이미 잘 갈라준다. -->
+      <div class="탭내용" id="재질내용" hidden>
+        <div class="분류격자 우드격자" id="재질격자"></div>
+      </div>
+    </div>
   </section>
 
   <!-- 사진 -->

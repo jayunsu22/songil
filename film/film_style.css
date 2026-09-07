@@ -134,21 +134,47 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
 .큰버튼:active { background: var(--포인트진); }
 .큰버튼 .아이콘 { font-size: 19px; }
 
-.펼침버튼 {
-  display: flex; align-items: center; justify-content: space-between;
-  width: 100%; padding: 15px 16px;
-  background: var(--판); color: var(--글자);
+/* ---------- 훑어보기 (컬러별 · 재질별) ----------
+
+   탭줄과 내용을 한 상자 안에 넣는다. 예전에는 펼침버튼과 내용이 따로 놓인 두 상자여서
+   그 사이가 벌어져 보였다. 한 상자로 만들면 벌어질 틈 자체가 없다.
+
+   탭은 알약 두 개를 홈에 끼운 모양(세그먼트)으로 둔다. 테두리를 이어 붙이는 방식은
+   켜진 탭 아래만 선을 지워야 해서 접었을 때·화면이 좁을 때 쉽게 어긋난다. */
+.훑기 {
+  margin-bottom: 18px;
+  background: var(--판);
   border: 1px solid var(--선); border-radius: var(--둥글);
-  font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
   box-shadow: var(--그림자);
+  overflow: hidden;
+}
+.탭줄 { display: flex; align-items: center; gap: 6px; padding: 10px 10px 0; }
+.탭묶음 {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; gap: 3px;
+  padding: 3px; border-radius: 999px;
+  background: var(--바탕);
+}
+.탭 {
+  flex: 1 1 0; min-width: 0;
+  padding: 9px 6px;
+  border: none; border-radius: 999px;
+  background: transparent; color: var(--흐린글자);
+  font: inherit; font-size: 14px; font-weight: 600;
+  white-space: nowrap; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.펼침버튼 .화살 { color: var(--흐린글자); font-size: 13px; transition: transform .18s ease; }
-.펼침버튼[aria-expanded="true"] {
-  border-color: var(--포인트); color: var(--포인트);
-  border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+.탭.켜짐 { background: var(--판); color: var(--글자); box-shadow: 0 1px 3px rgba(28,28,24,.12); }
+.접기 {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--흐린글자);
+  font: inherit; font-size: 13px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.펼침버튼[aria-expanded="true"] .화살 { transform: rotate(180deg); color: var(--포인트); }
+.접기 .화살 { transition: transform .18s ease; }
+.접기[aria-expanded="true"] .화살 { transform: rotate(180deg); }
 
 .즐겨찾기버튼 {
   flex: 0 0 auto; padding: 13px 16px;
@@ -162,16 +188,10 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
 
 /* ---------- 컬러별 보기 ---------- */
 
-/* 펼침버튼과 이어 붙여 하나의 덩어리로 보이게 한다. */
-.컬러칸 {
-  margin: -1px 0 18px;
-  padding: 14px;
-  background: var(--판);
-  border: 1px solid var(--포인트);
-  border-top-color: var(--선);
-  border-radius: 0 0 var(--둥글) var(--둥글);
-  box-shadow: var(--그림자);
-}
+/* 훑기 상자 안쪽. 테두리와 그림자는 바깥 상자가 갖는다. */
+.컬러칸 { padding: 12px 14px 14px; }
+.컬러칸[hidden] { display: none; }
+
 .묶음제목 { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--흐린글자); letter-spacing: .02em; }
 .분류격자 + .묶음제목 { margin-top: 18px; }
 

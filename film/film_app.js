@@ -764,11 +764,29 @@
   function 몸잠금() { 잠금수++; document.body.style.overflow = 'hidden'; }
   function 몸잠금풀기() { 잠금수 = Math.max(0, 잠금수 - 1); if (!잠금수) document.body.style.overflow = ''; }
 
-  /* ---------- 컬러별 보기 ---------- */
+  /* ---------- 훑어보기 (컬러별 · 재질별) ---------- */
+
+  function 탭들() { return [$('색탭'), $('재질탭')]; }
+
+  // 어느 탭을 켤지 한 곳에서 정한다. 켜짐 표시와 내용 보이기가 따로 놀면
+  // '재질별' 이 켜져 있는데 색 목록이 떠 있는 상태가 생긴다.
+  function 탭보이기(어느) {
+    var 재질 = (어느 === '재질');
+    $('색탭').classList.toggle('켜짐', !재질);
+    $('재질탭').classList.toggle('켜짐', 재질);
+    $('색내용').hidden = 재질;
+    $('재질내용').hidden = !재질;
+  }
+
+  function 훑기펴기(열까) {
+    $('접기버튼').setAttribute('aria-expanded', String(!!열까));
+    $('컬러칸').hidden = !열까;
+  }
 
   function 분류그리기() {
     칸에분류(그리기대상('일반색'), $('일반격자'), '일반색');
     칸에분류(그리기대상('우드'), $('우드격자'), '우드');
+    칸에분류(그리기대상('재질'), $('재질격자'), '재질');
   }
   function 그리기대상(군) { return M.분류목록(전체, 군); }
 
@@ -789,6 +807,42 @@
     return 가까운[0];
   }
 
+  // 재질 칸의 얼굴은 우드와 고르는 기준이 다르다.
+  //
+  // 우드는 '그 톤다운 색'을 보여주면 되지만, 재질은 무늬가 곧 그 재질이다.
+  // 대표제품()은 균일도가 가장 낮은(=제일 밋밋한) 것을 고르므로 여기 쓰면
+  // 스톤도 패브릭도 다 민무늬 판때기로 나온다 — 실제로 그렇게 나왔다.
+  //
+  // 그래서 두 가지를 바꾼다.
+  //   1) 색이 튀지 않는 것으로 먼저 걸러낸다. 분홍 솔리드가 '솔리드'의 얼굴이 되면
+  //      재질이 아니라 색을 먼저 읽게 된다.
+  //   2) 무늬가 있는 재질은 균일도가 높은 쪽에서 고른다. 다만 제일 높은 것은
+  //      무늬가 아니라 사진 조명이 튄 것일 때가 많아 4분의 3 지점에서 집는다.
+  var 무늬재질 = { '스톤·마블': 1, '메탈': 1, '패브릭': 1, '내추럴서피스': 1, '레더': 1 };
+  function 채도(lab) { return Math.sqrt(lab.a * lab.a + lab.b * lab.b); }
+
+  function 재질대표(목록, 이름) {
+    var 후보 = 목록.filter(function (p) { return !p.사진무효 && p.lab; });
+    if (!후보.length) return 목록[0] || null;
+
+    var 수수한 = 후보.filter(function (p) { return 채도(p.lab) <= 12; });
+    if (수수한.length >= 5) 후보 = 수수한;
+
+    var Ls = 후보.map(function (p) { return p.lab.L; }).sort(function (a, b) { return a - b; });
+    var 가운데 = Ls[Ls.length >> 1];
+    후보 = 후보.slice().sort(function (a, b) {
+      return Math.abs(a.lab.L - 가운데) - Math.abs(b.lab.L - 가운데);
+    }).slice(0, Math.max(1, Math.round(후보.length * 0.4)));
+
+    var 무늬 = !!무늬재질[이름];
+    후보.sort(function (a, b) {
+      var x = a.균일도 == null ? 0 : a.균일도;
+      var y = b.균일도 == null ? 0 : b.균일도;
+      return x - y;
+    });
+    return 무늬 ? 후보[Math.floor((후보.length - 1) * 0.75)] : 후보[0];
+  }
+
   function 칸에분류(목록, 상자, 군) {
     상자.innerHTML = '';
     목록.forEach(function (x) {
@@ -797,12 +851,12 @@
       b.type = 'button';
       b.className = '분류버튼';
 
-      // 우드는 무늬가 핵심이라 실제 제품 썸네일을 보여준다.
+      // 우드·재질은 무늬가 핵심이라 실제 제품 썸네일을 보여준다.
       // 일반색은 무늬가 없으니 납작한 색칩이 오히려 잘 읽힌다.
-      if (군 === '우드') {
-        var 대표 = 대표제품(속한);
+      if (군 === '우드' || 군 === '재질') {
+        var 대표 = (군 === '재질') ? 재질대표(속한, x.값) : 대표제품(속한);
         var img = document.createElement('img');
-        img.className = '미리' + (밝은가(대표제품(속한)) ? ' 밝음' : '');
+        img.className = '미리' + (밝은가(대표) ? ' 밝음' : '');
         img.loading = 'lazy';
         img.decoding = 'async';
         img.alt = '';
@@ -999,10 +1053,7 @@
       글자 = '';
       $('글자입력').value = '';
     }
-    if (어느 !== '컬러') {
-      $('컬러버튼').setAttribute('aria-expanded', 'false');
-      $('컬러칸').hidden = true;
-    }
+    if (어느 !== '컬러') 훑기펴기(false);
     목록닫기();
   }
 
@@ -1029,12 +1080,24 @@
     // 첫 화면은 컬러칸을 펼친 채로 시작한다(index.html 에서 열어 둠).
     // 접혀 있으면 첫 화면에 검색창 몇 개만 남아 볼 것이 없다.
     // 코드·사진으로 찾기 시작하면 입구전환()이 알아서 접는다.
-    $('컬러버튼').addEventListener('click', function () {
+    //
+    // 탭을 누르면 그 축으로 바꾸고, 접혀 있었으면 펴준다.
+    // 접기는 오른쪽 화살표가 맡는다 — 켜진 탭을 다시 눌러 접히게 하면
+    // 두 축을 오가며 비교하는 중에 실수로 닫히는 일이 잦다.
+    탭들().forEach(function (버튼) {
+      버튼.addEventListener('click', function () {
+        입구전환('컬러');
+        탭보이기(버튼.id === '재질탭' ? '재질' : '색');
+        훑기펴기(true);
+        결과그리기([], '');
+      });
+    });
+
+    $('접기버튼').addEventListener('click', function () {
       var 열림 = this.getAttribute('aria-expanded') === 'true';
-      if (열림) { 입구전환(null); return; }   // 접기
+      if (열림) { 입구전환(null); return; }
       입구전환('컬러');
-      this.setAttribute('aria-expanded', 'true');
-      $('컬러칸').hidden = false;
+      훑기펴기(true);
       결과그리기([], '');
     });
 
