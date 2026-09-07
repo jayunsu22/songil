@@ -1186,6 +1186,55 @@
     카드.classList.toggle('골라짐', 켜짐);
   }
 
+  /* ---------- 색 자리 ----------
+
+     색판만 덩그러니 보여주면 기준이 없어서 "이 베이지가 얼마나 진한 건지" 판단이 안 된다.
+     폰 화면에서는 특히 그렇다 — 옆에 비교할 것이 없으면 어떤 베이지든 그냥 베이지로 보인다.
+     그래서 포토샵 색 선택창처럼, 그 색이 색 공간의 어디쯤에 놓이는지를 같이 보여준다.
+     왼쪽 위로 갈수록 옅고, 오른쪽으로 갈수록 진하고, 아래로 갈수록 어둡다.
+
+     캔버스를 쓰지 않고 CSS 그러데이션 두 겹으로 그린다. 포토샵이 그리는 방식과 같다:
+       바탕 = 그 색의 순색(채도·명도 최대)
+       가로 = 흰색 → 투명 (채도)
+       세로 = 투명 → 검정 (명도) */
+
+  function hsb(hex) {
+    var c = C.hex를rgb(hex);
+    var r = c.r / 255, g = c.g / 255, b = c.b / 255;
+    var 최대 = Math.max(r, g, b), 최소 = Math.min(r, g, b), 폭 = 최대 - 최소;
+    var h = 0;
+    if (폭 > 0) {
+      if (최대 === r) h = ((g - b) / 폭) % 6;
+      else if (최대 === g) h = (b - r) / 폭 + 2;
+      else h = (r - g) / 폭 + 4;
+      h *= 60;
+      if (h < 0) h += 360;
+    }
+    return { h: h, s: 최대 === 0 ? 0 : 폭 / 최대, b: 최대 };
+  }
+
+  function 색자리만들기(p) {
+    var v = hsb(p.HEX);
+    var 순색 = 'hsl(' + v.h.toFixed(0) + ', 100%, 50%)';
+
+    var 칸 = document.createElement('div');
+    칸.className = '색자리';
+    칸.innerHTML =
+      '<div class="색판" style="background:' + 순색 + '">' +
+        '<div class="가로덮개"></div><div class="세로덮개"></div>' +
+        '<span class="점" style="left:' + (v.s * 100).toFixed(1) + '%;top:' + ((1 - v.b) * 100).toFixed(1) + '%"></span>' +
+      '</div>' +
+      '<div class="색상띠"><span class="점" style="left:' + (v.h / 360 * 100).toFixed(1) + '%"></span></div>' +
+      '<div class="눈금">' +
+        '<span><b>옅기</b>' + Math.round((1 - v.s) * 100) + '</span>' +
+        '<span><b>밝기</b>' + Math.round(v.b * 100) + '</span>' +
+        '<span><b>L*</b>' + (p.lab ? p.lab.L.toFixed(0) : '-') + '</span>' +
+        '<span><b>a*</b>' + (p.lab ? p.lab.a.toFixed(0) : '-') + '</span>' +
+        '<span><b>b*</b>' + (p.lab ? p.lab.b.toFixed(0) : '-') + '</span>' +
+      '</div>';
+    return 칸;
+  }
+
   // 대소문자·공백·기호를 걷어내고 비교한다. 'ZX145(XP105)' 같은 값이 섞여 있다.
   function 맞춰보기(v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 
@@ -1245,6 +1294,8 @@
         '견본 이미지의 색이 위치에 따라 크게 다릅니다(메탈처럼 보는 각도에 따라 색이 변하는 제품일 수 있음). ' +
         '대표색 하나로는 실물을 표현하기 어려우니 반드시 실물 견본을 확인하세요.'));
     }
+
+    el.appendChild(색자리만들기(p));
 
     var 표 = document.createElement('table');
     표.className = '표';

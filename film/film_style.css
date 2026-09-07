@@ -577,3 +577,39 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
   background: var(--포인트옅은); border-radius: var(--둥글);
   font-size: 13px; line-height: 1.55; color: var(--포인트진);
 }
+
+/* ---------- 색 자리 ----------
+
+   색판만 보면 "이 베이지가 얼마나 진한지" 기준이 없다. 폰에서는 특히 그렇다.
+   포토샵 색 선택창처럼 그 색이 색 공간의 어디쯤에 놓이는지를 같이 보여준다. */
+.색자리 { margin-bottom: 14px; }
+.색판 {
+  position: relative; width: 100%; height: 112px;
+  border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--진한선);
+}
+.색판 .가로덮개, .색판 .세로덮개 { position: absolute; inset: 0; }
+.색판 .가로덮개 { background: linear-gradient(to right, #fff, rgba(255,255,255,0)); }
+.색판 .세로덮개 { background: linear-gradient(to top, #000, rgba(0,0,0,0)); }
+.색판 .점 {
+  position: absolute; width: 15px; height: 15px; margin: -8px 0 0 -8px;
+  border-radius: 50%; border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 1px 4px rgba(0,0,0,.4);
+}
+.색상띠 {
+  position: relative; height: 12px; margin-top: 6px;
+  border-radius: 6px; border: 1px solid var(--진한선);
+  background: linear-gradient(to right,
+    hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%),
+    hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%));
+}
+.색상띠 .점 {
+  position: absolute; top: -2px; width: 12px; height: 12px; margin-left: -6px;
+  border-radius: 50%; border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.55);
+}
+.눈금 {
+  display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px;
+  font-size: 12px; color: var(--흐린글자);
+}
+.눈금 b { font-weight: 400; color: var(--옅은글자); margin-right: 4px; }
