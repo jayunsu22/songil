@@ -55,7 +55,7 @@
     var 설정 = (typeof FilmAd !== 'undefined' && FilmAd) || null;
     var 문 = 설정 && 설정.문의;
     var el = $('연락처');
-    if (!el || !문 || !문.전화) return;
+    if (!el || !문 || !문.전화 || 문.켜기 === false) return;
     el.href = 'tel:' + 문.전화;
     el.setAttribute('aria-label', (문.머리 || '') + ' ' + 문.전화 + ' 전화하기');
     el.innerHTML =
@@ -89,6 +89,7 @@
     묶기();
     저장함버튼갱신();
     경로적용();
+    if (이번판에처음인가('방문')) 집계보내기('방문', '');
     기록목록 = 기록읽기();
     기록그리기();
     $('기록지우기').addEventListener('click', function () {
@@ -122,7 +123,12 @@
   function 저장됨(p) { return 저장목록.indexOf(p.키) >= 0; }
   function 저장토글(p) {
     var i = 저장목록.indexOf(p.키);
-    if (i >= 0) 저장목록.splice(i, 1); else 저장목록.push(p.키);
+    if (i >= 0) {
+      저장목록.splice(i, 1);
+    } else {
+      저장목록.push(p.키);
+      집계보내기('즐겨찾기', 브랜드(p.제조사) + ' ' + 제목(p));
+    }
     저장쓰기();
   }
   function 저장함버튼갱신() {
@@ -210,6 +216,65 @@
     if (목몸) 목몸.classList.add('바있음');
   }
 
+  /* ---------- 사용 집계 ----------
+
+     광고를 팔려면 "한 달에 몇 명이 쓴다"를 말할 수 있어야 하는데 지금은 그 숫자가 없다.
+     n8n 웹훅으로 한 줄 보내고 에어테이블에 쌓는다. 외부 분석 서비스를 붙이지 않는 이유는
+     방문자 데이터가 남의 서버로 넘어가고 쿠키 동의 배너가 필요해지기 때문이다.
+
+     보내는 것: 무작위 방문자 번호, 유입경로, 무엇을 했는지, 분류·코드 정도.
+     보내지 않는 것: IP, 기기 정보, 사진, 이름 — 아무것도.
+
+     화면에는 아무것도 표시하지 않는다. 시작 단계에 "오늘 3명"이 찍히면
+     처음 온 사람이 그대로 나가버린다. 숫자는 에어테이블에서만 본다. */
+
+  var 방문자키 = 'filmdamoa_visitor_v1';
+  var 이번판키 = 'filmdamoa_session_v1';
+
+  function 방문자번호() {
+    try {
+      var v = localStorage.getItem(방문자키);
+      if (!v) {
+        v = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        localStorage.setItem(방문자키, v);
+      }
+      return v;
+    } catch (e) { return 'v-알수없음'; }   // 시크릿 모드 등
+  }
+
+  // 같은 판(탭)에서 한 번만 보낼 일들을 기억한다. 상세를 스무 번 열어도 줄은 하나만 쌓인다.
+  function 이번판에처음인가(무엇) {
+    try {
+      var 본것 = JSON.parse(sessionStorage.getItem(이번판키) || '[]');
+      if (본것.indexOf(무엇) >= 0) return false;
+      본것.push(무엇);
+      sessionStorage.setItem(이번판키, JSON.stringify(본것));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function 집계보내기(행동, 상세) {
+    var 설정 = 광고설정();
+    var 집 = 설정 && 설정.집계;
+    if (!집 || !집.켜기 || !집.주소) return;
+    try {
+      var 몸 = JSON.stringify({
+        v: 방문자번호(),
+        c: 지금경로() || '직접',
+        a: 행동,
+        d: String(상세 || '').slice(0, 60),
+      });
+      // text/plain 으로 보내는 이유: application/json 이면 브라우저가 사전요청(preflight)을
+      // 먼저 던지고, 그게 막히면 조용히 안 간다. no-cors + text/plain 은 그냥 나간다.
+      // keepalive 는 페이지를 떠나는 중에도 요청이 살아남게 한다.
+      fetch(집.주소, {
+        method: 'POST', mode: 'no-cors', keepalive: true,
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: 몸,
+      }).catch(function () { /* 집계가 실패해도 도구는 돌아가야 한다 */ });
+    } catch (e) { /* 무시 */ }
+  }
+
   /* ---------- 사진 검색 광고 화면 ----------
 
      1분견적의 견적 로딩 광고와 같은 방식이다. 다만 거기는 서버가 실제로 20~30초 걸리는
@@ -289,17 +354,25 @@
 
   var 경로키 = 'filmdamoa_channel_v1';
 
-  function 경로적용() {
+  // 유입 경로 판단은 첫 화면 문구와 집계 두 곳에서 쓴다. 한 곳에만 둔다.
+  function 지금경로() {
     var 설정 = 광고설정();
     var 표 = (설정 && 설정.경로) || {};
     var q = new URLSearchParams(location.search).get('c');
-    var 지금 = null;
     if (q && 표[q]) {
-      지금 = q;
       try { localStorage.setItem(경로키, q); } catch (e) { /* 무시 */ }
-    } else {
-      try { 지금 = localStorage.getItem(경로키); } catch (e) { 지금 = null; }
+      return q;
     }
+    try {
+      var v = localStorage.getItem(경로키);
+      return 표[v] ? v : null;
+    } catch (e) { return null; }
+  }
+
+  function 경로적용() {
+    var 설정 = 광고설정();
+    var 표 = (설정 && 설정.경로) || {};
+    var 지금 = 지금경로();
     if (!지금 || !표[지금]) return;
 
     var 띠 = document.createElement('p');
@@ -448,6 +521,7 @@
   // 있으면 시스템 공유창을 쓰고, 없으면 우리가 만든 공유창을 띄운다.
   function 공유하기(제품들, 제목) {
     기록추가(제품들);
+    집계보내기('공유', 제품들.length + '개');
     var url = 공유주소(제품들);
 
     // 카카오톡 공유가 가능하면 우리 창을 먼저 띄운다.
@@ -635,6 +709,7 @@
       b.appendChild(몸);
 
       b.addEventListener('click', function () {
+        집계보내기('컬러보기', x.값);
         목록열기({
           제목: 군 === '우드' ? x.값 + ' 우드' : x.값,
           곁: x.건수 + '개',
@@ -826,6 +901,7 @@
       글자 = 값;
       $('글자입력').value = 값;
       $('글자입력').blur();
+      if (값) 집계보내기('코드검색', 값);
       검색();
     });
     // 지우면 결과도 즉시 지운다. 검색 버튼을 다시 누르게 만들 이유가 없다.
@@ -997,6 +1073,7 @@
     // 사진에서 처음 색을 뽑는 순간에만 광고를 띄운다. 두 번째 탭부터는 바로 나온다.
     if (!광고본사진) {
       광고본사진 = true;
+      집계보내기('사진찾기', '');
       광고띄우기(검색);
       return;
     }
@@ -1244,6 +1321,7 @@
 
   function 상세열기(p, 결과) {
     기록추가(p);
+    if (이번판에처음인가('상세')) 집계보내기('상세보기', 브랜드(p.제조사) + ' ' + 제목(p));
     var el = $('상세');
     el.innerHTML = '';
 

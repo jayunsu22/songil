@@ -13,10 +13,28 @@
 
 <header class="top">
   <div class="머리속">
-    <div class="제목칸">
-      <h1>1분견적 필름찾기</h1>
-      <p class="sub" id="총건수">불러오는 중…</p>
+    <h1>1분견적 필름찾기</h1>
+    <p class="sub" id="총건수">불러오는 중…</p>
+
+    <!-- 샘플북을 펼친 모양. 색은 지어낸 것이 아니라 DB에서 뽑은 실제 필름 색이다 —
+         계열마다 그 계열 L* 의 중앙값에 가장 가까운 제품을 골랐다.
+         (화이트·베이지·우드 5톤·그레이·블랙·블루·그린·오렌지·레드)
+         JS 로 그리지 않고 여기 박아두는 이유: 화면이 뜨는 즉시 보여야 하는데
+         film-db.json 을 기다리면 제목만 뜬 채로 한 박자 늦게 나타난다. -->
+    <div class="색부채" aria-hidden="true">
+      <span style="--c:#EFEEE7;--h:26px"></span>
+      <span style="--c:#D1BA94;--h:31px"></span>
+      <span style="--c:#BEA280;--h:36px"></span>
+      <span style="--c:#9D6B42;--h:40px"></span>
+      <span style="--c:#6B4F3A;--h:36px"></span>
+      <span style="--c:#928575;--h:31px"></span>
+      <span style="--c:#6B6662;--h:26px"></span>
+      <span style="--c:#2B2E35;--h:31px"></span>
+      <span style="--c:#14619B;--h:36px"></span>
+      <span style="--c:#869B92;--h:31px"></span>
+      <span style="--c:#E30A15;--h:26px"></span>
     </div>
+
     <!-- 연락처는 film_ad.js 의 값으로 채운다 -->
     <a class="연락처" id="연락처" hidden></a>
   </div>

@@ -58,10 +58,22 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
   margin-bottom: 18px;
 }
 .머리속 {
-  max-width: 720px; margin: 0 auto; padding: 18px 16px 15px;
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  max-width: 720px; margin: 0 auto; padding: 18px 16px 16px;
+  text-align: center;
 }
-.top .제목칸 { min-width: 0; }
+
+/* 샘플북을 펼쳐놓은 모양. 색을 다루는 곳이라는 게 글보다 먼저 읽힌다.
+   가운데가 높고 양끝이 낮은 부채꼴이라 시선이 가운데(제목)로 모인다. */
+.색부채 {
+  display: flex; justify-content: center; align-items: flex-end;
+  gap: 5px; height: 40px; margin-top: 14px;
+}
+.색부채 span {
+  width: 15px; height: var(--h); border-radius: 4px;
+  background: var(--c);
+}
+/* 맨 앞 화이트는 흰 바탕에 묻히므로 테두리를 준다. */
+.색부채 span:first-child { box-shadow: inset 0 0 0 1px #ded9cd; }
 .top h1 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.25; }
 .top .sub { margin: 4px 0 0; font-size: 13px; color: var(--흐린글자); }
 
@@ -69,7 +81,7 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
    눌러서 바로 전화가 걸리는 것이 목적이라, 흰 카드가 아니라 색을 채워 눈에 띄게 하고
    번호를 가장 크게 둔다. */
 .연락처 {
-  flex: 0 0 auto; display: block; text-align: center;
+  display: inline-block; margin-top: 12px; text-align: center;
   padding: 8px 13px; border-radius: 10px;
   background: var(--포인트); border: none;
   color: #fff; text-decoration: none; line-height: 1.3;
