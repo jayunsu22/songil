@@ -29,6 +29,7 @@ const 필드 = {
   원본이미지URL:'fldeQELKtGH9CbcSe',
   상세페이지URL:'fldpKqI6nsYJZ5pYt',
   특성:        'fldZcNNFq9jmw5eik',
+  질감:        'fldWToao3Y7vbV6Bu',   // 손으로 채우는 칸. 비면 film_texture.json 의 규칙이 쓰인다.
 };
 
 // .env 를 읽는다. dotenv 를 쓰지 않는 이유는 이 저장소에 빌드 의존성을 늘리지 않기 위해서다.
@@ -98,6 +99,7 @@ function 정리(rec) {
     원본이미지URL: 값(필드.원본이미지URL),
     상세페이지URL: 값(필드.상세페이지URL),
     특성:     값(필드.특성),
+    질감:     값(필드.질감),
   };
 }
 
