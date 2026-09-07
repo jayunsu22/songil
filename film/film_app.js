@@ -323,7 +323,16 @@
     } catch (e) { return false; }
   }
 
+  // 내 컴퓨터에서 시험하는 것은 방문이 아니다.
+  // 이걸 안 막아서 개발 중 코드 검색 20건이 실제 로그에 'band 유입' 으로 쌓였다.
+  // 사장님이 밴드에 올린 적도 없는데 밴드 방문자가 찍혀 있었다.
+  function 진짜방문인가() {
+    var h = location.hostname;
+    return !(h === 'localhost' || h === '127.0.0.1' || h === '' || /^192\.168\./.test(h) || h.endsWith('.local'));
+  }
+
   function 집계보내기(행동, 상세) {
+    if (!진짜방문인가()) return;
     var 설정 = 광고설정();
     var 집 = 설정 && 설정.집계;
     if (!집 || !집.켜기 || !집.주소) return;
