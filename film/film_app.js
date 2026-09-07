@@ -126,10 +126,16 @@
     var 비율 = 질감단계.length > 1 ? (자리 / (질감단계.length - 1)) * 100 : 50;
 
     // 색상띠와 같은 모양으로 둔다. 위아래로 나란히 놓이니 같은 방식으로 읽히는 편이 낫다.
+    // 단계 경계에 눈금을 그어 5단계임을 보이게 한다. 띠만 있으면 연속된 값처럼 읽힌다.
+    var 금 = '';
+    for (var i = 1; i < 질감단계.length - 1; i++) {
+      금 += '<span class="금" style="left:' + (i / (질감단계.length - 1) * 100).toFixed(1) + '%"></span>';
+    }
+
     var 칸 = document.createElement('div');
     칸.className = '질감칸';
     칸.innerHTML =
-      '<div class="질감띠"><span class="점" style="left:' + 비율.toFixed(1) + '%"></span></div>' +
+      '<div class="질감띠">' + 금 + '<span class="점" style="left:' + 비율.toFixed(1) + '%"></span></div>' +
       '<div class="질감눈금">' +
         '<span>매끈</span>' +
         '<span class="지금">' + 이스케이프(p.질감) + '</span>' +

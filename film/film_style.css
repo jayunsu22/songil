@@ -634,10 +634,18 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
 /* 색상띠 바로 아래 붙으므로 생김새를 맞춘다. 나란히 놓인 두 줄이 다른 방식으로
    그려져 있으면 눈이 두 번 적응해야 한다. */
 .질감칸 { margin-bottom: 14px; }
+/* 색상띠가 컬러라 이 줄만 회색이면 눈이 먼저 색상띠로 간다. 같은 무게로 보이게 컬러로 둔다.
+   왼쪽(매끈)이 차갑고 오른쪽(거침)이 따뜻하다 — 매끈한 면은 빛을 그대로 반사해 차갑게,
+   거친 면은 빛을 흩어 따뜻하게 보이는 것과 같은 방향이라 억지스럽지 않다. */
 .질감띠 {
   position: relative; height: 12px; margin-top: 8px;
   border-radius: 6px; border: 1px solid var(--진한선);
-  background: linear-gradient(to right, #f5f3ee, #b9b4a8, #6f6a60);
+  background: linear-gradient(to right, #3B82C4, #4FA3A5, #C7B15C, #C97F3E, #A8442C);
+}
+/* 5단계라는 것이 보이도록 눈금을 넣는다. 띠만 있으면 연속된 값처럼 읽힌다. */
+.질감띠 .금 {
+  position: absolute; top: 2px; bottom: 2px; width: 1px;
+  margin-left: -0.5px; background: rgba(255,255,255,.55);
 }
 .질감띠 .점 {
   position: absolute; top: -2px; width: 12px; height: 12px; margin-left: -6px;
