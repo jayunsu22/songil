@@ -15,6 +15,7 @@ function 맞나(규칙, p) {
   if (규칙.코드시작 && !코드(p).startsWith(규칙.코드시작.toUpperCase().replace(/[^A-Z0-9]/g, ''))) return false;
   if (규칙.카테고리 && p.카테고리 !== 규칙.카테고리) return false;
   if (규칙.세부분류 && p.세부분류 !== 규칙.세부분류) return false;
+  if (규칙.세부분류포함 && String(p.세부분류 || '').indexOf(규칙.세부분류포함) < 0) return false;
   return true;
 }
 
@@ -33,7 +34,8 @@ if (질.규칙.length) {
   질.규칙.forEach((r, i) => {
     const g = arr.filter(p => 맞나(r, p));
     const 최종 = g.filter(p => 질감찾기(p) === r.질감 && !질.낱개[p.키]);
-    const 조건 = [r.제조사, r.코드계열 && r.코드계열 + '계열', r.코드시작 && r.코드시작 + '*', r.카테고리, r.세부분류].filter(Boolean).join(' ');
+    const 조건 = [r.제조사, r.코드계열 && r.코드계열 + '계열', r.코드시작 && r.코드시작 + '*',
+                  r.카테고리, r.세부분류, r.세부분류포함 && '*' + r.세부분류포함 + '*'].filter(Boolean).join(' ') || '(전체)';
     console.log(' ', String(i + 1).padStart(2) + '.', 조건.padEnd(22), '→', String(r.질감).padEnd(7),
       String(g.length).padStart(4) + '건 걸림', '/', String(최종.length).padStart(4) + '건 최종 적용');
     if (g.length === 0) console.log('       ⚠ 한 건도 안 걸렸다. 코드나 제조사 이름을 확인할 것.');

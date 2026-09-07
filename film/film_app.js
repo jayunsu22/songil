@@ -105,6 +105,8 @@
         if (r.코드시작 && 씻기(p.코드).indexOf(씻기(r.코드시작)) !== 0) continue;
         if (r.카테고리 && p.카테고리 !== r.카테고리) continue;
         if (r.세부분류 && p.세부분류 !== r.세부분류) continue;
+        // 세부분류포함: '매트' 로 걸면 수퍼매트·소프트매트를 한 번에 잡는다.
+        if (r.세부분류포함 && String(p.세부분류 || '').indexOf(r.세부분류포함) < 0) continue;
         값 = r.질감;                 // 뒤에 온 규칙이 앞 규칙을 덮는다
       }
       if (낱개[p.키]) 값 = 낱개[p.키];  // 낱개는 규칙을 언제나 이긴다
@@ -119,15 +121,16 @@
     if (자리 < 0) return null;
     var 비율 = 질감단계.length > 1 ? (자리 / (질감단계.length - 1)) * 100 : 50;
 
+    // 색상띠와 같은 모양으로 둔다. 위아래로 나란히 놓이니 같은 방식으로 읽히는 편이 낫다.
     var 칸 = document.createElement('div');
     칸.className = '질감칸';
     칸.innerHTML =
-      '<div class="질감줄">' +
-        '<span class="끝">매끈</span>' +
-        '<span class="질감바"><span class="점" style="left:' + 비율.toFixed(1) + '%"></span></span>' +
-        '<span class="끝">거침</span>' +
-      '</div>' +
-      '<div class="질감이름">' + 이스케이프(p.질감) + '</div>';
+      '<div class="질감띠"><span class="점" style="left:' + 비율.toFixed(1) + '%"></span></div>' +
+      '<div class="질감눈금">' +
+        '<span>매끈</span>' +
+        '<span class="지금">' + 이스케이프(p.질감) + '</span>' +
+        '<span>거침</span>' +
+      '</div>';
     return 칸;
   }
 
