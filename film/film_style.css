@@ -658,3 +658,25 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
   margin-top: 7px; font-size: 12px; color: var(--옅은글자);
 }
 .질감눈금 .지금 { color: var(--글자); font-weight: 600; }
+
+/* ---------- 바닥: 제휴·광고 문의 ---------- */
+
+/* 도구를 다 쓰고 내려온 사람만 본다. 조용해야 한다 —
+   여기서 눈에 띄려고 색을 채우면 도구가 아니라 광고판으로 보인다.
+   대신 번호만 눌러서 걸리도록 밑줄 대신 점선 테두리를 준다. */
+.바닥 {
+  max-width: 720px; margin: 0 auto; padding: 22px 16px 40px;
+  border-top: 1px solid var(--선);
+  text-align: center;
+}
+.바닥 .머리 { font-size: 12px; font-weight: 600; color: var(--흐린글자); letter-spacing: -0.02em; }
+.바닥 .글 { margin-top: 3px; font-size: 11px; color: var(--흐린글자); opacity: .8; }
+.바닥 .전화 {
+  display: inline-block; margin-top: 9px;
+  padding: 7px 15px; border-radius: 999px;
+  background: var(--판); border: 1px solid var(--선);
+  color: var(--글자); text-decoration: none;
+  font-size: 15px; font-weight: 700; letter-spacing: -0.02em;
+  -webkit-tap-highlight-color: transparent;
+}
+.바닥 .전화:active { background: var(--바탕); }

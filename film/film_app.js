@@ -50,6 +50,7 @@
 
   // 연락처는 데이터를 기다릴 필요가 없다. 화면이 뜨는 즉시 보여야 한다.
   연락처그리기();
+  바닥그리기();
 
   function 연락처그리기() {
     var 설정 = (typeof FilmAd !== 'undefined' && FilmAd) || null;
@@ -61,6 +62,22 @@
     el.innerHTML =
       (문.머리 ? '<span class="머리">' + 이스케이프(문.머리) + '</span>' : '') +
       '<span class="전화">' + 이스케이프(문.전화) + '</span>';
+    el.hidden = false;
+  }
+
+  /* 맨 아래 제휴·광고 문의. 위 연락처와 달리 이건 광고를 실을 사람을 찾는 자리다.
+     전화번호는 film_ad.js 한 곳에만 두므로 여기서 글자를 지어내지 않는다. */
+  function 바닥그리기() {
+    var 설정 = (typeof FilmAd !== 'undefined' && FilmAd) || null;
+    var 제 = 설정 && 설정.제휴;
+    var el = $('바닥');
+    if (!el || !제 || !제.전화 || 제.켜기 === false) return;
+    el.innerHTML =
+      (제.머리 ? '<div class="머리">' + 이스케이프(제.머리) + '</div>' : '') +
+      (제.글 ? '<div class="글">' + 이스케이프(제.글) + '</div>' : '') +
+      '<a class="전화" href="tel:' + 이스케이프(제.전화) + '"' +
+      ' aria-label="' + 이스케이프((제.머리 || '') + ' ' + 제.전화) + ' 전화하기">' +
+      이스케이프(제.전화) + '</a>';
     el.hidden = false;
   }
 
@@ -442,9 +459,11 @@
 
   /* ---------- 유입 경로 ----------
 
-     ?c=pro  인테리어 업체에게 직접 보내는 주소
-     ?c=band 인테리어필름 밴드에 올리는 주소
-     한 번 들어오면 이 폰에 남겨서, 다음에 주소 없이 들어와도 같은 문구를 본다. */
+     ?c=pro   인테리어 업체에게 직접 보내는 주소
+     ?c=band  인테리어필름 밴드에 올리는 주소
+     ?c=share 공유창이 붙이는 주소 (카톡으로 퍼진 링크)
+     pro·band 는 한 번 들어오면 이 폰에 남겨서, 다음에 주소 없이 들어와도 같은 문구를 본다.
+     share 는 남기지 않는다 — 이유는 film_ad.js 의 share 항목에 적어두었다. */
 
   var 경로키 = 'filmdamoa_channel_v1';
 
@@ -454,7 +473,9 @@
     var 표 = (설정 && 설정.경로) || {};
     var q = new URLSearchParams(location.search).get('c');
     if (q && 표[q]) {
-      try { localStorage.setItem(경로키, q); } catch (e) { /* 무시 */ }
+      if (표[q].고정 !== false) {
+        try { localStorage.setItem(경로키, q); } catch (e) { /* 무시 */ }
+      }
       return q;
     }
     try {
@@ -467,7 +488,7 @@
     var 설정 = 광고설정();
     var 표 = (설정 && 설정.경로) || {};
     var 지금 = 지금경로();
-    if (!지금 || !표[지금]) return;
+    if (!지금 || !표[지금] || !표[지금].문구) return;
 
     var 띠 = document.createElement('p');
     띠.className = '경로띠';
@@ -606,8 +627,10 @@
     // 카카오처럼 링크를 검사·가공하는 중계자를 거치면 % 가 다시 인코딩되어(%EC → %25EC)
     // 클릭이 깨진다. 쉼표 때 겪은 것과 같은 부류의 문제다.
     // 레코드 id 는 순수 영숫자(rec024JQMaq1Qlswa)라 어떤 중계자를 거쳐도 변하지 않는다.
+    // c=share 를 붙여야 카톡으로 퍼진 방문을 '직접' 과 구분해서 셀 수 있다.
+    // 순수 영숫자라 r= 과 같은 이유로 어떤 중계자를 거쳐도 안전하다.
     return location.origin + location.pathname + '?' +
-      제품들.map(function (p) { return 'r=' + p.id; }).join('&');
+      제품들.map(function (p) { return 'r=' + p.id; }).join('&') + '&c=share';
   }
 
   // 카카오톡 인앱 브라우저(안드로이드 WebView)에는 navigator.share 가 아예 없다.
