@@ -64,15 +64,72 @@
     el.hidden = false;
   }
 
-  fetch('film-db.json')
-    .then(function (r) {
+  // 질감은 film-db.json 과 따로 둔다. film-db.json 은 에어테이블에서 자동 생성되는 파일이라
+  // 거기 손으로 넣은 값을 적으면 다음 생성 때 지워진다(한솔 색상값에서 이미 겪었다).
+  // 따로 두면 파일 하나만 고쳐 올리면 되고, 되돌리기도 쉽다.
+  Promise.all([
+    fetch('film-db.json').then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
-    })
-    .then(시작)
+    }),
+    fetch('film_texture.json').then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; }),   // 질감이 없어도 도구는 그대로 돌아가야 한다
+  ])
+    .then(function (둘) { 질감붙이기(둘[0], 둘[1]); 시작(둘[0]); })
     .catch(function (e) {
       $('총건수').textContent = '데이터를 불러오지 못했습니다 (' + e.message + ')';
     });
+
+  /* ---------- 질감 ----------
+
+     제품 이미지로는 질감을 알 수 없다. 이미지의 25%가 사진이 아니라 단색 칠이고,
+     이미지로 재면 촉감이 아니라 무늬를 재게 된다 — 매끈한 우드가 무늬만 진하면
+     거침으로 찍힌다. 그래서 사람이 넣는다. film_texture.json 을 보라. */
+
+  var 질감단계 = [];
+
+  function 질감붙이기(목록, 질) {
+    if (!질) return;
+    질감단계 = 질.단계 || [];
+    var 규칙 = 질.규칙 || [], 낱개 = 질.낱개 || {};
+    var 씻기 = function (v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+
+    목록.forEach(function (p) {
+      var 값 = null;
+      for (var i = 0; i < 규칙.length; i++) {
+        var r = 규칙[i];
+        if (r.제조사 && p.제조사 !== r.제조사) continue;
+        // 코드계열: 숫자 앞 글자만 정확히 비교한다. 'PS 계열' 이라 했을 때 PSM 까지
+        // 딸려오는 것을 막는다(영림 PS 100건 vs PSM 19건은 다른 시리즈다).
+        if (r.코드계열 && 씻기(p.코드).replace(/[0-9].*$/, '') !== 씻기(r.코드계열)) continue;
+        if (r.코드시작 && 씻기(p.코드).indexOf(씻기(r.코드시작)) !== 0) continue;
+        if (r.카테고리 && p.카테고리 !== r.카테고리) continue;
+        if (r.세부분류 && p.세부분류 !== r.세부분류) continue;
+        값 = r.질감;                 // 뒤에 온 규칙이 앞 규칙을 덮는다
+      }
+      if (낱개[p.키]) 값 = 낱개[p.키];  // 낱개는 규칙을 언제나 이긴다
+      if (값) p.질감 = 값;
+    });
+  }
+
+  // 아직 안 채운 제품에는 아무것도 안 띄운다. 모르는 것을 '보통' 이라고 하면 거짓말이 된다.
+  function 질감칸만들기(p) {
+    if (!p.질감 || !질감단계.length) return null;
+    var 자리 = 질감단계.indexOf(p.질감);
+    if (자리 < 0) return null;
+    var 비율 = 질감단계.length > 1 ? (자리 / (질감단계.length - 1)) * 100 : 50;
+
+    var 칸 = document.createElement('div');
+    칸.className = '질감칸';
+    칸.innerHTML =
+      '<div class="질감줄">' +
+        '<span class="끝">매끈</span>' +
+        '<span class="질감바"><span class="점" style="left:' + 비율.toFixed(1) + '%"></span></span>' +
+        '<span class="끝">거침</span>' +
+      '</div>' +
+      '<div class="질감이름">' + 이스케이프(p.질감) + '</div>';
+    return 칸;
+  }
 
   function 시작(목록) {
     전체 = 목록;
@@ -1374,6 +1431,8 @@
     }
 
     el.appendChild(색자리만들기(p));
+    var 질칸 = 질감칸만들기(p);
+    if (질칸) el.appendChild(질칸);
 
     var 표 = document.createElement('table');
     표.className = '표';

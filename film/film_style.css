@@ -625,3 +625,23 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
   font-size: 12px; color: var(--흐린글자);
 }
 .눈금 b { font-weight: 400; color: var(--옅은글자); margin-right: 4px; }
+
+/* ---------- 질감 ----------
+
+   색은 피커로 보이는데 촉감은 볼 방법이 없다. 매끈한지 엠보인지는 실장이 시공 전에
+   가장 궁금해하는 것이라(바탕 흠집이 비치느냐가 걸린다) 한 줄로 보여준다.
+   아직 안 채운 제품에는 아무것도 안 띄운다 — 모르는 것을 '보통'이라 하면 거짓말이다. */
+.질감칸 { margin-bottom: 14px; }
+.질감줄 { display: flex; align-items: center; gap: 9px; }
+.질감줄 .끝 { flex: 0 0 auto; font-size: 11px; color: var(--옅은글자); }
+.질감바 {
+  position: relative; flex: 1 1 auto; height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #e4e1d8, var(--견본판));
+}
+.질감바 .점 {
+  position: absolute; top: -5px; width: 16px; height: 16px; margin-left: -8px;
+  border-radius: 50%; background: var(--포인트);
+  border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.28);
+}
+.질감이름 { margin-top: 6px; font-size: 12px; color: var(--흐린글자); text-align: center; }
