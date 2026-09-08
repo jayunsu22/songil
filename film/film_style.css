@@ -281,14 +281,23 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
 .결과머리:empty { margin: 0; }
 .결과머리 b { color: var(--글자); }
 
-/* 팬톤 검색 머리말. 번호만 적혀 있으면 화면의 필름들이 왜 나왔는지 알 수 없어서
-   그 팬톤 색을 칩으로 같이 보여준다. */
-.팬톤칩 {
+/* 색상코드 검색 머리말. 코드만 적혀 있으면 화면의 필름들이 왜 나왔는지 알 수 없어서
+   그 색을 칩으로 같이 보여준다. */
+.색칩머리 {
   display: inline-block; vertical-align: -2px;
   width: 14px; height: 14px; margin-right: 6px;
   border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.18);
 }
-.팬톤주의 { color: var(--옅은글자); font-size: 12px; }
+/* 솔리드로 좁혀 놓았으니 넓혀 볼 길을 같이 준다. 결과를 가리지 않게 작게 둔다. */
+.넓히기 {
+  display: inline-block; margin-left: 8px;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--판); color: var(--흐린글자);
+  border: 1px solid var(--선);
+  font: inherit; font-size: 12px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.넓히기:active { background: var(--바탕); }
 .결과머리 .좁힘 { color: var(--옅은글자); font-weight: 400; }
 
 .격자 { display: grid; gap: 9px; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
