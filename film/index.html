@@ -45,10 +45,16 @@
   <section class="입구">
     <!-- 1. 코드로 찾기. 코드를 아는 사람이 가장 빠르게 가는 길이라 맨 위에 둔다. -->
     <form class="코드줄" id="코드폼" autocomplete="off">
-      <input type="search" id="글자입력" placeholder="필름 넘버 · 색상코드 (예: PS010, #C89664)"
+      <input type="search" id="글자입력" placeholder="필름 넘버 · 색상코드로 찾기"
              inputmode="search" enterkeyhint="search" aria-label="필름 넘버, 색상명 또는 색상코드">
       <button type="submit" class="코드버튼">검색</button>
     </form>
+
+    <!-- 무엇을 넣을 수 있는지는 칸 밖에 적는다. 안내글로 넣으면 폰에서 잘려서
+         '(예: PS010, #C8…' 까지만 보인다 - 정작 알려주려던 것이 안 보인다. -->
+    <p class="찾기예시">
+      <b>PS010</b> · <b>영림50번</b> · <b>영림50</b> · <b>#C2A577</b> 검색 가능
+    </p>
 
     <!-- 2. 사진으로 찾기. 즐겨찾기와 한 줄에 둔다 -->
     <div class="주요줄">

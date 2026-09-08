@@ -96,26 +96,39 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
 
 .입구 { margin-bottom: 18px; }
 
-/* 코드 검색 — 한 줄에 붙여 하나의 덩어리로 보이게 한다. */
-.코드줄 { display: flex; gap: 8px; margin-bottom: 10px; }
+/* 코드 검색 — 한 줄에 붙여 하나의 덩어리로 보이게 한다.
+   첫 화면에서 가장 먼저 눈에 들어와야 하는 자리다. 코드를 아는 사람이 제일 빠르게
+   가는 길인데, 흰 칸으로 두면 아래 갈색 사진버튼에 시선을 다 뺏긴다.
+   테두리를 포인트색으로 올리고 옅은 테를 하나 둘러 띄운다. */
+.코드줄 { display: flex; gap: 8px; margin-bottom: 8px; }
 #글자입력 {
   flex: 1; min-width: 0;
-  padding: 14px 16px;
-  border: 1px solid var(--선); border-radius: var(--둥글);
+  padding: 13px 16px;
+  border: 2px solid var(--포인트); border-radius: var(--둥글);
   background: var(--판); font: inherit; font-size: 15px;
-  box-shadow: var(--그림자);
+  box-shadow: 0 0 0 4px rgba(107, 83, 68, .10), var(--그림자);
 }
 #글자입력::placeholder { color: var(--옅은글자); }
-#글자입력:focus { outline: 2px solid var(--포인트); outline-offset: -1px; }
+#글자입력:focus {
+  outline: none;
+  box-shadow: 0 0 0 5px rgba(107, 83, 68, .22), var(--그림자);
+}
 .코드버튼 {
-  flex: 0 0 auto; padding: 14px 22px;
-  background: var(--판); color: var(--글자);
-  border: 1px solid var(--진한선); border-radius: var(--둥글);
-  font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
-  box-shadow: var(--그림자);
+  flex: 0 0 auto; padding: 13px 22px;
+  background: var(--포인트); color: #fff;
+  border: 2px solid var(--포인트); border-radius: var(--둥글);
+  font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(107, 83, 68, .10), var(--그림자);
   -webkit-tap-highlight-color: transparent;
 }
-.코드버튼:active { background: var(--바탕); }
+.코드버튼:active { background: var(--포인트진); border-color: var(--포인트진); }
+
+/* 무엇을 넣을 수 있는지. 칸 안 안내글로 넣으면 폰에서 잘린다. */
+.찾기예시 {
+  margin: 0 0 12px; padding: 0 2px;
+  font-size: 12px; line-height: 1.5; color: var(--흐린글자);
+}
+.찾기예시 b { color: var(--포인트); font-weight: 600; }
 
 /* 사진 버튼과 즐겨찾기를 한 줄에 둔다. 즐겨찾기가 없으면(저장 0개)
    사진 버튼이 flex:1 로 저절로 한 줄을 다 차지한다. */
