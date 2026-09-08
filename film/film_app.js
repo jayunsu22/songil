@@ -1419,29 +1419,6 @@
     return parseInt(m[2], 10);
   }
 
-  // 없는 번호를 부를 때 "없습니다"로 끝내면 오타인지 진짜 없는 건지 모른다.
-  // 위아래로 가장 가까운 번호를 같이 알려준다.
-  function 가까운번호(목록, 번호, 제조사) {
-    // 별명이 있는 브랜드면 별명 번호만 가지고 권한다.
-    // 영림에 '966번(PW966-2)' 을 권해봐야 아무도 그렇게 부르지 않는다.
-    var 별것 = [], 코드것 = [];
-    목록.forEach(function (p) {
-      var 별 = 별명번호(p, 제조사);
-      if (별 != null) 별것.push({ n: 별, 코드: p.코드 });
-      var n = 코드숫자(p.코드);
-      if (n != null) 코드것.push({ n: n, 코드: p.코드 });
-    });
-    var 것 = 별것.length ? 별것 : 코드것;
-    것.sort(function (a, b) { return Math.abs(a.n - 번호) - Math.abs(b.n - 번호); });
-    var 본것 = {}, 뽑기 = [];
-    for (var i = 0; i < 것.length && 뽑기.length < 3; i++) {
-      if (본것[것[i].n]) continue;
-      본것[것[i].n] = 1;
-      뽑기.push(것[i].n + '번(' + 것[i].코드 + ')');
-    }
-    return 뽑기;
-  }
-
   function 검색() {
     색코드 = null;   // 지난 검색이 색상코드였어도 이번 것은 아직 모른다
 
@@ -1508,17 +1485,8 @@
           return;
         }
 
-        var 가까 = 가까운번호(후보, 번호, 쪼갬.제조사);
-        var 어디 = 쪼갬.제조사 || '전체';
         결과그리기([], '', {
-          안내: 어디 + '에 ' + 번호 + '번은 없습니다.' +
-                (가까.length ? ' 가까운 번호: ' + 가까.join(', ') : ''),
-          버튼: 어디 + ' 전체 보기 (' + 후보.length + '개)',
-          동작: function () {
-            글자 = 쪼갬.제조사 || '';
-            $('글자입력').value = 글자;
-            if (글자) 검색(); else 결과그리기([], '');
-          },
+          안내: (쪼갬.제조사 ? 쪼갬.제조사 + '에 ' : '') + 번호 + '번은 없습니다.',
         });
         return;
       }
@@ -1583,15 +1551,17 @@
       var 빈 = document.createElement('div');
       빈.className = '빈결과';
 
-      // 막다른 골목에서 빠져나갈 길을 같이 준다.
+      // 막다른 골목에서 빠져나갈 길을 같이 준다. 줄 길이 없으면 안내만 남긴다.
       if (제안) {
         빈.textContent = 제안.안내;
-        var 풀기 = document.createElement('button');
-        풀기.type = 'button';
-        풀기.className = '빈결과버튼';
-        풀기.textContent = 제안.버튼;
-        풀기.addEventListener('click', 제안.동작);
-        빈.appendChild(풀기);
+        if (제안.버튼) {
+          var 풀기 = document.createElement('button');
+          풀기.type = 'button';
+          풀기.className = '빈결과버튼';
+          풀기.textContent = 제안.버튼;
+          풀기.addEventListener('click', 제안.동작);
+          빈.appendChild(풀기);
+        }
         격자.appendChild(빈);
         return;
       }
