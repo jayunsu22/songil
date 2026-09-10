@@ -295,3 +295,31 @@
 /* 사진 버튼이 끼면서 줄이 좁아진다. 금액이 '250,000 / 원' 으로 갈라지면
    숫자를 잘못 읽기 쉬우므로 한 덩어리로 붙여둔다. */
 .item-head .i-amt { white-space: nowrap; }
+
+/* ---------- 발행 뒤 사진 올림 상태 ----------
+   링크는 발행 즉시 나오지만 사진은 한 장씩 뒤따라 올라간다. 이 줄을 못 보고
+   바로 보내면 받는 쪽에서 사진이 빠진 채로 열린다 - 눈에 띄어야 한다. */
+#photoUp.up-busy {
+  color: #7a5d00;
+  font-weight: 700;
+  background: #fffbe9;
+  border: 1px solid #f0dfa8;
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+#photoUp.up-done {
+  color: #1f6b41;
+  font-weight: 700;
+  background: #edf9f1;
+  border: 1px solid #b7e2c8;
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+#photoUp.up-fail {
+  color: #9a2f14;
+  font-weight: 700;
+  background: #fdf0ea;
+  border: 1px solid #e8b9a6;
+  border-radius: 10px;
+  padding: 9px 11px;
+}

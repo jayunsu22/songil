@@ -119,6 +119,7 @@ function boot() {
   $('#sizeSelect').value = state.평형 || '확인안됨';
   $('#memoText').value = state.메모 || '';
   $('#relayText').value = state.전달사항 || '';
+  $('#noteText').value = state.안내문구 || '';
 
   buildAdjust();
   필름칸그리기();
@@ -583,10 +584,9 @@ function persist() {
   state.현장명 = $('#siteName').value.trim();
   state.메모 = $('#memoText').value.trim();
   state.전달사항 = $('#relayText').value.trim();
-  // 기본 문구 그대로면 저장하지 않는다. 저장해 버리면 나중에 품목을 바꿔도
-  // 문구가 옛날 것으로 굳어버린다.
-  const 적은글 = ($('#noteText').value || '').trim();
-  state.안내문구 = (적은글 && 적은글 !== 기본안내문구().trim()) ? 적은글 : '';
+  // 안내문구는 여기서 건드리지 않는다. #noteText 는 발행 창 안에 있어서
+  // 창을 안 열면 빈 칸이고, persist() 는 품목을 체크할 때마다 불린다.
+  // 여기서 읽으면 발행 뒤 돌아와 품목 하나만 눌러도 문구가 지워진다.
   save(STORAGE_KEY, state);
 }
 
@@ -598,7 +598,14 @@ function esc(s) {
 /* ---------- 헤더 이벤트 ---------- */
 $('#siteName').addEventListener('input', persist);
 $('#memoText').addEventListener('input', persist);
-$('#noteText').addEventListener('input', persist);
+/* 안내문구는 적은 그 자리에서만 저장한다.
+   기본 문구 그대로면 저장하지 않는다 - 저장해 버리면 나중에 품목을 바꿔도
+   문구가 옛날 것으로 굳어버린다. */
+$('#noteText').addEventListener('input', () => {
+  const 적은글 = ($('#noteText').value || '').trim();
+  state.안내문구 = (적은글 && 적은글 !== 기본안내문구().trim()) ? 적은글 : '';
+  save(STORAGE_KEY, state);
+});
 
 $('#filmPrice').addEventListener('input', () => {
   const v = parseFloat($('#filmPrice').value);
@@ -677,6 +684,9 @@ window.addEventListener('pagehide', persist);
    ========================================================================= */
 
 let 발행결과 = null;   // { 견적코드, opts }
+// 사진을 올리는 중인지. 링크는 발행 즉시 나오지만 사진은 한 장씩 뒤따라 올라가므로,
+// 다 올라가기 전에 링크를 보내면 받는 쪽에 사진이 빠진 채로 열린다.
+let 사진올림 = null;   // { 끝난것, 전체 } — 올리는 중일 때만 값이 있다
 
 /* 견적서에 평소 나가는 안내문구를 그대로 만들어 준다.
    1) 체크한 품목들의 공통설명(중복 제거) 2) 가맹점 공통 안내문구
@@ -901,12 +911,24 @@ $('#optDesc').addEventListener('change', () => {
   if (발행결과) 링크표시();
 });
 
+/* 사진이 아직 올라가는 중이면 알려준다. 막지는 않는다 -
+   급할 때 사진 없이 링크부터 보내는 것도 쓰는 길이다. */
+function 사진기다림알림() {
+  if (!사진올림) return false;
+  toast('사진 ' + 사진올림.끝난것 + '/' + 사진올림.전체 + ' 올리는 중입니다. 다 올라간 뒤에 보내세요.');
+  return true;
+}
+
 $('#copyLink').addEventListener('click', async () => {
-  toast(await copy(링크()) ? '링크를 복사했습니다' : '복사에 실패했습니다. 링크를 길게 눌러 복사해 주세요.');
+  const ok = await copy(링크());
+  if (!ok) { toast('복사에 실패했습니다. 링크를 길게 눌러 복사해 주세요.'); return; }
+  if (!사진기다림알림()) toast('링크를 복사했습니다');
 });
 
 $('#copyText').addEventListener('click', async () => {
-  toast(await copy(buildText()) ? '견적 내용을 복사했습니다' : '복사에 실패했습니다.');
+  const ok = await copy(buildText());
+  if (!ok) { toast('복사에 실패했습니다.'); return; }
+  if (!사진기다림알림()) toast('견적 내용을 복사했습니다');
 });
 
 $('#pubClose').addEventListener('click', closePublish);
@@ -919,6 +941,7 @@ $('#pubBack').addEventListener('click', closePublish);
 $('#openLink').addEventListener('click', () => {
   const u = 링크();
   if (u) window.open(u, '_blank', 'noopener');
+  사진기다림알림();
 });
 
 /* 고쳐서 다시 발행: 새 견적코드로 새로 저장한다.
@@ -1990,6 +2013,8 @@ $('#markBack').addEventListener('click', 표시닫기);
    한꺼번에 보내면 요청이 커져서 신호 약한 현장에서 통째로 실패한다. */
 async function 표시사진올리기(견적코드) {
   const 상태 = $('#photoUp');
+  사진올림 = null;
+  상태.className = 'hint';
   if (!사진가능 || !견적코드) { 상태.textContent = ''; return; }
 
   let 사진들 = [];
@@ -2004,11 +2029,14 @@ async function 표시사진올리기(견적코드) {
     });
   });
 
-  if (!올릴것.length) { 상태.textContent = ''; return; }
+  if (!올릴것.length) { 상태.textContent = ''; 상태.className = 'hint'; return; }
 
   let 성공 = 0, 실패 = 0;
+  사진올림 = { 끝난것: 0, 전체: 올릴것.length };
   for (let i = 0; i < 올릴것.length; i++) {
-    상태.textContent = '표시 사진 올리는 중… ' + (i + 1) + '/' + 올릴것.length;
+    상태.className = 'hint up-busy';
+    상태.textContent = '사진 올리는 중… ' + (i + 1) + '/' + 올릴것.length +
+      ' · 다 올라간 뒤에 보내세요';
     const it = 올릴것[i];
     try {
       const 구운것 = await QuotePhotos.표시박은사진(it.사진.blob, it.사각);
@@ -2025,15 +2053,18 @@ async function 표시사진올리기(견적코드) {
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       성공 += 1;
+      사진올림.끝난것 = 성공;
     } catch (e) {
       실패 += 1;
       console.warn('사진 올리기 실패', it.체크_ID, e);
     }
   }
 
+  사진올림 = null;
+  상태.className = 'hint ' + (실패 ? 'up-fail' : 'up-done');
   상태.textContent = 실패
     ? '사진 ' + 성공 + '장 올림 · ' + 실패 + '장 실패 (다시 발행하면 재시도합니다)'
-    : '표시 사진 ' + 성공 + '장을 올렸습니다';
+    : '사진 ' + 성공 + '장까지 다 올라갔습니다. 이제 보내세요.';
 }
 
 /* ---------- 품목설명 고치기 ----------
