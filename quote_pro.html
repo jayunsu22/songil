@@ -29,6 +29,18 @@
 <main id="zones"></main>
 
 <section id="adjWrap" hidden>
+  <!-- 필름 자재비. 비싼 필름을 쓰는 현장이 가끔 있어 견적마다 바꿀 수 있게 한다.
+       난이도계수나 전체조정%로는 못 맞춘다 - 그건 인건비까지 같이 올리는데,
+       품목마다 자재비 비중이 13%(샤시)~43%(가벽)로 제각각이라 하나의 %로
+       전부 맞출 수가 없다. -->
+  <h2>필름 자재비</h2>
+  <div class="film-row">
+    <input type="number" id="filmPrice" inputmode="numeric" min="0" step="500" autocomplete="off">
+    <span class="film-unit">원 / m</span>
+    <button type="button" id="filmReset">기본값</button>
+  </div>
+  <div id="filmNote"></div>
+
   <h2>전체 조정</h2>
   <div class="adj-row"><select class="adj-name" data-slot="0"></select><select class="adj-pct" data-slot="0"></select></div>
   <div class="adj-row"><select class="adj-name" data-slot="1"></select><select class="adj-pct" data-slot="1"></select></div>

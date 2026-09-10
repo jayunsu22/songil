@@ -31,7 +31,7 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
+let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -116,10 +116,45 @@ function boot() {
   $('#relayText').value = state.전달사항 || '';
 
   buildAdjust();
+  필름칸그리기();
   buildAll();
   구역장수갱신();
   refresh();
   $('#adjWrap').hidden = false;
+}
+
+/* ---------- 필름 자재비 ----------
+   품목마다 자재비단가가 따로 있지만 실제로는 전부 같은 값(9,000)이다.
+   비싼 필름을 쓰는 현장이 가끔 있어 견적 단위로 바꿀 수 있게 한다.
+
+   기본값을 코드에 박지 않고 마스터에서 가장 많이 쓰이는 값을 읽는다.
+   에어테이블에서 단가를 올리면 기본값도 따라 올라간다. */
+function 기본자재비() {
+  if (!MASTER) return 0;
+  const 표 = {};
+  MASTER.zones.forEach((z) => z.items.forEach((it) => {
+    (it.옵션들 || []).forEach((o) => {
+      const v = o.자재비단가 || 0;
+      표[v] = (표[v] || 0) + 1;
+    });
+  }));
+  let 최다 = 0, 값 = 0;
+  Object.keys(표).forEach((k) => { if (표[k] > 최다) { 최다 = 표[k]; 값 = +k; } });
+  return 값;
+}
+
+function 적용자재비() {
+  return state.자재비 == null ? 기본자재비() : state.자재비;
+}
+
+function 필름칸그리기() {
+  const 기본 = 기본자재비();
+  const 지금 = 적용자재비();
+  $('#filmPrice').value = 지금;
+  // 기본값과 다를 때만 알린다. 바꿔놓고 잊으면 다음 현장 견적이 통째로 틀어진다.
+  $('#filmNote').textContent = (지금 === 기본)
+    ? ''
+    : '기본 ' + won(기본) + ' 이 아닌 ' + won(지금) + ' 으로 계산 중입니다.';
 }
 
 /* ---------- 평형 필터 ---------- */
@@ -435,7 +470,8 @@ function 선택품목들() {
         수량: s.수량,
         난이도: s.난이도 || 1,
         인건비단가: o.인건비단가,
-        자재비단가: o.자재비단가,
+        // 필름 자재비는 견적 단위로 정한다. 품목에 저장된 값을 덮어쓴다.
+        자재비단가: 적용자재비(),
         자재소모량: o.자재소모량,
         품목설명: o.품목설명,
         견적기준: o.견적기준,
@@ -505,6 +541,24 @@ function esc(s) {
 $('#siteName').addEventListener('input', persist);
 $('#memoText').addEventListener('input', persist);
 $('#noteText').addEventListener('input', persist);
+
+$('#filmPrice').addEventListener('input', () => {
+  const v = parseFloat($('#filmPrice').value);
+  // 빈 칸이나 0 이하는 기본값으로 되돌린다. 자재비 0 원짜리 견적이 나가면 안 된다.
+  state.자재비 = (isFinite(v) && v > 0) ? Math.round(v) : null;
+  $('#filmNote').textContent = (적용자재비() === 기본자재비())
+    ? '' : '기본 ' + won(기본자재비()) + ' 이 아닌 ' + won(적용자재비()) + ' 으로 계산 중입니다.';
+  refresh();
+  save(STORAGE_KEY, state);
+});
+
+$('#filmReset').addEventListener('click', () => {
+  state.자재비 = null;
+  필름칸그리기();
+  refresh();
+  save(STORAGE_KEY, state);
+  toast('기본 자재비로 되돌렸습니다');
+});
 $('#noteReset').addEventListener('click', () => {
   state.안내문구 = '';
   $('#noteText').value = 기본안내문구();
@@ -534,13 +588,14 @@ $('#resetBtn').addEventListener('click', async () => {
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
+  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
   현장ID확보();     // 새 현장이 시작됐다. 사진이 앞 현장에 섞이면 안 된다.
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
   $('#memoText').value = '';
   $('#relayText').value = '';
   $('#noteText').value = '';
+  필름칸그리기();
   save(STORAGE_KEY, state);
   syncAdjust();
   buildAll();
@@ -1030,7 +1085,7 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' },
+      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' },
       항목.상태
     );
     if (!state.현장ID) state.현장ID = 항목.현장ID || '';
@@ -1041,6 +1096,7 @@ $('#boxList').addEventListener('click', async (e) => {
     $('#memoText').value = state.메모 || '';
     $('#relayText').value = state.전달사항 || '';
     $('#noteText').value = state.안내문구 || '';
+    필름칸그리기();
     syncAdjust();
     buildAll();
     구역장수갱신();
