@@ -243,3 +243,26 @@ body.view { padding-bottom: 40px; }
   border: 1px solid #e3e6ec;
   background: #eef0f4;
 }
+
+/* ---------- 인건비만 견적서 (?w=1) ----------
+   자재는 업자가 대주는 건. 자재비를 뺀 금액이라, 받는 쪽이 합산 견적서와
+   헷갈리지 않게 합계 아래에 조건을 분명히 적는다. */
+.v-wagenote {
+  margin-top: 10px;
+  padding: 11px 13px;
+  border: 1px solid #b7d3e8;
+  border-radius: 10px;
+  background: #eef6fc;
+  color: #17415e;
+  font-size: 14px;
+  line-height: 1.6;
+}
+/* 인건비/자재비를 나눠 적기 전에 넣은 직접 입력 품목. 그 줄만 자재비가
+   섞인 전액이다. 금액 옆에 딱지를 붙여 오해가 없게 한다. */
+.v-mixed {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9a2f14;
+}

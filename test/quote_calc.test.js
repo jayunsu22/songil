@@ -195,3 +195,73 @@ test('금액파싱: 빈 칸은 NaN (안 적은 것과 0원을 구분해야 한�
   assert.ok(Number.isNaN(금액파싱('')));
   assert.ok(Number.isNaN(금액파싱('원')));
 });
+
+/* ---------- 인건비만 견적 ----------
+   "자재는 내가 댈 테니 인건비만 계산해 달라" 는 업자가 있다.
+   합산 금액과 같은 규칙으로 나눠야 인건비 몫 + 자재비 몫 = 라인금액 이 된다. */
+const { lineWage } = require('../quote_calc.js');
+
+test('lineWage: 인건비단가 × 자재소모량 × 난이도 × 수량', () => {
+  // 거실 가벽 10m, 인건비 12,000 · 소모량 2.5 → 300,000
+  const it = { 인건비단가: 12000, 자재비단가: 18000, 자재소모량: 2.5, 난이도: 1, 수량: 10 };
+  assert.strictEqual(lineWage(it), 300000);
+  // 합산은 750,000 이고, 자재비 몫은 그 차액이어야 한다
+  assert.strictEqual(lineAmount(it), 750000);
+  assert.strictEqual(lineAmount(it) - lineWage(it), 450000);
+});
+
+test('lineWage: 난이도가 인건비에도 걸린다', () => {
+  const it = { 인건비단가: 12000, 자재비단가: 18000, 자재소모량: 2.5, 난이도: 1.2, 수량: 10 };
+  assert.strictEqual(lineWage(it), 360000);
+});
+
+test('lineWage: 직접 입력 품목은 적어 넣은 인건비를 그대로 쓴다', () => {
+  const it = { 직접금액: 250000, 인건비: 100000, 자재비: 150000 };
+  assert.strictEqual(lineWage(it), 100000);
+  assert.strictEqual(lineAmount(it), 250000);
+});
+
+test('lineWage: 인건비 0원도 0 으로 센다 (안 적은 것과 다르다)', () => {
+  assert.strictEqual(lineWage({ 직접금액: 150000, 인건비: 0, 자재비: 150000 }), 0);
+});
+
+test('lineWage: 나눠 적기 전 예전 항목은 null (0 이 아니다)', () => {
+  // 0 으로 돌려주면 인건비가 0원인 것처럼 보여서 금액이 틀린다
+  assert.strictEqual(lineWage({ 직접금액: 250000 }), null);
+});
+
+test('calcQuote: 인건비금액·인건비표시금액에 조정이 걸린다', () => {
+  const items = [{ 인건비단가: 12000, 자재비단가: 18000, 자재소모량: 2.5, 난이도: 1, 수량: 10 }];
+  const r = calcQuote(items, [{ 항목명: '업자단가', 비율: -0.1 }]);
+  assert.strictEqual(r.라인들[0].인건비금액, 300000);
+  assert.strictEqual(r.라인들[0].인건비표시금액, 270000);
+  assert.strictEqual(r.라인들[0].표시금액, 675000);
+  assert.strictEqual(r.인건비총액, 270000);
+});
+
+test('calcQuote: 나눌 수 없는 줄은 인건비총액에 전액으로 들어간다', () => {
+  // 모르는 값을 0 으로 깎으면 받을 돈이 줄어든다. 화면에 '자재 포함' 을 붙인다.
+  const items = [
+    { 인건비단가: 12000, 자재비단가: 18000, 자재소모량: 2.5, 난이도: 1, 수량: 10 },
+    { 직접금액: 250000 },
+  ];
+  const r = calcQuote(items, []);
+  assert.strictEqual(r.라인들[1].인건비금액, null);
+  assert.strictEqual(r.라인들[1].인건비표시금액, null);
+  assert.strictEqual(r.인건비총액, 300000 + 250000);
+  assert.strictEqual(r.총액, 750000 + 250000);
+});
+
+test('calcQuote: 인건비만 총액은 자재비를 뺀 금액이다', () => {
+  // 월곡레미안 실제 건: 가벽 10m + 수납장 4m + 직접입력 2건
+  const items = [
+    { 인건비단가: 12000, 자재비단가: 18000, 자재소모량: 2.5, 난이도: 1, 수량: 10 },
+    { 인건비단가: 16000, 자재비단가: 18000, 자재소모량: 2.5, 난이도: 1, 수량: 4 },
+    { 직접금액: 250000, 인건비: 100000, 자재비: 150000 },
+    { 직접금액: 850000, 인건비: 400000, 자재비: 450000 },
+  ];
+  const r = calcQuote(items, []);
+  assert.strictEqual(r.총액, 2190000);
+  assert.strictEqual(r.인건비총액, 300000 + 160000 + 100000 + 400000);
+  assert.strictEqual(r.인건비총액, 960000);
+});

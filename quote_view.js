@@ -10,6 +10,21 @@ const VIEW = {
 const params = new URLSearchParams(location.search);
 const 코드 = (location.pathname.match(/\/q\/([A-Za-z0-9]+)/) || [])[1] || params.get('id') || '';
 const 설명포함 = params.get('d') === '1';
+/* w=1 : 자재는 업자가 대고 인건비만 받는 견적서.
+   금액을 다시 계산하지 않는다 - 발행할 때 줄마다 인건비 몫을 같이 저장해 둔다.
+   이 기능 이전에 발행한 견적서에는 그 값이 없다. 그때는 조용히 합산 견적서로
+   보여준다 - 인건비를 모르는 채로 금액을 깎아 보여주면 사고다. */
+const 인건비요청 = params.get('w') === '1';
+let 인건비만 = false;   // 실제로 인건비 견적서로 그릴지. render() 에서 정한다.
+
+/* 그 줄에 보여줄 금액. 인건비 견적서에서 나뉘어 있지 않은 줄은
+   전액(자재비 포함)을 그대로 쓴다. */
+function 줄금액(l) {
+  return (인건비만 && l.인건비표시금액 != null) ? l.인건비표시금액 : l.표시금액;
+}
+function 자재섞임(l) {
+  return 인건비만 && l.인건비표시금액 == null;
+}
 
 let DATA = null;
 const 해제 = new Set();   // 소비자가 체크 해제한 품목 (?d=1 에서만 쓴다)
@@ -70,6 +85,10 @@ function render() {
   const d = DATA;
   const H = [];
 
+  // 한 줄이라도 인건비 몫이 저장돼 있어야 인건비 견적서로 그린다.
+  인건비만 = 인건비요청 &&
+    (d.라인들 || []).some(function (l) { return l.인건비표시금액 != null; });
+
   // 머리말은 명함처럼 한 장의 카드로 묶는다. 업체명/연락처/블로그/1분견적 주소를
   // 한 덩어리로 보여주고, 그 아래 구분선 뒤에 이 견적서 자체의 정보를 둔다.
   const 연락 = [];
@@ -112,7 +131,8 @@ function render() {
       '<input type="checkbox" class="v-chk" checked data-i="' + i + '">' +
       '<span class="v-nm">' + esc(l.품목명) + '</span>' +
       '<span class="v-qty">' + esc(l.수량) + esc(l.단위) + '</span>' +
-      '<span class="v-amt">' + won(l.표시금액) + '</span>' +
+      '<span class="v-amt">' + won(줄금액(l)) +
+        (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '') + '</span>' +
       '</div>');
     if (설명포함 && l.품목설명) {
       H.push('<div class="v-desc">' + esc(l.품목설명) + '</div>');
@@ -184,7 +204,7 @@ function render() {
    QuoteCalc 로 다시 계산하지 않는다 — 스냅샷 금액을 그대로 써야
    발행 시점 금액과 어긋나지 않는다. */
 function 현재총액() {
-  return DATA.라인들.reduce((s, l, i) => 해제.has(i) ? s : s + l.표시금액, 0);
+  return DATA.라인들.reduce((s, l, i) => 해제.has(i) ? s : s + 줄금액(l), 0);
 }
 
 function renderSum() {
@@ -193,7 +213,9 @@ function renderSum() {
   const 조정됨 = 해제.size > 0;
   const R = [];
 
-  if (d.조정내역_표시 && d.조정_합계율 !== 0 && !조정됨) {
+  // 인건비 견적서에서는 소계·조정 줄을 안 쓴다. 그 소계는 자재비까지 든
+  // 금액이라 인건비 합계와 안 맞아서, 받는 쪽이 계산기를 두드리면 어긋난다.
+  if (!인건비만 && d.조정내역_표시 && d.조정_합계율 !== 0 && !조정됨) {
     R.push('<div class="v-row"><span>소계</span><span>' + won(d.소계) + '</span></div>');
 
     // 조정 이유를 항목명까지 같이 보여준다. '조정 +5%' 만 있으면 받는 쪽이
@@ -211,8 +233,13 @@ function renderSum() {
         퍼센트(d.조정_합계율) + '</span></div>');
     }
   }
-  R.push('<div class="v-row total"><span>합계</span><span>' + won(총) +
+  R.push('<div class="v-row total"><span>' + (인건비만 ? '인건비 합계' : '합계') +
+    '</span><span>' + won(총) +
     (d.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span></div>');
+  if (인건비만) {
+    R.push('<div class="v-wagenote">자재는 시공주가 지급하는 조건입니다. ' +
+      '자재비가 빠진 인건비만의 금액입니다.</div>');
+  }
 
   $v('#vSum').innerHTML = R.join('');
   renderInquiry(조정됨);

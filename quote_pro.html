@@ -78,6 +78,9 @@
     <span>조정내역 표시 <em>소계·조정·합계를 나눠서 보여줍니다</em></span></label>
   <label class="opt"><input type="checkbox" id="optVat" checked>
     <span>부가세 별도 표기</span></label>
+  <!-- 자재를 업자가 대주는 건. 자재비를 빼고 인건비만 청구하는 견적서가 된다. -->
+  <label class="opt"><input type="checkbox" id="optWage">
+    <span>인건비만 보내기 <em>자재는 업자가 대는 건. 자재비를 뺀 금액이 나갑니다</em></span></label>
 
   <div id="pubBefore">
     <p class="hint">발행하면 견적서 링크가 만들어집니다. 발행 시점의 금액이 그대로 저장되어,
@@ -92,7 +95,8 @@
     <button id="copyText" type="button">텍스트 복사</button>
     <button id="openLink" type="button">링크 열기</button>
     <button id="rePublish" type="button">고쳐서 다시 발행</button>
-    <p class="hint" id="pubNote">‘품목설명 포함’은 지금 켜고 끄면 복사될 링크가 바로 바뀝니다.
+    <p class="hint" id="pubNote">‘품목설명 포함’과 ‘인건비만 보내기’는 지금 켜고 끄면 복사될 링크가 바로 바뀝니다.
+      같은 견적을 합산용·인건비용 두 가지로 보낼 수 있습니다.
       메모·조정내역·부가세를 고쳤으면 <b>다시 발행</b>을 눌러야 반영됩니다.
       이미 보낸 링크는 그대로 살아 있습니다.</p>
   </div>
@@ -187,10 +191,17 @@
   <label class="memo-label" for="customName">품목명</label>
   <input type="text" id="customName" autocomplete="off" placeholder="예: 방화문 (앞뒤면·쌍여닫이)">
 
-  <label class="memo-label" for="customAmt">금액 <em>부가세 별도, 이 금액이 그대로 들어갑니다</em></label>
+  <!-- 인건비와 자재비를 나눠 받는다. '자재는 내가 댈 테니 인건비만' 이라는
+       업자에게 인건비만 뽑아 보내려면 이 항목도 나뉘어 있어야 한다. -->
+  <label class="memo-label" for="customWage">인건비 <em>부가세 별도</em></label>
   <!-- type=number 는 콤마와 '원' 을 못 받는다. 글자 칸으로 두고 직접 형식을 맞춘다.
        inputmode=numeric 이라 폰에서는 숫자 자판이 뜬다. -->
-  <input type="text" id="customAmt" inputmode="numeric" autocomplete="off" placeholder="예: 250,000원">
+  <input type="text" id="customWage" inputmode="numeric" autocomplete="off" placeholder="예: 100,000원">
+
+  <label class="memo-label" for="customMat">자재비 <em>자재를 안 대면 0원</em></label>
+  <input type="text" id="customMat" inputmode="numeric" autocomplete="off" placeholder="예: 150,000원">
+
+  <p class="hint" id="customSum">합계 —</p>
 
   <label class="memo-label" for="customDesc">설명 <em>비워두면 견적서에 설명이 안 나갑니다</em></label>
   <textarea id="customDesc" autocomplete="off" rows="3" placeholder="예: 앞뒤면 모두 시공합니다.&#10;문짝 2개, 문틀 포함입니다."></textarea>

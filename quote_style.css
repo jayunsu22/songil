@@ -630,3 +630,11 @@ header {
   background: #fdf6ea;
   color: #7c5620;
 }
+
+/* 직접 입력 칸의 인건비+자재비 합계 미리보기. 적는 즉시 얼마가 되는지 보여준다. */
+#customSum {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}

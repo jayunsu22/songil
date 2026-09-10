@@ -527,6 +527,9 @@ function 선택품목들() {
         수량: '',       // 견적서에 '1세트' 처럼 안 붙게 비워 보낸다
         난이도: 1,
         직접금액: c.금액,
+        // 인건비만 보내는 견적서에서 쓴다. 나눠 적기 전 항목은 안 실린다.
+        인건비: c.인건비 != null ? c.인건비 : undefined,
+        자재비: c.자재비 != null ? c.자재비 : undefined,
         품목설명: c.설명 || '',
         견적기준: '',
         공통설명: '',
@@ -735,6 +738,9 @@ function 링크() {
   // 같은 이름이 51자가 된다 (주소 전체 144자 -> 91자).
   const p = new URLSearchParams();
   if ($('#optDesc').checked) p.set('d', '1');
+  // w=1 은 인건비만 보는 견적서. 발행 내용은 그대로 두고 보는 방식만 바꾸므로
+  // 같은 견적을 재발행 없이 합산용·인건비용 두 가지로 보낼 수 있다.
+  if ($('#optWage').checked) p.set('w', '1');
   if (발행결과.현장명) p.set('n', b64u(발행결과.현장명));
   const qs = p.toString();
   return location.origin + '/q/' + 발행결과.견적코드 + (qs ? '?' + qs : '');
@@ -762,6 +768,7 @@ function buildText() {
   if (!q) return '';
   const 설명포함 = $('#optDesc').checked;
   const 부가세 = $('#optVat').checked;
+  const 인건비만 = $('#optWage').checked;
 
   const L = ['[' + (MASTER.업체명 || '섬세한손길') + '] 인테리어필름 견적'];
   if (state.현장명) L.push('현장: ' + state.현장명);
@@ -774,13 +781,19 @@ function buildText() {
       L.push('■ ' + l.구역);
       현재구역 = l.구역;
     }
-    L.push('· ' + l.품목명 + ' ' + l.수량 + l.단위 + ' — ' + l.표시금액.toLocaleString('ko-KR') + '원');
+    // 인건비만 보낼 때는 그 줄의 인건비를 적는다. 나뉘어 있지 않은 줄은
+    // 전액을 적고 '자재 포함' 을 붙여 오해가 없게 한다.
+    const 금 = 인건비만 && l.인건비표시금액 != null ? l.인건비표시금액 : l.표시금액;
+    const 꼬리 = 인건비만 && l.인건비표시금액 == null ? ' (자재 포함)' : '';
+    L.push('· ' + l.품목명 + ' ' + l.수량 + l.단위 + ' — ' + 금.toLocaleString('ko-KR') + '원' + 꼬리);
     // 품목설명이 여러 줄이면 둘째 줄부터 들여쓰기가 풀려 다음 품목처럼 보인다.
     if (설명포함 && l.품목설명) L.push('   ㄴ ' + 들여쓰기(l.품목설명, '     '));
   });
 
   L.push('');
-  if ($('#optAdj').checked && q.result.조정_합계율 !== 0) {
+  // 인건비만 보낼 때는 소계·조정 줄을 안 쓴다. 그 소계는 자재비까지 든
+  // 금액이라 인건비 합계와 안 맞아서 받는 쪽이 계산기를 두드리면 어긋난다.
+  if (!인건비만 && $('#optAdj').checked && q.result.조정_합계율 !== 0) {
     L.push('소계 ' + q.result.소계.toLocaleString('ko-KR') + '원');
     // 견적서 화면과 같은 모양으로 조정 이유(항목명)를 같이 적는다.
     const 퍼 = (v) => (v > 0 ? '+' : '') + Math.round(v * 1000) / 10 + '%';
@@ -788,7 +801,13 @@ function buildText() {
     if (내역.length) 내역.forEach((a) => L.push('조정 (' + a.항목명 + ') ' + 퍼(a.비율)));
     else L.push('조정 ' + 퍼(q.result.조정_합계율));
   }
-  L.push('합계 ' + q.result.총액.toLocaleString('ko-KR') + '원' + (부가세 ? ' (부가세 별도)' : ''));
+  if (인건비만) {
+    L.push('인건비 합계 ' + q.result.인건비총액.toLocaleString('ko-KR') + '원' +
+      (부가세 ? ' (부가세 별도)' : ''));
+    L.push('※ 자재는 시공주가 지급하는 조건입니다. 자재비가 빠진 금액입니다.');
+  } else {
+    L.push('합계 ' + q.result.총액.toLocaleString('ko-KR') + '원' + (부가세 ? ' (부가세 별도)' : ''));
+  }
 
   // 메모는 업자용/소비자용 상관없이 항상 넣는다. '안방-앞방 연결문 포함' 같은
   // 내용은 받는 쪽이 꼭 알아야 할 것이라 설명 토글로 감추면 안 된다.
@@ -906,9 +925,23 @@ function 링크표시() {
   $('#pubLink').textContent = 보기;
 }
 
-// '품목설명 포함'을 켜고 끄면 복사될 링크가 즉시 바뀐다 (재발행 불필요)
+// '품목설명 포함'·'인건비만'을 켜고 끄면 복사될 링크가 즉시 바뀐다 (재발행 불필요)
 $('#optDesc').addEventListener('change', () => {
   if (발행결과) 링크표시();
+});
+$('#optWage').addEventListener('change', () => {
+  if (발행결과) 링크표시();
+  // 나눠 적기 전에 넣은 직접 입력 품목이 있으면 그 줄만 자재비가 섞인 채로 나간다.
+  // 모르는 값을 0 으로 깎으면 받을 돈이 줄어들기 때문인데, 모르고 보내면 안 된다.
+  if (!$('#optWage').checked) return;
+  const q = window.__quote;
+  if (!q) return;
+  const 못나눔 = q.result.라인들.filter((l) => l.인건비표시금액 == null);
+  if (못나눔.length) {
+    alert('아래 품목은 인건비/자재비가 나뉘어 있지 않아 전액(자재비 포함)으로 나갑니다.\n\n' +
+      못나눔.map((l) => '· ' + l.품목명).join('\n') +
+      '\n\n그 품목 줄을 눌러 인건비와 자재비를 나눠 적어주세요.');
+  }
 });
 
 /* 사진이 아직 올라가는 중이면 알려준다. 막지는 않는다 -
@@ -1815,6 +1848,26 @@ $('#tagBack').addEventListener('click', 태그닫기);
    금액에 마이너스를 넣으면 빼는 항목이 된다. */
 let 직접편집중 = null;   // 고치는 중인 항목 id. 새로 넣는 중이면 null
 
+/* 예전에 넣은 항목은 금액 하나만 있다. 그때는 적어둔 금액을 인건비로 보고
+   자재비를 0 으로 둔다 - 합계는 그대로라 금액이 안 틀리고, 사장님이 열어서
+   나눠 적으면 그때부터 인건비만 견적에 제대로 쓰인다. */
+function 직접인건비(c) {
+  if (!c) return 0;
+  return c.인건비 != null ? c.인건비 : (c.금액 || 0);
+}
+function 직접자재비(c) {
+  if (!c) return 0;
+  return c.자재비 != null ? c.자재비 : 0;
+}
+
+function 직접합계표시() {
+  const 인 = QuoteCalc.금액파싱($('#customWage').value);
+  const 자 = QuoteCalc.금액파싱($('#customMat').value);
+  const 있음 = isFinite(인) || isFinite(자);
+  const 합 = (isFinite(인) ? 인 : 0) + (isFinite(자) ? 자 : 0);
+  $('#customSum').textContent = 있음 ? '합계 ' + won(합) : '합계 —';
+}
+
 function 직접품목들(구역) {
   return (state.직접품목 || []).filter((c) => c.구역 === 구역);
 }
@@ -1855,7 +1908,11 @@ function 직접입력열기(구역, id) {
 
   $('#customTitle').textContent = c ? '직접 입력 고치기' : '직접 입력';
   $('#customName').value = c ? c.품목명 : '';
-  $('#customAmt').value = c ? QuoteCalc.금액포맷(String(c.금액)) : '';
+  // 나누기 전에 넣은 항목은 인건비/자재비가 없다. 적어둔 금액을 인건비 칸에
+  // 넣어두고 사장님이 나눠 적게 한다 - 자재비를 멋대로 지어내면 안 된다.
+  $('#customWage').value = c ? QuoteCalc.금액포맷(String(직접인건비(c))) : '';
+  $('#customMat').value = c ? QuoteCalc.금액포맷(String(직접자재비(c))) : '';
+  직접합계표시();
   $('#customDesc').value = c ? (c.설명 || '') : '';
   $('#customDel').hidden = !c;
   $('#customBack').hidden = false;
@@ -1870,8 +1927,7 @@ function 직접입력닫기() {
 
 /* 금액 칸을 '250,000원' 으로 맞춘다. 매 글자마다 다시 쓰므로 커서가
    맨 끝으로 튀지 않게, 커서 앞의 숫자 개수를 세어 같은 자리로 되돌린다. */
-$('#customAmt').addEventListener('input', () => {
-  const inp = $('#customAmt');
+function 금액칸맞춤(inp) {
   const 이전값 = inp.value;
   const 이전커서 = inp.selectionStart == null ? 이전값.length : inp.selectionStart;
   const 앞숫자 = 이전값.slice(0, 이전커서).replace(/[^0-9]/g, '').length;
@@ -1890,20 +1946,36 @@ $('#customAmt').addEventListener('input', () => {
     }
   }
   try { inp.setSelectionRange(위치, 위치); } catch (e) { /* 일부 브라우저에서 막힘 */ }
+}
+
+['#customWage', '#customMat'].forEach((sel) => {
+  $(sel).addEventListener('input', () => {
+    금액칸맞춤($(sel));
+    직접합계표시();
+  });
 });
 
 $('#customSave').addEventListener('click', () => {
   const 이름 = ($('#customName').value || '').trim();
-  const 금액 = QuoteCalc.금액파싱($('#customAmt').value);
+  const 인건비 = QuoteCalc.금액파싱($('#customWage').value);
+  const 자재비 = QuoteCalc.금액파싱($('#customMat').value);
   if (!이름) { alert('품목명을 적어주세요.'); return; }
-  // 0 은 허용한다(금액 미정으로 자리만 잡아두는 경우). 빈 칸만 막는다.
-  if (!isFinite(금액)) { alert('금액을 적어주세요.'); return; }
+  // 둘 다 비면 막는다. 한쪽만 적은 건 정상이다 - 자재를 안 대면 자재비가 없고,
+  // 자재만 대주는 건도 있다. 0 도 허용한다(0 과 안 적은 것은 다르다).
+  if (!isFinite(인건비) && !isFinite(자재비)) {
+    alert('인건비나 자재비 중 하나는 적어주세요.');
+    return;
+  }
+  const 인 = isFinite(인건비) ? Math.round(인건비) : 0;
+  const 자 = isFinite(자재비) ? Math.round(자재비) : 0;
 
   const 값 = {
     id: 직접편집중 || ('c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)),
     구역: $('#customZone').value,
     품목명: 이름,
-    금액: Math.round(금액),
+    인건비: 인,
+    자재비: 자,
+    금액: 인 + 자,        // 화면·견적에 쓰는 합계. 두 칸에서 만든 값이다.
     설명: ($('#customDesc').value || '').trim(),
   };
   if (!Array.isArray(state.직접품목)) state.직접품목 = [];
