@@ -543,6 +543,21 @@ function 조정목록() {
   return state.조정.filter(Boolean);
 }
 
+/* 품목 줄에 붙는 '인건비 125,000원 자재비 45,000원'.
+   자재를 업자가 대는 건이 있어서, 견적을 짜면서 인건비가 얼마인지 바로
+   보여야 한다. 조정 전 금액으로 적는다 - 이 화면은 단가를 확인하는 곳이라
+   조정을 섞으면 단가표와 대조할 수 없다.
+
+   나뉘어 있지 않은 줄(인건비/자재비를 나눠 적기 전에 넣은 직접 입력 품목)은
+   나눈 척하지 않는다. 그 줄만 '자재비 포함' 이라고 적어 눈에 띄게 한다. */
+function 인건비자재비글(라인) {
+  if (라인.인건비금액 == null) {
+    return 라인.직접금액 != null ? '자재비 포함' : '';
+  }
+  const 자재 = 라인.라인금액 - 라인.인건비금액;
+  return '인건비 ' + won(라인.인건비금액) + '  자재비 ' + won(자재);
+}
+
 function refresh() {
   const items = 선택품목들();
   const r = QuoteCalc.calcQuote(items, 조정목록());
@@ -550,9 +565,15 @@ function refresh() {
   // 작성 화면에서는 조정 전 금액(라인금액)을 보여준다. 단가를 확인하는 화면이라
   // 여기서 조정까지 섞으면 사장님이 단가표와 대조할 수 없다.
   const 금액맵 = {};
-  r.라인들.forEach((l) => { 금액맵[l.체크_ID] = l.라인금액; });
+  const 나눔맵 = {};
+  r.라인들.forEach((l) => {
+    금액맵[l.체크_ID] = l.라인금액;
+    나눔맵[l.체크_ID] = 인건비자재비글(l);
+  });
   ROWS.forEach((row, id) => {
-    row.amt.textContent = 금액맵[id] != null ? won(금액맵[id]) : '';
+    row.amt.innerHTML = 금액맵[id] != null
+      ? esc(won(금액맵[id])) + (나눔맵[id] ? '<small class="i-split">' + esc(나눔맵[id]) + '</small>' : '')
+      : '';
   });
 
   document.querySelectorAll('.zone').forEach((det) => {
@@ -1883,6 +1904,16 @@ function buildCustom(c) {
     '<span class="i-amt">' + won(c.금액) + '</span>';
   head.insertBefore(사진버튼만들기(c.구역, c.id, c.품목명), head.querySelector('.i-amt'));
   box.appendChild(head);
+
+  // 인건비/자재비 내역. 직접 입력 줄은 품목명이 길고 '사진' 버튼까지 붙어서
+  // 금액 옆에 두면 이름이 네 줄로 찌그러진다. 줄 아래에 따로 깐다.
+  const 내역 = document.createElement('div');
+  내역.className = 'custom-split';
+  내역.textContent = c.인건비 != null
+    ? '인건비 ' + won(c.인건비) + '  자재비 ' + won(c.자재비 || 0)
+    : '자재비 포함';
+  box.appendChild(내역);
+
   // 줄을 누르면 고치기. 체크박스는 끄지 않는다 - 뺄 거면 삭제하면 된다.
   head.addEventListener('click', (e) => {
     e.preventDefault();

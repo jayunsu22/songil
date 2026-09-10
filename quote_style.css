@@ -638,3 +638,27 @@ header {
   font-weight: 700;
   color: var(--text);
 }
+
+/* 품목 줄의 인건비/자재비 내역. 금액 아래 작게 붙는다.
+   자재를 업자가 대는 건이 있어 인건비가 한눈에 들어와야 한다. */
+.i-split {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+/* 금액 칸이 두 줄이 되므로 오른쪽 정렬을 명시한다. 안 하면 내역 줄이
+   왼쪽에 붙어서 금액과 어긋나 보인다. */
+.item-head .i-amt { text-align: right; }
+
+/* 직접 입력 줄의 인건비/자재비. 품목명이 길고 '사진' 버튼까지 있어서
+   금액 옆에 붙이면 이름이 찌그러진다. 줄 아래에 따로 깐다. */
+.custom-split {
+  padding: 0 14px 8px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
