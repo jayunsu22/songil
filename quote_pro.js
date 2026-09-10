@@ -1659,7 +1659,7 @@ function 직접입력열기(구역, id) {
 
   $('#customTitle').textContent = c ? '직접 입력 고치기' : '직접 입력';
   $('#customName').value = c ? c.품목명 : '';
-  $('#customAmt').value = c ? c.금액 : '';
+  $('#customAmt').value = c ? QuoteCalc.금액포맷(String(c.금액)) : '';
   $('#customDesc').value = c ? (c.설명 || '') : '';
   $('#customDel').hidden = !c;
   $('#customBack').hidden = false;
@@ -1672,9 +1672,33 @@ function 직접입력닫기() {
   $('#customSheet').hidden = true;
 }
 
+/* 금액 칸을 '250,000원' 으로 맞춘다. 매 글자마다 다시 쓰므로 커서가
+   맨 끝으로 튀지 않게, 커서 앞의 숫자 개수를 세어 같은 자리로 되돌린다. */
+$('#customAmt').addEventListener('input', () => {
+  const inp = $('#customAmt');
+  const 이전값 = inp.value;
+  const 이전커서 = inp.selectionStart == null ? 이전값.length : inp.selectionStart;
+  const 앞숫자 = 이전값.slice(0, 이전커서).replace(/[^0-9]/g, '').length;
+
+  const 새값 = QuoteCalc.금액포맷(이전값);
+  if (새값 === 이전값) return;
+  inp.value = 새값;
+
+  let 위치 = 새값.length, 센것 = 0;
+  if (앞숫자 === 0) {
+    위치 = 새값.charAt(0) === '-' ? 1 : 0;
+  } else {
+    for (let i = 0; i < 새값.length; i++) {
+      if (새값.charCodeAt(i) >= 48 && 새값.charCodeAt(i) <= 57) 센것 += 1;
+      if (센것 === 앞숫자) { 위치 = i + 1; break; }
+    }
+  }
+  try { inp.setSelectionRange(위치, 위치); } catch (e) { /* 일부 브라우저에서 막힘 */ }
+});
+
 $('#customSave').addEventListener('click', () => {
   const 이름 = ($('#customName').value || '').trim();
-  const 금액 = parseFloat($('#customAmt').value);
+  const 금액 = QuoteCalc.금액파싱($('#customAmt').value);
   if (!이름) { alert('품목명을 적어주세요.'); return; }
   // 0 은 허용한다(금액 미정으로 자리만 잡아두는 경우). 빈 칸만 막는다.
   if (!isFinite(금액)) { alert('금액을 적어주세요.'); return; }

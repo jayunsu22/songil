@@ -24,6 +24,27 @@
     return Math.round(단가 * (item.난이도 || 1) * (item.수량 || 0));
   }
 
+  /* 금액 칸 표시/읽기. '250,000원' 처럼 보여준다.
+     type=number 는 콤마와 '원' 을 못 받아서 글자 칸으로 두고 직접 맞춘다.
+
+     빈 칸을 '0원' 으로 만들면 안 된다 - 지우고 다시 쓸 수가 없어진다.
+     마이너스만 친 상태도 지우면 빼는 항목을 입력할 수 없다. */
+  function 금액포맷(글) {
+    const 원본 = String(글 == null ? '' : 글);
+    const 음수 = /^\s*-/.test(원본);
+    const 숫자 = 원본.replace(/[^0-9]/g, '');
+    if (!숫자) return 음수 ? '-' : '';
+    return (음수 ? '-' : '') + Number(숫자).toLocaleString('ko-KR') + '원';
+  }
+
+  // 안 적은 것(NaN)과 0원을 구분해야 하므로 빈 칸은 NaN 을 돌려준다.
+  function 금액파싱(글) {
+    const 원본 = String(글 == null ? '' : 글);
+    const 숫자 = 원본.replace(/[^0-9]/g, '');
+    if (!숫자) return NaN;
+    return (/^\s*-/.test(원본) ? -1 : 1) * Number(숫자);
+  }
+
   function calcQuote(items, adjustments) {
     // 전체 조정은 곱이 아니라 합. 거주중 +10%와 업자단가 -10%는 상쇄되어야 하고,
     // 사용자가 암산으로 검산할 수 있어야 한다.
@@ -50,5 +71,6 @@
     };
   }
 
-  return { lineAmount: lineAmount, calcQuote: calcQuote };
+  return { lineAmount: lineAmount, calcQuote: calcQuote,
+           금액포맷: 금액포맷, 금액파싱: 금액파싱 };
 });

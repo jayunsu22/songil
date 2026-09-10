@@ -186,7 +186,9 @@
   <input type="text" id="customName" autocomplete="off" placeholder="예: 방화문 (앞뒤면·쌍여닫이)">
 
   <label class="memo-label" for="customAmt">금액 <em>부가세 별도, 이 금액이 그대로 들어갑니다</em></label>
-  <input type="number" id="customAmt" inputmode="numeric" step="1000" autocomplete="off" placeholder="예: 250000">
+  <!-- type=number 는 콤마와 '원' 을 못 받는다. 글자 칸으로 두고 직접 형식을 맞춘다.
+       inputmode=numeric 이라 폰에서는 숫자 자판이 뜬다. -->
+  <input type="text" id="customAmt" inputmode="numeric" autocomplete="off" placeholder="예: 250,000원">
 
   <label class="memo-label" for="customDesc">설명 <em>비워두면 견적서에 설명이 안 나갑니다</em></label>
   <textarea id="customDesc" rows="3" placeholder="예: 앞뒤면 모두 시공합니다.&#10;문짝 2개, 문틀 포함입니다."></textarea>
