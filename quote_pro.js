@@ -1055,7 +1055,9 @@ async function openBox() {
           '<button type="button" class="box-load">불러오기</button>' +
           // 발행한 적이 없으면 열 견적서가 없다. 버튼을 아예 안 만든다.
           (x.현장코드
-            ? '<button type="button" class="box-view">내역보기</button>'
+            ? '<button type="button" class="box-view">내역보기</button>' +
+              // 며칠 뒤 다시 보내달라는 연락이 온다. 그때 이 화면에서 바로 복사해 보낸다.
+              '<button type="button" class="box-link">링크복사</button>'
             // 이 기능 이전에 발행한 건은 코드가 안 남아 있다. 직접 넣을 길을 둔다.
             : '<button type="button" class="box-code">코드 넣기</button>') +
           (st.장수 ? '<button type="button" class="box-photodel">사진만 삭제</button>' : '') +
@@ -1091,6 +1093,23 @@ async function openBox() {
 function closeBox() {
   $('#boxBack').hidden = true;
   $('#boxSheet').hidden = true;
+}
+
+/* 저장함 줄에서 쓰는 견적서 주소. '내역보기' 와 '링크복사' 가 같은 주소를 쓴다 -
+   눈으로 본 것과 남에게 보낸 것이 다르면 안 된다.
+
+   d=1 (품목설명 포함) 로 고정한다. 저장함에서 다시 꺼내 보내는 건 대개
+   며칠 뒤 소비자에게 가는 것이라 설명이 붙어 있어야 한다. 업자용(설명 없이)이
+   필요하면 발행 화면에서 '품목설명 포함' 을 끄고 복사하면 된다.
+
+   n = 현장명(base64url). 카톡 미리보기 제목에 쓴다. 한글을 그대로 넣으면
+   주소가 세 배로 길어진다. */
+function 저장링크(항목) {
+  if (!항목 || !항목.현장코드) return '';
+  const p = new URLSearchParams();
+  p.set('d', '1');
+  if (항목.이름) p.set('n', b64u(항목.이름));
+  return location.origin + '/q/' + 항목.현장코드 + '?' + p.toString();
 }
 
 function 짧은날짜(iso) {
@@ -1136,10 +1155,16 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-view')) {
     if (!항목.현장코드) return;
     // 발행 시점 그대로의 견적서를 새 탭에서 연다. 작성 화면은 건드리지 않는다.
-    const p = new URLSearchParams();
-    p.set('d', '1');
-    if (항목.이름) p.set('t', 항목.이름);
-    window.open(location.origin + '/q/' + 항목.현장코드 + '?' + p.toString(), '_blank');
+    window.open(저장링크(항목), '_blank');
+    return;
+  }
+
+  if (e.target.classList.contains('box-link')) {
+    const u = 저장링크(항목);
+    if (!u) return;
+    toast(await copy(u)
+      ? '링크를 복사했습니다 (품목설명 포함)'
+      : '복사에 실패했습니다. 내역보기로 열어 주소를 복사해 주세요.');
     return;
   }
 
