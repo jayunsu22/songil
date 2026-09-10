@@ -25,6 +25,10 @@ let 트레이사진 = [];     // 그 구역 사진 (썸네일 URL 포함)
 // 사진 기능을 못 쓰는 브라우저(시크릿 모드 등)에서는 카메라 버튼을 감춘다.
 // 견적 기능 자체는 그대로 돌아가야 한다.
 let 사진가능 = true;
+// 품목 줄의 '사진' 버튼으로 트레이를 열었을 때의 대상 품목.
+// 이게 있으면 사진 한 장을 고르는 순간 그 품목에 태그하고 네모 표시로 바로 넘어간다.
+let 사진대상 = null;          // { 구역, 체크_ID, 품목명 }
+let 표시된품목 = new Set();   // 네모를 그려둔 품목 id — 줄의 버튼을 '사진 있음'으로 바꾼다
 
 let MASTER = null;
 // 평형 기본값은 '확인안됨'. 모르는 채로 40평 몰딩 같은 게 잘못 들어가는 것보다
@@ -225,7 +229,7 @@ function buildAll() {
       사진트레이열기(z.구역);
     });
 
-    items.forEach((item) => det.appendChild(buildItem(item)));
+    items.forEach((item) => det.appendChild(buildItem(item, z.구역)));
 
     // 이 구역에 직접 적어 넣은 품목들
     직접품목들(z.구역).forEach((c) => det.appendChild(buildCustom(c)));
@@ -263,7 +267,7 @@ function 구역이름바꾸기(원래) {
   persist();
 }
 
-function buildItem(item) {
+function buildItem(item, 구역) {
   const 평형별 = item.적용평형 !== '공통';
 
   const box = document.createElement('div');
@@ -330,6 +334,10 @@ function buildItem(item) {
   설명버튼.textContent = '설명';
   설명버튼.addEventListener('click', () => 설명열기(item));
   body.appendChild(설명버튼);
+
+  // 사진은 구역 📷 → 태그 화면을 거쳐도 붙일 수 있지만, 품목을 다시 찾아야 한다.
+  // 여기서 열면 사진 한 장 고르는 것으로 이 품목의 네모 표시까지 바로 간다.
+  body.appendChild(사진버튼만들기(구역, item.체크_ID, item.표시_품목명));
 
   box.appendChild(body);
 
@@ -1169,24 +1177,59 @@ $('#boxBack').addEventListener('click', closeBox);
    구역 안에서 찍고 품목을 태그하면 그 자리에서 견적이 만들어진다. */
 function 사진못씀(e) {
   사진가능 = false;
-  document.querySelectorAll('.z-cam').forEach((b) => { b.hidden = true; });
+  document.querySelectorAll('.z-cam, .photo-btn').forEach((b) => { b.hidden = true; });
   console.warn('사진 기능을 쓸 수 없습니다:', e);
 }
 
 async function 구역장수갱신() {
   if (!사진가능) return;
+  // 구역 장수와 '네모 그려둔 품목' 을 한 번에 만든다. 사진을 두 번 읽으면
+  // 사진이 많은 현장에서 화면을 그릴 때마다 눈에 띄게 느려진다.
+  let 전체 = [];
   try {
-    장수맵 = await PDB.구역장수(현장ID확보());
+    전체 = await PDB.현장사진(현장ID확보());
   } catch (e) {
     사진못씀(e);
     return;
   }
+  장수맵 = {};
+  표시된품목 = new Set();
+  전체.forEach((p) => {
+    장수맵[p.구역] = (장수맵[p.구역] || 0) + 1;
+    Object.keys(p.표시 || {}).forEach((id) => 표시된품목.add(id));
+  });
   document.querySelectorAll('.zone').forEach((det) => {
     if (!det._cam) return;
     const n = 장수맵[det._zone] || 0;
     det._cam.textContent = n ? '📷 ' + n : '📷';
     det._cam.classList.toggle('has', n > 0);
   });
+  document.querySelectorAll('.photo-btn').forEach((b) => 사진버튼칠하기(b, b.dataset.id));
+}
+
+/* 품목 줄에 붙는 '사진' 버튼 */
+function 사진버튼만들기(구역, 체크_ID, 품목명) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'photo-btn';
+  b.dataset.id = 체크_ID;
+  b.addEventListener('click', (e) => {
+    // 직접 입력 품목은 줄 전체가 '고치기' 버튼이고, 마스터 품목은 label 안이다.
+    // 둘 다 막지 않으면 엉뚱한 화면이 같이 열린다.
+    e.preventDefault();
+    e.stopPropagation();
+    if (!사진가능) { toast('이 브라우저에서는 사진을 쓸 수 없습니다.'); return; }
+    사진트레이열기(구역, { 구역: 구역, 체크_ID: 체크_ID, 품목명: 품목명 });
+  });
+  사진버튼칠하기(b, 체크_ID);
+  return b;
+}
+
+function 사진버튼칠하기(b, 체크_ID) {
+  const 있음 = 표시된품목.has(체크_ID);
+  b.classList.toggle('on', 있음);
+  b.textContent = 있음 ? '사진 있음' : '사진';
+  b.hidden = !사진가능;
 }
 
 /* 썸네일 objectURL 은 다 쓰면 반드시 풀어준다.
@@ -1196,9 +1239,15 @@ function 트레이비우기() {
   트레이사진 = [];
 }
 
-async function 사진트레이열기(구역) {
+async function 사진트레이열기(구역, 대상) {
+  사진대상 = 대상 || null;
   트레이구역 = 구역;
-  $('#trayTitle').textContent = 표시구역명(구역) + ' 사진';
+  $('#trayTitle').textContent = 사진대상 ? 사진대상.품목명 + ' 사진' : 표시구역명(구역) + ' 사진';
+  const 안내 = $('#trayAim');
+  안내.hidden = !사진대상;
+  if (사진대상) {
+    안내.textContent = '사진을 누르면 ‘' + 사진대상.품목명 + '’ 위치를 네모로 표시합니다.';
+  }
   $('#trayBack').hidden = false;
   $('#traySheet').hidden = false;
   await 트레이그리기();
@@ -1222,7 +1271,7 @@ async function 트레이그리기() {
     d.className = 'ph' + ((p.태그 || []).length ? ' tagged' : '');
     d.innerHTML = '<img alt="사진 ' + (i + 1) + '" src="' + p._url + '">' +
       '<button type="button" class="del" aria-label="사진 삭제">✕</button>';
-    d.addEventListener('click', () => 태그화면열기(i));
+    d.addEventListener('click', () => (사진대상 ? 대상표시열기(p) : 태그화면열기(i)));
     // 삭제는 사진 열기보다 먼저 잡아야 한다. 안 그러면 태그 화면이 같이 열린다.
     d.querySelector('.del').addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -1239,7 +1288,30 @@ async function 트레이그리기() {
   });
 }
 
+/* 품목 줄의 '사진' 버튼으로 들어온 길.
+   고른 사진에 그 품목을 태그해 두고(견적서에 사진을 실을 때 짝을 찾는 열쇠다)
+   바로 네모 표시 화면을 연다. */
+async function 대상표시열기(p) {
+  const 대상 = 사진대상;
+  if (!대상) return;
+  const 태그 = (p.태그 || []).slice();
+  if (태그.indexOf(대상.체크_ID) < 0) {
+    태그.push(대상.체크_ID);
+    try {
+      await PDB.태그저장(p.id, 태그);
+    } catch (e) {
+      toast('태그를 저장하지 못했습니다.');
+      console.warn(e);
+      return;
+    }
+    p.태그 = 태그;
+  }
+  표시열기(p, 대상.체크_ID, 대상.품목명);
+}
+
 function 닫기_트레이() {
+  사진대상 = null;
+  $('#trayAim').hidden = true;
   트레이비우기();
   $('#trayBack').hidden = true;
   $('#traySheet').hidden = true;
@@ -1467,12 +1539,30 @@ function 태그목록그리기() {
     L.appendChild(lb);
   });
 
+  // 직접 입력한 품목도 사진을 붙일 수 있어야 한다. 이게 빠져 있으면
+  // '방화문 쌍여닫이' 같은 걸 직접 입력으로 넣고 나서 사진을 못 붙인다.
+  //
+  // 마스터 품목과 달리 체크를 풀어도 견적에서 빠지지 않는다. 여기 체크는
+  // '이 사진에 이게 나온다' 는 표시일 뿐이고, 빼려면 그 품목 줄에서 지운다.
+  직접품목들(태그구역).forEach((c) => {
+    const 걸림 = 태그.indexOf(c.id) >= 0;
+    const lb = document.createElement('label');
+    lb.className = 'direct';
+    lb.innerHTML =
+      '<input type="checkbox" data-id="' + esc(c.id) + '"' +
+      (걸림 ? ' checked' : '') + '>' +
+      '<span>' + esc(c.품목명) + '</span>';
+    if (걸림) lb.appendChild(표시버튼만들기(p, { 체크_ID: c.id, 표시_품목명: c.품목명 }));
+    L.appendChild(lb);
+  });
+
   // 어느 구역에도 없는 품목을 태그해 둔 경우(품목명을 바꿨거나 지웠을 때).
   // 견적에는 안 넣지만 화면에서 숨기면 사용자가 영문을 모른다.
   // 사진의 원래 구역 탭에서만 보여준다 - 모든 탭에 뜨면 지저분하다.
   if (태그구역 === 트레이구역) {
     const 모든ID = new Set();
     MASTER.zones.forEach((z) => z.items.forEach((it) => 모든ID.add(it.체크_ID)));
+    (state.직접품목 || []).forEach((c) => 모든ID.add(c.id));
     태그.filter((id) => !모든ID.has(id)).forEach((id) => {
       const lb = document.createElement('label');
       lb.className = 'gone';
@@ -1513,7 +1603,11 @@ function 표시버튼갱신(체크_ID, 켜짐) {
   if (!켜짐) return;
   const p = 트레이사진[태그index];
   const zone = MASTER.zones.find((z) => z.구역 === 태그구역);
-  const item = zone && zone.items.find((x) => x.체크_ID === 체크_ID);
+  let item = zone && zone.items.find((x) => x.체크_ID === 체크_ID);
+  if (!item) {
+    const c = (state.직접품목 || []).find((x) => x.id === 체크_ID);
+    if (c) item = { 체크_ID: c.id, 표시_품목명: c.품목명 };
+  }
   if (p && item) lb.appendChild(표시버튼만들기(p, item));
 }
 
@@ -1557,6 +1651,10 @@ async function 태그바꿈(체크_ID, 켜짐) {
   }
   탭숫자갱신();
   표시버튼갱신(체크_ID, 켜짐);
+
+  // 직접 입력 품목은 이미 견적에 들어 있다. 여기 체크는 사진 표시일 뿐이라
+  // 견적에서 넣거나 빼면 안 된다.
+  if ((state.직접품목 || []).some((c) => c.id === 체크_ID)) return;
 
   const row = ROWS.get(체크_ID);
   if (!row) return;      // 마스터에 없는 품목. 견적에는 넣지 않는다.
@@ -1633,6 +1731,7 @@ function buildCustom(c) {
     '<input type="checkbox" checked disabled autocomplete="off">' +
     '<span class="i-name">' + esc(c.품목명) + '</span>' +
     '<span class="i-amt">' + won(c.금액) + '</span>';
+  head.insertBefore(사진버튼만들기(c.구역, c.id, c.품목명), head.querySelector('.i-amt'));
   box.appendChild(head);
   // 줄을 누르면 고치기. 체크박스는 끄지 않는다 - 뺄 거면 삭제하면 된다.
   head.addEventListener('click', (e) => {
@@ -1819,7 +1918,10 @@ $('#markSave').addEventListener('click', async () => {
   const p = 트레이사진.find((x) => x.id === 표시대상.사진id);
   if (p) { p.표시 = p.표시 || {}; p.표시[표시대상.체크_ID] = 표시사각; }
   표시닫기();
-  태그목록그리기();
+  // 태그 화면을 거치지 않고 품목 줄에서 바로 들어온 경우가 있다.
+  // 그때 태그 목록을 그리면 안 보이는 화면을 헛되이 만든다.
+  if (!$('#tagSheet').hidden) 태그목록그리기(); else 트레이그리기();
+  구역장수갱신();
   toast('표시했습니다');
 });
 
@@ -1834,7 +1936,8 @@ $('#markClear').addEventListener('click', async () => {
   const p = 트레이사진.find((x) => x.id === 표시대상.사진id);
   if (p && p.표시) delete p.표시[표시대상.체크_ID];
   표시닫기();
-  태그목록그리기();
+  if (!$('#tagSheet').hidden) 태그목록그리기(); else 트레이그리기();
+  구역장수갱신();
   toast('표시를 지웠습니다');
 });
 

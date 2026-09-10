@@ -241,3 +241,57 @@
   background: #fff1f0;
   color: #c0271d;
 }
+
+/* 태그 목록의 직접 입력 품목. 마스터 품목과 구분되게 딱지를 붙인다.
+   여기 체크는 '이 사진에 나온다' 는 표시일 뿐, 견적에서 빼지는 않는다. */
+#tagList label.direct span::after {
+  content: '직접';
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f1e7d6;
+  color: #7c5620;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ---------- 품목 줄의 '사진' 버튼 ----------
+   구역 📷 로 들어가 태그 화면에서 품목을 다시 찾는 대신, 견적을 짜던 그 줄에서
+   바로 사진을 붙인다. '설명' 버튼과 나란히 서므로 크기를 맞춘다. */
+.item-body .photo-btn {
+  flex: 0 0 auto;
+  height: var(--tap);
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* 이 품목에 네모를 그려둔 사진이 있다. 견적서에 그 사진이 실린다. */
+.item-body .photo-btn.on,
+.item-head .photo-btn.on {
+  border-color: #2f7d4f;
+  background: #edf9f1;
+  color: #1f6b41;
+}
+/* 직접 입력 품목은 몸통 줄이 없어 제목 줄에 붙는다. 줄 높이를 늘리면
+   목록이 들쭉날쭉해지므로 작게 만든다. */
+.item-head .photo-btn {
+  flex: 0 0 auto;
+  height: 30px;
+  min-height: 0;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* 사진 버튼이 끼면서 줄이 좁아진다. 금액이 '250,000 / 원' 으로 갈라지면
+   숫자를 잘못 읽기 쉬우므로 한 덩어리로 붙여둔다. */
+.item-head .i-amt { white-space: nowrap; }
