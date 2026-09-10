@@ -516,3 +516,60 @@ header {
 #adjWrap h2 + .film-row { margin-top: 2px; }
 #adjWrap #filmNote + h2 { margin-top: 16px; }
 #adjWrap .film-row + h2 { margin-top: 16px; }
+
+/* ---------- 직접 입력 품목 ---------- */
+/* 기준 단가로 안 잡히는 건(방화문 앞뒤면·쌍여닫이 등)을 그때그때 적어 넣는다.
+   품목을 계속 늘리는 대신 이 칸 하나로 모든 예외를 받는다. */
+#customBack { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.35); }
+#customSheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  background: var(--card);
+  border-radius: 18px 18px 0 0;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  max-height: 88vh; overflow-y: auto;
+  box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+}
+#customSheet h2 { margin: 0 0 10px; font-size: 17px; }
+#customSheet .hint { font-size: 13px; color: var(--muted); line-height: 1.55; margin: 0 0 6px; }
+#customZone, #customName, #customAmt, #customDesc {
+  width: 100%;
+  margin: 6px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 16px; font-family: inherit; line-height: 1.45;
+  background: #fff; color: var(--text);
+}
+#customAmt { text-align: right; font-weight: 700; }
+#customDesc { resize: vertical; }
+#customSheet button {
+  width: 100%; min-height: var(--tap);
+  margin-top: 8px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; font-size: 15px; font-weight: 700; color: var(--text);
+}
+#customSheet button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+#customDel { color: #b91c1c; }
+
+/* 구역 맨 아래의 '+ 직접 입력' 줄 */
+.add-custom {
+  display: block; width: 100%;
+  min-height: var(--tap);
+  padding: 10px 14px;
+  border: none; border-top: 1px dashed var(--line);
+  background: none; color: var(--accent);
+  font-size: 14px; font-weight: 700; text-align: left;
+}
+.add-custom:active { background: #f2f5fb; }
+/* 직접 입력한 줄은 계산 품목과 구분되게 왼쪽에 표시를 둔다 */
+.item.custom { border-left: 3px solid #9c6f2e; }
+.item.custom .i-name::after {
+  content: '직접';
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f1e7d6; color: #7c5620;
+  font-size: 11px; font-weight: 700;
+}
+
+/* 구역 고르는 칸은 숫자 입력이 아니므로 오른쪽 정렬을 풀어둔다 */
+#customZone { height: 46px; font-weight: 700; }

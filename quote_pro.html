@@ -148,6 +148,29 @@
   <button id="tagClose" class="primary" type="button">닫기</button>
 </section>
 
+<div id="customBack" hidden></div>
+<section id="customSheet" hidden aria-label="직접 입력 품목">
+  <h2 id="customTitle">직접 입력</h2>
+  <p class="hint">기준 단가로 안 잡히는 건을 여기에 적습니다.
+    (예: 방화문 앞뒤면 · 쌍여닫이) 금액에 <b>−</b> 를 붙이면 빼는 항목이 됩니다.</p>
+
+  <label class="memo-label" for="customZone">구역 <em>견적서에서 이 구역 아래에 들어갑니다</em></label>
+  <select id="customZone" autocomplete="off"></select>
+
+  <label class="memo-label" for="customName">품목명</label>
+  <input type="text" id="customName" autocomplete="off" placeholder="예: 방화문 (앞뒤면·쌍여닫이)">
+
+  <label class="memo-label" for="customAmt">금액 <em>부가세 별도, 이 금액이 그대로 들어갑니다</em></label>
+  <input type="number" id="customAmt" inputmode="numeric" step="1000" autocomplete="off" placeholder="예: 250000">
+
+  <label class="memo-label" for="customDesc">설명 <em>비워두면 견적서에 설명이 안 나갑니다</em></label>
+  <textarea id="customDesc" rows="3" placeholder="예: 앞뒤면 모두 시공합니다.&#10;문짝 2개, 문틀 포함입니다."></textarea>
+
+  <button id="customSave" class="primary" type="button">넣기</button>
+  <button id="customDel" type="button" hidden>이 항목 삭제</button>
+  <button id="customClose" type="button">취소</button>
+</section>
+
 <div id="toast" hidden></div>
 
 <!-- quote_calc.js 가 먼저 로드되어야 한다 (quote_pro.js 가 QuoteCalc 를 쓴다) -->

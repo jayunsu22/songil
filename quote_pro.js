@@ -31,7 +31,7 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
+let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -225,6 +225,17 @@ function buildAll() {
     });
 
     items.forEach((item) => det.appendChild(buildItem(item)));
+
+    // 이 구역에 직접 적어 넣은 품목들
+    직접품목들(z.구역).forEach((c) => det.appendChild(buildCustom(c)));
+
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'add-custom';
+    add.textContent = '+ 직접 입력';
+    add.addEventListener('click', () => 직접입력열기(z.구역, null));
+    det.appendChild(add);
+
     wrap.appendChild(det);
 
     det._items = items;
@@ -478,6 +489,23 @@ function 선택품목들() {
         공통설명: o.공통설명,
       });
     });
+
+    // 이 구역에 직접 적어 넣은 품목. 구역 순서대로 그 구역 맨 아래에 붙는다.
+    // 금액은 계산하지 않고 적은 그대로 쓴다(quote_calc 의 직접금액).
+    직접품목들(z.구역).forEach((c) => {
+      out.push({
+        체크_ID: c.id,
+        구역: 표시구역명(z.구역),
+        품목명: c.품목명,
+        단위: '',
+        수량: '',       // 견적서에 '1세트' 처럼 안 붙게 비워 보낸다
+        난이도: 1,
+        직접금액: c.금액,
+        품목설명: c.설명 || '',
+        견적기준: '',
+        공통설명: '',
+      });
+    });
   });
   return out;
 }
@@ -502,6 +530,11 @@ function refresh() {
     let n = 0, sum = 0;
     (det._items || []).forEach((item) => {
       if (금액맵[item.체크_ID] != null) { n++; sum += 금액맵[item.체크_ID]; }
+    });
+    // 직접 입력 품목도 그 구역 개수·합계에 넣는다. 빠뜨리면 구역 배지와
+    // 아래 총액이 안 맞아서 어디가 틀렸는지 찾기 어렵다.
+    직접품목들(det._zone).forEach((c) => {
+      if (금액맵[c.id] != null) { n++; sum += 금액맵[c.id]; }
     });
     det._count.textContent = n;
     det._count.classList.toggle('on', n > 0);
@@ -588,7 +621,7 @@ $('#resetBtn').addEventListener('click', async () => {
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
+  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
   현장ID확보();     // 새 현장이 시작됐다. 사진이 앞 현장에 섞이면 안 된다.
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
@@ -1085,7 +1118,7 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' },
+      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' },
       항목.상태
     );
     if (!state.현장ID) state.현장ID = 항목.현장ID || '';
@@ -1523,3 +1556,103 @@ $('#tagDel').addEventListener('click', async () => {
 
 $('#tagClose').addEventListener('click', 태그닫기);
 $('#tagBack').addEventListener('click', 태그닫기);
+
+/* ---------- 직접 입력 품목 ----------
+   방화문 앞뒤면·쌍여닫이처럼 기준 단가로 안 잡히는 건이 있다.
+   품목을 종류마다 늘리는 대신, 품목명과 금액을 그때그때 적어 넣게 한다.
+   적은 금액이 그대로 들어간다 - 난이도나 수량을 또 곱하지 않는다.
+   금액에 마이너스를 넣으면 빼는 항목이 된다. */
+let 직접편집중 = null;   // 고치는 중인 항목 id. 새로 넣는 중이면 null
+
+function 직접품목들(구역) {
+  return (state.직접품목 || []).filter((c) => c.구역 === 구역);
+}
+
+function buildCustom(c) {
+  const box = document.createElement('div');
+  box.className = 'item custom on';
+  const head = document.createElement('label');
+  head.className = 'item-head';
+  head.innerHTML =
+    '<input type="checkbox" checked disabled autocomplete="off">' +
+    '<span class="i-name">' + esc(c.품목명) + '</span>' +
+    '<span class="i-amt">' + won(c.금액) + '</span>';
+  box.appendChild(head);
+  // 줄을 누르면 고치기. 체크박스는 끄지 않는다 - 뺄 거면 삭제하면 된다.
+  head.addEventListener('click', (e) => {
+    e.preventDefault();
+    직접입력열기(c.구역, c.id);
+  });
+  return box;
+}
+
+function 직접입력열기(구역, id) {
+  직접편집중 = id;
+  const c = id ? (state.직접품목 || []).find((x) => x.id === id) : null;
+
+  // 구역 목록. 어느 구역인지 알아야 견적서에서 제자리에 들어간다.
+  const sel = $('#customZone');
+  sel.textContent = '';
+  MASTER.zones.forEach((z) => {
+    const o = document.createElement('option');
+    o.value = z.구역;
+    o.textContent = 표시구역명(z.구역);
+    sel.appendChild(o);
+  });
+  sel.value = (c ? c.구역 : 구역) || MASTER.zones[0].구역;
+
+  $('#customTitle').textContent = c ? '직접 입력 고치기' : '직접 입력';
+  $('#customName').value = c ? c.품목명 : '';
+  $('#customAmt').value = c ? c.금액 : '';
+  $('#customDesc').value = c ? (c.설명 || '') : '';
+  $('#customDel').hidden = !c;
+  $('#customBack').hidden = false;
+  $('#customSheet').hidden = false;
+}
+
+function 직접입력닫기() {
+  직접편집중 = null;
+  $('#customBack').hidden = true;
+  $('#customSheet').hidden = true;
+}
+
+$('#customSave').addEventListener('click', () => {
+  const 이름 = ($('#customName').value || '').trim();
+  const 금액 = parseFloat($('#customAmt').value);
+  if (!이름) { alert('품목명을 적어주세요.'); return; }
+  // 0 은 허용한다(금액 미정으로 자리만 잡아두는 경우). 빈 칸만 막는다.
+  if (!isFinite(금액)) { alert('금액을 적어주세요.'); return; }
+
+  const 값 = {
+    id: 직접편집중 || ('c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)),
+    구역: $('#customZone').value,
+    품목명: 이름,
+    금액: Math.round(금액),
+    설명: ($('#customDesc').value || '').trim(),
+  };
+  if (!Array.isArray(state.직접품목)) state.직접품목 = [];
+  const i = state.직접품목.findIndex((x) => x.id === 값.id);
+  if (i >= 0) state.직접품목[i] = 값; else state.직접품목.push(값);
+
+  직접입력닫기();
+  buildAll();
+  구역장수갱신();
+  refresh();
+  persist();
+  toast(i >= 0 ? '고쳤습니다' : '‘' + 이름 + '’ 넣었습니다');
+});
+
+$('#customDel').addEventListener('click', () => {
+  if (!직접편집중) return;
+  if (!confirm('이 항목을 지울까요?')) return;
+  state.직접품목 = (state.직접품목 || []).filter((x) => x.id !== 직접편집중);
+  직접입력닫기();
+  buildAll();
+  구역장수갱신();
+  refresh();
+  persist();
+  toast('지웠습니다');
+});
+
+$('#customClose').addEventListener('click', 직접입력닫기);
+$('#customBack').addEventListener('click', 직접입력닫기);
