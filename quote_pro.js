@@ -1255,32 +1255,69 @@ async function 사진트레이열기(구역, 대상) {
 
 async function 트레이그리기() {
   트레이비우기();
+  let 목록 = [];
   try {
-    트레이사진 = await PDB.구역사진(현장ID확보(), 트레이구역);
+    목록 = await PDB.구역사진(현장ID확보(), 트레이구역);
   } catch (e) {
     사진못씀(e);
     닫기_트레이();
     return;
   }
+  // 품목 줄에서 열었으면 그 품목에 걸어둔 사진만 보여준다.
+  // 구역 사진을 통째로 보여주면 싱크대에 올린 사진이 냉장고장에도 나타나서
+  // 이게 이 품목 사진인지 저 품목 사진인지 알 수가 없다.
+  트레이사진 = 사진대상
+    ? 목록.filter((p) => (p.태그 || []).indexOf(사진대상.체크_ID) >= 0)
+    : 목록;
+
   const g = $('#trayGrid');
+  $('#trayEmpty').textContent = 사진대상
+    ? '‘' + 사진대상.품목명 + '’ 에 올린 사진이 없습니다. 아래에서 촬영하거나 앨범에서 가져오세요.'
+    : '아직 찍은 사진이 없습니다. 아래 촬영을 누르세요.';
   $('#trayEmpty').hidden = 트레이사진.length > 0;
   g.textContent = '';
   트레이사진.forEach((p, i) => {
     p._url = URL.createObjectURL(p.thumb);
     const d = document.createElement('div');
-    d.className = 'ph' + ((p.태그 || []).length ? ' tagged' : '');
+    // 초록 점: 구역 화면에서는 '태그한 사진', 품목 화면에서는 '네모까지 친 사진'
+    const 점 = 사진대상
+      ? !!(p.표시 && p.표시[사진대상.체크_ID])
+      : (p.태그 || []).length > 0;
+    d.className = 'ph' + (점 ? ' tagged' : '');
     d.innerHTML = '<img alt="사진 ' + (i + 1) + '" src="' + p._url + '">' +
       '<button type="button" class="del" aria-label="사진 삭제">✕</button>';
     d.addEventListener('click', () => (사진대상 ? 대상표시열기(p) : 태그화면열기(i)));
     // 삭제는 사진 열기보다 먼저 잡아야 한다. 안 그러면 태그 화면이 같이 열린다.
     d.querySelector('.del').addEventListener('click', async (e) => {
       e.stopPropagation();
-      const 건 = (p.태그 || []).length;
-      const 말 = 건
-        ? '이 사진을 지울까요?\n품목 ' + 건 + '개가 태그돼 있습니다.\n(견적 체크는 그대로 남습니다)'
-        : '이 사진을 지울까요?';
-      if (!confirm(말)) return;
-      await PDB.삭제(p.id);
+      if (사진대상) {
+        // 이 품목에서만 뗀다. 다른 품목도 같은 사진을 쓰고 있으면 사진은 남긴다 -
+        // 한 품목에서 지웠다고 남의 사진까지 없애면 안 된다.
+        const 남은 = (p.태그 || []).filter((id) => id !== 사진대상.체크_ID);
+        const 말 = 남은.length
+          ? '‘' + 사진대상.품목명 + '’ 에서 이 사진을 뺄까요?\n다른 품목 ' + 남은.length + '개에는 그대로 남습니다.'
+          : '‘' + 사진대상.품목명 + '’ 의 이 사진을 지울까요?';
+        if (!confirm(말)) return;
+        try {
+          if (남은.length) {
+            await PDB.표시저장(p.id, 사진대상.체크_ID, null);
+            await PDB.태그저장(p.id, 남은);
+          } else {
+            await PDB.삭제(p.id);
+          }
+        } catch (err) {
+          toast('사진을 지우지 못했습니다.');
+          console.warn(err);
+          return;
+        }
+      } else {
+        const 건 = (p.태그 || []).length;
+        const 말 = 건
+          ? '이 사진을 지울까요?\n품목 ' + 건 + '개가 태그돼 있습니다.\n(견적 체크는 그대로 남습니다)'
+          : '이 사진을 지울까요?';
+        if (!confirm(말)) return;
+        await PDB.삭제(p.id);
+      }
       await 트레이그리기();
       구역장수갱신();
     });
@@ -1427,7 +1464,10 @@ $('#trayFile').addEventListener('change', async (e) => {
 
 async function 사진추가(file) {
   try {
-    await PDB.추가(현장ID확보(), 트레이구역, file);
+    const 사진 = await PDB.추가(현장ID확보(), 트레이구역, file);
+    // 품목 줄에서 열었으면 이건 그 품목의 사진이다. 여기서 태그해 두지 않으면
+    // 목록 거르기에 걸려서 방금 넣은 사진이 화면에 안 보인다.
+    if (사진대상) await PDB.태그저장(사진.id, [사진대상.체크_ID]);
     return true;
   } catch (err) {
     // 저장공간이 꽉 차면 여기로 온다. 조용히 실패하면 찍은 줄 알고 넘어간다.
