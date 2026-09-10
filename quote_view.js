@@ -117,6 +117,13 @@ function render() {
     if (설명포함 && l.품목설명) {
       H.push('<div class="v-desc">' + esc(l.품목설명) + '</div>');
     }
+    // 이 품목을 짚어주는 사진. 사진에 이미 빨간 네모가 박혀 있다.
+    // 파일명이 체크_ID.jpg 라서 라인과 이어진다.
+    const 사진 = (d.사진들 || []).find((p) => p.파일명 === l.체크_ID + '.jpg');
+    if (사진 && 사진.url) {
+      H.push('<div class="v-shot"><img src="' + esc(사진.url) +
+        '" alt="' + esc(l.품목명) + ' 위치" loading="lazy"></div>');
+    }
   });
   if (현재구역 !== null) H.push('</div>');
 

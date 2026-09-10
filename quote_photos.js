@@ -44,6 +44,25 @@
     }, 0);
   }
 
+  // 사진 위에 그린 네모를 0~1 비율로 바꾼다.
+  // 화면 크기가 폰마다 다르므로 픽셀로 저장하면 다른 기기에서 엉뚱한 데 찍힌다.
+  //
+  // 최소크기: 손가락으로 톡 누르면 0 크기가 되어 화면에 아무것도 안 보인다.
+  // 그럴 때 보이는 만큼은 잡아준다. 다만 사진 밖으로 삐져나가면 안 되므로
+  // 오른쪽/아래 끝에서는 시작점을 당겨서 넣는다.
+  const 최소 = 0.04;
+
+  function 정규화사각(x1, y1, x2, y2, 폭, 높이) {
+    const 가둠 = function (v, 최대) { return Math.max(0, Math.min(최대, v)); };
+    let x = 가둠(Math.min(x1, x2) / 폭, 1);
+    let y = 가둠(Math.min(y1, y2) / 높이, 1);
+    let w = 가둠(Math.abs(x2 - x1) / 폭, 1 - x);
+    let h = 가둠(Math.abs(y2 - y1) / 높이, 1 - y);
+    if (w < 최소) { w = 최소; if (x + w > 1) x = 1 - w; }
+    if (h < 최소) { h = 최소; if (y + h > 1) y = 1 - h; }
+    return { x: x, y: y, w: w, h: h };
+  }
+
   // 현장 하나를 가리키는 키. 사진이 이 밑에 묶인다.
   function 새현장ID() {
     return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -145,6 +164,18 @@
     return out;
   }
 
+  /* 사진의 네모 표시. { 체크_ID: {x,y,w,h} } 로 품목마다 하나씩 둔다.
+     한 장에 방문·붙박이장이 같이 태그될 수 있어 품목별로 나눠 담아야 한다. */
+  async function 표시저장(id, 체크_ID, 사각) {
+    const st = await 트랜잭션('readwrite');
+    const p = await 요청(st.get(id));
+    if (!p) return;
+    p.표시 = p.표시 || {};
+    if (사각) p.표시[체크_ID] = 사각;
+    else delete p.표시[체크_ID];
+    await 요청(st.put(p));
+  }
+
   async function 태그저장(id, 태그) {
     const st = await 트랜잭션('readwrite');
     const p = await 요청(st.get(id));
@@ -172,6 +203,59 @@
     return [...new Set(all.map(function (p) { return p.현장ID; }))];
   }
 
+  /* 네모를 이미지에 구워서 견적서용 사진을 만든다.
+     받는 사람 브라우저에서 겹쳐 그리지 않는 이유: 이미지 한 장으로 끝나야
+     확실하다. 겹쳐 그리면 화면 크기·회전에 따라 자리가 밀릴 수 있다.
+
+     견적서용은 1000px 로 더 줄인다(장당 약 150KB). 어느 문인지 알아보는
+     용도라 원본 화질이 필요 없고, 받는 사람 데이터도 아껴야 한다. */
+  const 견적사진최대 = 1000;
+
+  async function 표시박은사진(blob, 사각) {
+    const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    try {
+      const c = 맞춤크기(bmp.width, bmp.height, 견적사진최대);
+      const cv = document.createElement('canvas');
+      cv.width = c.폭;
+      cv.height = c.높이;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(bmp, 0, 0, c.폭, c.높이);
+
+      if (사각) {
+        const x = 사각.x * c.폭, y = 사각.y * c.높이;
+        const w = 사각.w * c.폭, h = 사각.h * c.높이;
+        // 굵기를 사진 크기에 맞춘다. 고정 px 로 두면 작은 사진에서 네모가 다 덮는다.
+        const 굵기 = Math.max(3, Math.round(c.폭 / 200));
+        // 흰 테두리를 밑에 깔아야 어두운 사진에서도 빨간 선이 보인다.
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 굵기 * 2;
+        ctx.strokeRect(x, y, w, h);
+        ctx.strokeStyle = '#ff3b30';
+        ctx.lineWidth = 굵기;
+        ctx.strokeRect(x, y, w, h);
+      }
+      return new Promise(function (resolve) {
+        cv.toBlob(function (b) { resolve(b); }, 'image/jpeg', 0.82);
+      });
+    } finally {
+      bmp.close();
+    }
+  }
+
+  // Blob -> base64 (에어테이블 업로드용). 접두어 없이 순수 base64 만 돌려준다.
+  function base64로(blob) {
+    return new Promise(function (resolve, reject) {
+      const fr = new FileReader();
+      fr.onload = function () {
+        const s = String(fr.result || '');
+        resolve(s.slice(s.indexOf(',') + 1));
+      };
+      fr.onerror = function () { reject(fr.error); };
+      fr.readAsDataURL(blob);
+    });
+  }
+
   // 폰 저장공간이 부족할 때 크롬이 IndexedDB 를 임의로 비우는 것을 막는다.
   // 견적을 내고 2~3달 뒤 시공하는 경우가 있어 그동안 사진이 살아 있어야 한다.
   function 영구요청() {
@@ -186,9 +270,12 @@
     태그해제후_체크뺄까: 태그해제후_체크뺄까,
     사진용량합: 사진용량합,
     새현장ID: 새현장ID,
+    정규화사각: 정규화사각,
+    표시박은사진: 표시박은사진,
+    base64로: base64로,
     PhotoDB: {
       열기: 열기, 추가: 추가, 구역사진: 구역사진, 현장사진: 현장사진,
-      구역장수: 구역장수, 태그저장: 태그저장, 삭제: 삭제,
+      구역장수: 구역장수, 태그저장: 태그저장, 표시저장: 표시저장, 삭제: 삭제,
       현장삭제: 현장삭제, 모든현장ID: 모든현장ID, 영구요청: 영구요청,
     },
   };

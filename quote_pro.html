@@ -87,6 +87,7 @@
 
   <div id="pubAfter" hidden>
     <div id="pubLink"></div>
+    <p class="hint" id="photoUp"></p>
     <button id="copyLink" class="primary" type="button">링크 복사</button>
     <button id="copyText" type="button">텍스트 복사</button>
     <button id="openLink" type="button">링크 열기</button>
@@ -146,6 +147,20 @@
   </div>
   <button id="tagDel" type="button">이 사진 삭제</button>
   <button id="tagClose" class="primary" type="button">닫기</button>
+</section>
+
+<div id="markBack" hidden></div>
+<section id="markSheet" hidden aria-label="사진에 표시하기">
+  <h2 id="markTitle">표시하기</h2>
+  <p class="hint">사진에서 <b>해당 부분을 손가락으로 끌어</b> 네모를 그리세요.
+    견적서에 이 표시가 그대로 나갑니다.</p>
+  <div id="markWrap">
+    <img id="markImg" alt="현장 사진">
+    <div id="markBox" hidden></div>
+  </div>
+  <button id="markSave" class="primary" type="button">이 표시로 저장</button>
+  <button id="markClear" type="button">표시 지우기</button>
+  <button id="markClose" type="button">취소</button>
 </section>
 
 <div id="customBack" hidden></div>

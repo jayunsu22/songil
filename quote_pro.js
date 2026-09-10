@@ -4,6 +4,7 @@
 const CONFIG = {
   masterUrl:  'https://primary-production-a6fa.up.railway.app/webhook/pro-master',
   publishUrl: 'https://primary-production-a6fa.up.railway.app/webhook/pro-publish',
+  photoUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-photo',
 };
 
 const STORAGE_KEY = 'quote_pro_state_v1';
@@ -852,6 +853,9 @@ $('#doPublish').addEventListener('click', async () => {
     링크표시();
     $('#pubBefore').hidden = true;
     $('#pubAfter').hidden = false;
+    // 링크는 이미 완성됐다. 사진은 뒤에서 하나씩 올린다 -
+    // 급하면 사진을 안 기다리고 링크부터 보낼 수 있어야 한다.
+    표시사진올리기(j.견적코드);
   } catch (e) {
     btn.disabled = false;
     btn.textContent = '발행하기';
@@ -1433,12 +1437,17 @@ function 태그목록그리기() {
 
   const L = $('#tagList');
   L.textContent = '';
+  const 표시맵 = p.표시 || {};
   items.forEach((item) => {
+    const 걸림 = 태그.indexOf(item.체크_ID) >= 0;
     const lb = document.createElement('label');
     lb.innerHTML =
       '<input type="checkbox" data-id="' + esc(item.체크_ID) + '"' +
-      (태그.indexOf(item.체크_ID) >= 0 ? ' checked' : '') + '>' +
+      (걸림 ? ' checked' : '') + '>' +
       '<span>' + esc(item.표시_품목명) + '</span>';
+    // 태그한 품목에만 '표시' 버튼을 붙인다. 안 고른 품목까지 붙으면
+    // 목록이 버튼 밭이 되어 체크하기가 어려워진다.
+    if (걸림) lb.appendChild(표시버튼만들기(p, item));
     L.appendChild(lb);
   });
 
@@ -1460,6 +1469,36 @@ function 태그목록그리기() {
   L.querySelectorAll('input').forEach((cb) => {
     cb.addEventListener('change', () => 태그바꿈(cb.dataset.id, cb.checked));
   });
+}
+
+function 표시버튼만들기(사진, item) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  const 있음 = !!(사진.표시 && 사진.표시[item.체크_ID]);
+  b.className = 'mk' + (있음 ? ' on' : '');
+  b.textContent = 있음 ? '표시됨' : '표시';
+  b.addEventListener('click', (e) => {
+    // label 안의 버튼이라 막지 않으면 체크박스가 같이 눌린다
+    e.preventDefault();
+    e.stopPropagation();
+    표시열기(사진, item.체크_ID, item.표시_품목명);
+  });
+  return b;
+}
+
+/* 체크를 켜고 끌 때 그 줄의 '표시' 버튼만 붙였다 뗀다.
+   목록을 통째로 다시 그리면 탭 스크롤이 원위치로 튄다. */
+function 표시버튼갱신(체크_ID, 켜짐) {
+  const cb = $('#tagList input[data-id="' + 체크_ID + '"]');
+  if (!cb) return;
+  const lb = cb.closest('label');
+  const 기존 = lb.querySelector('.mk');
+  if (기존) 기존.remove();
+  if (!켜짐) return;
+  const p = 트레이사진[태그index];
+  const zone = MASTER.zones.find((z) => z.구역 === 태그구역);
+  const item = zone && zone.items.find((x) => x.체크_ID === 체크_ID);
+  if (p && item) lb.appendChild(표시버튼만들기(p, item));
 }
 
 /* 탭에 붙는 개수 표시만 고친다. 목록을 다시 그리면 체크할 때마다
@@ -1501,6 +1540,7 @@ async function 태그바꿈(체크_ID, 켜짐) {
     return;
   }
   탭숫자갱신();
+  표시버튼갱신(체크_ID, 켜짐);
 
   const row = ROWS.get(체크_ID);
   if (!row) return;      // 마스터에 없는 품목. 견적에는 넣지 않는다.
@@ -1656,3 +1696,159 @@ $('#customDel').addEventListener('click', () => {
 
 $('#customClose').addEventListener('click', 직접입력닫기);
 $('#customBack').addEventListener('click', 직접입력닫기);
+
+/* ---------- 사진에 네모 표시 ----------
+   업자가 보내준 사진에 문이 여럿 나온다. "이 견적이 이 문이다" 를
+   네모로 짚어줘야 오해가 없다. 좌표는 0~1 비율로 저장한다 -
+   폰마다 화면 크기가 달라 픽셀로 두면 엉뚱한 데 찍힌다. */
+let 표시대상 = null;   // { 사진id, 체크_ID, 품목명 }
+let 표시사각 = null;
+let 표시URL = null;
+
+function 표시열기(사진, 체크_ID, 품목명) {
+  표시대상 = { 사진id: 사진.id, 체크_ID: 체크_ID, 품목명: 품목명 };
+  표시사각 = (사진.표시 && 사진.표시[체크_ID]) || null;
+
+  if (표시URL) URL.revokeObjectURL(표시URL);
+  표시URL = URL.createObjectURL(사진.blob);
+  $('#markImg').src = 표시URL;
+  $('#markTitle').textContent = 품목명 + ' 표시하기';
+  표시그리기();
+  $('#markBack').hidden = false;
+  $('#markSheet').hidden = false;
+}
+
+function 표시그리기() {
+  const box = $('#markBox');
+  if (!표시사각) { box.hidden = true; return; }
+  box.hidden = false;
+  box.style.left   = (표시사각.x * 100) + '%';
+  box.style.top    = (표시사각.y * 100) + '%';
+  box.style.width  = (표시사각.w * 100) + '%';
+  box.style.height = (표시사각.h * 100) + '%';
+}
+
+/* 손가락으로 끌어서 네모를 그린다. pointer 이벤트는 터치·마우스를 함께 받는다. */
+(function () {
+  const wrap = $('#markWrap');
+  let 시작 = null;
+
+  const 좌표 = (e) => {
+    const r = wrap.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height };
+  };
+
+  wrap.addEventListener('pointerdown', (e) => {
+    if (!표시대상) return;
+    wrap.setPointerCapture(e.pointerId);
+    시작 = 좌표(e);
+    표시사각 = QuotePhotos.정규화사각(시작.x, 시작.y, 시작.x, 시작.y, 시작.w, 시작.h);
+    표시그리기();
+  });
+
+  wrap.addEventListener('pointermove', (e) => {
+    if (!시작) return;
+    const p = 좌표(e);
+    표시사각 = QuotePhotos.정규화사각(시작.x, 시작.y, p.x, p.y, p.w, p.h);
+    표시그리기();
+  });
+
+  const 끝내기 = () => { 시작 = null; };
+  wrap.addEventListener('pointerup', 끝내기);
+  wrap.addEventListener('pointercancel', 끝내기);
+})();
+
+function 표시닫기() {
+  if (표시URL) { URL.revokeObjectURL(표시URL); 표시URL = null; }
+  $('#markImg').removeAttribute('src');
+  표시대상 = null;
+  $('#markBack').hidden = true;
+  $('#markSheet').hidden = true;
+}
+
+$('#markSave').addEventListener('click', async () => {
+  if (!표시대상 || !표시사각) { toast('사진에서 해당 부분을 끌어주세요.'); return; }
+  try {
+    await PDB.표시저장(표시대상.사진id, 표시대상.체크_ID, 표시사각);
+  } catch (e) {
+    toast('표시를 저장하지 못했습니다.');
+    console.warn(e);
+    return;
+  }
+  // 화면에 들고 있는 사진에도 반영해야 태그 화면의 표시 버튼이 바로 바뀐다
+  const p = 트레이사진.find((x) => x.id === 표시대상.사진id);
+  if (p) { p.표시 = p.표시 || {}; p.표시[표시대상.체크_ID] = 표시사각; }
+  표시닫기();
+  태그목록그리기();
+  toast('표시했습니다');
+});
+
+$('#markClear').addEventListener('click', async () => {
+  if (!표시대상) return;
+  try {
+    await PDB.표시저장(표시대상.사진id, 표시대상.체크_ID, null);
+  } catch (e) {
+    toast('지우지 못했습니다.');
+    return;
+  }
+  const p = 트레이사진.find((x) => x.id === 표시대상.사진id);
+  if (p && p.표시) delete p.표시[표시대상.체크_ID];
+  표시닫기();
+  태그목록그리기();
+  toast('표시를 지웠습니다');
+});
+
+$('#markClose').addEventListener('click', 표시닫기);
+$('#markBack').addEventListener('click', 표시닫기);
+
+/* ---------- 표시 사진 올리기 ----------
+   발행이 끝난 뒤에 시작한다. 링크는 이미 완성되어 있으므로 급하면
+   사진을 안 기다리고 먼저 보낼 수 있다. 한 장씩 순서대로 올린다 -
+   한꺼번에 보내면 요청이 커져서 신호 약한 현장에서 통째로 실패한다. */
+async function 표시사진올리기(견적코드) {
+  const 상태 = $('#photoUp');
+  if (!사진가능 || !견적코드) { 상태.textContent = ''; return; }
+
+  let 사진들 = [];
+  try { 사진들 = await PDB.현장사진(현장ID확보()); } catch (e) { 사진들 = []; }
+
+  // 네모를 그려둔 것만 올린다. 태그만 한 사진까지 올리면 쓸데없이 느리고
+  // 에어테이블에 안 쓰는 사진이 쌓인다.
+  const 올릴것 = [];
+  사진들.forEach((p) => {
+    Object.keys(p.표시 || {}).forEach((체크_ID) => {
+      올릴것.push({ 사진: p, 체크_ID: 체크_ID, 사각: p.표시[체크_ID] });
+    });
+  });
+
+  if (!올릴것.length) { 상태.textContent = ''; return; }
+
+  let 성공 = 0, 실패 = 0;
+  for (let i = 0; i < 올릴것.length; i++) {
+    상태.textContent = '표시 사진 올리는 중… ' + (i + 1) + '/' + 올릴것.length;
+    const it = 올릴것[i];
+    try {
+      const 구운것 = await QuotePhotos.표시박은사진(it.사진.blob, it.사각);
+      const b64 = await QuotePhotos.base64로(구운것);
+      const res = await fetch(CONFIG.photoUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          견적코드: 견적코드,
+          체크_ID: it.체크_ID,
+          파일명: it.체크_ID + '.jpg',
+          이미지: b64,
+        }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      성공 += 1;
+    } catch (e) {
+      실패 += 1;
+      console.warn('사진 올리기 실패', it.체크_ID, e);
+    }
+  }
+
+  상태.textContent = 실패
+    ? '사진 ' + 성공 + '장 올림 · ' + 실패 + '장 실패 (다시 발행하면 재시도합니다)'
+    : '표시 사진 ' + 성공 + '장을 올렸습니다';
+}

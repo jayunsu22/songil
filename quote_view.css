@@ -228,3 +228,18 @@ body.view { padding-bottom: 40px; }
     box-shadow: 0 0 0 4px rgba(201, 103, 60, .15);
   }
 }
+
+/* 품목을 짚어주는 사진. 사진에 빨간 네모가 이미 박혀 있다.
+   업자가 보낸 사진에 문이 여럿 나올 때 어느 것인지 알려주는 용도다. */
+.v-shot {
+  padding: 0 18px 14px;
+  border-bottom: 1px solid #f0f1f3;
+}
+.v-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid #e3e6ec;
+  background: #eef0f4;
+}
