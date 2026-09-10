@@ -1519,6 +1519,15 @@ window.addEventListener('pageshow', () => {
   if (!MASTER) return;
   $('#sizeSelect').value = state.평형 || '확인안됨';
   $('#siteName').value = state.현장명 || '';
+  // 조정 줄이 특히 위험하다. 옵션을 자바스크립트로 채우는 칸이라, 크롬이
+  // 옵션이 아직 없을 때 복원해 버리면 '선택 안 함' 으로 되돌아간다.
+  // 그래도 state.조정 은 남아 있어서 총액에는 조정이 그대로 반영된다 -
+  // 화면과 금액이 어긋나 보이는 제일 헷갈리는 상태다.
+  syncAdjust();
+  필름칸그리기();
+  $('#memoText').value = state.메모 || '';
+  $('#relayText').value = state.전달사항 || '';
+  $('#noteText').value = state.안내문구 || '';
   ROWS.forEach((row) => syncRow(row));
   refresh();
 });

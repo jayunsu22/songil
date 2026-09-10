@@ -42,9 +42,9 @@
   <div id="filmNote"></div>
 
   <h2>전체 조정</h2>
-  <div class="adj-row"><select class="adj-name" data-slot="0"></select><select class="adj-pct" data-slot="0"></select></div>
-  <div class="adj-row"><select class="adj-name" data-slot="1"></select><select class="adj-pct" data-slot="1"></select></div>
-  <div class="adj-row"><select class="adj-name" data-slot="2"></select><select class="adj-pct" data-slot="2"></select></div>
+  <div class="adj-row"><select class="adj-name" autocomplete="off" data-slot="0"></select><select class="adj-pct" autocomplete="off" data-slot="0"></select></div>
+  <div class="adj-row"><select class="adj-name" autocomplete="off" data-slot="1"></select><select class="adj-pct" autocomplete="off" data-slot="1"></select></div>
+  <div class="adj-row"><select class="adj-name" autocomplete="off" data-slot="2"></select><select class="adj-pct" autocomplete="off" data-slot="2"></select></div>
   <div id="adjSum"></div>
 </section>
 
@@ -58,18 +58,18 @@
   <h2>견적서 발행</h2>
 
   <label class="memo-label" for="memoText">메모 <em>견적서와 카톡에 그대로 나갑니다</em></label>
-  <textarea id="memoText" rows="2" placeholder="예: 안방-앞방 연결문 포함 / 실외기실은 방2에 딸림"></textarea>
+  <textarea id="memoText" autocomplete="off" rows="2" placeholder="예: 안방-앞방 연결문 포함 / 실외기실은 방2에 딸림"></textarea>
 
   <!-- 업자가 자기 고객에게 옮겨 적을 시공범위 안내. 메모와 따로 둔다 -
        메모는 업자에게 하는 말이고, 이건 업자를 거쳐 소비자에게 가는 말이라
        성격이 달라서 한 칸에 섞어 쓰면 업자가 어디까지 전달할지 헷갈린다. -->
   <label class="memo-label" for="relayText">소비자 전달사항 <em>업자가 고객에게 꼭 전달할 시공범위</em></label>
-  <textarea id="relayText" rows="3" placeholder="예: 현관문은 안쪽면만 시공합니다.&#10;붙박이장, 싱크대, 샤시는 모두 앞쪽면만 시공합니다."></textarea>
+  <textarea id="relayText" autocomplete="off" rows="3" placeholder="예: 현관문은 안쪽면만 시공합니다.&#10;붙박이장, 싱크대, 샤시는 모두 앞쪽면만 시공합니다."></textarea>
 
   <!-- 평소에는 품목 공통설명 + 가맹점 공통 안내문구가 자동으로 나간다.
        이 칸을 고치면 이 견적서에서만 그 둘을 대신한다. -->
   <label class="memo-label" for="noteText">시공 안내문구 <em>고치면 이 견적서에만 적용됩니다</em></label>
-  <textarea id="noteText" rows="5"></textarea>
+  <textarea id="noteText" autocomplete="off" rows="5"></textarea>
   <button id="noteReset" class="link-btn" type="button">기본 문구로 되돌리기</button>
 
   <label class="opt"><input type="checkbox" id="optDesc" checked>
@@ -155,7 +155,7 @@
 <section id="descSheet" hidden aria-label="품목설명 고치기">
   <h2 id="descTitle">품목설명</h2>
   <p class="hint">고치면 <b>이 견적서에서만</b> 바뀝니다. 다음 견적에는 영향이 없습니다.</p>
-  <textarea id="descText" rows="6"></textarea>
+  <textarea id="descText" autocomplete="off" rows="6"></textarea>
   <button id="descSave" class="primary" type="button">이 견적에만 적용</button>
   <button id="descReset" type="button">원래 설명으로 되돌리기</button>
   <button id="descClose" type="button">취소</button>
@@ -193,7 +193,7 @@
   <input type="text" id="customAmt" inputmode="numeric" autocomplete="off" placeholder="예: 250,000원">
 
   <label class="memo-label" for="customDesc">설명 <em>비워두면 견적서에 설명이 안 나갑니다</em></label>
-  <textarea id="customDesc" rows="3" placeholder="예: 앞뒤면 모두 시공합니다.&#10;문짝 2개, 문틀 포함입니다."></textarea>
+  <textarea id="customDesc" autocomplete="off" rows="3" placeholder="예: 앞뒤면 모두 시공합니다.&#10;문짝 2개, 문틀 포함입니다."></textarea>
 
   <button id="customSave" class="primary" type="button">넣기</button>
   <button id="customDel" type="button" hidden>이 항목 삭제</button>
