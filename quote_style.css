@@ -573,3 +573,51 @@ header {
 
 /* 구역 고르는 칸은 숫자 입력이 아니므로 오른쪽 정렬을 풀어둔다 */
 #customZone { height: 46px; font-weight: 700; }
+
+/* ---------- 품목설명 고치기 ----------
+   "보이는면만 시공" 같은 기본 설명이 이번 건과 안 맞을 때가 있다.
+   에어테이블 원본은 그대로 두고 이 견적서에서만 바꾼다. */
+#descBack { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.35); }
+#descSheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  background: var(--card);
+  border-radius: 18px 18px 0 0;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  max-height: 88vh; overflow-y: auto;
+  box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+}
+#descSheet h2 { margin: 0 0 8px; font-size: 17px; }
+#descSheet .hint { font-size: 13px; color: var(--muted); line-height: 1.55; margin: 0 0 6px; }
+#descText {
+  width: 100%;
+  margin: 6px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 16px; font-family: inherit; line-height: 1.5;
+  background: #fff; color: var(--text);
+  resize: vertical;
+}
+#descSheet button {
+  width: 100%; min-height: var(--tap);
+  margin-top: 8px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; font-size: 15px; font-weight: 700; color: var(--text);
+}
+#descSheet button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* 품목 줄의 '설명' 버튼 */
+.item-body .desc-btn {
+  flex: 0 0 auto;
+  height: var(--tap);
+  padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; color: var(--muted);
+  font-size: 14px; font-weight: 700;
+  white-space: nowrap;
+}
+/* 이 견적에서 고쳐둔 품목 */
+.item-body .desc-btn.on {
+  border-color: #9c6f2e;
+  background: #fdf6ea;
+  color: #7c5620;
+}

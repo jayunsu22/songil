@@ -32,7 +32,7 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
+let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -321,11 +321,21 @@ function buildItem(item) {
     diff.appendChild(o);
   });
   body.appendChild(diff);
+
+  // 기본 설명이 이번 건과 안 맞을 때가 있다(방화문 '보이는면만' 같은 것).
+  // 에어테이블 원본은 두고 이 견적서에서만 바꾼다.
+  const 설명버튼 = document.createElement('button');
+  설명버튼.type = 'button';
+  설명버튼.className = 'desc-btn';
+  설명버튼.textContent = '설명';
+  설명버튼.addEventListener('click', () => 설명열기(item));
+  body.appendChild(설명버튼);
+
   box.appendChild(body);
 
   const row = { item: item, box: box, head: head, body: body, diff: diff, kind: 종류,
                 cb: head.querySelector('input'), amt: head.querySelector('.i-amt'),
-                num: body.querySelector('.qnum') };
+                num: body.querySelector('.qnum'), descBtn: 설명버튼 };
   ROWS.set(item.체크_ID, row);
 
   /* 이벤트 */
@@ -397,6 +407,11 @@ function syncRow(row) {
     if (row.num) row.num.value = s.수량;
     row.diff.value = String(s.난이도 || 1);
     if (row.kind) row.kind.value = String(s.옵션 || 0);
+  }
+  if (row.descBtn) {
+    const 고침 = !!(state.설명 && state.설명[row.item.체크_ID]);
+    row.descBtn.classList.toggle('on', 고침);
+    row.descBtn.textContent = 고침 ? '설명 고침' : '설명';
   }
 }
 
@@ -485,7 +500,8 @@ function 선택품목들() {
         // 필름 자재비는 견적 단위로 정한다. 품목에 저장된 값을 덮어쓴다.
         자재비단가: 적용자재비(),
         자재소모량: o.자재소모량,
-        품목설명: o.품목설명,
+        // 이 견적에서만 고친 설명이 있으면 그것을 쓴다
+        품목설명: (state.설명 && state.설명[item.체크_ID]) || o.품목설명,
         견적기준: o.견적기준,
         공통설명: o.공통설명,
       });
@@ -622,7 +638,7 @@ $('#resetBtn').addEventListener('click', async () => {
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
+  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
   현장ID확보();     // 새 현장이 시작됐다. 사진이 앞 현장에 섞이면 안 된다.
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
@@ -1122,7 +1138,7 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' },
+      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' },
       항목.상태
     );
     if (!state.현장ID) state.현장ID = 항목.현장ID || '';
@@ -1852,3 +1868,61 @@ async function 표시사진올리기(견적코드) {
     ? '사진 ' + 성공 + '장 올림 · ' + 실패 + '장 실패 (다시 발행하면 재시도합니다)'
     : '표시 사진 ' + 성공 + '장을 올렸습니다';
 }
+
+/* ---------- 품목설명 고치기 ----------
+   "방화문은 보이는면만 시공" 같은 기본 설명이 이번 건과 안 맞을 때가 있다.
+   에어테이블 원본은 그대로 두고 이 견적서에서만 바꾼다.
+   기본 설명과 같으면 저장하지 않는다 - 저장해 버리면 나중에 에어테이블에서
+   설명을 고쳐도 이 견적만 옛날 글로 굳는다. */
+let 설명대상 = null;
+
+function 기본품목설명(item) {
+  const s = state.선택[item.체크_ID];
+  const o = 고른옵션(item, s);
+  return (o && o.품목설명) || '';
+}
+
+function 설명열기(item) {
+  설명대상 = item;
+  $('#descTitle').textContent = item.표시_품목명 + ' 설명';
+  $('#descText').value = (state.설명 && state.설명[item.체크_ID]) || 기본품목설명(item);
+  $('#descBack').hidden = false;
+  $('#descSheet').hidden = false;
+}
+
+function 설명닫기() {
+  설명대상 = null;
+  $('#descBack').hidden = true;
+  $('#descSheet').hidden = true;
+}
+
+function 설명적용(글) {
+  const item = 설명대상;
+  if (!item) return;
+  if (!state.설명) state.설명 = {};
+  const 적은글 = (글 || '').trim();
+  if (!적은글 || 적은글 === 기본품목설명(item).trim()) delete state.설명[item.체크_ID];
+  else state.설명[item.체크_ID] = 적은글;
+  설명닫기();
+  const row = ROWS.get(item.체크_ID);
+  if (row) syncRow(row);
+  // refresh() 를 빼면 안 된다. 발행은 window.__quote 에 담긴 라인을 보내는데,
+  // 다시 계산하지 않으면 고치기 전 설명이 그대로 발행된다.
+  refresh();
+  persist();
+}
+
+$('#descSave').addEventListener('click', () => {
+  // 설명적용() 안에서 시트를 닫으며 설명대상을 비우므로 미리 잡아둔다
+  const id = 설명대상 && 설명대상.체크_ID;
+  설명적용($('#descText').value);
+  toast(state.설명 && state.설명[id] ? '이 견적서에만 적용했습니다' : '원래 설명 그대로입니다');
+});
+
+$('#descReset').addEventListener('click', () => {
+  설명적용('');
+  toast('원래 설명으로 되돌렸습니다');
+});
+
+$('#descClose').addEventListener('click', 설명닫기);
+$('#descBack').addEventListener('click', 설명닫기);
