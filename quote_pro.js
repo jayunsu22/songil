@@ -36,7 +36,7 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
+let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '' };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -120,6 +120,7 @@ function boot() {
   $('#memoText').value = state.메모 || '';
   $('#relayText').value = state.전달사항 || '';
   $('#noteText').value = state.안내문구 || '';
+  $('#privText').value = state.내부메모 || '';
 
   buildAdjust();
   필름칸그리기();
@@ -127,6 +128,7 @@ function boot() {
   구역장수갱신();
   refresh();
   $('#adjWrap').hidden = false;
+  $('#privWrap').hidden = false;
 }
 
 /* ---------- 필름 자재비 ----------
@@ -608,6 +610,7 @@ function persist() {
   state.현장명 = $('#siteName').value.trim();
   state.메모 = $('#memoText').value.trim();
   state.전달사항 = $('#relayText').value.trim();
+  state.내부메모 = $('#privText').value.trim();
   // 안내문구는 여기서 건드리지 않는다. #noteText 는 발행 창 안에 있어서
   // 창을 안 열면 빈 칸이고, persist() 는 품목을 체크할 때마다 불린다.
   // 여기서 읽으면 발행 뒤 돌아와 품목 하나만 눌러도 문구가 지워진다.
@@ -622,6 +625,7 @@ function esc(s) {
 /* ---------- 헤더 이벤트 ---------- */
 $('#siteName').addEventListener('input', persist);
 $('#memoText').addEventListener('input', persist);
+$('#privText').addEventListener('input', persist);
 /* 안내문구는 적은 그 자리에서만 저장한다.
    기본 문구 그대로면 저장하지 않는다 - 저장해 버리면 나중에 품목을 바꿔도
    문구가 옛날 것으로 굳어버린다. */
@@ -677,13 +681,14 @@ $('#resetBtn').addEventListener('click', async () => {
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' };
+  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '' };
   현장ID확보();     // 새 현장이 시작됐다. 사진이 앞 현장에 섞이면 안 된다.
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
   $('#memoText').value = '';
   $('#relayText').value = '';
   $('#noteText').value = '';
+  $('#privText').value = '';
   필름칸그리기();
   save(STORAGE_KEY, state);
   syncAdjust();
@@ -1104,6 +1109,10 @@ async function openBox() {
           '<b>' + esc(x.이름) + '</b>' +
           '<span>' + 짧은날짜(x.저장일시) + ' · ' + x.건수 + '개 · ' + won(x.총액) + 사진줄 +
             (x.현장코드 ? '' : ' · 미발행') + '</span>' +
+          // 내 메모 첫 줄. 저장함에서 어느 건인지 고를 때 이름만으로는 부족하다.
+          (x.상태 && x.상태.내부메모
+            ? '<span class="box-priv">' + esc(String(x.상태.내부메모).split('\n')[0]) + '</span>'
+            : '') +
         '</div>' +
         '<div class="box-acts">' +
           '<button type="button" class="box-load">불러오기</button>' +
@@ -1248,7 +1257,7 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '' },
+      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '' },
       항목.상태
     );
     if (!state.현장ID) state.현장ID = 항목.현장ID || '';
@@ -1259,6 +1268,7 @@ $('#boxList').addEventListener('click', async (e) => {
     $('#memoText').value = state.메모 || '';
     $('#relayText').value = state.전달사항 || '';
     $('#noteText').value = state.안내문구 || '';
+    $('#privText').value = state.내부메모 || '';
     필름칸그리기();
     syncAdjust();
     buildAll();
@@ -1607,6 +1617,7 @@ window.addEventListener('pageshow', () => {
   $('#memoText').value = state.메모 || '';
   $('#relayText').value = state.전달사항 || '';
   $('#noteText').value = state.안내문구 || '';
+  $('#privText').value = state.내부메모 || '';
   ROWS.forEach((row) => syncRow(row));
   refresh();
 });

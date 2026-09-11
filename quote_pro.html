@@ -48,6 +48,15 @@
   <div id="adjSum"></div>
 </section>
 
+<!-- 나만 보는 메모. 왜 이 단가로 잡았는지, 이 현장 유의사항 같은 것.
+     발행되는 견적서·카톡 텍스트·에어테이블 어디에도 안 나간다. 폰 안에만 있다.
+     '메모' 칸(발행 화면)은 견적서에 그대로 나가는 것이라 성격이 다르다. -->
+<section id="privWrap" hidden>
+  <label class="memo-label" for="privText">내 메모 <em>나만 봅니다 · 견적서에 안 나갑니다</em></label>
+  <textarea id="privText" autocomplete="off" rows="3"
+    placeholder="예: 업자 소개 건이라 -10% / 방화문은 실측 후 다시 / 주차 어려움, 30분 일찍"></textarea>
+</section>
+
 <footer id="totalBar">
   <div id="totalAmount">0원</div>
   <button id="publishBtn" type="button" disabled>견적서 발행</button>
