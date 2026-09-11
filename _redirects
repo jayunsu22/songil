@@ -9,4 +9,6 @@
 # 필름다모아. catch-all 보다 위에 있어야 한다. 정적 파일이 있으면 Netlify 가 먼저 서빙하지만,
 # /film (슬래시 없음) 으로 들어오는 링크를 확실히 처리하려고 명시해 둔다.
 /film      /film/index.html   200
+# 필름 공유 링크. /film/s/<레코드id> 를 그 필름의 정적 페이지로. catch-all 보다 위에 있어야 한다.
+/film/s/*  /film/s/:splat.html   200
 /*         /index.html    200

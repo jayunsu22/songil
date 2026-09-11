@@ -628,41 +628,24 @@
 
   // 쉼표(?f=a,b)를 쓰지 않는다. 카카오처럼 링크를 검사·가공하는 중계자를 거치면
   // 쉼표가 인코딩되거나 잘려서 클릭이 깨진다. 반복 파라미터(?f=a&f=b)는 안전하다.
-  /* 공유 링크는 물음표 뒤에 값 하나(s=)만 둔다. & 를 쓰지 않는다.
+  /* 공유 링크는 필름마다 미리 만들어 둔 정적 페이지를 가리킨다.
+   *   https://songil.netlify.app/film/s/recGLOCiwLDFzQN1T          (57자)
    *
-   * 예전 모양 ?r=…&c=share&n=… 은 '문자로 보내기'(sms:?body=) 를 거치면 첫 & 에서
-   * 잘렸다. 안드로이드 문자 앱이 body 를 & 로 나눠 읽기 때문인데, 퍼센트 인코딩을
-   * 해도 먼저 풀고 나서 나눈다. 그래서 문자로 받은 사람은 늘 필름 하나짜리 링크에
-   * 유입경로도 미리보기 정보도 없는 것을 받았다(사장님 폰에서 확인).
+   * 그 페이지에 og 태그가 박혀 있어 문자·밴드·카톡 미리보기에 필름 사진이 뜨고,
+   * 사람이 열면 바로 앱(/film/?r=…&c=share)으로 넘어간다. 만드는 쪽은 filmdb/share_pages.js.
    *
-   * 그래서 필름 id 들·유입경로·미리보기 정보를 JSON 하나로 묶어 base64url 로 담는다.
-   * 영숫자와 - _ 뿐이라 & 도 없고, 한글 퍼센트 인코딩이 중계자를 거치며 깨지는 일도 없다
-   * (현장견적 링크 /q/?n= 이 같은 방식으로 잘 돌고 있다).
+   * 거쳐 온 길: 처음엔 ?r=…&c=share&n=… 였는데 '문자로 보내기'(sms:?body=)가 첫 & 에서
+   * 잘라 버려 미리보기 정보도 두 번째 필름도 날아갔다. 그래서 ?s=<base64url> 한 덩어리로
+   * 바꿨더니 이번엔 190자라 문자에서 여덟 줄이 됐다. 정적 페이지면 둘 다 없다.
    *
-   * 미리보기 정보(t·d·k·n)를 함께 담는 이유: 문자·밴드의 미리보기 봇은 JS 를 돌리지
-   * 않고 서버가 준 HTML 의 og 태그만 읽는다. 엣지 함수(partner-og.js)가 이 값만 풀어
-   * og 태그를 끼워 넣는다 - 거기서 DB 를 찾지 않는 이유는 그 파일 머리에 있다.
-   * 여러 개를 보낼 때는 사진이 있는 첫 필름을 얼굴로 쓰고 개수만 적는다. */
+   * 여러 개는 첫 필름 페이지에 ?m=recB.recC 를 붙인다. & 는 문자 앱이 자르고 쉼표는
+   * 카톡 같은 중계자가 인코딩해서 깨뜨리므로 점을 쓴다. 레코드 id 는 영숫자뿐이라 안전하다.
+   * 얼굴(og:image)이 될 첫 필름은 사진이 있는 것으로 고른다. */
   function 공유주소(제품들) {
     var 얼굴 = 제품들.filter(function (q) { return 필름이미지(q); })[0] || 제품들[0];
-    var 짐 = {
-      r: 제품들.map(function (p) { return p.id; }),
-      c: 'share',
-    };
-    if (얼굴) {
-      짐.t = 브랜드(얼굴.제조사) + ' ' + 제목(얼굴);
-      짐.d = 필름설명(얼굴);
-      짐.k = 얼굴.사진무효 ? '' : 얼굴.키;
-      짐.n = 제품들.length;
-    }
-    return location.origin + location.pathname + '?s=' + base64url쓰기(JSON.stringify(짐));
-  }
-
-  function base64url쓰기(글) {
-    var 바이트 = new TextEncoder().encode(글);
-    var 이진 = '';
-    for (var i = 0; i < 바이트.length; i++) 이진 += String.fromCharCode(바이트[i]);
-    return btoa(이진).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    if (!얼굴) return location.origin + location.pathname;
+    var 나머지 = 제품들.filter(function (q) { return q !== 얼굴; }).map(function (q) { return q.id; });
+    return location.origin + '/film/s/' + 얼굴.id + (나머지.length ? '?m=' + 나머지.join('.') : '');
   }
 
   function base64url읽기(글) {
@@ -675,6 +658,7 @@
   }
 
   // 주소의 s= 를 풀어 준다. 없거나 깨졌으면 null.
+  // s= 는 2026-09-11 하루 나갔던 형식이다. 그날 문자로 나간 링크가 살아 있어야 해서 읽기만 남긴다.
   var 공유짐캐시;
   function 공유짐() {
     if (공유짐캐시 !== undefined) return 공유짐캐시;
