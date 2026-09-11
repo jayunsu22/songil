@@ -139,12 +139,16 @@ export default async (request, context) => {
         // 씹힌 사고). 앱이 필름 이름·설명·사진 키를 n= 에 base64url(JSON) 로 실어 보내고
         // 여기서는 그것만 풀어서 쓴다. n 이 없으면(예전에 나간 링크) 손대지 않는다.
         if (url.pathname === '/film' || url.pathname.startsWith('/film/')) {
-            const n = (url.searchParams.get('n') || '').trim();
-            if (!n) return response;
+            // s= 가 현재 형식(필름 id 목록·유입경로·미리보기 정보를 한 덩어리로).
+            // n= 은 잠깐 나갔던 예전 형식(미리보기 정보만). 둘 다 읽는다.
+            // 한 덩어리로 바꾼 이유: ?r=…&c=…&n=… 처럼 & 가 있으면 문자 앱(sms:?body=)이
+            // 첫 & 에서 잘라 버려서, 문자로 받은 링크에는 미리보기 정보가 없었다.
+            const 값 = (url.searchParams.get('s') || url.searchParams.get('n') || '').trim();
+            if (!값) return response;
 
             let 정보 = null;
             try {
-                const b64 = n.replace(/-/g, '+').replace(/_/g, '/');
+                const b64 = 값.replace(/-/g, '+').replace(/_/g, '/');
                 const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
                 const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
                 정보 = JSON.parse(new TextDecoder().decode(bytes));

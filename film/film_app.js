@@ -476,6 +476,8 @@
     var 설정 = 광고설정();
     var 표 = (설정 && 설정.경로) || {};
     var q = new URLSearchParams(location.search).get('c');
+    // 공유 링크(s=)에는 c 가 따로 없고 짐 안에 들어 있다.
+    if (!q) { var 짐 = 공유짐(); if (짐 && 짐.c) q = String(짐.c); }
     if (q && 표[q]) {
       if (표[q].고정 !== false) {
         try { localStorage.setItem(경로키, q); } catch (e) { /* 무시 */ }
@@ -626,47 +628,65 @@
 
   // 쉼표(?f=a,b)를 쓰지 않는다. 카카오처럼 링크를 검사·가공하는 중계자를 거치면
   // 쉼표가 인코딩되거나 잘려서 클릭이 깨진다. 반복 파라미터(?f=a&f=b)는 안전하다.
+  /* 공유 링크는 물음표 뒤에 값 하나(s=)만 둔다. & 를 쓰지 않는다.
+   *
+   * 예전 모양 ?r=…&c=share&n=… 은 '문자로 보내기'(sms:?body=) 를 거치면 첫 & 에서
+   * 잘렸다. 안드로이드 문자 앱이 body 를 & 로 나눠 읽기 때문인데, 퍼센트 인코딩을
+   * 해도 먼저 풀고 나서 나눈다. 그래서 문자로 받은 사람은 늘 필름 하나짜리 링크에
+   * 유입경로도 미리보기 정보도 없는 것을 받았다(사장님 폰에서 확인).
+   *
+   * 그래서 필름 id 들·유입경로·미리보기 정보를 JSON 하나로 묶어 base64url 로 담는다.
+   * 영숫자와 - _ 뿐이라 & 도 없고, 한글 퍼센트 인코딩이 중계자를 거치며 깨지는 일도 없다
+   * (현장견적 링크 /q/?n= 이 같은 방식으로 잘 돌고 있다).
+   *
+   * 미리보기 정보(t·d·k·n)를 함께 담는 이유: 문자·밴드의 미리보기 봇은 JS 를 돌리지
+   * 않고 서버가 준 HTML 의 og 태그만 읽는다. 엣지 함수(partner-og.js)가 이 값만 풀어
+   * og 태그를 끼워 넣는다 - 거기서 DB 를 찾지 않는 이유는 그 파일 머리에 있다.
+   * 여러 개를 보낼 때는 사진이 있는 첫 필름을 얼굴로 쓰고 개수만 적는다. */
   function 공유주소(제품들) {
-    // 주소에 한글을 넣지 않는다. 키(예: '현대_S248')를 쓰면 퍼센트 인코딩이 들어가는데,
-    // 카카오처럼 링크를 검사·가공하는 중계자를 거치면 % 가 다시 인코딩되어(%EC → %25EC)
-    // 클릭이 깨진다. 쉼표 때 겪은 것과 같은 부류의 문제다.
-    // 레코드 id 는 순수 영숫자(rec024JQMaq1Qlswa)라 어떤 중계자를 거쳐도 변하지 않는다.
-    // c=share 를 붙여야 카톡으로 퍼진 방문을 '직접' 과 구분해서 셀 수 있다.
-    // 순수 영숫자라 r= 과 같은 이유로 어떤 중계자를 거쳐도 안전하다.
-    return location.origin + location.pathname + '?' +
-      제품들.map(function (p) { return 'r=' + p.id; }).join('&') + '&c=share' +
-      미리보기꼬리(제품들);
+    var 얼굴 = 제품들.filter(function (q) { return 필름이미지(q); })[0] || 제품들[0];
+    var 짐 = {
+      r: 제품들.map(function (p) { return p.id; }),
+      c: 'share',
+    };
+    if (얼굴) {
+      짐.t = 브랜드(얼굴.제조사) + ' ' + 제목(얼굴);
+      짐.d = 필름설명(얼굴);
+      짐.k = 얼굴.사진무효 ? '' : 얼굴.키;
+      짐.n = 제품들.length;
+    }
+    return location.origin + location.pathname + '?s=' + base64url쓰기(JSON.stringify(짐));
   }
 
-  // 링크 미리보기 카드에 실을 것을 주소에 같이 담는다(n=).
-  //
-  // 카톡 공유 버튼으로 보내면 SDK 가 카드를 직접 만들어 필름 사진이 보이지만,
-  // 같은 링크를 문자·밴드에 붙여넣으면 글자만 나온다. 그쪽 미리보기 봇은 JS 를
-  // 돌리지 않고 서버가 준 HTML 의 og 태그만 읽는데, 정적 페이지라 어느 필름인지
-  // 알 길이 없어서다. 그래서 필름 이름·설명·사진 키를 주소에 실어 보내고,
-  // 엣지 함수(netlify/edge-functions/partner-og.js)가 그것만 읽어 og 태그를 바꿔 끼운다.
-  // 거기서 DB 를 찾아보지 않는 이유는 그 파일 머리에 적혀 있다(조회 지연으로 응답이
-  // 통째로 씹힌 사고). 현장견적 링크(/q/?n=)와 같은 방식이다.
-  //
-  // base64url 로 담는 이유: 한글을 퍼센트 인코딩으로 넣으면 중계자를 거치며 깨진다(위 참조).
-  // 여러 개를 보낼 때는 사진이 있는 첫 필름을 얼굴로 쓰고 개수만 적는다.
-  function 미리보기꼬리(제품들) {
-    var p = 제품들.filter(function (q) { return 필름이미지(q); })[0] || 제품들[0];
-    if (!p) return '';
-    var 정보 = {
-      t: 브랜드(p.제조사) + ' ' + 제목(p),
-      d: 필름설명(p),
-      k: p.사진무효 ? '' : p.키,
-      n: 제품들.length,
-    };
+  function base64url쓰기(글) {
+    var 바이트 = new TextEncoder().encode(글);
+    var 이진 = '';
+    for (var i = 0; i < 바이트.length; i++) 이진 += String.fromCharCode(바이트[i]);
+    return btoa(이진).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function base64url읽기(글) {
+    var b = String(글 || '').replace(/-/g, '+').replace(/_/g, '/');
+    while (b.length % 4) b += '=';
+    var 이진 = atob(b);
+    var 바이트 = new Uint8Array(이진.length);
+    for (var i = 0; i < 이진.length; i++) 바이트[i] = 이진.charCodeAt(i);
+    return new TextDecoder().decode(바이트);
+  }
+
+  // 주소의 s= 를 풀어 준다. 없거나 깨졌으면 null.
+  var 공유짐캐시;
+  function 공유짐() {
+    if (공유짐캐시 !== undefined) return 공유짐캐시;
+    공유짐캐시 = null;
     try {
-      var 바이트 = new TextEncoder().encode(JSON.stringify(정보));
-      var 이진 = '';
-      for (var i = 0; i < 바이트.length; i++) 이진 += String.fromCharCode(바이트[i]);
-      return '&n=' + btoa(이진).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    } catch (e) {
-      return '';   // 못 담으면 예전처럼 글자만 나오는 링크로 간다. 공유 자체는 되어야 한다.
-    }
+      var v = new URLSearchParams(location.search).get('s');
+      if (v) {
+        var 짐 = JSON.parse(base64url읽기(v));
+        if (짐 && typeof 짐 === 'object') 공유짐캐시 = 짐;
+      }
+    } catch (e) { 공유짐캐시 = null; }
+    return 공유짐캐시;
   }
 
   // 카카오톡 인앱 브라우저(안드로이드 WebView)에는 navigator.share 가 아예 없다.
@@ -1176,6 +1196,9 @@
     // r= 은 레코드 id(현재 형식), f= 는 키(예전에 나간 링크). 이미 카톡에 돌아다니는
     // 링크들이 있으므로 옛 형식도 계속 읽어야 한다.
     var id들 = [], 키들 = [];
+    // s= 가 현재 형식. 안에 id 목록이 들어 있다.
+    var 짐 = 공유짐();
+    if (짐 && Array.isArray(짐.r)) 짐.r.forEach(function (x) { if (typeof x === 'string' && x) id들.push(x); });
     q.getAll('r').forEach(function (v) {
       v.split(',').forEach(function (x) { if (x) id들.push(x); });
     });
