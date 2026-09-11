@@ -146,7 +146,7 @@ console.log(`film-db.json  ${목록.length}건  ${(크기 / 1024).toFixed(0)}KB 
 
 // 필름마다 공유용 정적 페이지(film/s/<id>.html). 왜 필요한지는 share_pages.js 머리에 있다.
 const 공유 = require('./share_pages.js').만들기(목록, 뿌리);
-console.log(`공유 페이지  ${공유.전체}개 (새로 쓴 것 ${공유.쓴것}, 지운 것 ${공유.지운것})`);
+console.log(`공유 페이지  ${공유.전체}개 (새로 쓴 것 ${공유.쓴것}, 이름 바꾼 것 ${공유.바꾼것}, 지운 것 ${공유.지운것})`);
 console.log(`이미지 복사   ${복사}개 (변경분만), 원본 없음 ${없음}개`);
 if (누락.length) console.log(`색 데이터 없어 제외: ${누락.length}건 — ${누락.slice(0, 5).join(', ')}`);
 

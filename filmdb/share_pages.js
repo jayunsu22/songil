@@ -17,6 +17,11 @@
  * 둔 이유: & 는 문자 앱(sms:?body=)이 거기서 잘라 버리고, 쉼표는 카톡 같은
  * 중계자가 인코딩해서 깨뜨린다. 점은 어디서도 손대지 않는다.
  *
+ * 파일 이름은 id 를 소문자로 쓴다. Netlify 가 주소를 소문자로 301 시켜 버려서
+ * /film/s/recGLOC… 로 부르면 /film/s/recgloc… 로 한 번 튕긴 뒤에 온다. 처음부터
+ * 소문자로 내보내면 튕기지 않는다. 소문자로 겹치는 id 는 없다(2,118개 확인).
+ * 페이지 안에는 원래 대소문자 id 를 박아 두고 그걸로 앱에 넘긴다 - 앱은 그쪽으로 찾는다.
+ *
  * build_db.js 끝에서 부른다. 내용이 같으면 파일을 다시 쓰지 않는다(mtime 유지).
  */
 'use strict';
@@ -36,7 +41,7 @@ function 한장(p) {
   const 제목 = 브랜드(p.제조사) + ' ' + (p.코드미확인 ? (p.색상명 || p.코드) : p.코드);
   const 설명 = [브랜드(p.제조사), p.HEX, p.카테고리].filter(Boolean).join(' · ');
   const 그림 = p.사진무효 ? '' : `${사이트}/film/img/card/${encodeURIComponent(p.키)}.webp`;
-  const 주소 = `${사이트}/film/s/${p.id}`;
+  const 주소 = `${사이트}/film/s/${p.id.toLowerCase()}`;
   const 앱 = `/film/?r=${p.id}&c=share`;
   return [
     '<!DOCTYPE html>',
@@ -64,23 +69,38 @@ function 한장(p) {
 function 만들기(목록, 뿌리) {
   const 폴더 = path.join(뿌리, 'film', 's');
   fs.mkdirSync(폴더, { recursive: true });
+
+  const 살릴것 = new Set(목록.filter((p) => p.id).map((p) => p.id.toLowerCase() + '.html'));
+
+  // 먼저 정리한다. 쓰기 전에 하는 이유: 윈도우는 대소문자를 안 가려서, 대문자 이름의
+  // 옛 파일이 있으면 소문자로 새로 써도 옛 이름 그대로 남는다. 그 상태에서 '목록에
+  // 없는 이름' 을 지우면 방금 쓴 내용까지 날아간다(실제로 2,117개가 그렇게 사라졌다).
+  let 지운것 = 0, 바꾼것 = 0;
+  fs.readdirSync(폴더).forEach((f) => {
+    if (!f.endsWith('.html')) return;
+    if (살릴것.has(f)) return;
+    const 낮 = f.toLowerCase();
+    if (살릴것.has(낮)) {
+      // 대소문자만 다른 옛 파일. 이름을 바꾼다(윈도우에서도 rename 은 대소문자를 바꿔 준다).
+      fs.renameSync(path.join(폴더, f), path.join(폴더, 낮));
+      바꾼것++;
+      return;
+    }
+    // 사라진 제품의 페이지. 남겨 두면 옛 링크가 빈 앱으로 간다.
+    fs.unlinkSync(path.join(폴더, f));
+    지운것++;
+  });
+
   let 쓴것 = 0;
-  const 살릴것 = new Set();
   목록.forEach((p) => {
     if (!p.id) return;
-    const 파일 = path.join(폴더, p.id + '.html');
-    살릴것.add(p.id + '.html');
+    const 파일 = path.join(폴더, p.id.toLowerCase() + '.html');
     const 글 = 한장(p);
     try { if (fs.readFileSync(파일, 'utf8') === 글) return; } catch (e) { /* 새로 쓴다 */ }
     fs.writeFileSync(파일, 글, 'utf8');
     쓴것++;
   });
-  // 사라진 제품의 페이지는 지운다. 없는 필름 페이지가 남아 있으면 옛 링크가 빈 앱으로 간다.
-  let 지운것 = 0;
-  fs.readdirSync(폴더).forEach((f) => {
-    if (f.endsWith('.html') && !살릴것.has(f)) { fs.unlinkSync(path.join(폴더, f)); 지운것++; }
-  });
-  return { 쓴것, 지운것, 전체: 살릴것.size };
+  return { 쓴것, 지운것, 바꾼것, 전체: 살릴것.size };
 }
 
 module.exports = { 만들기, 한장 };
@@ -89,5 +109,5 @@ if (require.main === module) {
   const 뿌리 = path.join(__dirname, '..');
   const 목록 = JSON.parse(fs.readFileSync(path.join(뿌리, 'film', 'film-db.json'), 'utf8'));
   const r = 만들기(목록, 뿌리);
-  console.log(`공유 페이지  ${r.전체}개 (새로 쓴 것 ${r.쓴것}, 지운 것 ${r.지운것})`);
+  console.log(`공유 페이지  ${r.전체}개 (새로 쓴 것 ${r.쓴것}, 이름 바꾼 것 ${r.바꾼것}, 지운 것 ${r.지운것})`);
 }

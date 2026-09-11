@@ -645,7 +645,8 @@
     var 얼굴 = 제품들.filter(function (q) { return 필름이미지(q); })[0] || 제품들[0];
     if (!얼굴) return location.origin + location.pathname;
     var 나머지 = 제품들.filter(function (q) { return q !== 얼굴; }).map(function (q) { return q.id; });
-    return location.origin + '/film/s/' + 얼굴.id + (나머지.length ? '?m=' + 나머지.join('.') : '');
+    // 경로는 소문자로. Netlify 가 대문자 경로를 소문자로 301 시키므로 처음부터 맞춰 보낸다.
+    return location.origin + '/film/s/' + 얼굴.id.toLowerCase() + (나머지.length ? '?m=' + 나머지.join('.') : '');
   }
 
   function base64url읽기(글) {
@@ -1190,8 +1191,11 @@
       v.split(',').forEach(function (x) { if (x) 키들.push(x); });
     });
     if (!id들.length && !키들.length) return;
+    // 대소문자를 가리지 않고 맞춘다. 공유 페이지 경로가 소문자라, 중계자를 거치며
+    // 어느 쪽이든 섞여 올 수 있다.
     var 받은 = id들.map(function (v) {
-      return 전체.filter(function (p) { return p.id === v; })[0];
+      var 낮 = String(v).toLowerCase();
+      return 전체.filter(function (p) { return String(p.id).toLowerCase() === 낮; })[0];
     }).concat(키들.map(function (k) {
       return 전체.filter(function (p) { return p.키 === k; })[0];
     })).filter(Boolean);
