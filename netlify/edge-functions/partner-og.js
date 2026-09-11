@@ -83,7 +83,12 @@ export default async (request, context) => {
         // 가져오게 만들었다가 응답이 1.5~1.8초 걸려 Edge Function 제한시간을 넘겨
         // 응답이 통째로 씹힌 사고가 있었다(위 주석 참조). 그래서 현장명을 링크의
         // ?t= 파라미터에 실어 보내고 여기서는 문자열만 읽는다 — 네트워크 호출 0회.
-        if (url.pathname.startsWith('/q/')) {
+        // [New] 현장 사진 갤러리 링크(/g/<코드>)도 같은 방식으로 처리한다.
+        // 갤러리 페이지는 원래 github.io 정적 페이지였는데, 정적 호스팅은 서버에서
+        // og 태그를 바꿀 수 없어서 카톡 카드가 늘 "사진 갤러리"로만 떴다.
+        // 그래서 견적서(/q/)와 같은 자리로 옮기고 현장명을 ?n= 에 실어 받는다.
+        if (url.pathname.startsWith('/q/') || url.pathname.startsWith('/g/')) {
+            const 갤러리 = url.pathname.startsWith('/g/');
             const escAttrQ = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
             const escTextQ = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -105,8 +110,12 @@ export default async (request, context) => {
             }
             if (!현장명) 현장명 = (url.searchParams.get('t') || '').trim();
             현장명 = 현장명.trim().slice(0, 60);
-            const qTitle = 현장명 || '섬세한손길 시공 견적서';
-            const qDesc = 현장명 ? '섬세한손길 시공 견적서' : '인테리어필름 시공 견적서입니다.';
+            const qTitle = 갤러리
+                ? (현장명 ? `${현장명} 사진 갤러리` : '현장 사진 갤러리')
+                : (현장명 || '섬세한손길 시공 견적서');
+            const qDesc = 갤러리
+                ? '섬세한손길 시공 사진입니다.'
+                : (현장명 ? '섬세한손길 시공 견적서' : '인테리어필름 시공 견적서입니다.');
 
             const qHtml = await response.text();
             const out = qHtml
