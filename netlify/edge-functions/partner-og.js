@@ -130,6 +130,57 @@ export default async (request, context) => {
             });
         }
 
+        // [New] 필름찾기 공유 링크(/film/?r=…&n=…).
+        // 카톡 공유 버튼으로 보내면 SDK 가 카드를 직접 만들어 필름 사진이 보이지만, 같은
+        // 링크를 문자·밴드에 붙여넣으면 글자만 나왔다. 그쪽 봇은 정적 HTML 의 og 태그만
+        // 읽는데 페이지가 하나라 어느 필름인지 알 수 없어서다.
+        //
+        // 여기서도 DB 를 찾아보지 않는다(/q/ 와 같은 이유 - 조회 지연으로 응답이 통째로
+        // 씹힌 사고). 앱이 필름 이름·설명·사진 키를 n= 에 base64url(JSON) 로 실어 보내고
+        // 여기서는 그것만 풀어서 쓴다. n 이 없으면(예전에 나간 링크) 손대지 않는다.
+        if (url.pathname === '/film' || url.pathname.startsWith('/film/')) {
+            const n = (url.searchParams.get('n') || '').trim();
+            if (!n) return response;
+
+            let 정보 = null;
+            try {
+                const b64 = n.replace(/-/g, '+').replace(/_/g, '/');
+                const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+                const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+                정보 = JSON.parse(new TextDecoder().decode(bytes));
+            } catch (e) {
+                return response;   // 값이 깨졌으면 기본 카드로 간다. 페이지는 그대로 나가야 한다.
+            }
+            if (!정보 || typeof 정보.t !== 'string' || !정보.t) return response;
+
+            const escAttrF = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            const escTextF = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            const 개수 = Number(정보.n) || 1;
+            const fTitle = String(정보.t).slice(0, 80) + (개수 > 1 ? ' 외 ' + (개수 - 1) + '개' : '');
+            const fDesc = (String(정보.d || '').slice(0, 120) || '1분견적 필름찾기');
+            // 사진 키(영림_PS048)에 한글이 있어 퍼센트 인코딩한다. 주소가 아니라 태그 속성이라
+            // 중계자를 거치지 않으므로 여기서는 안전하다. 앱의 카카오 카드도 같은 주소를 쓴다.
+            const 키 = typeof 정보.k === 'string' ? 정보.k.slice(0, 80) : '';
+            const fImg = 키 ? `${url.origin}/film/img/card/${encodeURIComponent(키)}.webp` : '';
+
+            const fHtml = await response.text();
+            let out = fHtml
+                .replace(/<title>[^<]*<\/title>/, () => `<title>${escTextF(fTitle)}</title>`)
+                .replace(/(<meta property="og:title" content=")[^"]*(")/, (_, a, b) => `${a}${escAttrF(fTitle)}${b}`)
+                .replace(/(<meta property="og:description" content=")[^"]*(")/, (_, a, b) => `${a}${escAttrF(fDesc)}${b}`);
+            // og:image / og:url 은 원본에 없다. og:description 뒤에 끼워 넣는다.
+            const extra =
+                (fImg ? `<meta property="og:image" content="${escAttrF(fImg)}">\n` : '') +
+                `<meta property="og:url" content="${escAttrF(request.url)}">`;
+            out = out.replace(/(<meta property="og:description"[^>]*>)/, (_, a) => `${a}\n${extra}`);
+
+            return new Response(out, {
+                status: 200,
+                headers: { 'content-type': 'text/html; charset=UTF-8' },
+            });
+        }
+
         const isDashboard = url.pathname.toLowerCase().includes('com_film_dashboard');
 
         let partnerName = null;

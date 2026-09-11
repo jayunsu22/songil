@@ -634,7 +634,39 @@
     // c=share 를 붙여야 카톡으로 퍼진 방문을 '직접' 과 구분해서 셀 수 있다.
     // 순수 영숫자라 r= 과 같은 이유로 어떤 중계자를 거쳐도 안전하다.
     return location.origin + location.pathname + '?' +
-      제품들.map(function (p) { return 'r=' + p.id; }).join('&') + '&c=share';
+      제품들.map(function (p) { return 'r=' + p.id; }).join('&') + '&c=share' +
+      미리보기꼬리(제품들);
+  }
+
+  // 링크 미리보기 카드에 실을 것을 주소에 같이 담는다(n=).
+  //
+  // 카톡 공유 버튼으로 보내면 SDK 가 카드를 직접 만들어 필름 사진이 보이지만,
+  // 같은 링크를 문자·밴드에 붙여넣으면 글자만 나온다. 그쪽 미리보기 봇은 JS 를
+  // 돌리지 않고 서버가 준 HTML 의 og 태그만 읽는데, 정적 페이지라 어느 필름인지
+  // 알 길이 없어서다. 그래서 필름 이름·설명·사진 키를 주소에 실어 보내고,
+  // 엣지 함수(netlify/edge-functions/partner-og.js)가 그것만 읽어 og 태그를 바꿔 끼운다.
+  // 거기서 DB 를 찾아보지 않는 이유는 그 파일 머리에 적혀 있다(조회 지연으로 응답이
+  // 통째로 씹힌 사고). 현장견적 링크(/q/?n=)와 같은 방식이다.
+  //
+  // base64url 로 담는 이유: 한글을 퍼센트 인코딩으로 넣으면 중계자를 거치며 깨진다(위 참조).
+  // 여러 개를 보낼 때는 사진이 있는 첫 필름을 얼굴로 쓰고 개수만 적는다.
+  function 미리보기꼬리(제품들) {
+    var p = 제품들.filter(function (q) { return 필름이미지(q); })[0] || 제품들[0];
+    if (!p) return '';
+    var 정보 = {
+      t: 브랜드(p.제조사) + ' ' + 제목(p),
+      d: 필름설명(p),
+      k: p.사진무효 ? '' : p.키,
+      n: 제품들.length,
+    };
+    try {
+      var 바이트 = new TextEncoder().encode(JSON.stringify(정보));
+      var 이진 = '';
+      for (var i = 0; i < 바이트.length; i++) 이진 += String.fromCharCode(바이트[i]);
+      return '&n=' + btoa(이진).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    } catch (e) {
+      return '';   // 못 담으면 예전처럼 글자만 나오는 링크로 간다. 공유 자체는 되어야 한다.
+    }
   }
 
   // 카카오톡 인앱 브라우저(안드로이드 WebView)에는 navigator.share 가 아예 없다.
