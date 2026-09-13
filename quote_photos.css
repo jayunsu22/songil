@@ -213,7 +213,7 @@
 /* object-fit 을 쓰지 않는다. 그림이 놓인 자리와 요소 크기가 어긋나면
    눌린 좌표가 밀려서 엉뚱한 곳에 네모가 그려진다. */
 #markImg { display: block; width: 100%; height: auto; }
-#markBox {
+.mk-box {
   position: absolute;
   border: 3px solid #ff3b30;
   border-radius: 4px;

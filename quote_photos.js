@@ -63,6 +63,43 @@
     return { x: x, y: y, w: w, h: h };
   }
 
+  /* 사진 한 장에 한 품목의 네모가 여러 개일 수 있다(방문이 두 짝, 문틀과 문짝).
+     예전 데이터는 네모 하나를 객체로 담았고, 지금은 배열이다. 둘 다 배열로 돌려준다. */
+  function 사각목록(값) {
+    if (!값) return [];
+    if (Array.isArray(값)) return 값.filter(Boolean);
+    return [값];
+  }
+
+  /* 발행 뒤 올릴 사진 목록. 품목에 태그한 사진은 네모가 없어도 올린다 -
+     "이 문입니다" 를 네모 없이 사진만으로 보여주고 싶은 경우가 있다.
+     (예전엔 네모 친 것만 올렸더니 그냥 올린 사진이 견적서에 안 나와 물어왔다)
+
+     같은 품목에 사진이 여럿이면 첫 장은 체크_ID.jpg (예전 견적서와 같은 이름),
+     그 다음부터 체크_ID__2.jpg, __3.jpg 다. 견적서는 이 둘을 다 찾는다. */
+  function 올릴사진목록(사진들) {
+    const out = [];
+    const 번호 = {};
+    (사진들 || []).slice().sort(function (a, b) { return a.id - b.id; }).forEach(function (p) {
+      // 태그한 품목 + 네모만 남은 품목(태그를 풀었는데 네모가 남은 예전 데이터)
+      const ids = [];
+      (p.태그 || []).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); });
+      Object.keys(p.표시 || {}).forEach(function (id) {
+        if (ids.indexOf(id) < 0 && 사각목록(p.표시[id]).length) ids.push(id);
+      });
+      ids.forEach(function (id) {
+        번호[id] = (번호[id] || 0) + 1;
+        out.push({
+          사진: p,
+          체크_ID: id,
+          사각들: 사각목록(p.표시 && p.표시[id]),
+          파일명: id + (번호[id] === 1 ? '' : '__' + 번호[id]) + '.jpg',
+        });
+      });
+    });
+    return out;
+  }
+
   // 현장 하나를 가리키는 키. 사진이 이 밑에 묶인다.
   function 새현장ID() {
     return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -212,6 +249,7 @@
   const 견적사진최대 = 1000;
 
   async function 표시박은사진(blob, 사각) {
+    const 사각들 = 사각목록(사각);
     const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
     try {
       const c = 맞춤크기(bmp.width, bmp.height, 견적사진최대);
@@ -221,20 +259,20 @@
       const ctx = cv.getContext('2d');
       ctx.drawImage(bmp, 0, 0, c.폭, c.높이);
 
-      if (사각) {
+      // 굵기를 사진 크기에 맞춘다. 고정 px 로 두면 작은 사진에서 네모가 다 덮는다.
+      const 굵기 = Math.max(3, Math.round(c.폭 / 200));
+      ctx.lineJoin = 'round';
+      사각들.forEach(function (사각) {
         const x = 사각.x * c.폭, y = 사각.y * c.높이;
         const w = 사각.w * c.폭, h = 사각.h * c.높이;
-        // 굵기를 사진 크기에 맞춘다. 고정 px 로 두면 작은 사진에서 네모가 다 덮는다.
-        const 굵기 = Math.max(3, Math.round(c.폭 / 200));
         // 흰 테두리를 밑에 깔아야 어두운 사진에서도 빨간 선이 보인다.
-        ctx.lineJoin = 'round';
         ctx.strokeStyle = 'rgba(255,255,255,0.9)';
         ctx.lineWidth = 굵기 * 2;
         ctx.strokeRect(x, y, w, h);
         ctx.strokeStyle = '#ff3b30';
         ctx.lineWidth = 굵기;
         ctx.strokeRect(x, y, w, h);
-      }
+      });
       return new Promise(function (resolve) {
         cv.toBlob(function (b) { resolve(b); }, 'image/jpeg', 0.82);
       });
@@ -271,6 +309,8 @@
     사진용량합: 사진용량합,
     새현장ID: 새현장ID,
     정규화사각: 정규화사각,
+    사각목록: 사각목록,
+    올릴사진목록: 올릴사진목록,
     표시박은사진: 표시박은사진,
     base64로: base64로,
     PhotoDB: {

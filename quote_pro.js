@@ -1306,10 +1306,10 @@ async function 구역장수갱신() {
   }
   장수맵 = {};
   표시된품목 = new Set();
-  전체.forEach((p) => {
-    장수맵[p.구역] = (장수맵[p.구역] || 0) + 1;
-    Object.keys(p.표시 || {}).forEach((id) => 표시된품목.add(id));
-  });
+  // 태그한 사진은 네모가 없어도 견적서에 나간다. 그래서 '사진 있음' 은
+  // 태그 기준이다. 네모만 남은 예전 데이터도 같이 센다.
+  QuotePhotos.올릴사진목록(전체).forEach((it) => 표시된품목.add(it.체크_ID));
+  전체.forEach((p) => { 장수맵[p.구역] = (장수맵[p.구역] || 0) + 1; });
   document.querySelectorAll('.zone').forEach((det) => {
     if (!det._cam) return;
     const n = 장수맵[det._zone] || 0;
@@ -1393,7 +1393,7 @@ async function 트레이그리기() {
     const d = document.createElement('div');
     // 초록 점: 구역 화면에서는 '태그한 사진', 품목 화면에서는 '네모까지 친 사진'
     const 점 = 사진대상
-      ? !!(p.표시 && p.표시[사진대상.체크_ID])
+      ? QuotePhotos.사각목록(p.표시 && p.표시[사진대상.체크_ID]).length > 0
       : (p.태그 || []).length > 0;
     d.className = 'ph' + (점 ? ' tagged' : '');
     d.innerHTML = '<img alt="사진 ' + (i + 1) + '" src="' + p._url + '">' +
@@ -1742,9 +1742,9 @@ function 태그목록그리기() {
 function 표시버튼만들기(사진, item) {
   const b = document.createElement('button');
   b.type = 'button';
-  const 있음 = !!(사진.표시 && 사진.표시[item.체크_ID]);
-  b.className = 'mk' + (있음 ? ' on' : '');
-  b.textContent = 있음 ? '표시됨' : '표시';
+  const 개수 = QuotePhotos.사각목록(사진.표시 && 사진.표시[item.체크_ID]).length;
+  b.className = 'mk' + (개수 ? ' on' : '');
+  b.textContent = 개수 > 1 ? '표시됨 ' + 개수 : (개수 ? '표시됨' : '표시');
   b.addEventListener('click', (e) => {
     // label 안의 버튼이라 막지 않으면 체크박스가 같이 눌린다
     e.preventDefault();
@@ -2052,12 +2052,12 @@ $('#customBack').addEventListener('click', 직접입력닫기);
    네모로 짚어줘야 오해가 없다. 좌표는 0~1 비율로 저장한다 -
    폰마다 화면 크기가 달라 픽셀로 두면 엉뚱한 데 찍힌다. */
 let 표시대상 = null;   // { 사진id, 체크_ID, 품목명 }
-let 표시사각 = null;
+let 표시목록 = [];     // 이 품목의 네모들. 한 장에 여러 개 그릴 수 있다(방문 두 짝 등)
 let 표시URL = null;
 
 function 표시열기(사진, 체크_ID, 품목명) {
   표시대상 = { 사진id: 사진.id, 체크_ID: 체크_ID, 품목명: 품목명 };
-  표시사각 = (사진.표시 && 사진.표시[체크_ID]) || null;
+  표시목록 = QuotePhotos.사각목록(사진.표시 && 사진.표시[체크_ID]).slice();
 
   if (표시URL) URL.revokeObjectURL(표시URL);
   표시URL = URL.createObjectURL(사진.blob);
@@ -2069,13 +2069,21 @@ function 표시열기(사진, 체크_ID, 품목명) {
 }
 
 function 표시그리기() {
-  const box = $('#markBox');
-  if (!표시사각) { box.hidden = true; return; }
-  box.hidden = false;
-  box.style.left   = (표시사각.x * 100) + '%';
-  box.style.top    = (표시사각.y * 100) + '%';
-  box.style.width  = (표시사각.w * 100) + '%';
-  box.style.height = (표시사각.h * 100) + '%';
+  const wrap = $('#markWrap');
+  wrap.querySelectorAll('.mk-box').forEach((b) => b.remove());
+  표시목록.forEach((사각) => {
+    const box = document.createElement('div');
+    box.className = 'mk-box';
+    box.style.left   = (사각.x * 100) + '%';
+    box.style.top    = (사각.y * 100) + '%';
+    box.style.width  = (사각.w * 100) + '%';
+    box.style.height = (사각.h * 100) + '%';
+    wrap.appendChild(box);
+  });
+  $('#markUndo').hidden = 표시목록.length === 0;
+  $('#markUndo').textContent = 표시목록.length > 1
+    ? '마지막 네모 지우기 (' + 표시목록.length + '개)'
+    : '네모 지우기';
 }
 
 /* 손가락으로 끌어서 네모를 그린다. pointer 이벤트는 터치·마우스를 함께 받는다. */
@@ -2088,18 +2096,21 @@ function 표시그리기() {
     return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height };
   };
 
+  // 끌 때마다 네모가 하나씩 늘어난다. 방문이 두 짝이거나 문틀과 문짝을 따로
+  // 짚어야 할 때 한 장으로 끝낸다. 잘못 그리면 '마지막 네모 지우기'.
   wrap.addEventListener('pointerdown', (e) => {
     if (!표시대상) return;
     wrap.setPointerCapture(e.pointerId);
     시작 = 좌표(e);
-    표시사각 = QuotePhotos.정규화사각(시작.x, 시작.y, 시작.x, 시작.y, 시작.w, 시작.h);
+    표시목록.push(QuotePhotos.정규화사각(시작.x, 시작.y, 시작.x, 시작.y, 시작.w, 시작.h));
     표시그리기();
   });
 
   wrap.addEventListener('pointermove', (e) => {
     if (!시작) return;
     const p = 좌표(e);
-    표시사각 = QuotePhotos.정규화사각(시작.x, 시작.y, p.x, p.y, p.w, p.h);
+    표시목록[표시목록.length - 1] =
+      QuotePhotos.정규화사각(시작.x, 시작.y, p.x, p.y, p.w, p.h);
     표시그리기();
   });
 
@@ -2116,10 +2127,15 @@ function 표시닫기() {
   $('#markSheet').hidden = true;
 }
 
+$('#markUndo').addEventListener('click', () => {
+  표시목록.pop();
+  표시그리기();
+});
+
 $('#markSave').addEventListener('click', async () => {
-  if (!표시대상 || !표시사각) { toast('사진에서 해당 부분을 끌어주세요.'); return; }
+  if (!표시대상 || !표시목록.length) { toast('사진에서 해당 부분을 끌어주세요.'); return; }
   try {
-    await PDB.표시저장(표시대상.사진id, 표시대상.체크_ID, 표시사각);
+    await PDB.표시저장(표시대상.사진id, 표시대상.체크_ID, 표시목록.slice());
   } catch (e) {
     toast('표시를 저장하지 못했습니다.');
     console.warn(e);
@@ -2127,7 +2143,7 @@ $('#markSave').addEventListener('click', async () => {
   }
   // 화면에 들고 있는 사진에도 반영해야 태그 화면의 표시 버튼이 바로 바뀐다
   const p = 트레이사진.find((x) => x.id === 표시대상.사진id);
-  if (p) { p.표시 = p.표시 || {}; p.표시[표시대상.체크_ID] = 표시사각; }
+  if (p) { p.표시 = p.표시 || {}; p.표시[표시대상.체크_ID] = 표시목록.slice(); }
   표시닫기();
   // 태그 화면을 거치지 않고 품목 줄에서 바로 들어온 경우가 있다.
   // 그때 태그 목록을 그리면 안 보이는 화면을 헛되이 만든다.
@@ -2168,14 +2184,13 @@ async function 표시사진올리기(견적코드) {
   let 사진들 = [];
   try { 사진들 = await PDB.현장사진(현장ID확보()); } catch (e) { 사진들 = []; }
 
-  // 네모를 그려둔 것만 올린다. 태그만 한 사진까지 올리면 쓸데없이 느리고
-  // 에어테이블에 안 쓰는 사진이 쌓인다.
-  const 올릴것 = [];
-  사진들.forEach((p) => {
-    Object.keys(p.표시 || {}).forEach((체크_ID) => {
-      올릴것.push({ 사진: p, 체크_ID: 체크_ID, 사각: p.표시[체크_ID] });
-    });
-  });
+  // 품목에 태그한 사진은 네모가 없어도 올린다. "이 문입니다" 를 사진만으로
+  // 보여주고 싶은 경우가 있다 - 네모 친 것만 올렸더니 안 나온다고 물어왔다.
+  // 견적에 안 들어간 품목의 사진은 뺀다. 견적서에 짝이 없는 사진이
+  // 올라가면 에어테이블에 쓸모없는 사진만 쌓인다.
+  const 라인들 = ((window.__quote || {}).result || {}).라인들 || [];
+  const 견적에있음 = new Set(라인들.map((l) => l.체크_ID));
+  const 올릴것 = QuotePhotos.올릴사진목록(사진들).filter((it) => 견적에있음.has(it.체크_ID));
 
   if (!올릴것.length) { 상태.textContent = ''; 상태.className = 'hint'; return; }
 
@@ -2187,7 +2202,7 @@ async function 표시사진올리기(견적코드) {
       ' · 다 올라간 뒤에 보내세요';
     const it = 올릴것[i];
     try {
-      const 구운것 = await QuotePhotos.표시박은사진(it.사진.blob, it.사각);
+      const 구운것 = await QuotePhotos.표시박은사진(it.사진.blob, it.사각들);
       const b64 = await QuotePhotos.base64로(구운것);
       const res = await fetch(CONFIG.photoUrl, {
         method: 'POST',
@@ -2195,7 +2210,7 @@ async function 표시사진올리기(견적코드) {
         body: JSON.stringify({
           견적코드: 견적코드,
           체크_ID: it.체크_ID,
-          파일명: it.체크_ID + '.jpg',
+          파일명: it.파일명,
           이미지: b64,
         }),
       });

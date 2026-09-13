@@ -137,13 +137,15 @@ function render() {
     if (설명포함 && l.품목설명) {
       H.push('<div class="v-desc">' + esc(l.품목설명) + '</div>');
     }
-    // 이 품목을 짚어주는 사진. 사진에 이미 빨간 네모가 박혀 있다.
-    // 파일명이 체크_ID.jpg 라서 라인과 이어진다.
-    const 사진 = (d.사진들 || []).find((p) => p.파일명 === l.체크_ID + '.jpg');
-    if (사진 && 사진.url) {
+    // 이 품목을 짚어주는 사진. 네모를 쳤으면 이미 사진에 박혀 있다.
+    // 파일명이 체크_ID.jpg 라서 라인과 이어진다. 같은 품목 사진이 여럿이면
+    // 체크_ID__2.jpg, __3.jpg 로 온다 - 전부 보여준다.
+    const 사진들 = (d.사진들 || []).filter((p) =>
+      p.url && (p.파일명 === l.체크_ID + '.jpg' || String(p.파일명 || '').indexOf(l.체크_ID + '__') === 0));
+    사진들.forEach((사진) => {
       H.push('<div class="v-shot"><img src="' + esc(사진.url) +
         '" alt="' + esc(l.품목명) + ' 위치" loading="lazy"></div>');
-    }
+    });
   });
   if (현재구역 !== null) H.push('</div>');
 

@@ -105,3 +105,55 @@ test('정규화사각: 오른쪽 끝에서 눌러도 사진 밖으로 안 나간
   assert.ok(r.x + r.w <= 1 && r.y + r.h <= 1);
   assert.ok(r.w >= 0.04 && r.h >= 0.04);
 });
+
+/* ---------- 네모 여러 개 · 올릴 사진 목록 ---------- */
+const { 사각목록, 올릴사진목록 } = require('../quote_photos.js');
+
+test('사각목록: 예전 데이터(객체 하나)도 배열로 돌려준다', () => {
+  assert.deepStrictEqual(사각목록({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }),
+    [{ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }]);
+  assert.deepStrictEqual(사각목록([{ x: 0 }, null, { x: 1 }]), [{ x: 0 }, { x: 1 }]);
+  assert.deepStrictEqual(사각목록(null), []);
+  assert.deepStrictEqual(사각목록(undefined), []);
+});
+
+test('올릴사진목록: 태그만 하고 네모 안 친 사진도 올린다', () => {
+  // 예전엔 네모 친 것만 올렸더니 그냥 올린 사진이 견적서에 안 나왔다
+  const 사진들 = [{ id: 1, 태그: ['z07_방1_방문_공통'], 표시: {} }];
+  const r = 올릴사진목록(사진들);
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].체크_ID, 'z07_방1_방문_공통');
+  assert.deepStrictEqual(r[0].사각들, []);
+  assert.strictEqual(r[0].파일명, 'z07_방1_방문_공통.jpg');
+});
+
+test('올릴사진목록: 같은 품목 사진이 여럿이면 __2, __3 으로 이름을 나눈다', () => {
+  // 첫 장은 예전 견적서와 같은 이름이어야 한다
+  const 사진들 = [
+    { id: 3, 태그: ['a'], 표시: {} },
+    { id: 1, 태그: ['a'], 표시: { a: { x: 0, y: 0, w: 0.5, h: 0.5 } } },
+    { id: 2, 태그: ['b', 'a'], 표시: {} },
+  ];
+  const r = 올릴사진목록(사진들);
+  // 찍은 순서(id)대로
+  assert.deepStrictEqual(r.map((x) => x.파일명), ['a.jpg', 'b.jpg', 'a__2.jpg', 'a__3.jpg']);
+  assert.strictEqual(r[0].사각들.length, 1);
+});
+
+test('올릴사진목록: 한 사진에 한 품목 네모가 여러 개면 전부 넘긴다', () => {
+  const 사진들 = [{ id: 1, 태그: ['a'],
+    표시: { a: [{ x: 0, y: 0, w: 0.2, h: 0.2 }, { x: 0.5, y: 0.5, w: 0.2, h: 0.2 }] } }];
+  const r = 올릴사진목록(사진들);
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].사각들.length, 2);
+});
+
+test('올릴사진목록: 태그를 풀었는데 네모만 남은 예전 데이터도 올린다', () => {
+  const 사진들 = [{ id: 1, 태그: [], 표시: { a: { x: 0, y: 0, w: 0.5, h: 0.5 } } }];
+  assert.strictEqual(올릴사진목록(사진들).length, 1);
+});
+
+test('올릴사진목록: 태그도 네모도 없는 사진은 안 올린다', () => {
+  const 사진들 = [{ id: 1, 태그: [], 표시: {} }, { id: 2 }];
+  assert.strictEqual(올릴사진목록(사진들).length, 0);
+});
