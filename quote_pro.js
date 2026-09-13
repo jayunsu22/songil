@@ -1151,13 +1151,16 @@ function 저장함쓰기(list) {
   save(BOX_KEY, list);
 }
 
-$('#saveDraft').addEventListener('click', () => {
+/* 작성 중인 견적을 저장함에 담는다. 머리줄 '저장' 과 발행 창 '저장함에 담기' 가
+   같이 쓴다. 작성 내용은 자동으로도 저장되지만(STORAGE_KEY) 그건 한 건뿐이라
+   '새 견적' 을 누르면 덮인다. 저장함에 담아야 이름이 붙은 사본이 남는다. */
+function 저장함에담기() {
   persist();
-  const 건수 = Object.keys(state.선택).length;
-  if (!건수) { toast('체크한 품목이 없습니다.'); return; }
+  const 건수 = Object.keys(state.선택).length + (state.직접품목 || []).length;
+  if (!건수) { toast('체크한 품목이 없습니다.'); return false; }
 
   const 이름 = (state.현장명 || '').trim() || prompt('저장할 이름을 적어주세요.', '') || '';
-  if (!이름.trim()) { toast('이름이 없어 저장하지 않았습니다.'); return; }
+  if (!이름.trim()) { toast('이름이 없어 저장하지 않았습니다.'); return false; }
 
   const list = 저장함읽기();
   const 항목 = {
@@ -1170,9 +1173,11 @@ $('#saveDraft').addEventListener('click', () => {
     현장코드: state.현장코드 || '',   // 발행했으면 '내역보기' 로 그 견적서를 연다
     상태: JSON.parse(JSON.stringify(state)),
   };
-  // 같은 이름이 있으면 덮어쓴다. 같은 현장을 두 번 저장했을 때 목록이 지저분해진다.
-  const i = list.findIndex((x) => x.이름 === 항목.이름);
-  if (i >= 0) list[i] = 항목; else list.unshift(항목);
+  // 같은 현장(현장ID)이면 덮어쓴다. 현장명을 고쳐도 새 건이 생기지 않는다.
+  // 예전 건은 현장ID 가 없을 수 있어 이름으로도 찾는다.
+  let i = list.findIndex((x) => x.현장ID && x.현장ID === 항목.현장ID);
+  if (i < 0) i = list.findIndex((x) => x.이름 === 항목.이름);
+  if (i >= 0) { 항목.id = list[i].id; list[i] = 항목; } else list.unshift(항목);
 
   // 예전에는 slice(0,30) 으로 31번째에서 가장 오래된 걸 말없이 버렸다.
   // 사진이 붙은 뒤로는 두 달 뒤 시공하려던 현장이 소리 없이 사라지는 셈이라
@@ -1181,12 +1186,18 @@ $('#saveDraft').addEventListener('click', () => {
     list.shift();      // 방금 unshift 한 것을 되돌린다
     alert('저장함이 30건으로 꽉 찼습니다.\n저장함에서 필요 없는 현장을 지운 뒤 다시 담아주세요.');
     openBox();
-    return;
+    return false;
   }
   저장함쓰기(list);
-  if (list.length >= 25) toast('저장함이 ' + list.length + '건입니다. 30건까지 담을 수 있습니다.');
-  else toast('‘' + 항목.이름 + '’ 저장함에 담았습니다');
-});
+  const 시각 = new Date();
+  const 시 = String(시각.getHours()).padStart(2, '0') + ':' + String(시각.getMinutes()).padStart(2, '0');
+  if (list.length >= 25) toast('저장했습니다 · 저장함이 ' + list.length + '건입니다 (30건까지)');
+  else toast('‘' + 항목.이름 + '’ 저장했습니다 · ' + 시);
+  return true;
+}
+
+$('#saveDraft').addEventListener('click', 저장함에담기);
+$('#saveBtn').addEventListener('click', 저장함에담기);
 
 function MB(바이트) {
   if (!바이트) return '0MB';

@@ -725,3 +725,16 @@ header {
   0%, 100% { opacity: 1; }
   50%      { opacity: .35; }
 }
+
+/* 머리줄 '저장'. 다른 머리줄 버튼과 같은 크기지만 눌러야 하는 버튼이라 색을 준다. */
+#saveBtn {
+  flex: 0 0 auto;
+  height: var(--tap);
+  padding: 0 14px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
