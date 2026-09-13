@@ -10,7 +10,12 @@
 <body>
 
 <header>
-  <input id="siteName" type="text" placeholder="현장명 (예: 레스코 역곡 42평)" autocomplete="off">
+  <!-- 📍 는 칸 안쪽 오른쪽에 붙인다. 머리줄이 이미 꽉 차서 버튼을 옆에 두면
+       현장명 칸이 더 좁아진다. 누르면 GPS → 카카오 지도로 '동 + 건물명' 을 채운다. -->
+  <div class="site-wrap">
+    <input id="siteName" type="text" placeholder="현장명 (예: 레스코 역곡 42평)" autocomplete="off">
+    <button id="geoBtn" type="button" aria-label="현재 위치로 현장명 채우기" title="현재 위치">📍</button>
+  </div>
   <select id="sizeSelect" aria-label="평형" autocomplete="off">
     <!-- 확인안됨: 평형을 아직 모를 때. 평형별 품목(몰딩/걸레받이/싱크대)이
          화면에서 빠져서, 모르는 채로 엉뚱한 평형 금액이 들어가는 걸 막는다. -->

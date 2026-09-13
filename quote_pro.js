@@ -624,6 +624,127 @@ function esc(s) {
 
 /* ---------- 헤더 이벤트 ---------- */
 $('#siteName').addEventListener('input', persist);
+
+/* ---------- 현재 위치로 현장명 채우기 ----------
+   배민·카카오지도가 처음 열릴 때 현재 위치를 잡는 것과 같은 방식.
+   폰 GPS 로 위도·경도를 받고, 카카오 지도 API 로 '동 + 건물명' 을 만든다.
+   카카오가 한국 아파트 이름을 제일 잘 잡는다.
+
+   JavaScript 키는 등록한 도메인(songil.netlify.app)에서만 동작하는 공개용 키다.
+   지도 SDK 는 누를 때 처음 불러온다 - 매번 100KB 를 받을 이유가 없다. */
+const KAKAO_JS_KEY = '94a9649452e414f730c16f5836839f74';
+let 카카오로딩 = null;
+
+function 카카오지도준비() {
+  if (window.kakao && kakao.maps && kakao.maps.services) return Promise.resolve();
+  if (카카오로딩) return 카카오로딩;
+  카카오로딩 = new Promise((resolve, reject) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=' + KAKAO_JS_KEY +
+      '&libraries=services&autoload=false';
+    sc.onload = () => {
+      // autoload=false 라 load() 를 불러야 kakao.maps 가 준비된다
+      try { kakao.maps.load(resolve); } catch (e) { 카카오로딩 = null; reject(e); }
+    };
+    sc.onerror = () => { 카카오로딩 = null; reject(new Error('카카오 지도를 불러오지 못했습니다')); };
+    document.head.appendChild(sc);
+  });
+  return 카카오로딩;
+}
+
+function 현재위치() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('nogeo')); return; }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,   // 아파트 단지 안에서는 동 하나 차이로 이름이 바뀐다
+      timeout: 12000,
+      maximumAge: 0,              // 아까 잡아둔 위치를 재활용하지 않는다. 현장을 옮겨 다닌다.
+    });
+  });
+}
+
+/* 위도·경도 → '도림동 벽산블루밍아파트'.
+   동은 지번 주소에서, 건물명은 도로명 주소에서 가져온다. 도로명 주소의 동은
+   행정동일 때가 있어 사장님이 부르는 이름(법정동)과 다를 수 있다.
+   건물명이 없으면 근처 아파트 이름(단지명)을, 그것도 없으면 지번을 붙인다. */
+function 주소글(결과, 단지명) {
+  const r = (결과 && 결과[0]) || {};
+  const 도로 = r.road_address || null;
+  const 지번 = r.address || null;
+  const 동 = (지번 && 지번.region_3depth_name) || (도로 && 도로.region_3depth_name) || '';
+  const 건물 = (도로 && 도로.building_name) || 단지명 || '';
+  if (건물) return (동 + ' ' + 건물).trim();
+  if (지번 && 지번.main_address_no) {
+    return (동 + ' ' + 지번.main_address_no +
+      (지번.sub_address_no ? '-' + 지번.sub_address_no : '')).trim();
+  }
+  return 동 || (지번 && 지번.address_name) || '';
+}
+
+/* 아파트 단지는 땅이 넓어서 좌표가 건물 위에 정확히 떨어져야만 도로명 주소에
+   건물명이 붙는다. 단지 안 길에 서 있으면 지번만 나온다. 그때는 근처 아파트를
+   찾아 제일 가까운 단지 이름을 쓴다. 200m 안에 없으면 아파트가 아니라고 본다. */
+function 근처단지명(위도, 경도) {
+  return new Promise((resolve) => {
+    let ps;
+    try { ps = new kakao.maps.services.Places(); } catch (e) { resolve(''); return; }
+    const 옵션 = {
+      location: new kakao.maps.LatLng(위도, 경도),
+      radius: 200,
+      sort: kakao.maps.services.SortBy.DISTANCE,
+    };
+    ps.keywordSearch('아파트', (data, status) => {
+      if (status !== kakao.maps.services.Status.OK || !data || !data.length) { resolve(''); return; }
+      // '아파트 상가', '아파트 관리사무소' 같은 것은 뺀다. 주거시설로 분류된 것만.
+      const 단지 = data.find((d) => /주거시설|아파트/.test(d.category_name || '') &&
+        !/상가|관리사무소|경비|주차장/.test(d.place_name || ''));
+      resolve(단지 ? 단지.place_name : '');
+    }, 옵션);
+  });
+}
+
+function 좌표를주소로(경도, 위도) {
+  return new Promise((resolve, reject) => {
+    const geocoder = new kakao.maps.services.Geocoder();
+    geocoder.coord2Address(경도, 위도, (결과, 상태) => {
+      if (상태 === kakao.maps.services.Status.OK) resolve(결과);
+      else reject(new Error('geocode ' + 상태));
+    });
+  });
+}
+
+$('#geoBtn').addEventListener('click', async () => {
+  const btn = $('#geoBtn');
+  if (btn.classList.contains('busy')) return;
+  btn.classList.add('busy');
+  try {
+    // 위치부터 잡는다. 권한 창이 뜨는 동안 SDK 를 같이 받아두면 체감이 빠르다.
+    const [pos] = await Promise.all([현재위치(), 카카오지도준비()]);
+    const 결과 = await 좌표를주소로(pos.coords.longitude, pos.coords.latitude);
+    const 건물있음 = !!(결과 && 결과[0] && 결과[0].road_address && 결과[0].road_address.building_name);
+    const 단지 = 건물있음 ? '' : await 근처단지명(pos.coords.latitude, pos.coords.longitude);
+    const 글 = 주소글(결과, 단지);
+    if (!글) { toast('주소를 알아내지 못했습니다.'); return; }
+
+    const 지금 = $('#siteName').value.trim();
+    if (지금 && 지금 !== 글 && !confirm('현장명을 ‘' + 글 + '’ 으로 바꿀까요?\n지금: ' + 지금)) return;
+    $('#siteName').value = 글;
+    persist();
+
+    // GPS 오차가 크면 옆 동 이름이 나올 수 있다. 알려주고 고치게 한다.
+    const 오차 = Math.round(pos.coords.accuracy || 0);
+    toast(오차 > 60 ? '‘' + 글 + '’ (오차 ±' + 오차 + 'm — 이름을 확인해 주세요)' : '‘' + 글 + '’ 으로 채웠습니다');
+  } catch (e) {
+    console.warn(e);
+    const 말 = e && e.code === 1 ? '위치 권한이 꺼져 있습니다. 브라우저 설정에서 위치를 허용해 주세요.'
+      : e && e.code === 3 ? '위치를 잡는 데 시간이 너무 걸립니다. 창가나 밖에서 다시 눌러주세요.'
+      : e && e.message === 'nogeo' ? '이 브라우저는 위치를 지원하지 않습니다.'
+      : '위치를 가져오지 못했습니다. 잠시 후 다시 눌러주세요.';
+    toast(말);
+  } finally {
+    btn.classList.remove('busy');
+  }
+});
 $('#memoText').addEventListener('input', persist);
 $('#privText').addEventListener('input', persist);
 /* 안내문구는 적은 그 자리에서만 저장한다.

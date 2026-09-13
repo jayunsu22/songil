@@ -40,11 +40,16 @@ header {
   top: 0;
   z-index: 20;
 }
-#siteName {
+.site-wrap {
   flex: 1 1 auto;
   min-width: 0;
+  position: relative;
+}
+#siteName {
+  width: 100%;
+  min-width: 0;
   height: var(--tap);
-  padding: 0 12px;
+  padding: 0 40px 0 12px;   /* 오른쪽은 📍 자리 */
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 15px;
@@ -694,4 +699,26 @@ header {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 현장명 칸 안의 현재 위치 버튼 */
+#geoBtn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+}
+#geoBtn:active { background: #eef2f7; }
+#geoBtn.busy { animation: geo-pulse 0.9s ease-in-out infinite; }
+@keyframes geo-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .35; }
 }
