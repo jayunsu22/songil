@@ -244,7 +244,27 @@ function renderSum() {
   }
 
   $v('#vSum').innerHTML = R.join('');
+  renderBar(총, 조정됨);
   renderInquiry(조정됨);
+}
+
+/* 화면 아래에 붙어 다니는 합계. 합계 줄이 견적서 맨 아래에 있어서
+   품목을 빼도 금액이 바뀌는 게 안 보인다 - 그래서 합계만 따로 고정한다.
+   명함·안내문은 원래 자리에 그대로 둔다. 여기 붙이면 화면을 다 가린다. */
+function renderBar(총, 조정됨) {
+  let bar = $v('#vBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'vBar';
+    document.body.appendChild(bar);
+  }
+  const 뺀수 = 해제.size;
+  bar.innerHTML =
+    '<span class="v-bar-label">' + (인건비만 ? '인건비 합계' : '합계') +
+      (뺀수 ? ' <small>' + 뺀수 + '개 뺌</small>' : '') + '</span>' +
+    '<span class="v-bar-amt">' + won(총) +
+      (DATA.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span>';
+  bar.classList.toggle('changed', 조정됨);
 }
 
 /* 품목을 빼면 그 아래에 문의 버튼이 나타난다. 업자용·소비자용 모두 나온다.
