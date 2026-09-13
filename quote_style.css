@@ -34,6 +34,9 @@ header {
   border-bottom: 1px solid var(--line);
   padding: 10px 12px;
   display: flex;
+  /* 두 줄이다. 현장명이 한 줄을 다 쓰고, 평형·저장함·새 견적은 다음 줄.
+     한 줄에 다 넣으면 '삼산동 주공…' 처럼 주소가 잘려서 어느 현장인지 안 보인다. */
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   position: sticky;
@@ -41,7 +44,7 @@ header {
   z-index: 20;
 }
 .site-wrap {
-  flex: 1 1 auto;
+  flex: 1 0 100%;     /* 첫 줄을 통째로 쓴다 */
   min-width: 0;
   position: relative;
 }
@@ -57,7 +60,7 @@ header {
   color: var(--text);
 }
 #sizeSelect {
-  flex: 0 0 auto;
+  flex: 1 1 auto;     /* 둘째 줄에서 남는 폭은 평형 칸이 갖는다 */
   height: var(--tap);
   padding: 0 8px;
   border: 1px solid var(--line);
