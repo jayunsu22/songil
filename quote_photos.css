@@ -323,3 +323,40 @@
   border-radius: 10px;
   padding: 9px 11px;
 }
+
+/* 표시 화면의 도구줄: 네모 색 · 빨간 표시 지우기 */
+#markTools {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+#markSheet .mk-color {
+  flex: 0 0 auto;
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+#markSheet .mk-color button {
+  width: auto;
+  min-height: 0;
+  height: 40px;
+  margin: 0;
+  padding: 0 14px;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  font-size: 14px;
+  color: var(--muted);
+}
+#markSheet .mk-color button.on[data-color="빨강"] { background: #ffe5e2; color: #c1271c; }
+#markSheet .mk-color button.on[data-color="파랑"] { background: #e2ecff; color: #1749b8; }
+#markSheet #markRed {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 40px;
+  margin: 0;
+  font-size: 14px;
+}
+#markSheet #markRed.busy { opacity: .5; }
+.mk-box.blue { border-color: #1e6fff; }

@@ -2186,10 +2186,16 @@ $('#customBack').addEventListener('click', 직접입력닫기);
 let 표시대상 = null;   // { 사진id, 체크_ID, 품목명 }
 let 표시목록 = [];     // 이 품목의 네모들. 한 장에 여러 개 그릴 수 있다(방문 두 짝 등)
 let 표시URL = null;
+// 새로 그릴 네모 색. 업자가 빨간 펜으로 표시한 평면도에는 파랑으로 친다.
+// 한 번 고르면 다음 사진에서도 그대로다 - 평면도는 보통 여러 장이 이어서 온다.
+let 네모색이름 = (load('quote_pro_mkcolor') || '빨강');
 
 function 표시열기(사진, 체크_ID, 품목명) {
   표시대상 = { 사진id: 사진.id, 체크_ID: 체크_ID, 품목명: 품목명 };
   표시목록 = QuotePhotos.사각목록(사진.표시 && 사진.표시[체크_ID]).slice();
+  // 이미 그린 네모가 있으면 그 색을 따른다. 없으면 마지막에 고른 색.
+  if (표시목록.length && 표시목록[0].색) 네모색이름 = 표시목록[0].색;
+  네모색표시();
 
   if (표시URL) URL.revokeObjectURL(표시URL);
   표시URL = URL.createObjectURL(사진.blob);
@@ -2205,7 +2211,7 @@ function 표시그리기() {
   wrap.querySelectorAll('.mk-box').forEach((b) => b.remove());
   표시목록.forEach((사각) => {
     const box = document.createElement('div');
-    box.className = 'mk-box';
+    box.className = 'mk-box' + (사각.색 === '파랑' ? ' blue' : '');
     box.style.left   = (사각.x * 100) + '%';
     box.style.top    = (사각.y * 100) + '%';
     box.style.width  = (사각.w * 100) + '%';
@@ -2234,15 +2240,18 @@ function 표시그리기() {
     if (!표시대상) return;
     wrap.setPointerCapture(e.pointerId);
     시작 = 좌표(e);
-    표시목록.push(QuotePhotos.정규화사각(시작.x, 시작.y, 시작.x, 시작.y, 시작.w, 시작.h));
+    const 새것 = QuotePhotos.정규화사각(시작.x, 시작.y, 시작.x, 시작.y, 시작.w, 시작.h);
+    새것.색 = 네모색이름;
+    표시목록.push(새것);
     표시그리기();
   });
 
   wrap.addEventListener('pointermove', (e) => {
     if (!시작) return;
     const p = 좌표(e);
-    표시목록[표시목록.length - 1] =
-      QuotePhotos.정규화사각(시작.x, 시작.y, p.x, p.y, p.w, p.h);
+    const 고침 = QuotePhotos.정규화사각(시작.x, 시작.y, p.x, p.y, p.w, p.h);
+    고침.색 = 네모색이름;
+    표시목록[표시목록.length - 1] = 고침;
     표시그리기();
   });
 
@@ -2252,6 +2261,8 @@ function 표시그리기() {
 })();
 
 function 표시닫기() {
+  // 빨간 표시를 지웠으면 썸네일도 바뀌었다. 트레이가 열려 있으면 다시 그린다.
+  if (!$('#traySheet').hidden && $('#tagSheet').hidden) 트레이그리기();
   if (표시URL) { URL.revokeObjectURL(표시URL); 표시URL = null; }
   $('#markImg').removeAttribute('src');
   표시대상 = null;
@@ -2262,6 +2273,56 @@ function 표시닫기() {
 $('#markUndo').addEventListener('click', () => {
   표시목록.pop();
   표시그리기();
+});
+
+/* 네모 색 고르기. 이미 그린 네모도 같이 바꾼다 - 한 사진에 두 색이 섞이면
+   받는 쪽이 무슨 뜻인지 모른다. */
+function 네모색표시() {
+  document.querySelectorAll('#markSheet .mk-color button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.color === 네모색이름);
+  });
+}
+document.querySelectorAll('#markSheet .mk-color button').forEach((b) => {
+  b.addEventListener('click', () => {
+    네모색이름 = b.dataset.color;
+    save('quote_pro_mkcolor', 네모색이름);
+    표시목록.forEach((사각) => { 사각.색 = 네모색이름; });
+    네모색표시();
+    표시그리기();
+  });
+});
+
+/* 사진의 빨간 표시 지우기. 원본을 갈아끼우므로 되돌릴 수 없다 - 묻고 한다.
+   태그·네모는 그대로 남는다. */
+$('#markRed').addEventListener('click', async () => {
+  if (!표시대상) return;
+  const btn = $('#markRed');
+  if (btn.classList.contains('busy')) return;
+  const p = 트레이사진.find((x) => x.id === 표시대상.사진id);
+  if (!p) return;
+  if (!confirm('이 사진의 빨간 표시(펜 자국)를 지웁니다.\n되돌릴 수 없습니다. 지울까요?')) return;
+  btn.classList.add('busy');
+  btn.textContent = '지우는 중…';
+  try {
+    const 새blob = await QuotePhotos.빨강지우기(p.blob);
+    if (!새blob) { toast('빨간 표시가 없습니다.'); return; }
+    const 갱신 = await PDB.사진바꾸기(p.id, 새blob);
+    if (!갱신) { toast('사진을 바꾸지 못했습니다.'); return; }
+    // 화면에 들고 있는 사진과 큰 그림도 갈아끼운다
+    p.blob = 갱신.blob;
+    p.thumb = 갱신.thumb;
+    if (p._url) { URL.revokeObjectURL(p._url); p._url = null; }
+    if (표시URL) URL.revokeObjectURL(표시URL);
+    표시URL = URL.createObjectURL(p.blob);
+    $('#markImg').src = 표시URL;
+    toast('빨간 표시를 지웠습니다');
+  } catch (e) {
+    console.warn(e);
+    toast('지우지 못했습니다.');
+  } finally {
+    btn.classList.remove('busy');
+    btn.textContent = '사진의 빨간 표시 지우기';
+  }
 });
 
 $('#markSave').addEventListener('click', async () => {

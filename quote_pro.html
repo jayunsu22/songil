@@ -190,6 +190,15 @@
   <div id="markWrap">
     <img id="markImg" alt="현장 사진">
   </div>
+  <!-- 업자가 빨간 펜으로 표시한 평면도에 빨간 네모를 또 치면 섞인다.
+       네모 색을 바꾸거나, 사진의 빨간 표시를 지운다. -->
+  <div id="markTools">
+    <div class="mk-color" role="group" aria-label="네모 색">
+      <button type="button" data-color="빨강" class="on">빨강</button>
+      <button type="button" data-color="파랑">파랑</button>
+    </div>
+    <button id="markRed" type="button">사진의 빨간 표시 지우기</button>
+  </div>
   <button id="markSave" class="primary" type="button">이 표시로 저장</button>
   <button id="markUndo" type="button" hidden>네모 지우기</button>
   <button id="markClear" type="button">표시 전부 지우기</button>

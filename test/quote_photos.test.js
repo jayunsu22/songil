@@ -157,3 +157,23 @@ test('올릴사진목록: 태그도 네모도 없는 사진은 안 올린다', (
   const 사진들 = [{ id: 1, 태그: [], 표시: {} }, { id: 2 }];
   assert.strictEqual(올릴사진목록(사진들).length, 0);
 });
+
+/* ---------- 빨간 표시 지우기 · 네모 색 ---------- */
+const { 빨간가, 네모색 } = require('../quote_photos.js');
+
+test('빨간가: 펜 빨강과 가장자리 분홍은 잡고, 베이지 바닥·검정 선·흰 배경은 안 잡는다', () => {
+  assert.strictEqual(빨간가(255, 0, 0), true);       // 순빨강
+  assert.strictEqual(빨간가(230, 40, 50), true);     // 펜 빨강
+  assert.strictEqual(빨간가(245, 140, 150), true);   // 가장자리 분홍
+  assert.strictEqual(빨간가(220, 185, 140), false);  // 베이지 바닥 (R 높지만 G 도 높다)
+  assert.strictEqual(빨간가(200, 160, 120), false);  // 나무색 문
+  assert.strictEqual(빨간가(255, 255, 255), false);  // 흰 배경
+  assert.strictEqual(빨간가(30, 30, 30), false);     // 검정 선
+  assert.strictEqual(빨간가(250, 200, 190), false);  // 살구색 (너무 밝은 분홍은 배경일 수 있다)
+});
+
+test('네모색: 파랑만 파랑, 나머지(예전 데이터 포함)는 빨강', () => {
+  assert.strictEqual(네모색('파랑'), '#1e6fff');
+  assert.strictEqual(네모색('빨강'), '#ff3b30');
+  assert.strictEqual(네모색(undefined), '#ff3b30');
+});

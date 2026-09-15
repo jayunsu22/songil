@@ -100,6 +100,16 @@
     return out;
   }
 
+  /* 업자가 평면도에 빨간 펜으로 동그라미를 쳐서 보낸다. 그 위에 우리 네모(빨강)를
+     또 치면 뭐가 뭔지 모른다. 그래서 사진의 빨간 표시를 지울 수 있게 한다.
+
+     빨간 픽셀 판정. 펜 선은 순빨강에 가깝고, 가장자리는 배경과 섞여 분홍이 된다.
+     분홍까지 잡아야 선 테두리가 안 남는다. 베이지 바닥(220,185,140)은 R 이 높지만
+     G 도 높아서 R-G 차이로 갈라낸다. */
+  function 빨간가(r, g, b) {
+    return r >= 120 && (r - g) >= 60 && (r - b) >= 50 && g < 170 && b < 170;
+  }
+
   // 현장 하나를 가리키는 키. 사진이 이 밑에 묶인다.
   function 새현장ID() {
     return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -164,6 +174,87 @@
     }
   }
 
+  /* 사진에서 빨간 표시를 지운다. 빨간 픽셀을 주변의 안 빨간 픽셀 평균으로
+     바깥에서 안쪽으로 메워 나간다(굵은 선은 여러 번 돌아야 가운데까지 찬다).
+     하양으로 덮으면 바닥 위 동그라미가 하얀 얼룩으로 남는다. */
+  async function 빨강지우기(blob) {
+    const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    try {
+      const W = bmp.width, H = bmp.height;
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(bmp, 0, 0);
+      const img = ctx.getImageData(0, 0, W, H);
+      const d = img.data;
+      const 마스크 = new Uint8Array(W * H);
+      let 남은 = 0;
+      for (let i = 0, p = 0; i < 마스크.length; i++, p += 4) {
+        if (빨간가(d[p], d[p + 1], d[p + 2])) { 마스크[i] = 1; 남은++; }
+      }
+      if (!남은) return null;   // 지울 게 없다
+
+      // 선 가장자리는 JPEG 로 번져 연한 분홍이 된다. 판정에는 안 걸리지만 남으면
+      // 잔상이 보인다. 빨간 픽셀 둘레 2픽셀을 같이 메운다. 어차피 주변 색으로
+      // 채우므로 멀쩡한 부분을 조금 더 메워도 티가 안 난다.
+      for (let 번 = 0; 번 < 2; 번++) {
+        const 원본 = 마스크.slice();
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            const i = y * W + x;
+            if (원본[i]) continue;
+            let 옆 = false;
+            for (let dy = -1; dy <= 1 && !옆; dy++) {
+              const yy = y + dy; if (yy < 0 || yy >= H) continue;
+              for (let dx = -1; dx <= 1; dx++) {
+                const xx = x + dx; if (xx < 0 || xx >= W) continue;
+                if (원본[yy * W + xx]) { 옆 = true; break; }
+              }
+            }
+            if (옆) { 마스크[i] = 1; 남은++; }
+          }
+        }
+      }
+
+      // 바깥 고리부터 채운다. 한 바퀴에 한 픽셀씩 안으로 들어간다.
+      // 한 바퀴 안에서는 원본 마스크만 보고 판단해야 한쪽으로 쏠리지 않는다.
+      const 최대바퀴 = 40;
+      for (let 바퀴 = 0; 바퀴 < 최대바퀴 && 남은 > 0; 바퀴++) {
+        const 채울 = [];
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            const i = y * W + x;
+            if (!마스크[i]) continue;
+            let r = 0, g = 0, b = 0, n = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+              const yy = y + dy; if (yy < 0 || yy >= H) continue;
+              for (let dx = -1; dx <= 1; dx++) {
+                const xx = x + dx; if (xx < 0 || xx >= W) continue;
+                const j = yy * W + xx;
+                if (마스크[j]) continue;
+                const q = j * 4;
+                r += d[q]; g += d[q + 1]; b += d[q + 2]; n++;
+              }
+            }
+            if (n) 채울.push(i, Math.round(r / n), Math.round(g / n), Math.round(b / n));
+          }
+        }
+        if (!채울.length) break;
+        for (let k = 0; k < 채울.length; k += 4) {
+          const i = 채울[k], q = i * 4;
+          d[q] = 채울[k + 1]; d[q + 1] = 채울[k + 2]; d[q + 2] = 채울[k + 3];
+          마스크[i] = 0; 남은--;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return new Promise(function (resolve) {
+        cv.toBlob(function (b) { resolve(b); }, 'image/jpeg', 원본품질);
+      });
+    } finally {
+      bmp.close();
+    }
+  }
+
   /* ---------- 공개 API ---------- */
 
   async function 추가(현장ID, 구역, file) {
@@ -179,6 +270,18 @@
     const st = await 트랜잭션('readwrite');
     사진.id = await 요청(st.add(사진));
     return 사진;
+  }
+
+  // 사진 내용만 갈아끼운다(빨간 표시 지운 뒤). 태그·네모는 그대로 둔다.
+  async function 사진바꾸기(id, file) {
+    const 이미지 = await 변환(file);
+    const st = await 트랜잭션('readwrite');
+    const p = await 요청(st.get(id));
+    if (!p) return null;
+    p.blob = 이미지.blob;
+    p.thumb = 이미지.thumb;
+    await 요청(st.put(p));
+    return p;
   }
 
   async function 구역사진(현장ID, 구역) {
@@ -265,11 +368,12 @@
       사각들.forEach(function (사각) {
         const x = 사각.x * c.폭, y = 사각.y * c.높이;
         const w = 사각.w * c.폭, h = 사각.h * c.높이;
-        // 흰 테두리를 밑에 깔아야 어두운 사진에서도 빨간 선이 보인다.
+        // 흰 테두리를 밑에 깔아야 어두운 사진에서도 선이 보인다.
         ctx.strokeStyle = 'rgba(255,255,255,0.9)';
         ctx.lineWidth = 굵기 * 2;
         ctx.strokeRect(x, y, w, h);
-        ctx.strokeStyle = '#ff3b30';
+        // 업자가 빨간 펜으로 표시해 보낸 평면도에는 파랑으로 친다. 안 그러면 섞인다.
+        ctx.strokeStyle = 네모색(사각.색);
         ctx.lineWidth = 굵기;
         ctx.strokeRect(x, y, w, h);
       });
@@ -279,6 +383,11 @@
     } finally {
       bmp.close();
     }
+  }
+
+  // 네모 색. 저장된 값은 '빨강' | '파랑'. 없으면 빨강(예전 데이터).
+  function 네모색(이름) {
+    return 이름 === '파랑' ? '#1e6fff' : '#ff3b30';
   }
 
   // Blob -> base64 (에어테이블 업로드용). 접두어 없이 순수 base64 만 돌려준다.
@@ -311,11 +420,15 @@
     정규화사각: 정규화사각,
     사각목록: 사각목록,
     올릴사진목록: 올릴사진목록,
+    빨간가: 빨간가,
+    빨강지우기: 빨강지우기,
+    네모색: 네모색,
     표시박은사진: 표시박은사진,
     base64로: base64로,
     PhotoDB: {
       열기: 열기, 추가: 추가, 구역사진: 구역사진, 현장사진: 현장사진,
       구역장수: 구역장수, 태그저장: 태그저장, 표시저장: 표시저장, 삭제: 삭제,
+      사진바꾸기: 사진바꾸기,
       현장삭제: 현장삭제, 모든현장ID: 모든현장ID, 영구요청: 영구요청,
     },
   };
