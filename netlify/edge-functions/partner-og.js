@@ -87,8 +87,12 @@ export default async (request, context) => {
         // 갤러리 페이지는 원래 github.io 정적 페이지였는데, 정적 호스팅은 서버에서
         // og 태그를 바꿀 수 없어서 카톡 카드가 늘 "사진 갤러리"로만 떴다.
         // 그래서 견적서(/q/)와 같은 자리로 옮기고 현장명을 ?n= 에 실어 받는다.
-        if (url.pathname.startsWith('/q/') || url.pathname.startsWith('/g/')) {
+        // [New] 기사님용 현장 품질관리 앱(/w/<코드>)도 똑같은 이유로 여기로 옮겼다.
+        // 카톡으로 받은 링크 카드가 어느 현장이든 "현장 품질 관리 시스템"으로만 떠서
+        // 기사님이 어느 현장 링크인지 구분할 수 없었다.
+        if (url.pathname.startsWith('/q/') || url.pathname.startsWith('/g/') || url.pathname.startsWith('/w/')) {
             const 갤러리 = url.pathname.startsWith('/g/');
+            const 품질관리 = url.pathname.startsWith('/w/');
             const escAttrQ = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
             const escTextQ = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -110,12 +114,20 @@ export default async (request, context) => {
             }
             if (!현장명) 현장명 = (url.searchParams.get('t') || '').trim();
             현장명 = 현장명.trim().slice(0, 60);
-            const qTitle = 갤러리
-                ? (현장명 ? `${현장명} 사진 갤러리` : '현장 사진 갤러리')
-                : (현장명 || '섬세한손길 시공 견적서');
-            const qDesc = 갤러리
-                ? '섬세한손길 시공 사진입니다.'
-                : (현장명 ? '섬세한손길 시공 견적서' : '인테리어필름 시공 견적서입니다.');
+            let qTitle;
+            let qDesc;
+            if (갤러리) {
+                qTitle = 현장명 ? `${현장명} 사진 갤러리` : '현장 사진 갤러리';
+                qDesc = '섬세한손길 시공 사진입니다.';
+            } else if (품질관리) {
+                qTitle = 현장명 ? `${현장명} 품질관리` : '현장 품질 관리 시스템';
+                qDesc = 현장명
+                    ? `${현장명} 현장 품질 점검/사진 기록 페이지입니다.`
+                    : '현장 품질 점검/사진 기록 페이지입니다.';
+            } else {
+                qTitle = 현장명 || '섬세한손길 시공 견적서';
+                qDesc = 현장명 ? '섬세한손길 시공 견적서' : '인테리어필름 시공 견적서입니다.';
+            }
 
             const qHtml = await response.text();
             const out = qHtml
