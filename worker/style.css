@@ -263,6 +263,34 @@ body {
     color: #065f46;
 }
 
+/* 관리자가 "중요"로 표시한 지침 - 체크 전까지 빨간 배경+빨간 글씨로 강조, 별 아이콘이 반짝임 */
+.check-item.important-flag {
+    border-color: var(--danger);
+    background: var(--danger-light);
+}
+
+.check-item.important-flag:not(.checked) .check-text {
+    color: var(--danger);
+    font-weight: 800;
+}
+
+.check-item.important-flag.checked {
+    background: var(--success-light);
+    border-color: #a7f3d0;
+}
+
+.important-star {
+    font-size: 15px;
+    margin-right: 2px;
+    flex-shrink: 0;
+    animation: star-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes star-glow {
+    0%, 100% { filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.5)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 7px rgba(239, 68, 68, 1)); transform: scale(1.2); }
+}
+
 /* 섹션 타이틀 */
 .section-title {
     margin: 24px 0 12px;

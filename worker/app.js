@@ -440,6 +440,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 가이드라인 체크리스트 파싱 (이 현장에서 제외 처리된 지침은 숨김)
         const excludedLines = (fields.제외된지침 || '').split('\n').map(s => s.trim()).filter(Boolean);
+        const importantLines = (fields.중요지침 || '').split('\n').map(s => s.trim()).filter(Boolean);
         const lines = (guidelinesText || "").split('\n').filter(l => l.trim() !== "" && !excludedLines.includes(l.trim()));
         const siteNote = (fields.현장특이사항 || "").trim();
         let checklistHtml = "";
@@ -458,12 +459,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             lines.forEach((line, idx) => {
                 const cleanLine = line.trim();
                 const isItemChecked = isCompleted || existingResults.includes(`[✓] ${cleanLine}`);
+                const isImportant = importantLines.includes(cleanLine);
                 const sampleUrl = getSamplePhotoUrl(projectData.samplePhotos, guidelineKind, fields.시공품목, cleanLine);
                 const sampleThumbHtml = sampleUrl ? `<img src="${sampleUrl}" class="sample-photo-thumb" alt="샘플사진" onclick="event.stopPropagation(); openImageLightbox('${sampleUrl}')">` : '';
+                const importantStarHtml = isImportant ? `<span class="important-star">⭐</span>` : '';
 
                 checklistHtml += `
-                    <div class="check-item ${isItemChecked ? 'checked' : ''} ${isCompleted ? 'disabled' : ''}" data-index="${idx}">
+                    <div class="check-item ${isItemChecked ? 'checked' : ''} ${isCompleted ? 'disabled' : ''} ${isImportant ? 'important-flag' : ''}" data-index="${idx}">
                         <div class="custom-checkbox"></div>
+                        ${importantStarHtml}
                         <div class="check-text">${line}</div>
                         ${sampleThumbHtml}
                     </div>
