@@ -71,11 +71,11 @@ body {
 .refresh-btn {
     background: var(--primary-light);
     border: 1.5px solid var(--primary-blue);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 800;
     line-height: 1;
-    padding: 8px 12px;
-    border-radius: 20px;
+    padding: 12px 18px;
+    border-radius: 24px;
     color: var(--primary-blue);
     cursor: pointer;
     white-space: nowrap;
