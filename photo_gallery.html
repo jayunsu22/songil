@@ -40,6 +40,13 @@
         color: var(--text-muted);
         font-weight: 500;
     }
+    header h1 .title-suffix {
+        display: block;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
     .type-filters {
         display: flex;
         align-items: center;
@@ -241,9 +248,19 @@
     const typeDoneEl = document.getElementById('typeDone');
     const typePrepEl = document.getElementById('typePrep');
 
+    // 현장명이 길어져도 "사진 갤러리" 글자가 잘리지 않도록 아래 줄로 따로 뺌
+    function setPageTitle(name) {
+        pageTitleEl.textContent = "";
+        pageTitleEl.appendChild(document.createTextNode(`📷 ${name}`));
+        const suffixEl = document.createElement('span');
+        suffixEl.className = 'title-suffix';
+        suffixEl.textContent = '사진 갤러리';
+        pageTitleEl.appendChild(suffixEl);
+    }
+
     if (sharedName) {
         document.title = `${sharedName} 사진 갤러리`;
-        pageTitleEl.textContent = `📷 ${sharedName} 사진 갤러리`;
+        setPageTitle(sharedName);
     }
 
     async function load() {
@@ -260,7 +277,7 @@
             const projectName = (data.project && data.project.현장명) || "현장";
 
             document.title = `${projectName} 사진 갤러리`;
-            pageTitleEl.textContent = `📷 ${projectName} 사진 갤러리`;
+            setPageTitle(projectName);
 
             // 품목명 -> 구역 매핑
             const zoneByItem = {};
