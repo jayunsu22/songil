@@ -369,3 +369,18 @@
   -webkit-user-drag: none;
   user-select: none;
 }
+
+/* ---------- 저장 버튼 ----------
+   사진·태그는 찍는 즉시 폰에 저장되지만, 눌러서 저장한 게 아니면 안심이 안 된다고
+   하셔서 모든 화면에 둔다. 저장함에 담고 그 화면을 닫는다. 초록으로 통일. */
+.sheet-row { display: flex; gap: 8px; margin-top: 8px; }
+.sheet-row > button { flex: 1 1 0; margin-top: 0 !important; }
+#traySheet button.save, #tagSheet button.save {
+  background: #16a34a; border-color: #16a34a; color: #fff;
+}
+#camRight { display: flex; align-items: center; gap: 10px; }
+#camBar #camSave {
+  min-height: 0; height: 40px; padding: 0 16px;
+  border-radius: 10px;
+  background: #16a34a; color: #fff; font-weight: 700;
+}

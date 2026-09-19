@@ -144,7 +144,12 @@
   <input type="file" id="trayPick" accept="image/*" multiple hidden>
   <button id="trayShoot" class="primary" type="button">촬영</button>
   <button id="trayAlbum" type="button">앨범에서 가져오기</button>
-  <button id="trayClose" type="button">닫기</button>
+  <!-- 사진은 찍는 즉시 폰에 저장되지만, 눌러서 저장한 게 아니면 안심이 안 된다고
+       하셔서 모든 화면에 저장 버튼을 둔다. 저장함에 담고 닫는다. -->
+  <div class="sheet-row">
+    <button id="traySave" class="save" type="button">저장</button>
+    <button id="trayClose" type="button">닫기</button>
+  </div>
 </section>
 
 <div id="camBack" hidden></div>
@@ -153,7 +158,10 @@
   <div id="camBar">
     <button id="camClose" type="button">닫기</button>
     <button id="camShot" type="button" aria-label="촬영"></button>
-    <span id="camCount">0장</span>
+    <div id="camRight">
+      <span id="camCount">0장</span>
+      <button id="camSave" class="save" type="button">저장</button>
+    </div>
   </div>
 </section>
 
@@ -169,7 +177,10 @@
     <button type="button" id="tagNext" aria-label="다음 사진">›</button>
   </div>
   <button id="tagDel" type="button">이 사진 삭제</button>
-  <button id="tagClose" class="primary" type="button">닫기</button>
+  <div class="sheet-row">
+    <button id="tagSave" class="save" type="button">저장</button>
+    <button id="tagClose" type="button">닫기</button>
+  </div>
 </section>
 
 <div id="descBack" hidden></div>

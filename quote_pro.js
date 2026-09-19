@@ -1744,6 +1744,21 @@ async function 사진추가(file) {
 $('#trayClose').addEventListener('click', 닫기_트레이);
 $('#trayBack').addEventListener('click', 닫기_트레이);
 
+/* 사진 화면들의 '저장'. 사진은 이미 폰에 저장돼 있으므로 실제로 하는 일은
+   저장함에 담기(이름 붙은 사본) + 그 화면 닫기. 눌러야 안심이 된다고 하셔서 둔다. */
+$('#traySave').addEventListener('click', () => {
+  저장함에담기();
+  닫기_트레이();
+});
+$('#tagSave').addEventListener('click', () => {
+  저장함에담기();
+  태그닫기();
+});
+$('#camSave').addEventListener('click', () => {
+  카메라닫기();
+  저장함에담기();
+});
+
 
 // 폰 저장공간이 부족할 때 크롬이 사진을 임의로 지우지 않게 한다.
 PDB.영구요청();
