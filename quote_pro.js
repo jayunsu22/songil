@@ -36,7 +36,7 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '' };
+let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3 };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -92,9 +92,9 @@ async function loadMaster() {
     }
     const 바뀜 = !cached || JSON.stringify(fresh) !== JSON.stringify(cached);
     MASTER = fresh;
-    save(MASTER_KEY, fresh);
+    save(MASTER_KEY, fresh);     // 파생 품목을 붙이기 전에 저장한다. 캐시는 원본이어야 한다.
     if (!cached) boot();
-    else if (바뀜) { buildAll(); 구역장수갱신(); refresh(); }
+    else if (바뀜) { 파생품목붙이기(); buildAll(); 구역장수갱신(); refresh(); }
     setStatus('');
   } catch (e) {
     if (MASTER) setStatus('최신 단가를 못 받았습니다. 저장된 단가로 계속 진행합니다.');
@@ -109,14 +109,91 @@ function setStatus(msg, isErr) {
   el.className = isErr ? 'err' : '';
 }
 
+/* ---------- 구역별 몰딩·걸레받이 (파생 품목) ----------
+   전체공통의 평형별 몰딩·크라운몰딩·걸레받이는 집 전체 길이(30평 110m)다.
+   "안방만 걸레받이" 처럼 방 하나만 요구하는 경우가 있어 거실·방1~방5 에
+   같은 품목을 나눠 넣는다. 거실이 전체의 50%, 나머지 50% 를 방 개수로 나눈다.
+
+   에어테이블에 72개 행을 더 만드는 대신 여기서 만든다. 단가는 전체공통 것을
+   그대로 쓰므로 에어테이블에서 단가를 바꾸면 같이 바뀌고, 나누는 비율만 코드다.
+   MASTER 에 붙이되 저장(캐시)하지는 않는다 - 다시 만들면 되고, 저장하면
+   방 개수를 바꿨을 때 옛 길이가 남는다. */
+const 파생구역 = ['거실', '방1', '방2', '방3', '방4', '방5'];
+const 파생대상 = ['몰딩', '크라운몰딩', '걸레받이'];
+
+function 방개수() {
+  const n = parseInt(state.방수, 10);
+  return (n >= 1 && n <= 5) ? n : 3;
+}
+
+function 파생품목붙이기() {
+  if (!MASTER || !MASTER.zones) return;
+  const 전체 = MASTER.zones.find((z) => z.구역 === '전체공통');
+  if (!전체) return;
+  const n = 방개수();
+  // 기준: 전체공통의 평형별 몰딩/크라운몰딩/걸레받이
+  const 기준들 = 전체.items.filter((it) =>
+    it.적용평형 !== '공통' && 파생대상.some((name) => it.표시_품목명.indexOf(name + ' (') === 0));
+
+  MASTER.zones.forEach((z) => {
+    // 먼저 지난번에 붙인 것을 뗀다 (방 개수를 바꾸면 길이가 달라진다)
+    z.items = z.items.filter((it) => !it.파생);
+    if (파생구역.indexOf(z.구역) < 0) return;
+    const zid = z.items.length ? z.items[0].체크_ID.split('_')[0] : 'z00';
+    const 거실인가 = z.구역 === '거실';
+    기준들.forEach((base) => {
+      const o = (base.옵션들 && base.옵션들[0]) || base;
+      const 전체길이 = base.평형별_설정길이 || 0;
+      const 길이 = Math.round((거실인가 ? 전체길이 * 0.5 : 전체길이 * 0.5 / n) * 10) / 10;
+      const 이유 = 거실인가
+        ? '거실 몫 ' + 길이 + 'm (전체 ' + 전체길이 + 'm 의 50%)'
+        : '방 몫 ' + 길이 + 'm (전체 ' + 전체길이 + 'm 의 50% 를 방 ' + n + '개로 나눔)';
+      const 옵션 = Object.assign({}, o, {
+        평형별_설정길이: 길이,
+        품목설명: (o.품목설명 || '') + '\n' + 이유,
+        견적기준: (거실인가 ? '거실 ' : '방 하나 ') + 길이 + 'm 기준입니다',
+      });
+      z.items.push(Object.assign({}, base, 옵션, {
+        체크_ID: zid + '_' + z.구역 + '_' + base.표시_품목명 + '_' + base.적용평형,
+        품목_순서: 900 + 파생대상.indexOf(base.표시_품목명.split(' (')[0]),
+        옵션들: [옵션],
+        파생: true,
+        파생기준: base.체크_ID,
+      }));
+    });
+  });
+
+  // 이미 체크해 둔 파생 품목은 새 길이로 맞춘다. 안 그러면 방 개수를 바꿔도
+  // 견적 금액이 옛 길이로 남는다.
+  MASTER.zones.forEach((z) => z.items.forEach((it) => {
+    if (it.파생 && state.선택[it.체크_ID]) state.선택[it.체크_ID].수량 = it.평형별_설정길이;
+  }));
+}
+
+/* 전체공통 몰딩과 구역별 몰딩을 같이 체크하면 이중 계산이다. 막지는 않고 알려준다 -
+   전체를 하고 안방만 크라운으로 올리는 식의 조합도 있을 수 있다. */
+function 이중계산경고(item) {
+  const 이름 = item.표시_품목명;
+  if (!파생대상.some((name) => 이름.indexOf(name + ' (') === 0)) return;
+  let 겹침 = null;
+  MASTER.zones.forEach((z) => z.items.forEach((it) => {
+    if (it.체크_ID === item.체크_ID || !state.선택[it.체크_ID]) return;
+    if (it.표시_품목명 !== 이름) return;
+    if (item.파생 ? it.체크_ID === item.파생기준 : it.파생기준 === item.체크_ID) 겹침 = it;
+  }));
+  if (겹침) toast('전체공통 ' + 이름 + ' 과 구역별 ' + 이름 + ' 이 같이 체크돼 있습니다. 이중 계산이 아닌지 확인하세요.');
+}
+
 /* ---------- 최초 구성 ---------- */
 function boot() {
   const saved = load(STORAGE_KEY);
   if (saved) state = Object.assign(state, saved);
   현장ID확보();
+  파생품목붙이기();
 
   $('#siteName').value = state.현장명 || '';
   $('#sizeSelect').value = state.평형 || '확인안됨';
+  $('#roomSelect').value = String(방개수());
   $('#memoText').value = state.메모 || '';
   $('#relayText').value = state.전달사항 || '';
   $('#noteText').value = state.안내문구 || '';
@@ -370,6 +447,7 @@ function buildItem(item, 구역) {
     syncRow(row);
     refresh();
     persist();
+    if (row.cb.checked) 이중계산경고(item);
   });
 
   diff.addEventListener('change', () => {
@@ -790,6 +868,14 @@ $('#noteReset').addEventListener('click', () => {
 });
 $('#relayText').addEventListener('input', persist);
 $('#sizeSelect').addEventListener('change', (e) => applySize(e.target.value));
+$('#roomSelect').addEventListener('change', (e) => {
+  state.방수 = parseInt(e.target.value, 10) || 3;
+  파생품목붙이기();   // 방 몫 길이가 달라진다
+  buildAll();
+  구역장수갱신();
+  refresh();
+  persist();
+});
 $('#resetBtn').addEventListener('click', async () => {
   // 사진이 있는데 저장함에 안 담았다면 그냥 시작하면 안 된다.
   // 견적은 사라지고 사진만 남아 '소속 없는 사진' 이 된다.
@@ -811,10 +897,12 @@ $('#resetBtn').addEventListener('click', async () => {
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '' };
+  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3 };
   현장ID확보();     // 새 현장이 시작됐다. 사진이 앞 현장에 섞이면 안 된다.
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
+  $('#roomSelect').value = '3';
+  파생품목붙이기();
   $('#memoText').value = '';
   $('#relayText').value = '';
   $('#noteText').value = '';
@@ -1398,7 +1486,7 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '' },
+      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3 },
       항목.상태
     );
     if (!state.현장ID) state.현장ID = 항목.현장ID || '';
@@ -1406,6 +1494,8 @@ $('#boxList').addEventListener('click', async (e) => {
     현장ID확보();     // 예전에 저장한 건은 현장ID 가 없다. 새로 발급해도 사진이 없어 문제없다.
     $('#siteName').value = state.현장명 || '';
     $('#sizeSelect').value = state.평형 || '확인안됨';
+    $('#roomSelect').value = String(방개수());
+    파생품목붙이기();
     $('#memoText').value = state.메모 || '';
     $('#relayText').value = state.전달사항 || '';
     $('#noteText').value = state.안내문구 || '';
@@ -1770,6 +1860,7 @@ PDB.영구요청();
 window.addEventListener('pageshow', () => {
   if (!MASTER) return;
   $('#sizeSelect').value = state.평형 || '확인안됨';
+  $('#roomSelect').value = String(방개수());
   $('#siteName').value = state.현장명 || '';
   // 조정 줄이 특히 위험하다. 옵션을 자바스크립트로 채우는 칸이라, 크롬이
   // 옵션이 아직 없을 때 복원해 버리면 '선택 안 함' 으로 되돌아간다.

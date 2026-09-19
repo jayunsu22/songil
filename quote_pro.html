@@ -25,6 +25,15 @@
     <option value="40평">40평</option>
     <option value="50평">50평</option>
   </select>
+  <!-- 방 개수. 몰딩·크라운몰딩·걸레받이를 거실 50% / 나머지를 방 개수로 나눠
+       구역별로 넣을 때 쓴다. 집마다 방 수가 달라서 평형으로는 못 정한다. -->
+  <select id="roomSelect" aria-label="방 개수" autocomplete="off">
+    <option value="1">방 1개</option>
+    <option value="2">방 2개</option>
+    <option value="3" selected>방 3개</option>
+    <option value="4">방 4개</option>
+    <option value="5">방 5개</option>
+  </select>
   <!-- 자동저장이 되지만 눌러서 저장한 게 아니면 안심이 안 된다고 하셔서 둔 버튼.
        저장함에 이름 붙여 담는다 - 자동저장은 한 건뿐이라 '새 견적' 에 덮인다. -->
   <button id="saveBtn" type="button">저장</button>

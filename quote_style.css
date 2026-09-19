@@ -752,3 +752,21 @@ header {
     margin-right: auto;
   }
 }
+
+/* 방 개수. 평형 옆에 붙는다. 둘째 줄이 꽉 차므로 평형·방수는 폭을 나눠 갖는다. */
+#roomSelect {
+  flex: 0 0 auto;
+  height: var(--tap);
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  background: #fff;
+  color: var(--text);
+}
+/* 둘째 줄: 평형 | 방수 | 저장 | 저장함 | 새 견적 — 375px 폰에 한 줄로 들어가야 한다.
+   평형 칸이 남는 폭을 갖되(flex 1) 모자라면 줄어들게 min-width:0. 나머지는 폭 고정. */
+#sizeSelect { flex: 1 1 60px; min-width: 0; padding: 0 4px; font-size: 14px; }
+#saveBtn, #boxBtn, #resetBtn { padding: 0 9px; font-size: 13px; white-space: nowrap; }
+header { column-gap: 6px; }
