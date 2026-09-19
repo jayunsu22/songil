@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>섬세한손길 정산 견적서</title>
+<meta property="og:title" content="섬세한손길 정산 견적서">
+<meta property="og:description" content="인테리어필름 시공 정산 견적서입니다.">
+<meta property="og:type" content="website">
+<!-- 정산 견적서 보기. /s/CODE 로 열린다 (_redirects). 카톡 카드 제목은 Edge Function(partner-og.js)이
+     ?n= 의 현장명으로 바꿔 넣는다. 절대경로여야 하는 이유는 quote_view.html 주석 참조 -
+     /s/CODE 아래에서 상대경로를 쓰면 /s/settle_view.js 가 catch-all 에 걸려 HTML 이 돌아온다. -->
+<link rel="stylesheet" href="/quote_style.css">
+<link rel="stylesheet" href="/quote_view.css">
+<link rel="stylesheet" href="/settle_view.css">
+</head>
+<body class="view">
+
+<div id="vStatus">견적서를 불러오는 중…</div>
+<main id="vDoc" hidden></main>
+<div id="vBar" hidden><span class="v-bar-label">합계</span><span class="v-bar-amt" id="vBarAmt"></span></div>
+
+<script src="/settle_view.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+/* 정산 견적서 화면. quote_view.css(명함 카드·구역 머리글·합계 줄·고정 합계바) 위에
+   정산 견적서에만 있는 표 부품을 얹는다. 색은 그쪽 갈색 톤을 그대로 쓴다. */
+
+.v-tbl { background: var(--card); margin-top: 10px; }
+.v-tbl h3 {
+  margin: 0; padding: 10px 18px 10px 15px;
+  font-size: 15px; font-weight: 800; letter-spacing: -0.2px;
+  color: #4a3416; background: #ecdfc9;
+  border-left: 4px solid #9c6f2e; border-top: 1px solid #d6c2a1; border-bottom: 1px solid #d6c2a1;
+}
+.v-tbl .v-line { padding: 11px 18px; }
+.v-tbl .v-nm { font-size: 15px; }
+.v-tbl .v-nm small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+.v-tbl .v-empty { padding: 12px 18px; font-size: 14px; color: var(--muted); }
+
+/* 품목 내역 접기 */
+.v-tbl details { border-bottom: 1px solid #f0f1f3; }
+.v-tbl summary { padding: 10px 18px; font-size: 13px; color: var(--accent); font-weight: 700; cursor: pointer; list-style: none; }
+.v-tbl summary::-webkit-details-marker { display: none; }
+.v-tbl summary::before { content: "▸ "; }
+.v-tbl details[open] summary::before { content: "▾ "; }
+.v-tbl .sub { display: flex; justify-content: space-between; gap: 10px; padding: 6px 18px 6px 30px; font-size: 13px; color: #5b6270; }
+.v-tbl .sub span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.v-tbl .sub:last-child { padding-bottom: 12px; }
+
+/* 소모량 0인 품목은 표시만 하고 금액이 없다는 것을 알린다 */
+.v-tbl .sub.zero span:last-child { color: #b45309; }
+
+/* quote_view.css 의 #vBar{display:flex} 가 [hidden] 을 덮는다 - 못 찾았을 때 빈 합계바가 남지 않게 */
+#vBar[hidden] { display: none; }
