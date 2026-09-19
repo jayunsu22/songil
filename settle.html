@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>현장 정산견적 - 섬세한손길</title>
+<!-- 정산견적(품수 기반 사후 견적) 작성 화면. 관리자 앱(품질관리) 현장 카드의
+     [💰 현장견적] 버튼에서 ?site=<현장 recordId> 로 열린다.
+     현장견적(quote_pro)과 같은 뼈대: 헤더 / 카드 섹션 / 하단 고정 합계바 / 발행 시트.
+     계산은 settle_calc.js(SettleCalc), 화면·상태는 settle.js.
+     절대경로로 두는 이유는 quote_view.html 주석 참조(/s/ 경로와 같은 저장소라 습관을 맞춘다). -->
+<link rel="stylesheet" href="/quote_style.css">
+<link rel="stylesheet" href="/settle_style.css">
+</head>
+<body>
+
+<header>
+  <div class="hdr-title">
+    <b id="siteTitle">현장 정산견적</b>
+    <span class="date" id="siteDate" hidden></span>
+  </div>
+  <button id="settingsBtn" class="hbtn" type="button">⚙ 설정</button>
+  <button id="resetBtn" type="button" class="hbtn right">새로 시작</button>
+</header>
+
+<div id="status">불러오는 중…</div>
+<button id="retryBtn" type="button" hidden>다시 시도</button>
+
+<main id="doc" hidden>
+
+  <section class="card" id="laborCard">
+    <h2>① 인건비 <span class="sum" id="laborSum">0원</span></h2>
+    <div class="labor">
+      <input id="manDays" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" autocomplete="off">
+      <span class="q-unit">품</span>
+      <span class="eq">×</span>
+      <select id="wageSelect" autocomplete="off"></select>
+      <input id="wageCustom" type="number" inputmode="numeric" min="0" step="10000" placeholder="품단가 직접 입력" autocomplete="off" hidden>
+      <div class="amt" id="laborAmt">= 0원</div>
+    </div>
+  </section>
+
+  <section class="card" id="matCard">
+    <h2>② 자재비 <span class="sum" id="matSum">0원</span></h2>
+    <div class="allmat">전체 자재
+      <select id="allMat" autocomplete="off"></select>
+    </div>
+    <div id="lines"></div>
+    <button type="button" class="addrow" id="addLineBtn">+ 품목 추가</button>
+    <div class="matsum" id="matSubtotals"></div>
+  </section>
+
+  <section class="card" id="extraCard">
+    <h2>③ 부가 항목 <span class="sum" id="extraSum">0원</span></h2>
+    <div id="extras"></div>
+    <button type="button" class="addrow" id="addExtraBtn">+ 직접 추가</button>
+  </section>
+
+  <section class="card" id="memoCard">
+    <label class="memo-label" for="memoText">메모 <em>견적서에 그대로 나갑니다</em></label>
+    <textarea id="memoText" rows="2" autocomplete="off" placeholder="예: 안방 드레스룸 수납장은 실측 2.4m 기준"></textarea>
+    <label class="opt"><input type="checkbox" id="optVat" checked> <span>부가세 별도 표기</span></label>
+  </section>
+
+  <div class="bar-space"></div>
+</main>
+
+<footer id="totalBar" hidden>
+  <div id="totalAmount">0원<small id="vatNote">부가세 별도</small></div>
+  <button id="publishBtn" type="button" disabled>견적서 발행</button>
+</footer>
+
+<!-- 발행 시트 -->
+<div id="pubBack" hidden></div>
+<section id="pubSheet" hidden aria-label="견적서 발행">
+  <h2>견적서 발행</h2>
+  <div id="pubBefore">
+    <div class="pub-summary" id="pubSummary"></div>
+    <p class="hint">발행하면 견적서 링크가 만들어집니다. 발행 시점의 금액이 그대로 저장되어,
+      나중에 단가를 바꿔도 이미 보낸 견적서는 변하지 않습니다.</p>
+    <button id="doPublish" class="primary" type="button">발행하기</button>
+  </div>
+  <div id="pubAfter" hidden>
+    <div id="pubLink"></div>
+    <button id="copyLink" class="primary" type="button">링크 복사</button>
+    <button id="shareLink" type="button">카톡 등으로 공유</button>
+    <button id="openLink" type="button">견적서 열기</button>
+    <p class="hint">내용을 고쳤으면 닫고 다시 발행하세요. 새 링크가 생기고 이미 보낸 링크는 그대로 살아 있습니다.</p>
+  </div>
+  <button id="pubClose" type="button">닫기</button>
+</section>
+
+<!-- 설정 모달 -->
+<div id="setBack" hidden></div>
+<section id="setSheet" hidden aria-label="단가 설정">
+  <h2>⚙ 단가 설정</h2>
+  <div class="tabs">
+    <button type="button" data-tab="자재단가" class="on">자재단가</button>
+    <button type="button" data-tab="품단가">품단가 · 부가항목</button>
+    <button type="button" data-tab="소모량">품목 소모량</button>
+  </div>
+  <p class="shint" id="setHint"></p>
+  <div id="setBody"></div>
+  <button type="button" class="addrow" id="setAddBtn">+ 추가</button>
+  <div class="secbtns">
+    <button id="setClose" type="button">닫기</button>
+    <button id="setSave" class="primary" type="button">저장</button>
+  </div>
+</section>
+
+<div id="toast" hidden></div>
+
+<!-- 관리자 잠금. admin.html 과 같은 PIN. -->
+<div id="pinLockOverlay" hidden>
+  <form id="pinLockForm" class="pin-lock-box">
+    <div class="pin-lock-icon">🔒</div>
+    <h2>관리자 확인</h2>
+    <p>정산견적 화면은 관리자만 볼 수 있습니다.</p>
+    <input type="password" id="pinLockInput" inputmode="numeric" autocomplete="off" placeholder="암호 입력">
+    <button type="submit">확인</button>
+    <p id="pinLockError" hidden>암호가 올바르지 않습니다.</p>
+  </form>
+</div>
+
+<script src="/settle_calc.js"></script>
+<script src="/settle.js"></script>
+</body>
+</html>

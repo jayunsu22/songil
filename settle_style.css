@@ -1,0 +1,175 @@
+/* 정산견적 작성 화면 전용 스타일. quote_style.css 위에 얹는다 -
+   토큰(--bg, --card, --line, --accent, --ok, --tap, --bar-h)과 header/#totalBar/#pubSheet/#toast 는
+   그쪽 것을 그대로 쓰고, 여기엔 정산 화면에만 있는 부품만 둔다.
+   폰(390px)에서 장갑 낀 손으로 쓰는 화면이라 줄을 두 줄로 나눴다 - 한 줄에 체크·품목명·수량·소모량·자재를
+   다 넣으면 품목명이 세로로 부서진다(목업에서 확인). */
+
+/* ---------- 헤더 ---------- */
+.hdr-title { flex: 1 1 100%; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hdr-title b { font-size: 16px; flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr-title .date { flex: 0 0 auto; font-size: 12px; color: var(--muted); background: #eef1f6; border-radius: 6px; padding: 2px 7px; }
+.hbtn {
+  height: 36px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: #fff; color: var(--muted); font-size: 13px;
+}
+.hbtn.right { margin-left: auto; }
+header #resetBtn { height: 36px; }   /* quote_style 의 --tap 높이를 헤더 둘째 줄에 맞춰 줄인다 */
+
+#retryBtn {
+  display: block; margin: 0 auto 12px;
+  height: 40px; padding: 0 16px;
+  border: 1px solid var(--accent); border-radius: 10px;
+  background: #fff; color: var(--accent); font-weight: 700;
+}
+
+/* ---------- 카드 섹션 ---------- */
+section.card { background: var(--card); border-top: 8px solid var(--bg); border-bottom: 1px solid var(--line); }
+section.card > h2 {
+  margin: 0; padding: 12px 14px; font-size: 15px;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+section.card > h2 .sum { margin-left: auto; font-size: 14px; color: var(--ok); font-weight: 800; font-variant-numeric: tabular-nums; }
+.bar-space { height: 16px; }
+
+/* ① 인건비 */
+.labor { display: flex; align-items: center; gap: 8px; padding: 12px 14px; flex-wrap: wrap; }
+.labor input[type=number] {
+  width: 72px; height: var(--tap); text-align: center;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 16px; font-weight: 700; background: #fff; color: var(--text);
+}
+.labor #wageCustom { width: 100%; text-align: right; padding: 0 12px; }
+.labor select {
+  flex: 1 1 auto; min-width: 0; height: var(--tap);
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 15px; font-weight: 700; padding: 0 8px; background: #fff; color: var(--text);
+}
+.labor .eq { color: var(--muted); }
+.labor .amt { width: 100%; text-align: right; font-size: 17px; font-weight: 800; color: var(--ok); font-variant-numeric: tabular-nums; }
+
+/* ② 자재비 */
+.allmat {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  background: var(--accent-soft); border-bottom: 1px solid var(--line); font-size: 14px;
+}
+.allmat select {
+  flex: 1 1 auto; min-width: 0; height: 38px;
+  border: 1px solid var(--accent); border-radius: 10px;
+  font-size: 14px; font-weight: 700; color: var(--accent); background: #fff; padding: 0 8px;
+}
+.zh { padding: 8px 14px; font-size: 13px; font-weight: 800; color: #4a3416; background: #ecdfc9; border-left: 4px solid #9c6f2e; }
+
+.row { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid #f0f1f3; flex-wrap: wrap; }
+.row.on { background: var(--accent-soft); }
+.row.warn { box-shadow: inset 3px 0 0 #f59e0b; }
+.row input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--accent); flex: 0 0 auto; margin: 0; }
+.row .nm { flex: 1 1 0; min-width: 0; font-weight: 600; font-size: 15px; }
+.row .nm small { font-weight: 500; font-size: 12px; color: var(--muted); margin-left: 6px; }
+.row .nm input { width: 100%; height: 34px; border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; font-size: 14px; font-weight: 600; }
+.row .use {
+  flex: 0 0 auto; margin-left: auto; text-align: right;
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: none; border: none; padding: 4px 0 4px 8px; color: var(--text); font-family: inherit;
+}
+.row .use.zero { color: #b91c1c; }
+.row .use .tag { display: block; font-size: 10px; color: var(--accent); font-weight: 700; }
+.row .use input { width: 60px; height: 30px; text-align: right; border: 1px solid var(--accent); border-radius: 8px; font-size: 13px; font-weight: 700; }
+.row.off .nm, .row.off .use { color: #a0a6b1; }
+.row .ctl { flex: 1 0 100%; display: flex; align-items: center; gap: 8px; padding-left: 30px; }
+.row .ctl .qty { gap: 4px; }
+.row .ctl .qty button { width: 34px; height: 34px; font-size: 18px; border-radius: 8px; }
+.row .ctl .qty input { width: 44px; height: 34px; font-size: 14px; border-radius: 8px; }
+.row .ctl .len { width: 64px; height: 34px; text-align: center; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; font-weight: 700; }
+.row .ctl .mat { margin-left: auto; flex: 0 0 auto; width: 128px; height: 34px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; padding: 0 4px; background: #fff; color: var(--text); }
+.row .ctl .mat.none { border-color: #b91c1c; color: #b91c1c; }
+.row .ctl .del { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #b91c1c; font-size: 14px; }
+
+button.addrow { display: block; width: 100%; text-align: left; padding: 10px 14px; font-size: 14px; color: var(--accent); font-weight: 700; background: none; border: none; border-top: 1px solid #f0f1f3; }
+
+.matsum { border-top: 1px solid var(--line); padding: 10px 14px; background: #fafbfc; }
+.matsum:empty { display: none; }
+.matsum div { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+.matsum div span:first-child { color: #374151; }
+.matsum div b { color: var(--ok); white-space: nowrap; }
+
+/* ③ 부가 항목 */
+.extra { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid #f0f1f3; }
+.extra .nm { flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 600; }
+.extra .nm input { width: 100%; height: 38px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; font-size: 14px; font-weight: 600; }
+.extra input.amt {
+  width: 120px; height: 38px; text-align: right;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 15px; font-weight: 700; padding: 0 10px; background: #fff; color: var(--text);
+}
+.extra .won { color: var(--muted); font-size: 14px; }
+.extra .del { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #b91c1c; font-size: 14px; }
+
+/* 메모 · 부가세 */
+#memoCard { padding: 12px 14px 8px; }
+#memoCard .memo-label { margin-top: 0; }
+#memoCard .opt { display: flex; align-items: center; gap: 10px; min-height: var(--tap); font-size: 15px; }
+#memoCard .opt input { width: 22px; height: 22px; accent-color: var(--accent); margin: 0; }
+
+#totalBar #totalAmount small { display: block; }
+
+/* ---------- 발행 시트 ---------- */
+.pub-summary { font-size: 14px; line-height: 1.7; padding: 10px 12px; margin-bottom: 8px; background: #fafbfc; border: 1px solid var(--line); border-radius: 10px; font-variant-numeric: tabular-nums; }
+.pub-summary div { display: flex; justify-content: space-between; }
+.pub-summary .tot { font-weight: 800; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+
+/* ---------- 설정 모달 (발행 시트와 같은 바텀시트) ---------- */
+#setBack { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; }
+#setSheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  background: var(--card); border-radius: 18px 18px 0 0;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+}
+#setSheet h2 { margin: 0 0 12px; font-size: 17px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.tabs button { flex: 1 1 0; height: 38px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 13px; font-weight: 700; color: var(--muted); }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.shint { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+.srow { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-bottom: 1px solid #f0f1f3; }
+.srow.gone { display: none; }
+.srow input.name { flex: 1 1 120px; min-width: 100px; height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; font-size: 14px; }
+.srow input.price { width: 84px; height: 40px; text-align: right; border: 1px solid var(--line); border-radius: 10px; padding: 0 8px; font-size: 14px; font-weight: 700; }
+.srow .unit { font-size: 12px; color: var(--muted); width: 32px; flex: 0 0 auto; }
+.srow .sw { width: 36px; height: 20px; border-radius: 999px; background: var(--ok); position: relative; flex: 0 0 auto; border: none; padding: 0; }
+.srow .sw::after { content: ""; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.srow .sw.off { background: #c9ced8; }
+.srow .sw.off::after { right: auto; left: 2px; }
+.srow .del { width: 30px; height: 30px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #b91c1c; font-size: 14px; padding: 0; }
+.srow .lbl { flex: 1 1 120px; min-width: 100px; font-size: 14px; font-weight: 600; }
+.srow .lbl small { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
+.srow.empty .lbl { color: #b91c1c; }
+.srow input.chk { width: 22px; height: 22px; accent-color: var(--accent); margin: 0; flex: 0 0 auto; }
+.srow .chklbl { font-size: 12px; color: var(--muted); flex: 0 0 auto; }
+.sgroup { margin: 12px 0 4px; font-size: 13px; font-weight: 800; color: var(--muted); display: flex; align-items: center; }
+.sgroup .sadd { margin-left: auto; height: 30px; padding: 0 10px; border: 1px solid var(--accent); border-radius: 8px; background: #fff; color: var(--accent); font-size: 12px; font-weight: 700; }
+#setSheet .secbtns { display: flex; gap: 8px; margin-top: 12px; }
+#setSheet .secbtns button {
+  flex: 1 1 0; height: 48px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; color: var(--text); font-size: 15px; font-weight: 700;
+}
+#setSheet .secbtns button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+#setSheet .secbtns button:disabled { opacity: .6; }
+#setSheet button.addrow { padding-left: 0; }
+
+/* ---------- 관리자 잠금 (admin_style.css 의 pin-lock 과 같은 모양) ---------- */
+#pinLockOverlay { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px; }
+#pinLockOverlay[hidden] { display: none; }
+.pin-lock-box { width: 100%; max-width: 320px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px 20px; text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,.08); }
+.pin-lock-icon { font-size: 34px; margin-bottom: 6px; }
+.pin-lock-box h2 { margin: 0 0 6px; font-size: 18px; }
+.pin-lock-box p { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+.pin-lock-box input { width: 100%; height: 46px; border: 1px solid var(--line); border-radius: 10px; font-size: 18px; text-align: center; letter-spacing: 4px; margin-bottom: 10px; }
+.pin-lock-box button { width: 100%; height: 46px; border: none; border-radius: 12px; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; }
+#pinLockError { color: #b91c1c; margin: 10px 0 0; }
+
+/* quote_style 의 display:flex/block 이 UA 의 [hidden]{display:none} 을 덮어쓴다 - 명시적으로 숨긴다 */
+#totalBar[hidden], #retryBtn[hidden], #setSheet[hidden], #setBack[hidden], .row .ctl[hidden] { display: none; }
