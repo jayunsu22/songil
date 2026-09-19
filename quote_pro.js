@@ -342,11 +342,18 @@ function buildItem(item, 구역) {
   // 여기서 열면 사진 한 장 고르는 것으로 이 품목의 네모 표시까지 바로 간다.
   body.appendChild(사진버튼만들기(구역, item.체크_ID, item.표시_품목명));
 
+  // 체크 안 한 품목에도 사진을 붙일 수 있어야 한다. 현장에서 견적에 안 넣은 것도
+  // 일단 찍어두면, 나중에 "그것도 넣어주세요" 할 때 사진 보고 바로 넣는다.
+  // 체크 전에는 몸통 줄이 안 보이므로 제목 줄에 작은 버튼을 하나 더 둔다.
+  // 사진만 붙고 견적에는 안 들어간다 - 견적 여부는 체크박스가 정한다.
+  const 머리사진버튼 = 사진버튼만들기(구역, item.체크_ID, item.표시_품목명);
+  head.insertBefore(머리사진버튼, head.querySelector('.i-amt'));
+
   box.appendChild(body);
 
   const row = { item: item, box: box, head: head, body: body, diff: diff, kind: 종류,
                 cb: head.querySelector('input'), amt: head.querySelector('.i-amt'),
-                num: body.querySelector('.qnum'), descBtn: 설명버튼 };
+                num: body.querySelector('.qnum'), descBtn: 설명버튼, photoHead: 머리사진버튼 };
   ROWS.set(item.체크_ID, row);
 
   /* 이벤트 */
@@ -419,6 +426,8 @@ function syncRow(row) {
     row.diff.value = String(s.난이도 || 1);
     if (row.kind) row.kind.value = String(s.옵션 || 0);
   }
+  // 체크하면 몸통 줄의 사진 버튼이 보이므로 제목 줄 것은 감춘다. 둘 다 있으면 헷갈린다.
+  if (row.photoHead) row.photoHead.hidden = !!s || !사진가능;
   if (row.descBtn) {
     const 고침 = !!(state.설명 && state.설명[row.item.체크_ID]);
     row.descBtn.classList.toggle('on', 고침);
@@ -1473,7 +1482,9 @@ function 사진버튼칠하기(b, 체크_ID) {
   const 있음 = 표시된품목.has(체크_ID);
   b.classList.toggle('on', 있음);
   b.textContent = 있음 ? '사진 있음' : '사진';
-  b.hidden = !사진가능;
+  // 제목 줄 버튼은 체크 여부로도 감추므로(syncRow) 여기서는 못 쓰는 경우만 감춘다
+  if (!사진가능) b.hidden = true;
+  else if (!b.closest('.item-head') || !state.선택[체크_ID]) b.hidden = false;
 }
 
 /* 썸네일 objectURL 은 다 쓰면 반드시 풀어준다.
@@ -1490,7 +1501,12 @@ async function 사진트레이열기(구역, 대상) {
   const 안내 = $('#trayAim');
   안내.hidden = !사진대상;
   if (사진대상) {
-    안내.textContent = '사진을 누르면 ‘' + 사진대상.품목명 + '’ 위치를 네모로 표시합니다.';
+    // 견적에 안 넣은 품목의 사진은 보관용이다. 발행해도 안 올라간다는 것을 알려준다.
+    const 직접 = (state.직접품목 || []).some((c) => c.id === 사진대상.체크_ID);
+    const 견적에 = 직접 || !!state.선택[사진대상.체크_ID];
+    안내.textContent = 견적에
+      ? '사진을 누르면 ‘' + 사진대상.품목명 + '’ 위치를 네모로 표시합니다.'
+      : '‘' + 사진대상.품목명 + '’ 은 아직 견적에 없습니다. 사진은 폰에 보관되고, 나중에 체크하면 견적서에 같이 나갑니다.';
   }
   $('#trayBack').hidden = false;
   $('#traySheet').hidden = false;
