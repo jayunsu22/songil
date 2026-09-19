@@ -2236,8 +2236,12 @@ function 표시그리기() {
 
   // 끌 때마다 네모가 하나씩 늘어난다. 방문이 두 짝이거나 문틀과 문짝을 따로
   // 짚어야 할 때 한 장으로 끝낸다. 잘못 그리면 '마지막 네모 지우기'.
+  // 마우스 왼쪽 버튼만. 오른쪽 클릭이나 휠 클릭으로 네모가 생기면 안 된다.
+  wrap.addEventListener('dragstart', (e) => e.preventDefault());
   wrap.addEventListener('pointerdown', (e) => {
     if (!표시대상) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
     wrap.setPointerCapture(e.pointerId);
     시작 = 좌표(e);
     const 새것 = QuotePhotos.정규화사각(시작.x, 시작.y, 시작.x, 시작.y, 시작.w, 시작.h);

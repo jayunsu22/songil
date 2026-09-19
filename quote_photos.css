@@ -360,3 +360,12 @@
 }
 #markSheet #markRed.busy { opacity: .5; }
 .mk-box.blue { border-color: #1e6fff; }
+
+/* PC 마우스로 네모를 그릴 때. 사진에 pointer-events 를 두면 브라우저의 이미지
+   드래그가 먼저 걸려 pointermove 가 끊긴다. 사진은 그냥 배경이고 이벤트는
+   #markWrap 이 받는다. */
+#markWrap img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
