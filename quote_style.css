@@ -738,3 +738,17 @@ header {
   font-size: 14px;
   font-weight: 700;
 }
+
+/* ---------- PC 에서 볼 때 ----------
+   폰용 화면이라 넓은 모니터에서는 줄이 끝까지 늘어나 어색하다.
+   폰 폭(480px)으로 가운데에 모은다. 아래 고정 바와 올라오는 시트들도
+   left:0; right:0 에 max-width + margin auto 를 주면 같은 폭으로 가운데 선다. */
+@media (min-width: 600px) {
+  body { max-width: 480px; margin: 0 auto; box-shadow: 0 0 24px rgba(0,0,0,.08); min-height: 100vh; }
+  header, #totalBar, #pubSheet, #boxSheet, #customSheet, #descSheet,
+  #traySheet, #tagSheet, #markSheet {
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}

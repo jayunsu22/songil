@@ -296,3 +296,5 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 /* 품목을 뺀 상태. 원래 합계와 다르다는 것이 눈에 띄어야 한다. */
 #vBar.changed { border-top-color: #b45309; background: #fff8ee; }
 #vBar.changed .v-bar-amt { color: #b45309; }
+/* PC 에서는 본문(#vDoc)과 같은 폭으로 가운데 선다 */
+#vBar { max-width: 720px; margin-left: auto; margin-right: auto; }
