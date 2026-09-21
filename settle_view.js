@@ -117,7 +117,8 @@ function render(d) {
   H.push('<div class="v-sum">' +
     '<div class="v-row"><span>인건비</span><span>' + won(합계.인건비) + '</span></div>' +
     '<div class="v-row"><span>자재비</span><span>' + won(합계.자재비) + '</span></div>' +
-    (부가.length ? '<div class="v-row"><span>부가 항목</span><span>' + won(합계.부가) + '</span></div>' : '') +
+    // 부가 항목은 합계에서도 한 줄로 뭉치지 않고 항목별로 적는다 (부자재비 6만 / 식대 인건비 포함 / 퀵비 없으면 안 나옴)
+    부가.map((e) => '<div class="v-row"><span>' + esc(e.항목명) + '</span><span>' + (e.비고 ? esc(e.비고) : won(e.금액)) + '</span></div>').join('') +
     '<div class="v-row total"><span>합계</span><span>' + won(합계.총액) +
       (d.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span></div>' +
     '</div>');
