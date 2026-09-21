@@ -35,17 +35,17 @@ section.card > h2 .sum { margin-left: auto; font-size: 14px; color: var(--ok); f
 
 /* ① 인건비 */
 .labor { display: flex; align-items: center; gap: 8px; padding: 12px 14px; flex-wrap: wrap; }
-.labor input[type=number] {
-  width: 72px; height: var(--tap); text-align: center;
-  border: 1px solid var(--line); border-radius: 10px;
+.labor #wageCustom {
+  width: 100%; height: var(--tap); text-align: right; padding: 0 12px;
+  border: 1px solid var(--accent); border-radius: 10px;
   font-size: 16px; font-weight: 700; background: #fff; color: var(--text);
 }
-.labor #wageCustom { width: 100%; text-align: right; padding: 0 12px; }
 .labor select {
   flex: 1 1 auto; min-width: 0; height: var(--tap);
   border: 1px solid var(--line); border-radius: 10px;
   font-size: 15px; font-weight: 700; padding: 0 8px; background: #fff; color: var(--text);
 }
+.labor #manDays { flex: 0 0 104px; }
 .labor .eq { color: var(--muted); }
 .labor .amt { width: 100%; text-align: right; font-size: 17px; font-weight: 800; color: var(--ok); font-variant-numeric: tabular-nums; }
 

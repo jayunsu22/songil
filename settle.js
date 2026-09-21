@@ -16,6 +16,10 @@ const CONFIG = {
 const ADMIN_PIN_HASH = '7e25b45addda2b4082938558981200dfe5a3cfb20ee4a81092510d26715c2049';
 const UNLOCK_KEY = 'settleUnlocked';
 const CUSTOM_WAGE = '__custom';
+// 품단가 선택지(원/품). 사장님이 쓰는 단가는 이 넷이라 고정으로 둔다. 그 밖은 '직접 입력'.
+const 품단가선택지 = [250000, 260000, 270000, 280000];
+// 품수 선택지: 1 ~ 20품, 0.5 단위
+const 품수선택지 = Array.from({ length: 39 }, (_, i) => (i + 2) / 2);
 
 const $ = (s) => document.querySelector(s);
 const won = (n) => Math.round(Number(n) || 0).toLocaleString('ko-KR') + '원';
@@ -121,7 +125,6 @@ function 단가표적용() {
   });
 }
 const 자재목록 = () => (MASTER.단가표 || []).filter((r) => r.구분 === '자재단가' && r.사용여부);
-const 품단가목록 = () => (MASTER.단가표 || []).filter((r) => r.구분 === '품단가' && r.사용여부);
 const 부가목록 = () => (MASTER.단가표 || []).filter((r) => r.구분 === '부가항목' && r.사용여부);
 
 function 구역정렬키(구역) {
@@ -195,11 +198,13 @@ function mergeSaved() {
     saved.부가.filter((e) => e.출처 === '추가').forEach((e) => 부가.push(Object.assign({}, e, { key: 'e' + (keySeq++) })));
   }
 
-  const 품단가들 = 품단가목록();
   state = Object.assign(빈상태(), saved || {}, { 줄들: fresh, 부가 });
-  if (!state.품단가ID || (state.품단가ID !== CUSTOM_WAGE && !품단가들.some((w) => w.id === state.품단가ID))) {
-    state.품단가ID = (품단가들[0] || {}).id || CUSTOM_WAGE;
+  // 품단가ID 는 '250000' 같은 금액 문자열 또는 '__custom'. (예전 저장값에 에어테이블 레코드 ID가 있으면 기본값으로)
+  if (state.품단가ID !== CUSTOM_WAGE && !품단가선택지.some((w) => String(w) === String(state.품단가ID))) {
+    state.품단가ID = String(품단가선택지[0]);
   }
+  // 품수는 드롭다운 값만. 예전에 숫자칸으로 넣은 값이 선택지에 없으면 비운다
+  if (state.품수 !== '' && !품수선택지.some((n) => n === Number(state.품수))) state.품수 = '';
   if (!state.전체자재ID || !자재표[state.전체자재ID]) state.전체자재ID = 기본자재;
   save();
 }
@@ -209,8 +214,7 @@ function mergeSaved() {
    ========================================================================= */
 function 품단가값() {
   if (state.품단가ID === CUSTOM_WAGE) return SettleCalc.수(state.품단가직접);
-  const w = 품단가목록().find((r) => r.id === state.품단가ID);
-  return w ? w.단가 : 0;
+  return SettleCalc.수(state.품단가ID);
 }
 function 계산() {
   return SettleCalc.합계({ 품수: state.품수, 품단가: 품단가값(), 줄들: state.줄들, 부가: state.부가 }, 자재표);
@@ -240,9 +244,11 @@ function renderAll() {
 }
 
 function renderLabor() {
-  $('#manDays').value = state.품수 === '' ? '' : state.품수;
+  const md = $('#manDays');
+  md.innerHTML = '<option value="">품수</option>' + 품수선택지.map((n) => `<option value="${n}">${n}품</option>`).join('');
+  md.value = state.품수 === '' ? '' : String(Number(state.품수));
   const sel = $('#wageSelect');
-  const opts = 품단가목록().map((w) => `<option value="${esc(w.id)}">${esc(w.항목명)} · ${won(w.단가)}</option>`);
+  const opts = 품단가선택지.map((w) => `<option value="${w}">${(w / 10000)}만원</option>`);
   opts.push(`<option value="${CUSTOM_WAGE}">직접 입력</option>`);
   sel.innerHTML = opts.join('');
   sel.value = state.품단가ID;
@@ -383,7 +389,11 @@ function renderExtras() {
 function renderTotals() {
   const r = 계산();
   $('#laborSum').textContent = won(r.인건비);
-  $('#laborAmt').textContent = '= ' + won(r.인건비);
+  // 반품이 끼면 어떻게 계산됐는지 옆에 적는다 (25만 × 8.5품 = 200만 + 13만)
+  const 품 = SettleCalc.수(state.품수), 단가 = 품단가값();
+  const 반품설명 = (품 - Math.floor(품)) >= 0.5 && 단가 > 0
+    ? ` <small>(${Math.floor(품)}품 ${won(Math.floor(품) * 단가)} + 반품 ${won(Math.round(단가 / 2 / 10000) * 10000)})</small>` : '';
+  $('#laborAmt').innerHTML = '= ' + won(r.인건비) + 반품설명;
   $('#matSum').textContent = won(r.자재비);
   $('#extraSum').textContent = won(r.부가);
   $('#matSubtotals').innerHTML = r.자재소계.map((s) =>
@@ -395,7 +405,7 @@ function renderTotals() {
 /* =========================================================================
    입력 이벤트 (인건비 · 전체 자재 · 메모 · 추가 버튼)
    ========================================================================= */
-$('#manDays').addEventListener('input', (ev) => { state.품수 = ev.target.value; save(); renderTotals(); });
+$('#manDays').addEventListener('change', (ev) => { state.품수 = ev.target.value; save(); renderTotals(); });
 $('#wageSelect').addEventListener('change', (ev) => {
   state.품단가ID = ev.target.value; save();
   $('#wageCustom').hidden = state.품단가ID !== CUSTOM_WAGE;
@@ -568,7 +578,7 @@ function closeSettings() { $('#setBack').hidden = true; $('#setSheet').hidden = 
 function renderSettingsTab() {
   document.querySelectorAll('#setSheet .tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === setTab));
   const body = $('#setBody');
-  $('#setAddBtn').hidden = setTab !== '자재단가';   // 자재단가 탭만 아래 공용 버튼, 나머지는 그룹별 버튼
+  $('#setAddBtn').hidden = setTab === '소모량';
   if (setTab === '소모량') {
     $('#setHint').textContent = '품목 1개당(세트/개) 필름 소모량. "길이 입력"을 켜면 견적 화면에서 길이(m)를 받아 1m당 소모량으로 계산합니다. 값이 없는 품목이 위에 옵니다.';
     body.innerHTML = setItems.map((m, i) => `<div class="srow${m.자재소모량 == null ? ' empty' : ''}" data-i="${i}">
@@ -584,10 +594,10 @@ function renderSettingsTab() {
     });
     return;
   }
-  const 구분들 = setTab === '자재단가' ? ['자재단가'] : ['품단가', '부가항목'];
+  const 구분들 = setTab === '자재단가' ? ['자재단가'] : ['부가항목'];
   $('#setHint').textContent = setTab === '자재단가'
     ? '필름 자재별 m당 단가. 견적 화면에서 줄마다 골라 씁니다. 사용을 끄면 목록에서 숨겨집니다.'
-    : '품단가는 1품(1인 1일)당 인건비. 부가항목의 단가는 견적 화면에 미리 채워지는 기본 금액(0이면 빈칸).';
+    : '부가항목의 단가는 견적 화면에 미리 채워지는 기본 금액(0이면 빈칸).';
   const H = [];
   구분들.forEach((g) => {
     // 품단가·부가항목 탭은 종류가 둘이라 그룹마다 자기 '+ 추가' 를 둔다 (prompt 로 종류를 묻지 않는다)
@@ -596,8 +606,8 @@ function renderSettingsTab() {
       if (r.구분 !== g) return;
       H.push(`<div class="srow${r._del ? ' gone' : ''}" data-i="${i}">
         <input class="name" type="text" data-f="항목명" value="${esc(r.항목명)}" placeholder="항목명" autocomplete="off">
-        <input class="price" type="number" inputmode="numeric" min="0" step="${g === '품단가' ? 10000 : 500}" data-f="단가" value="${esc(r.단가)}" autocomplete="off">
-        <span class="unit">${g === '자재단가' ? '원/m' : g === '품단가' ? '원/품' : '원'}</span>
+        <input class="price" type="number" inputmode="numeric" min="0" step="${g === '자재단가' ? 500 : 1000}" data-f="단가" value="${esc(r.단가)}" autocomplete="off">
+        <span class="unit">${g === '자재단가' ? '원/m' : '원'}</span>
         <button type="button" class="sw${r.사용여부 ? '' : ' off'}" data-f="사용여부" aria-label="사용 여부"></button>
         <button type="button" class="del" data-f="del" aria-label="삭제">✕</button>
       </div>`);
@@ -627,7 +637,7 @@ function 설정줄추가(구분) {
   const last = rows[rows.length - 1] && rows[rows.length - 1].querySelector('input.name');
   if (last) last.focus();
 }
-$('#setAddBtn').addEventListener('click', () => 설정줄추가('자재단가'));
+$('#setAddBtn').addEventListener('click', () => 설정줄추가(setTab === '자재단가' ? '자재단가' : '부가항목'));
 $('#settingsBtn').addEventListener('click', openSettings);
 $('#setClose').addEventListener('click', closeSettings);
 $('#setBack').addEventListener('click', closeSettings);

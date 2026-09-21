@@ -32,8 +32,8 @@
   <section class="card" id="laborCard">
     <h2>① 인건비 <span class="sum" id="laborSum">0원</span></h2>
     <div class="labor">
-      <input id="manDays" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" autocomplete="off">
-      <span class="q-unit">품</span>
+      <!-- 품수는 1~20품 0.5 단위 드롭다운. 숫자칸보다 장갑 낀 손에 빠르고, 0.5품 규칙(반품=단가 절반을 만원 반올림)과 맞물린다 -->
+      <select id="manDays" autocomplete="off"></select>
       <span class="eq">×</span>
       <select id="wageSelect" autocomplete="off"></select>
       <input id="wageCustom" type="number" inputmode="numeric" min="0" step="10000" placeholder="품단가 직접 입력" autocomplete="off" hidden>
@@ -97,7 +97,7 @@
   <h2>⚙ 단가 설정</h2>
   <div class="tabs">
     <button type="button" data-tab="자재단가" class="on">자재단가</button>
-    <button type="button" data-tab="품단가">품단가 · 부가항목</button>
+    <button type="button" data-tab="부가항목">부가항목</button>
     <button type="button" data-tab="소모량">품목 소모량</button>
   </div>
   <p class="shint" id="setHint"></p>
