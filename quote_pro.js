@@ -40,7 +40,7 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 업체: null };
+let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3, 업체: null };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -96,9 +96,9 @@ async function loadMaster() {
     }
     const 바뀜 = !cached || JSON.stringify(fresh) !== JSON.stringify(cached);
     MASTER = fresh;
-    save(MASTER_KEY, fresh);
+    save(MASTER_KEY, fresh);     // 파생 품목을 붙이기 전에 저장한다. 캐시는 원본이어야 한다.
     if (!cached) boot();
-    else if (바뀜) { buildAll(); 구역장수갱신(); refresh(); }
+    else if (바뀜) { 파생품목붙이기(); buildAll(); 구역장수갱신(); refresh(); }
     setStatus('');
   } catch (e) {
     if (MASTER) setStatus('최신 단가를 못 받았습니다. 저장된 단가로 계속 진행합니다.');
@@ -113,14 +113,91 @@ function setStatus(msg, isErr) {
   el.className = isErr ? 'err' : '';
 }
 
+/* ---------- 구역별 몰딩·걸레받이 (파생 품목) ----------
+   전체공통의 평형별 몰딩·크라운몰딩·걸레받이는 집 전체 길이(30평 110m)다.
+   "안방만 걸레받이" 처럼 방 하나만 요구하는 경우가 있어 거실·방1~방5 에
+   같은 품목을 나눠 넣는다. 거실이 전체의 50%, 나머지 50% 를 방 개수로 나눈다.
+
+   에어테이블에 72개 행을 더 만드는 대신 여기서 만든다. 단가는 전체공통 것을
+   그대로 쓰므로 에어테이블에서 단가를 바꾸면 같이 바뀌고, 나누는 비율만 코드다.
+   MASTER 에 붙이되 저장(캐시)하지는 않는다 - 다시 만들면 되고, 저장하면
+   방 개수를 바꿨을 때 옛 길이가 남는다. */
+const 파생구역 = ['거실', '방1', '방2', '방3', '방4', '방5'];
+const 파생대상 = ['몰딩', '크라운몰딩', '걸레받이'];
+
+function 방개수() {
+  const n = parseInt(state.방수, 10);
+  return (n >= 1 && n <= 5) ? n : 3;
+}
+
+function 파생품목붙이기() {
+  if (!MASTER || !MASTER.zones) return;
+  const 전체 = MASTER.zones.find((z) => z.구역 === '전체공통');
+  if (!전체) return;
+  const n = 방개수();
+  // 기준: 전체공통의 평형별 몰딩/크라운몰딩/걸레받이
+  const 기준들 = 전체.items.filter((it) =>
+    it.적용평형 !== '공통' && 파생대상.some((name) => it.표시_품목명.indexOf(name + ' (') === 0));
+
+  MASTER.zones.forEach((z) => {
+    // 먼저 지난번에 붙인 것을 뗀다 (방 개수를 바꾸면 길이가 달라진다)
+    z.items = z.items.filter((it) => !it.파생);
+    if (파생구역.indexOf(z.구역) < 0) return;
+    const zid = z.items.length ? z.items[0].체크_ID.split('_')[0] : 'z00';
+    const 거실인가 = z.구역 === '거실';
+    기준들.forEach((base) => {
+      const o = (base.옵션들 && base.옵션들[0]) || base;
+      const 전체길이 = base.평형별_설정길이 || 0;
+      const 길이 = Math.round((거실인가 ? 전체길이 * 0.5 : 전체길이 * 0.5 / n) * 10) / 10;
+      const 이유 = 거실인가
+        ? '거실 몫 ' + 길이 + 'm (전체 ' + 전체길이 + 'm 의 50%)'
+        : '방 몫 ' + 길이 + 'm (전체 ' + 전체길이 + 'm 의 50% 를 방 ' + n + '개로 나눔)';
+      const 옵션 = Object.assign({}, o, {
+        평형별_설정길이: 길이,
+        품목설명: (o.품목설명 || '') + '\n' + 이유,
+        견적기준: (거실인가 ? '거실 ' : '방 하나 ') + 길이 + 'm 기준입니다',
+      });
+      z.items.push(Object.assign({}, base, 옵션, {
+        체크_ID: zid + '_' + z.구역 + '_' + base.표시_품목명 + '_' + base.적용평형,
+        품목_순서: 900 + 파생대상.indexOf(base.표시_품목명.split(' (')[0]),
+        옵션들: [옵션],
+        파생: true,
+        파생기준: base.체크_ID,
+      }));
+    });
+  });
+
+  // 이미 체크해 둔 파생 품목은 새 길이로 맞춘다. 안 그러면 방 개수를 바꿔도
+  // 견적 금액이 옛 길이로 남는다.
+  MASTER.zones.forEach((z) => z.items.forEach((it) => {
+    if (it.파생 && state.선택[it.체크_ID]) state.선택[it.체크_ID].수량 = it.평형별_설정길이;
+  }));
+}
+
+/* 전체공통 몰딩과 구역별 몰딩을 같이 체크하면 이중 계산이다. 막지는 않고 알려준다 -
+   전체를 하고 안방만 크라운으로 올리는 식의 조합도 있을 수 있다. */
+function 이중계산경고(item) {
+  const 이름 = item.표시_품목명;
+  if (!파생대상.some((name) => 이름.indexOf(name + ' (') === 0)) return;
+  let 겹침 = null;
+  MASTER.zones.forEach((z) => z.items.forEach((it) => {
+    if (it.체크_ID === item.체크_ID || !state.선택[it.체크_ID]) return;
+    if (it.표시_품목명 !== 이름) return;
+    if (item.파생 ? it.체크_ID === item.파생기준 : it.파생기준 === item.체크_ID) 겹침 = it;
+  }));
+  if (겹침) toast('전체공통 ' + 이름 + ' 과 구역별 ' + 이름 + ' 이 같이 체크돼 있습니다. 이중 계산이 아닌지 확인하세요.');
+}
+
 /* ---------- 최초 구성 ---------- */
 function boot() {
   const saved = load(STORAGE_KEY);
   if (saved) state = Object.assign(state, saved);
   현장ID확보();
+  파생품목붙이기();
 
   $('#siteName').value = state.현장명 || '';
   $('#sizeSelect').value = state.평형 || '확인안됨';
+  $('#roomSelect').value = String(방개수());
   $('#memoText').value = state.메모 || '';
   $('#relayText').value = state.전달사항 || '';
   $('#noteText').value = state.안내문구 || '';
@@ -347,11 +424,18 @@ function buildItem(item, 구역) {
   // 여기서 열면 사진 한 장 고르는 것으로 이 품목의 네모 표시까지 바로 간다.
   body.appendChild(사진버튼만들기(구역, item.체크_ID, item.표시_품목명));
 
+  // 체크 안 한 품목에도 사진을 붙일 수 있어야 한다. 현장에서 견적에 안 넣은 것도
+  // 일단 찍어두면, 나중에 "그것도 넣어주세요" 할 때 사진 보고 바로 넣는다.
+  // 체크 전에는 몸통 줄이 안 보이므로 제목 줄에 작은 버튼을 하나 더 둔다.
+  // 사진만 붙고 견적에는 안 들어간다 - 견적 여부는 체크박스가 정한다.
+  const 머리사진버튼 = 사진버튼만들기(구역, item.체크_ID, item.표시_품목명);
+  head.insertBefore(머리사진버튼, head.querySelector('.i-amt'));
+
   box.appendChild(body);
 
   const row = { item: item, box: box, head: head, body: body, diff: diff, kind: 종류,
                 cb: head.querySelector('input'), amt: head.querySelector('.i-amt'),
-                num: body.querySelector('.qnum'), descBtn: 설명버튼 };
+                num: body.querySelector('.qnum'), descBtn: 설명버튼, photoHead: 머리사진버튼 };
   ROWS.set(item.체크_ID, row);
 
   /* 이벤트 */
@@ -368,6 +452,7 @@ function buildItem(item, 구역) {
     syncRow(row);
     refresh();
     persist();
+    if (row.cb.checked) 이중계산경고(item);
   });
 
   diff.addEventListener('change', () => {
@@ -424,6 +509,8 @@ function syncRow(row) {
     row.diff.value = String(s.난이도 || 1);
     if (row.kind) row.kind.value = String(s.옵션 || 0);
   }
+  // 체크하면 몸통 줄의 사진 버튼이 보이므로 제목 줄 것은 감춘다. 둘 다 있으면 헷갈린다.
+  if (row.photoHead) row.photoHead.hidden = !!s || !사진가능;
   if (row.descBtn) {
     const 고침 = !!(state.설명 && state.설명[row.item.체크_ID]);
     row.descBtn.classList.toggle('on', 고침);
@@ -786,6 +873,14 @@ $('#noteReset').addEventListener('click', () => {
 });
 $('#relayText').addEventListener('input', persist);
 $('#sizeSelect').addEventListener('change', (e) => applySize(e.target.value));
+$('#roomSelect').addEventListener('change', (e) => {
+  state.방수 = parseInt(e.target.value, 10) || 3;
+  파생품목붙이기();   // 방 몫 길이가 달라진다
+  buildAll();
+  구역장수갱신();
+  refresh();
+  persist();
+});
 $('#resetBtn').addEventListener('click', async () => {
   // 사진이 있는데 저장함에 안 담았다면 그냥 시작하면 안 된다.
   // 견적은 사라지고 사진만 남아 '소속 없는 사진' 이 된다.
@@ -807,10 +902,12 @@ $('#resetBtn').addEventListener('click', async () => {
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 업체: null };
+  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3, 업체: null };
   현장ID확보();     // 새 현장이 시작됐다. 사진이 앞 현장에 섞이면 안 된다.
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
+  $('#roomSelect').value = '3';
+  파생품목붙이기();
   $('#memoText').value = '';
   $('#relayText').value = '';
   $('#noteText').value = '';
@@ -1395,7 +1492,7 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 업체: null },
+      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3, 업체: null },
       항목.상태
     );
     if (!state.현장ID) state.현장ID = 항목.현장ID || '';
@@ -1403,6 +1500,8 @@ $('#boxList').addEventListener('click', async (e) => {
     현장ID확보();     // 예전에 저장한 건은 현장ID 가 없다. 새로 발급해도 사진이 없어 문제없다.
     $('#siteName').value = state.현장명 || '';
     $('#sizeSelect').value = state.평형 || '확인안됨';
+    $('#roomSelect').value = String(방개수());
+    파생품목붙이기();
     $('#memoText').value = state.메모 || '';
     $('#relayText').value = state.전달사항 || '';
     $('#noteText').value = state.안내문구 || '';
@@ -1674,7 +1773,9 @@ function 사진버튼칠하기(b, 체크_ID) {
   const 있음 = 표시된품목.has(체크_ID);
   b.classList.toggle('on', 있음);
   b.textContent = 있음 ? '사진 있음' : '사진';
-  b.hidden = !사진가능;
+  // 제목 줄 버튼은 체크 여부로도 감추므로(syncRow) 여기서는 못 쓰는 경우만 감춘다
+  if (!사진가능) b.hidden = true;
+  else if (!b.closest('.item-head') || !state.선택[체크_ID]) b.hidden = false;
 }
 
 /* 썸네일 objectURL 은 다 쓰면 반드시 풀어준다.
@@ -1691,7 +1792,12 @@ async function 사진트레이열기(구역, 대상) {
   const 안내 = $('#trayAim');
   안내.hidden = !사진대상;
   if (사진대상) {
-    안내.textContent = '사진을 누르면 ‘' + 사진대상.품목명 + '’ 위치를 네모로 표시합니다.';
+    // 견적에 안 넣은 품목의 사진은 보관용이다. 발행해도 안 올라간다는 것을 알려준다.
+    const 직접 = (state.직접품목 || []).some((c) => c.id === 사진대상.체크_ID);
+    const 견적에 = 직접 || !!state.선택[사진대상.체크_ID];
+    안내.textContent = 견적에
+      ? '사진을 누르면 ‘' + 사진대상.품목명 + '’ 위치를 네모로 표시합니다.'
+      : '‘' + 사진대상.품목명 + '’ 은 아직 견적에 없습니다. 사진은 폰에 보관되고, 나중에 체크하면 견적서에 같이 나갑니다.';
   }
   $('#trayBack').hidden = false;
   $('#traySheet').hidden = false;
@@ -1929,6 +2035,21 @@ async function 사진추가(file) {
 $('#trayClose').addEventListener('click', 닫기_트레이);
 $('#trayBack').addEventListener('click', 닫기_트레이);
 
+/* 사진 화면들의 '저장'. 사진은 이미 폰에 저장돼 있으므로 실제로 하는 일은
+   저장함에 담기(이름 붙은 사본) + 그 화면 닫기. 눌러야 안심이 된다고 하셔서 둔다. */
+$('#traySave').addEventListener('click', () => {
+  저장함에담기();
+  닫기_트레이();
+});
+$('#tagSave').addEventListener('click', () => {
+  저장함에담기();
+  태그닫기();
+});
+$('#camSave').addEventListener('click', () => {
+  카메라닫기();
+  저장함에담기();
+});
+
 
 // 폰 저장공간이 부족할 때 크롬이 사진을 임의로 지우지 않게 한다.
 PDB.영구요청();
@@ -1940,6 +2061,7 @@ PDB.영구요청();
 window.addEventListener('pageshow', () => {
   if (!MASTER) return;
   $('#sizeSelect').value = state.평형 || '확인안됨';
+  $('#roomSelect').value = String(방개수());
   $('#siteName').value = state.현장명 || '';
   // 조정 줄이 특히 위험하다. 옵션을 자바스크립트로 채우는 칸이라, 크롬이
   // 옵션이 아직 없을 때 복원해 버리면 '선택 안 함' 으로 되돌아간다.
@@ -2437,8 +2559,12 @@ function 표시그리기() {
 
   // 끌 때마다 네모가 하나씩 늘어난다. 방문이 두 짝이거나 문틀과 문짝을 따로
   // 짚어야 할 때 한 장으로 끝낸다. 잘못 그리면 '마지막 네모 지우기'.
+  // 마우스 왼쪽 버튼만. 오른쪽 클릭이나 휠 클릭으로 네모가 생기면 안 된다.
+  wrap.addEventListener('dragstart', (e) => e.preventDefault());
   wrap.addEventListener('pointerdown', (e) => {
     if (!표시대상) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
     wrap.setPointerCapture(e.pointerId);
     시작 = 좌표(e);
     const 새것 = QuotePhotos.정규화사각(시작.x, 시작.y, 시작.x, 시작.y, 시작.w, 시작.h);

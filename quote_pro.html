@@ -25,6 +25,15 @@
     <option value="40평">40평</option>
     <option value="50평">50평</option>
   </select>
+  <!-- 방 개수. 몰딩·크라운몰딩·걸레받이를 거실 50% / 나머지를 방 개수로 나눠
+       구역별로 넣을 때 쓴다. 집마다 방 수가 달라서 평형으로는 못 정한다. -->
+  <select id="roomSelect" aria-label="방 개수" autocomplete="off">
+    <option value="1">방 1개</option>
+    <option value="2">방 2개</option>
+    <option value="3" selected>방 3개</option>
+    <option value="4">방 4개</option>
+    <option value="5">방 5개</option>
+  </select>
   <!-- 자동저장이 되지만 눌러서 저장한 게 아니면 안심이 안 된다고 하셔서 둔 버튼.
        저장함에 이름 붙여 담는다 - 자동저장은 한 건뿐이라 '새 견적' 에 덮인다. -->
   <button id="saveBtn" type="button">저장</button>
@@ -181,7 +190,12 @@
   <input type="file" id="trayPick" accept="image/*" multiple hidden>
   <button id="trayShoot" class="primary" type="button">촬영</button>
   <button id="trayAlbum" type="button">앨범에서 가져오기</button>
-  <button id="trayClose" type="button">닫기</button>
+  <!-- 사진은 찍는 즉시 폰에 저장되지만, 눌러서 저장한 게 아니면 안심이 안 된다고
+       하셔서 모든 화면에 저장 버튼을 둔다. 저장함에 담고 닫는다. -->
+  <div class="sheet-row">
+    <button id="traySave" class="save" type="button">저장</button>
+    <button id="trayClose" type="button">닫기</button>
+  </div>
 </section>
 
 <div id="camBack" hidden></div>
@@ -190,7 +204,10 @@
   <div id="camBar">
     <button id="camClose" type="button">닫기</button>
     <button id="camShot" type="button" aria-label="촬영"></button>
-    <span id="camCount">0장</span>
+    <div id="camRight">
+      <span id="camCount">0장</span>
+      <button id="camSave" class="save" type="button">저장</button>
+    </div>
   </div>
 </section>
 
@@ -206,7 +223,10 @@
     <button type="button" id="tagNext" aria-label="다음 사진">›</button>
   </div>
   <button id="tagDel" type="button">이 사진 삭제</button>
-  <button id="tagClose" class="primary" type="button">닫기</button>
+  <div class="sheet-row">
+    <button id="tagSave" class="save" type="button">저장</button>
+    <button id="tagClose" type="button">닫기</button>
+  </div>
 </section>
 
 <div id="descBack" hidden></div>
@@ -225,7 +245,8 @@
   <p class="hint">사진에서 <b>해당 부분을 손가락으로 끌어</b> 네모를 그리세요.
     여러 번 끌면 네모가 여러 개 생깁니다. 견적서에 이 표시가 그대로 나갑니다.</p>
   <div id="markWrap">
-    <img id="markImg" alt="현장 사진">
+    <!-- draggable=false: PC 마우스로 끌면 브라우저가 이미지를 끌어 옮기려 해서 네모가 안 그려진다 -->
+    <img id="markImg" alt="현장 사진" draggable="false">
   </div>
   <!-- 업자가 빨간 펜으로 표시한 평면도에 빨간 네모를 또 치면 섞인다.
        네모 색을 바꾸거나, 사진의 빨간 표시를 지운다. -->

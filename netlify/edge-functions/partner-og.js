@@ -90,9 +90,11 @@ export default async (request, context) => {
         // [New] 기사님용 현장 품질관리 앱(/w/<코드>)도 똑같은 이유로 여기로 옮겼다.
         // 카톡으로 받은 링크 카드가 어느 현장이든 "현장 품질 관리 시스템"으로만 떠서
         // 기사님이 어느 현장 링크인지 구분할 수 없었다.
-        if (url.pathname.startsWith('/q/') || url.pathname.startsWith('/g/') || url.pathname.startsWith('/w/')) {
+        // [New] 정산 견적서(/s/<코드>)도 같은 방식. 품수 기반 사후 견적이라 제목만 다르다.
+        if (url.pathname.startsWith('/q/') || url.pathname.startsWith('/g/') || url.pathname.startsWith('/w/') || url.pathname.startsWith('/s/')) {
             const 갤러리 = url.pathname.startsWith('/g/');
             const 품질관리 = url.pathname.startsWith('/w/');
+            const 정산 = url.pathname.startsWith('/s/');
             const escAttrQ = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
             const escTextQ = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -124,6 +126,9 @@ export default async (request, context) => {
                 qDesc = 현장명
                     ? `${현장명} 현장 품질 점검/사진 기록 페이지입니다.`
                     : '현장 품질 점검/사진 기록 페이지입니다.';
+            } else if (정산) {
+                qTitle = 현장명 ? `${현장명} 정산 견적서` : '섬세한손길 정산 견적서';
+                qDesc = '섬세한손길 시공 정산 견적서';
             } else {
                 qTitle = 현장명 || '섬세한손길 시공 견적서';
                 qDesc = 현장명 ? '섬세한손길 시공 견적서' : '인테리어필름 시공 견적서입니다.';

@@ -739,6 +739,38 @@ header {
   font-weight: 700;
 }
 
+/* ---------- PC 에서 볼 때 ----------
+   폰용 화면이라 넓은 모니터에서는 줄이 끝까지 늘어나 어색하다.
+   폰 폭(480px)으로 가운데에 모은다. 아래 고정 바와 올라오는 시트들도
+   left:0; right:0 에 max-width + margin auto 를 주면 같은 폭으로 가운데 선다. */
+@media (min-width: 600px) {
+  body { max-width: 480px; margin: 0 auto; box-shadow: 0 0 24px rgba(0,0,0,.08); min-height: 100vh; }
+  header, #totalBar, #pubSheet, #boxSheet, #vendorSheet, #customSheet, #descSheet,
+  #traySheet, #tagSheet, #markSheet {
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* 방 개수. 평형 옆에 붙는다. 둘째 줄이 꽉 차므로 평형·방수는 폭을 나눠 갖는다. */
+#roomSelect {
+  flex: 0 0 auto;
+  height: var(--tap);
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  background: #fff;
+  color: var(--text);
+}
+/* 둘째 줄: 평형 | 방수 | 저장 | 저장함 | 새 견적 — 375px 폰에 한 줄로 들어가야 한다.
+   평형 칸이 남는 폭을 갖되(flex 1) 모자라면 줄어들게 min-width:0. 나머지는 폭 고정. */
+#sizeSelect { flex: 1 1 60px; min-width: 0; padding: 0 4px; font-size: 14px; }
+#saveBtn, #boxBtn, #resetBtn { padding: 0 9px; font-size: 13px; white-space: nowrap; }
+header { column-gap: 6px; }
+
 /* ---------- 업체(거래처) ----------
    머리줄 셋째 줄을 통째로 쓴다. 현장명 다음으로 먼저 정해야 하는 것이라
    저장·저장함 버튼들과 섞어두면 눈에 안 들어온다. */
