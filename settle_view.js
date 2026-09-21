@@ -107,7 +107,8 @@ function render(d) {
   if (부가.length) {
     H.push('<div class="v-tbl"><h3>부가 항목</h3>');
     부가.forEach((e) => {
-      H.push('<div class="v-line"><span class="v-nm">' + esc(e.항목명) + '</span><span class="v-amt">' + won(e.금액) + '</span></div>');
+      // 식대 '인건비 포함' 처럼 금액 대신 글자로 나가는 줄이 있다
+      H.push('<div class="v-line"><span class="v-nm">' + esc(e.항목명) + '</span><span class="v-amt">' + (e.비고 ? esc(e.비고) : won(e.금액)) + '</span></div>');
     });
     H.push('</div>');
   }

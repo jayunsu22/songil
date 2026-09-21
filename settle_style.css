@@ -105,6 +105,8 @@ button.addrow { display: block; width: 100%; text-align: left; padding: 10px 14p
   font-size: 15px; font-weight: 700; padding: 0 10px; background: #fff; color: var(--text);
 }
 .extra .won { color: var(--muted); font-size: 14px; }
+.extra select.amtsel { width: 128px; height: 38px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; font-weight: 700; padding: 0 8px; background: #fff; color: var(--text); }
+.extra select.amtsel + input.amt { width: 100px; border-color: var(--accent); }
 .extra .del { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #b91c1c; font-size: 14px; }
 
 /* 메모 · 부가세 */

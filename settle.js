@@ -23,6 +23,18 @@ const 품수선택지 = Array.from({ length: 39 }, (_, i) => (i + 2) / 2);
 // 길이 품목(샤시·몰딩·수납장 등)의 길이 선택지: 1 ~ 10m, 0.5 단위. 그 밖은 '직접 입력'.
 const 길이선택지 = Array.from({ length: 19 }, (_, i) => (i + 2) / 2);
 const CUSTOM_LEN = '__custom';
+// 부가항목 금액 선택지. 항목명으로 종류를 고른다 - 부자재비 1~10만(1만), 식대 인건비포함/1~20만(1만), 퀵비·택배비 1~10만(5천).
+// 그 밖에 설정에서 새로 만든 항목은 부자재비와 같은 선택지. 직접 추가한 줄은 숫자칸.
+const 만 = 10000;
+const INCLUDED = '__included';
+function 부가선택지(항목명) {
+  const n = String(항목명 || '');
+  const range = (from, to, step) => { const a = []; for (let v = from; v <= to + 1e-9; v += step) a.push(Math.round(v)); return a; };
+  if (n.includes('식대')) return { 포함: true, 값들: range(1 * 만, 20 * 만, 1 * 만) };
+  if (n.includes('퀵') || n.includes('택배')) return { 포함: false, 값들: range(1 * 만, 10 * 만, 0.5 * 만) };
+  return { 포함: false, 값들: range(1 * 만, 10 * 만, 1 * 만) };
+}
+const 만원표시 = (v) => (v % 만 === 0 ? (v / 만) + '만원' : (Math.floor(v / 만)) + '만' + ((v % 만) / 1000) + '천원');
 
 const $ = (s) => document.querySelector(s);
 const won = (n) => Math.round(Number(n) || 0).toLocaleString('ko-KR') + '원';
@@ -198,7 +210,11 @@ function mergeSaved() {
   if (saved && Array.isArray(saved.부가)) {
     const byId = {};
     saved.부가.forEach((e) => { if (e.단가ID) byId[e.단가ID] = e; });
-    부가.forEach((e) => { if (byId[e.단가ID]) e.금액 = byId[e.단가ID].금액; });
+    부가.forEach((e) => {
+      const sv = byId[e.단가ID];
+      if (!sv) return;
+      e.금액 = sv.금액; e.금액직접 = !!sv.금액직접; e.인건비포함 = !!sv.인건비포함;
+    });
     saved.부가.filter((e) => e.출처 === '추가').forEach((e) => 부가.push(Object.assign({}, e, { key: 'e' + (keySeq++) })));
   }
 
@@ -383,13 +399,25 @@ function 줄다시그리기(l) {
   bindLineEvents();
 }
 
+function 부가금액HTML(e) {
+  const 값 = e.금액 === '' || e.금액 == null ? null : Number(e.금액);
+  const 숫자칸 = `<input class="amt" type="number" inputmode="numeric" min="0" step="1000" data-f="금액" value="${값 === null || 값 === 0 ? '' : esc(값)}" placeholder="0" autocomplete="off"><span class="won">원</span>`;
+  if (e.출처 === '추가') return 숫자칸;
+  const { 포함, 값들 } = 부가선택지(e.항목명);
+  const 직접 = e.금액직접 || (값 !== null && 값 !== 0 && !값들.includes(값));
+  const opts = ['<option value="">선택</option>'];
+  if (포함) opts.push(`<option value="${INCLUDED}"${e.인건비포함 ? ' selected' : ''}>인건비 포함</option>`);
+  값들.forEach((v) => opts.push(`<option value="${v}"${!직접 && !e.인건비포함 && 값 === v ? ' selected' : ''}>${만원표시(v)}</option>`));
+  opts.push(`<option value="${CUSTOM_WAGE}"${직접 ? ' selected' : ''}>직접 입력</option>`);
+  return `<select class="amtsel" data-f="금액sel">${opts.join('')}</select>` + (직접 ? 숫자칸 : '');
+}
+
 function renderExtras() {
   $('#extras').innerHTML = state.부가.map((e) => `<div class="extra" data-key="${e.key}">
     ${e.출처 === '추가'
       ? `<div class="nm"><input type="text" data-f="항목명" value="${esc(e.항목명)}" placeholder="항목명" autocomplete="off"></div>`
       : `<span class="nm">${esc(e.항목명)}</span>`}
-    <input class="amt" type="number" inputmode="numeric" min="0" step="1000" data-f="금액" value="${e.금액 === '' || e.금액 == null || Number(e.금액) === 0 ? '' : esc(e.금액)}" placeholder="0" autocomplete="off">
-    <span class="won">원</span>
+    ${부가금액HTML(e)}
     ${e.출처 === '추가' ? `<button type="button" class="del" data-f="del" aria-label="삭제">✕</button>` : ''}
   </div>`).join('');
   $('#extras').querySelectorAll('.extra').forEach((div) => {
@@ -397,6 +425,14 @@ function renderExtras() {
     div.querySelectorAll('[data-f]').forEach((el) => {
       const f = el.dataset.f;
       if (f === '금액') el.addEventListener('input', () => { e.금액 = el.value; save(); renderTotals(); });
+      else if (f === '금액sel') el.addEventListener('change', () => {
+        e.인건비포함 = false; e.금액직접 = false;
+        if (el.value === CUSTOM_WAGE) { e.금액직접 = true; }
+        else if (el.value === INCLUDED) { e.인건비포함 = true; e.금액 = 0; }
+        else { e.금액 = el.value === '' ? '' : Number(el.value); }
+        save(); renderExtras(); renderTotals();
+        if (e.금액직접) { const inp = $('#extras').querySelector(`.extra[data-key="${e.key}"] input[data-f="금액"]`); if (inp) inp.focus(); }
+      });
       else if (f === '항목명') el.addEventListener('input', () => { e.항목명 = el.value; save(); });
       else if (f === 'del') el.addEventListener('click', () => { state.부가 = state.부가.filter((x) => x !== e); save(); renderExtras(); renderTotals(); });
     });
@@ -473,7 +509,8 @@ function 스냅샷만들기() {
       자재명: 자재표[l.자재ID] ? 자재표[l.자재ID].항목명 : '자재 없음',
     })),
     자재소계: r.자재소계.map((s) => ({ 자재명: s.자재명, 단가: s.단가, 소모량합: s.소모량합, 금액: s.금액 })),
-    부가: state.부가.filter((e) => Math.round(SettleCalc.수(e.금액)) !== 0).map((e) => ({ 항목명: e.항목명 || '기타', 금액: Math.round(SettleCalc.수(e.금액)) })),
+    부가: state.부가.filter((e) => e.인건비포함 || Math.round(SettleCalc.수(e.금액)) !== 0)
+      .map((e) => Object.assign({ 항목명: e.항목명 || '기타', 금액: e.인건비포함 ? 0 : Math.round(SettleCalc.수(e.금액)) }, e.인건비포함 ? { 비고: '인건비 포함' } : {})),
     합계: { 인건비: r.인건비, 자재비: r.자재비, 부가: r.부가, 총액: r.총액 },
   };
 }
