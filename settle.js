@@ -219,11 +219,17 @@ function 계산() {
 /* =========================================================================
    렌더
    ========================================================================= */
+// '2026-09-17' → '26/9/17'. 헤더 둘째 줄 오른쪽에 붙는 배지라 짧아야 한다.
+function 짧은날짜(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[1].slice(2) + '/' + Number(m[2]) + '/' + Number(m[3]) : String(iso || '');
+}
+
 function renderAll() {
   $('#siteTitle').textContent = MASTER.현장.현장명 || '현장 정산견적';
   document.title = (MASTER.현장.현장명 ? MASTER.현장.현장명 + ' 정산견적' : '현장 정산견적') + ' - 섬세한손길';
   const d = $('#siteDate');
-  d.textContent = MASTER.현장.시공일자 ? '🗓 ' + MASTER.현장.시공일자 : '';
+  d.textContent = MASTER.현장.시공일자 ? '🗓 ' + 짧은날짜(MASTER.현장.시공일자) : '';
   d.hidden = !MASTER.현장.시공일자;
   renderLabor();
   renderLines();
