@@ -5,10 +5,14 @@ const CONFIG = {
   masterUrl:  'https://primary-production-a6fa.up.railway.app/webhook/pro-master',
   publishUrl: 'https://primary-production-a6fa.up.railway.app/webhook/pro-publish',
   photoUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-photo',
+  // '거래처별 현장관리' 앱이 쓰는 백업 읽기 주소. 같은 백업키로 거래처를 읽어온다.
+  vendorUrl:  'https://primary-production-a6fa.up.railway.app/webhook/sitenote-restore',
 };
 
 const STORAGE_KEY = 'quote_pro_state_v1';
 const MASTER_KEY  = 'quote_pro_master_v1';
+const VENDOR_KEY_LS   = 'quote_pro_vendor_key_v1';   // 현장관리 앱 백업키 (한 번만 넣는다)
+const VENDOR_CACHE_LS = 'quote_pro_vendors_v1';      // 받아둔 업체 목록 { 받은시각, 목록 }
 const 난이도목록  = [1.0, 1.1, 1.2, 1.3, 1.5];
 // 전체조정 비율. 5% 단위는 너무 굵어서 1% 단위로 고를 수 있게 했다 (-15% ~ +15%).
 // 정수 퍼센트에서 나눠서 만든다. 0.01 을 더해 가며 만들면 부동소수점 오차로
@@ -36,7 +40,7 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '' };
+let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 업체: null };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -124,6 +128,7 @@ function boot() {
 
   buildAdjust();
   필름칸그리기();
+  업체줄그리기();
   buildAll();
   구역장수갱신();
   refresh();
@@ -802,7 +807,7 @@ $('#resetBtn').addEventListener('click', async () => {
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
-  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '' };
+  state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 업체: null };
   현장ID확보();     // 새 현장이 시작됐다. 사진이 앞 현장에 섞이면 안 된다.
   $('#siteName').value = '';
   $('#sizeSelect').value = '확인안됨';
@@ -811,6 +816,7 @@ $('#resetBtn').addEventListener('click', async () => {
   $('#noteText').value = '';
   $('#privText').value = '';
   필름칸그리기();
+  업체줄그리기();     // 업체도 같이 비운다 - 앞 현장 업체의 주의사항이 남아 있으면 안 된다
   save(STORAGE_KEY, state);
   syncAdjust();
   buildAll();
@@ -1389,7 +1395,7 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '' },
+      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 업체: null },
       항목.상태
     );
     if (!state.현장ID) state.현장ID = 항목.현장ID || '';
@@ -1402,6 +1408,7 @@ $('#boxList').addEventListener('click', async (e) => {
     $('#noteText').value = state.안내문구 || '';
     $('#privText').value = state.내부메모 || '';
     필름칸그리기();
+    업체줄그리기();
     syncAdjust();
     buildAll();
     구역장수갱신();
@@ -1415,6 +1422,200 @@ $('#boxList').addEventListener('click', async (e) => {
 $('#boxBtn').addEventListener('click', openBox);
 $('#boxClose').addEventListener('click', closeBox);
 $('#boxBack').addEventListener('click', closeBox);
+
+/* ---------- 업체(거래처) ----------
+   업체마다 견적시 주의사항이 다르다 (예: 문틀 안쪽면은 안 한다, 몰딩은 따로 받는다).
+   그걸 모르고 견적을 내면 나중에 금액을 다시 맞춰야 하므로, 품목을 체크하기 전에
+   머리줄 바로 밑에 띄워준다.
+
+   업체 정보는 '거래처별 현장관리' 앱에 이미 적어둔 것을 그대로 쓴다. 두 앱은
+   인터넷 주소가 서로 달라 폰 안의 데이터를 직접 못 읽으므로, 현장관리 앱이
+   Airtable 로 해 두는 백업을 같은 백업키로 읽어온다.
+
+   받아온 목록은 폰에 저장해 두고 반나절이 지났을 때나 '새로고침' 을 누를 때만
+   다시 받는다 - 백업에는 명함·단가표 사진도 같이 들어 있어서 견적을 열 때마다
+   받으면 데이터만 축낸다. */
+const 업체새로받기_MS = 12 * 60 * 60 * 1000;
+
+function 업체키() { return load(VENDOR_KEY_LS) || ''; }
+
+function 업체캐시() {
+  const v = load(VENDOR_CACHE_LS);
+  return (v && Array.isArray(v.목록)) ? v : { 받은시각: 0, 목록: [] };
+}
+
+/* 백업 응답(거래처·현장·사진·설정)에서 견적에 필요한 것만 추린다.
+   이름이 없는 거래처는 목록에서 고를 수가 없으니 뺀다. */
+function 업체추리기(clients) {
+  return (clients || [])
+    .filter((c) => c && c.id && String(c.name || '').trim())
+    .map((c) => ({
+      id: c.id,
+      이름: String(c.name).trim(),
+      주의사항: String(c.quoteNote || '').trim(),
+      필름단가: String(c.filmPrice || '').trim(),
+      인건비단가: String(c.laborPrice || '').trim(),
+      순서: Number(c.order) || 0,
+    }))
+    .sort((a, b) => a.순서 - b.순서 || a.이름.localeCompare(b.이름, 'ko'));
+}
+
+async function 업체받기(키) {
+  const res = await fetch(CONFIG.vendorUrl + '?key=' + encodeURIComponent(키));
+  if (res.status === 401) throw new Error('키틀림');
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const j = await res.json();
+  const 목록 = 업체추리기(j && j.clients);
+  save(VENDOR_CACHE_LS, { 받은시각: Date.now(), 목록: 목록 });
+  save(VENDOR_KEY_LS, 키);          // 한 번 통한 키만 저장한다
+  업체정보맞추기();
+  return 목록;
+}
+
+/* 이 견적에 적어둔 업체 정보를 방금 받은 목록 기준으로 맞춘다.
+   현장관리 앱에서 주의사항을 고쳤으면 여기서 따라 바뀐다.
+   목록에서 사라진 업체(삭제된 거래처)면 적혀 있던 내용을 그대로 둔다 -
+   이미 낸 견적의 근거가 말없이 사라지면 안 된다. */
+function 업체정보맞추기() {
+  if (!state.업체 || !state.업체.id) return;
+  const 찾음 = 업체캐시().목록.find((c) => c.id === state.업체.id);
+  if (!찾음) return;
+  state.업체 = 찾음;
+  save(STORAGE_KEY, state);
+  업체줄그리기();
+}
+
+function 업체줄그리기() {
+  const v = state.업체;
+  const btn = $('#vendorBtn');
+  btn.textContent = (v && v.이름) ? '🏢 ' + v.이름 : '🏢 업체 선택';
+  btn.classList.toggle('on', !!(v && v.이름));
+
+  const 칸 = $('#vendorNote');
+  const 단가 = v ? [
+    v.필름단가 ? '필름단가 · ' + v.필름단가 : '',
+    v.인건비단가 ? '인건비단가 · ' + v.인건비단가 : '',
+  ].filter(Boolean) : [];
+
+  // 적어둔 게 아무것도 없는 업체면 빈 칸을 띄우지 않는다
+  if (!v || (!v.주의사항 && !단가.length)) { 칸.hidden = true; return; }
+  칸.hidden = false;
+  $('#vnHead').textContent = '⚠️ ' + v.이름 + (v.주의사항 ? ' · 견적시 주의사항' : ' · 업체 단가');
+  $('#vnText').textContent = v.주의사항;
+  $('#vnText').hidden = !v.주의사항;
+  $('#vnPrice').hidden = !단가.length;
+  $('#vnPriceBody').textContent = 단가.join('\n');
+}
+
+function 업체알림(말, 나쁨) {
+  const el = $('#vendorStatus');
+  el.textContent = 말 || '';
+  el.hidden = !말;
+  el.className = 나쁨 ? 'hint err' : 'hint';
+}
+
+function 업체키칸(보이기) {
+  $('#vendorKeyWrap').hidden = !보이기;
+  if (보이기) $('#vendorKey').value = 업체키();
+}
+
+function 업체목록그리기() {
+  const 목록 = 업체캐시().목록;
+  const 지금 = (state.업체 && state.업체.id) || '';
+  $('#vendorList').innerHTML = 목록.map((c) =>
+    '<button type="button" class="vendor-row' + (c.id === 지금 ? ' on' : '') + '" data-id="' + esc(c.id) + '">' +
+      '<b>' + esc(c.이름) + '</b>' +
+      (c.주의사항 ? '<span>' + esc(c.주의사항.split('\n')[0]) + '</span>' : '') +
+    '</button>').join('');
+}
+
+async function 업체목록받기(키) {
+  업체알림('업체 목록을 받는 중…');
+  try {
+    const 목록 = await 업체받기(키);
+    업체키칸(false);
+    업체목록그리기();
+    const 때 = new Date();
+    const 시각 = String(때.getHours()).padStart(2, '0') + ':' + String(때.getMinutes()).padStart(2, '0');
+    업체알림(목록.length
+      ? '업체 ' + 목록.length + '곳 · ' + 시각 + ' 기준'
+      : '현장관리 앱에 등록된 거래처가 없습니다. 현장관리 앱에서 먼저 거래처를 넣어주세요.');
+  } catch (e) {
+    const 캐시 = 업체캐시();
+    if (e && e.message === '키틀림') {
+      업체키칸(true);
+      업체알림('백업키가 맞지 않습니다. 현장관리 앱 ⚙ 설정의 백업키와 같은지 확인해 주세요.', true);
+    } else if (캐시.목록.length) {
+      // 지하 주차장·엘리베이터 안에서도 고르던 업체는 고를 수 있어야 한다
+      업체알림('지금은 연결이 안 돼 저장해 둔 목록으로 보여줍니다.', true);
+    } else {
+      업체키칸(true);
+      업체알림('업체 목록을 받지 못했습니다. 인터넷 상태를 보고 다시 눌러주세요.', true);
+    }
+  }
+}
+
+function openVendor() {
+  $('#vendorBack').hidden = false;
+  $('#vendorSheet').hidden = false;
+  업체목록그리기();
+  const 키 = 업체키();
+  if (!키) {
+    업체키칸(true);
+    업체알림('현장관리 앱 ⚙ 설정에 적어둔 백업키를 한 번만 넣어주세요. 그 뒤로는 자동으로 가져옵니다.');
+    return;
+  }
+  업체키칸(false);
+  const 캐시 = 업체캐시();
+  const 오래됨 = (Date.now() - (캐시.받은시각 || 0)) > 업체새로받기_MS;
+  if (!캐시.목록.length || 오래됨) 업체목록받기(키);
+  else 업체알림('업체 ' + 캐시.목록.length + '곳 · 저장해 둔 목록입니다. 현장관리 앱에서 고쳤으면 아래 새로고침을 누르세요.');
+}
+
+function closeVendor() {
+  $('#vendorSheet').hidden = true;
+  $('#vendorBack').hidden = true;
+}
+
+$('#vendorBtn').addEventListener('click', openVendor);
+$('#vendorClose').addEventListener('click', closeVendor);
+$('#vendorBack').addEventListener('click', closeVendor);
+
+$('#vendorList').addEventListener('click', (e) => {
+  const 줄 = e.target.closest('.vendor-row');
+  if (!줄) return;
+  const 찾음 = 업체캐시().목록.find((c) => c.id === 줄.dataset.id);
+  if (!찾음) return;
+  state.업체 = 찾음;
+  save(STORAGE_KEY, state);
+  업체줄그리기();
+  closeVendor();
+  toast('‘' + 찾음.이름 + '’ 업체로 잡았습니다');
+});
+
+$('#vendorNone').addEventListener('click', () => {
+  state.업체 = null;
+  save(STORAGE_KEY, state);
+  업체줄그리기();
+  closeVendor();
+});
+
+$('#vendorReload').addEventListener('click', () => {
+  const 키 = 업체키() || $('#vendorKey').value.trim();
+  if (!키) { 업체키칸(true); 업체알림('백업키를 먼저 넣어주세요.', true); return; }
+  업체목록받기(키);
+});
+
+$('#vendorKeyEdit').addEventListener('click', () => {
+  업체키칸(true);
+  $('#vendorKey').focus();
+});
+
+$('#vendorKeySave').addEventListener('click', () => {
+  const 키 = $('#vendorKey').value.trim();
+  if (!키) { 업체알림('백업키를 넣어주세요.', true); return; }
+  업체목록받기(키);
+});
 
 /* ---------- 현장 사진 ----------
    사진은 폰 브라우저(IndexedDB)에만 있다. 서버로 안 나간다.
