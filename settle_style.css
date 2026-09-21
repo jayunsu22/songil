@@ -116,6 +116,11 @@ button.addrow { display: block; width: 100%; text-align: left; padding: 10px 14p
 #memoCard .opt input { width: 22px; height: 22px; accent-color: var(--accent); margin: 0; }
 
 #totalBar #totalAmount small { display: block; }
+#totalBar #saveBtn {
+  flex: 0 0 auto; height: 46px; padding: 0 14px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; color: var(--text); font-size: 15px; font-weight: 700;
+}
 
 /* ---------- 발행 시트 ---------- */
 .pub-summary { font-size: 14px; line-height: 1.7; padding: 10px 12px; margin-bottom: 8px; background: #fafbfc; border: 1px solid var(--line); border-radius: 10px; font-variant-numeric: tabular-nums; }

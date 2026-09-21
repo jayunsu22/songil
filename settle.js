@@ -126,6 +126,7 @@ async function loadMaster() {
   }
   단가표적용();
   mergeSaved();
+  if (!발행결과 && state.마지막발행 && state.마지막발행.견적코드) 발행결과 = { 견적코드: state.마지막발행.견적코드, 현장명: state.마지막발행.현장명 };
   renderAll();
   status('');
   $('#doc').hidden = false;
@@ -493,6 +494,15 @@ $('#resetBtn').addEventListener('click', () => {
   mergeSaved(); renderAll();
 });
 $('#retryBtn').addEventListener('click', loadMaster);
+// 입력은 매번 자동 저장되지만, 눌러서 저장한 게 아니면 안심이 안 된다고 하셔서 둔 버튼.
+// 발행 코드가 있으면 같이 남겨서 나중에 이 폰에서 다시 열었을 때 마지막 링크를 알 수 있게 한다.
+function 명시저장() {
+  if (발행결과) state.마지막발행 = { 견적코드: 발행결과.견적코드, 현장명: 발행결과.현장명, 일시: new Date().toISOString() };
+  save();
+  toast('저장했습니다');
+}
+$('#saveBtn').addEventListener('click', 명시저장);
+$('#pubSave').addEventListener('click', () => { 명시저장(); closePublish(); });
 
 /* =========================================================================
    발행

@@ -68,6 +68,8 @@
 
 <footer id="totalBar" hidden>
   <div id="totalAmount">0원<small id="vatNote">부가세 별도</small></div>
+  <!-- 자동저장이 되지만 눌러서 저장한 게 아니면 안심이 안 된다고 하셔서 둔 버튼 (현장견적의 '저장'과 같은 이유) -->
+  <button id="saveBtn" type="button">저장</button>
   <button id="publishBtn" type="button" disabled>견적서 발행</button>
 </footer>
 
@@ -88,6 +90,7 @@
     <button id="openLink" type="button">견적서 열기</button>
     <p class="hint">내용을 고쳤으면 닫고 다시 발행하세요. 새 링크가 생기고 이미 보낸 링크는 그대로 살아 있습니다.</p>
   </div>
+  <button id="pubSave" type="button">저장</button>
   <button id="pubClose" type="button">닫기</button>
 </section>
 
