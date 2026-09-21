@@ -81,7 +81,8 @@ section.card > h2 .sum { margin-left: auto; font-size: 14px; color: var(--ok); f
 .row .ctl .qty { gap: 4px; }
 .row .ctl .qty button { width: 34px; height: 34px; font-size: 18px; border-radius: 8px; }
 .row .ctl .qty input { width: 44px; height: 34px; font-size: 14px; border-radius: 8px; }
-.row .ctl .len { width: 64px; height: 34px; text-align: center; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; font-weight: 700; }
+.row .ctl select.len { width: 96px; height: 34px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; font-weight: 700; padding: 0 6px; background: #fff; color: var(--text); }
+.row .ctl input.len { width: 60px; height: 34px; text-align: center; border: 1px solid var(--accent); border-radius: 8px; font-size: 14px; font-weight: 700; }
 .row .ctl .mat { margin-left: auto; flex: 0 0 auto; width: 128px; height: 34px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; padding: 0 4px; background: #fff; color: var(--text); }
 .row .ctl .mat.none { border-color: #b91c1c; color: #b91c1c; }
 .row .ctl .del { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #b91c1c; font-size: 14px; }

@@ -20,6 +20,9 @@ const CUSTOM_WAGE = '__custom';
 const 품단가선택지 = [250000, 260000, 270000, 280000];
 // 품수 선택지: 1 ~ 20품, 0.5 단위
 const 품수선택지 = Array.from({ length: 39 }, (_, i) => (i + 2) / 2);
+// 길이 품목(샤시·몰딩·수납장 등)의 길이 선택지: 1 ~ 10m, 0.5 단위. 그 밖은 '직접 입력'.
+const 길이선택지 = Array.from({ length: 19 }, (_, i) => (i + 2) / 2);
+const CUSTOM_LEN = '__custom';
 
 const $ = (s) => document.querySelector(s);
 const won = (n) => Math.round(Number(n) || 0).toLocaleString('ko-KR') + '원';
@@ -171,6 +174,7 @@ function mergeSaved() {
       l.체크 = !!s.체크;
       l.수량 = s.수량 ?? 1;
       l.길이 = s.길이 ?? null;
+      l.길이직접 = !!s.길이직접;
       l.직접소모량 = s.직접소모량 ?? null;
       if (s.자재ID) l.자재ID = s.자재ID;
     });
@@ -292,7 +296,14 @@ function 줄HTML(l) {
   if (l.출처 === '추가') {
     ctl = `<span class="q-unit">소모량은 오른쪽 숫자를 눌러 입력</span>`;
   } else if (l.길이입력) {
-    ctl = `<input class="len" type="number" inputmode="decimal" min="0" step="0.1" data-f="길이" value="${l.길이 == null ? '' : esc(l.길이)}" placeholder="길이" autocomplete="off"><span class="q-unit">m</span>`;
+    // 드롭다운(1~10m)이 기본. 목록에 없는 길이거나 '직접 입력'을 골랐으면 숫자칸이 옆에 뜬다
+    const 값 = l.길이 == null || l.길이 === '' ? null : Number(l.길이);
+    const 직접입력중 = l.길이직접 || (값 !== null && !길이선택지.includes(값));
+    const opts = ['<option value="">길이</option>']
+      .concat(길이선택지.map((n) => `<option value="${n}"${!직접입력중 && 값 === n ? ' selected' : ''}>${n}m</option>`))
+      .concat([`<option value="${CUSTOM_LEN}"${직접입력중 ? ' selected' : ''}>직접 입력</option>`]);
+    ctl = `<select class="len" data-f="길이sel">${opts.join('')}</select>` +
+      (직접입력중 ? `<input class="len" type="number" inputmode="decimal" min="0" step="0.1" data-f="길이" value="${값 === null ? '' : esc(값)}" placeholder="m" autocomplete="off"><span class="q-unit">m</span>` : '');
   } else {
     ctl = `<div class="qty"><button type="button" data-f="qty-" aria-label="수량 줄이기">−</button><input type="number" inputmode="numeric" min="0" data-f="수량" value="${esc(l.수량)}" autocomplete="off"><button type="button" data-f="qty+" aria-label="수량 늘리기">+</button></div>`;
   }
@@ -318,6 +329,12 @@ function bindLineEvents() {
       else if (f === 'qty-') el.addEventListener('click', () => { l.수량 = Math.max(0, SettleCalc.수(l.수량) - 1); save(); 줄다시그리기(l); renderTotals(); });
       else if (f === 'qty+') el.addEventListener('click', () => { l.수량 = SettleCalc.수(l.수량) + 1; save(); 줄다시그리기(l); renderTotals(); });
       else if (f === '길이') el.addEventListener('input', () => { l.길이 = el.value === '' ? null : el.value; save(); 줄갱신(l); });
+      else if (f === '길이sel') el.addEventListener('change', () => {
+        if (el.value === CUSTOM_LEN) { l.길이직접 = true; }
+        else { l.길이직접 = false; l.길이 = el.value === '' ? null : el.value; }
+        save(); 줄다시그리기(l); renderTotals();
+        if (l.길이직접) { const inp = $('#lines').querySelector(`.row[data-key="${l.key}"] input[data-f="길이"]`); if (inp) inp.focus(); }
+      });
       else if (f === '품목명') el.addEventListener('input', () => { l.품목명 = el.value; save(); });
       else if (f === '자재ID') el.addEventListener('change', () => { l.자재ID = el.value; save(); 줄다시그리기(l); renderTotals(); });
       else if (f === 'del') el.addEventListener('click', () => {
