@@ -26,5 +26,17 @@
 /* 소모량 0인 품목은 표시만 하고 금액이 없다는 것을 알린다 */
 .v-tbl .sub.zero span:last-child { color: #b45309; }
 
+/* 시공사진 갤러리 버튼. 머리말 명함 카드와 같은 좌우 여백·모서리로 맞춰서
+   '카드 아래 붙은 버튼' 처럼 보이게 한다. 금액 표(인건비) 바로 위에 온다. */
+.v-gallery {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 10px 12px 0; padding: 14px 16px;
+  background: #fdf7ec; border: 1px solid #e0cba4; border-radius: 12px;
+  color: #6b4a14; font-size: 15px; font-weight: 800; text-decoration: none;
+  box-shadow: 0 1px 3px rgba(60, 40, 15, .07);
+}
+.v-gallery:active { background: #f7ecd8; }
+.v-gallery-go { font-size: 14px; font-weight: 700; color: #9c6f2e; white-space: nowrap; }
+
 /* quote_view.css 의 #vBar{display:flex} 가 [hidden] 을 덮는다 - 못 찾았을 때 빈 합계바가 남지 않게 */
 #vBar[hidden] { display: none; }

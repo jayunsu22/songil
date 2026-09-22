@@ -29,6 +29,15 @@ function 날짜(iso) {
 // 소모량 표시: 6.5 → '6.5m', 3 → '3m'
 const m = (v) => (Math.round(Number(v || 0) * 10) / 10) + 'm';
 
+/* 한글을 base64url 로. 갤러리 링크의 ?n= (현장명) 에 쓴다 - 갤러리 페이지가 제목을 바로
+   띄우고, 그 링크를 카톡에 붙여도 카드 제목에 현장명이 나온다. 관리자 앱과 같은 방식. */
+function b64u(text) {
+  const bytes = new TextEncoder().encode(String(text || ''));
+  let bin = '';
+  bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin).split('+').join('-').split('/').join('_').split('=').join('');
+}
+
 async function load() {
   if (!코드) { status('견적서 주소가 올바르지 않습니다.', true); return; }
   try {
@@ -71,6 +80,18 @@ function render(d) {
       (d.현장명 ? '<div class="v-site">' + esc(d.현장명) + '</div>' : '') +
       '<div class="v-meta">인테리어필름 시공 정산 견적서 · ' + 날짜(d.발행일시) + '</div>' +
     '</div></div>');
+
+  /* 시공사진 갤러리 버튼. 정산 견적서를 받은 쪽이 금액만 보고 "이만큼 했다고?" 하는 일이
+     없게, 금액 표 바로 위에서 그 현장 시공사진으로 바로 넘어갈 수 있게 둔다.
+     현장ID 는 settle-quote 응답에 담겨 온다(정산견적 레코드의 현장 링크 필드).
+     예전 발행분에도 그 링크는 들어 있어서 따로 다시 발행할 필요가 없다.
+     ID 가 없으면(형식이 깨졌거나 현장 연결이 안 된 견적서) 버튼 자체를 안 그린다. */
+  if (d.현장ID) {
+    const g = '/g/' + encodeURIComponent(d.현장ID) + (d.현장명 ? '?n=' + b64u(d.현장명) : '');
+    H.push('<a class="v-gallery" href="' + esc(g) + '" target="_blank" rel="noopener">' +
+      '<span class="v-gallery-nm">📷 시공사진 갤러리</span>' +
+      '<span class="v-gallery-go">보기 ›</span></a>');
+  }
 
   // 인건비
   const 인 = s.인건비 || {};
