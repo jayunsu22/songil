@@ -1106,10 +1106,15 @@ async function copy(text) {
 let toastTimer = null;
 function toast(msg) {
   const t = $('#toast');
-  t.textContent = msg;
+  const 글 = String(msg == null ? '' : msg);
+  t.textContent = 글;
+  // '왜 안 됐는지' 를 적은 문구는 길다. 2.2초면 현장에서 다 못 읽고 사라진다.
+  // 글자 수에 맞춰 늘리되 7초를 넘기지 않는다 - 화면을 계속 가리면 거슬린다.
+  const 시간 = Math.min(7000, Math.max(2200, 1200 + 글.length * 90));
+  t.classList.toggle('long', 글.length > 30);
   t.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 시간);
 }
 
 $('#doPublish').addEventListener('click', async () => {
@@ -1992,7 +1997,8 @@ $('#camShot').addEventListener('click', async () => {
   셔터소리();
   const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.92));
   if (!blob) { toast('사진을 만들지 못했습니다.'); return; }
-  await 사진추가(blob);                  // 여기서 다시 1600px 로 줄여 저장한다
+  const 이유 = await 사진추가(blob);     // 여기서 다시 1600px 로 줄여 저장한다
+  if (이유) { toast(이유); return; }     // 안 들어갔는데 장수만 오르면 안 된다
   이번촬영 += 1;
   $('#camCount').textContent = 이번촬영 + '장';
 });
@@ -2005,41 +2011,72 @@ $('#trayPick').addEventListener('change', async (e) => {
   const files = [...(e.target.files || [])];
   e.target.value = '';
   if (!files.length) return;
-  let 실패 = 0;
+  const 이유들 = [];
   for (const f of files) {
-    const ok = await 사진추가(f);
-    if (!ok) 실패 += 1;
+    const 이유 = await 사진추가(f);
+    if (이유) 이유들.push(이유);
   }
   await 트레이그리기();
   구역장수갱신();
-  if (실패) toast(실패 + '장을 넣지 못했습니다.');
-  else toast(files.length + '장 넣었습니다');
+  if (!이유들.length) { toast(files.length + '장 넣었습니다'); return; }
+  // 여러 장이 같은 이유로 막히는 게 보통이다(전부 HEIC 등). 이유를 보여줘야
+  // 사장님이 다음에 뭘 다르게 할지 안다 - 장수만 알려주면 또 똑같이 한다.
+  const 첫이유 = 이유들[0];
+  const 성공 = files.length - 이유들.length;
+  toast((성공 ? 성공 + '장 넣음 · ' : '') + 이유들.length + '장 실패 — ' + 첫이유);
 });
 
 $('#trayFile').addEventListener('change', async (e) => {
   const f = e.target.files && e.target.files[0];
   e.target.value = '';           // 같은 파일을 연속으로 고를 수 있게 비운다
   if (!f) return;
-  await 사진추가(f);
+  const 이유 = await 사진추가(f);
   await 트레이그리기();
+  구역장수갱신();
+  if (이유) toast(이유);
 });
 
+/* 왜 못 넣었는지 사장님 말로 바꾼다. '사진을 저장하지 못했습니다' 만 뜨면
+   다시 고르면 되는 건지, 폰을 정리해야 하는 건지, 아예 못 쓰는 사진인지
+   알 수가 없어서 전화가 온다. */
+async function 사진실패이유(err, file) {
+  if (err && err.name === 'QuotaExceededError') {
+    return '저장공간이 부족합니다. 저장함에서 오래된 현장을 지워주세요.';
+  }
+  // 갤럭시·아이폰 '고효율' 사진(HEIC)은 이 브라우저가 못 연다.
+  // 촬영 버튼은 캔버스에서 JPEG 로 만들므로 이 문제가 안 난다.
+  try {
+    if (file && await QuotePhotos.HEIC인가(file)) {
+      return '고효율(HEIC) 사진이라 열 수 없습니다. ‘촬영’ 으로 찍거나,' +
+        ' 갤러리에서 그 사진을 편집·저장해 JPG 로 바꾼 뒤 가져오세요.';
+    }
+  } catch (e) { /* 판정 실패는 아래 일반 문구로 간다 */ }
+  const m = String((err && err.message) || '');
+  if (m.indexOf('비어 있') >= 0) {
+    return '파일을 읽지 못했습니다. 폰에 안 내려받은 사진(클라우드)일 수 있습니다.';
+  }
+  if (m.indexOf('열지 못') >= 0 || m.indexOf('크기를 읽지') >= 0) {
+    return '이 사진 형식을 열지 못했습니다. ‘촬영’ 으로 찍어보세요.';
+  }
+  if (m.indexOf('줄이지 못') >= 0) {
+    return '사진이 너무 커서 처리하지 못했습니다. 다른 앱을 닫고 다시 해보세요.';
+  }
+  return '사진을 저장하지 못했습니다.' + (err && err.name ? ' (' + err.name + ')' : '');
+}
+
+/* 성공하면 null, 실패하면 사장님에게 보여줄 이유를 돌려준다.
+   토스트를 여기서 띄우면 여러 장을 고를 때 마지막 것만 남아서
+   "몇 장이 왜 안 됐는지" 가 사라진다 - 부르는 쪽이 모아서 띄운다. */
 async function 사진추가(file) {
   try {
     const 사진 = await PDB.추가(현장ID확보(), 트레이구역, file);
     // 품목 줄에서 열었으면 이건 그 품목의 사진이다. 여기서 태그해 두지 않으면
     // 목록 거르기에 걸려서 방금 넣은 사진이 화면에 안 보인다.
     if (사진대상) await PDB.태그저장(사진.id, [사진대상.체크_ID]);
-    return true;
+    return null;
   } catch (err) {
-    // 저장공간이 꽉 차면 여기로 온다. 조용히 실패하면 찍은 줄 알고 넘어간다.
-    if (err && err.name === 'QuotaExceededError') {
-      toast('저장공간이 부족합니다. 저장함에서 오래된 현장을 지워주세요.');
-    } else {
-      toast('사진을 저장하지 못했습니다.');
-    }
-    console.warn(err);
-    return false;
+    console.warn('사진 넣기 실패', (file && file.name) || '', (file && file.type) || '', err);
+    return await 사진실패이유(err, file);
   }
 }
 

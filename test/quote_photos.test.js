@@ -177,3 +177,45 @@ test('네모색: 파랑만 파랑, 나머지(예전 데이터 포함)는 빨강'
   assert.strictEqual(네모색('빨강'), '#ff3b30');
   assert.strictEqual(네모색(undefined), '#ff3b30');
 });
+
+/* ---------- HEIC 판별 ----------
+   갤럭시·아이폰 '고효율' 사진은 크로미움이 못 연다. 앨범에서 고른 사진만
+   안 들어가고 촬영은 되는 원인이라, 왜 안 되는지 사장님에게 말해줘야 한다. */
+const { HEIC머리인가 } = require('../quote_photos.js');
+
+// [크기 4바이트]['ftyp'][브랜드 4바이트] 형태의 앞 12바이트를 만든다
+function 머리(브랜드) {
+  const b = [0, 0, 0, 24];
+  'ftyp'.split('').forEach((c) => b.push(c.charCodeAt(0)));
+  String(브랜드).split('').forEach((c) => b.push(c.charCodeAt(0)));
+  return Uint8Array.from(b);
+}
+
+test('HEIC머리인가: 갤럭시·아이폰이 쓰는 브랜드를 모두 잡는다', () => {
+  ['heic', 'heix', 'mif1', 'msf1', 'hevc', 'avif'].forEach((브랜드) => {
+    assert.strictEqual(HEIC머리인가(머리(브랜드)), true, 브랜드);
+  });
+});
+
+test('HEIC머리인가: 대문자로 온 브랜드도 잡는다', () => {
+  assert.strictEqual(HEIC머리인가(머리('HEIC')), true);
+});
+
+test('HEIC머리인가: JPEG·PNG 는 안 잡는다 (멀쩡한 사진을 막으면 안 된다)', () => {
+  // JPEG: ff d8 ff e0 ... / PNG: 89 50 4e 47 ...
+  const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1]);
+  const png  = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
+  assert.strictEqual(HEIC머리인가(jpeg), false);
+  assert.strictEqual(HEIC머리인가(png), false);
+});
+
+test('HEIC머리인가: ftyp 는 맞지만 HEIF 가 아닌 것(mp4)은 안 잡는다', () => {
+  assert.strictEqual(HEIC머리인가(머리('isom')), false);
+  assert.strictEqual(HEIC머리인가(머리('mp42')), false);
+});
+
+test('HEIC머리인가: 12바이트가 안 되면 false (0바이트 파일에서 안 터진다)', () => {
+  assert.strictEqual(HEIC머리인가(Uint8Array.from([])), false);
+  assert.strictEqual(HEIC머리인가(Uint8Array.from([0, 0, 0, 24, 102])), false);
+  assert.strictEqual(HEIC머리인가(null), false);
+});

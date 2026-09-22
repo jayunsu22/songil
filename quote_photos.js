@@ -149,12 +149,99 @@
 
   /* ---------- 이미지 축소 ---------- */
 
-  function 줄이기(bitmap, 최대, 품질) {
-    const c = 맞춤크기(bitmap.width, bitmap.height, 최대);
+  /* 갤럭시·아이폰이 '고효율' 설정으로 찍으면 파일이 HEIC 다. 크로미움 계열은
+     이 형식을 못 연다 - 앨범에서 고른 사진만 안 들어가고 촬영은 되는 이유가
+     이것이다(촬영은 캔버스에서 JPEG 로 만들어 저장하므로 원본을 안 읽는다).
+
+     확장자와 type 은 폰마다 비어 있거나 틀리게 오므로 파일 앞부분을 직접 본다.
+     HEIF 계열은 [크기 4바이트]['ftyp'][브랜드 4바이트] 로 시작한다. */
+  const HEIC브랜드 = ['heic', 'heix', 'heim', 'heis', 'hevc', 'hevx',
+                      'mif1', 'msf1', 'avif', 'avis'];
+
+  function HEIC브랜드인가(브랜드) {
+    return HEIC브랜드.indexOf(String(브랜드 || '').toLowerCase()) >= 0;
+  }
+
+  // 파일 앞 12바이트 -> HEIC 계열인가. 테스트를 위해 순수함수로 떼어둔다.
+  function HEIC머리인가(bytes) {
+    if (!bytes || bytes.length < 12) return false;
+    const 글자 = function (i) { return String.fromCharCode(bytes[i]); };
+    if (글자(4) + 글자(5) + 글자(6) + 글자(7) !== 'ftyp') return false;
+    return HEIC브랜드인가(글자(8) + 글자(9) + 글자(10) + 글자(11));
+  }
+
+  async function HEIC인가(file) {
+    const t = String((file && file.type) || '').toLowerCase();
+    if (t.indexOf('heic') >= 0 || t.indexOf('heif') >= 0 || t.indexOf('avif') >= 0) return true;
+    try {
+      const buf = await file.slice(0, 12).arrayBuffer();
+      return HEIC머리인가(new Uint8Array(buf));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* <img> 로 디코딩한다. createImageBitmap 이 못 여는 파일을 브라우저 본체
+     디코더가 여는 경우가 있다(삼성 인터넷은 기기 디코더를 같이 쓴다).
+     요즘 브라우저는 <img> 에 EXIF 회전을 기본으로 적용하므로 세로 사진도
+     바로 선다. */
+  function img로디코딩(file) {
+    return new Promise(function (resolve, reject) {
+      const url = URL.createObjectURL(file);
+      const im = new Image();
+      im.onload = function () {
+        const 폭 = im.naturalWidth || im.width;
+        const 높이 = im.naturalHeight || im.height;
+        if (!폭 || !높이) {
+          URL.revokeObjectURL(url);
+          reject(new Error('이미지 크기를 읽지 못했습니다'));
+          return;
+        }
+        resolve({
+          그림: im, 폭: 폭, 높이: 높이,
+          닫기: function () { URL.revokeObjectURL(url); },
+        });
+      };
+      im.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('이 사진 형식을 열지 못했습니다'));
+      };
+      im.src = url;
+    });
+  }
+
+  /* 사진 한 장을 캔버스에 그릴 수 있는 형태로 연다.
+     한 가지 길만 쓰면 폰 하나가 그 길을 막았을 때 통째로 못 쓴다.
+     빠른 순서대로 세 번 시도한다. */
+  async function 이미지원본(file) {
+    if (file && file.size === 0) {
+      // 클라우드에만 있는 사진을 파일 앱에서 고르면 0바이트로 온다.
+      throw new Error('파일이 비어 있습니다');
+    }
+    if (typeof createImageBitmap === 'function') {
+      // imageOrientation 을 빼면 안 된다. 폰으로 세로로 찍은 사진의 EXIF 회전이
+      // 무시되어 화면에 옆으로 누워서 들어간다.
+      try {
+        const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        return { 그림: bmp, 폭: bmp.width, 높이: bmp.height,
+                 닫기: function () { bmp.close(); } };
+      } catch (e) { /* 아래 길로 넘어간다 */ }
+      // 오래된 웹뷰는 두 번째 인자를 모르고 통째로 거절한다. 옵션 없이 한 번 더.
+      try {
+        const bmp = await createImageBitmap(file);
+        return { 그림: bmp, 폭: bmp.width, 높이: bmp.height,
+                 닫기: function () { bmp.close(); } };
+      } catch (e) { /* 아래 길로 넘어간다 */ }
+    }
+    return img로디코딩(file);
+  }
+
+  function 줄이기(원본, 최대, 품질) {
+    const c = 맞춤크기(원본.폭, 원본.높이, 최대);
     const cv = document.createElement('canvas');
     cv.width = c.폭;
     cv.height = c.높이;
-    cv.getContext('2d').drawImage(bitmap, 0, 0, c.폭, c.높이);
+    cv.getContext('2d').drawImage(원본.그림, 0, 0, c.폭, c.높이);
     return new Promise(function (resolve) {
       cv.toBlob(function (b) { resolve(b); }, 'image/jpeg', 품질);
     });
@@ -162,15 +249,16 @@
 
   // File/Blob -> { blob, thumb }
   async function 변환(file) {
-    // imageOrientation 을 빼면 안 된다. 폰으로 세로로 찍은 사진의 EXIF 회전이
-    // 무시되어 화면에 옆으로 누워서 들어간다.
-    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const 원본 = await 이미지원본(file);
     try {
-      const blob  = await 줄이기(bmp, 원본최대, 원본품질);
-      const thumb = await 줄이기(bmp, 썸네일최대, 썸네일품질);
+      const blob  = await 줄이기(원본, 원본최대, 원본품질);
+      const thumb = await 줄이기(원본, 썸네일최대, 썸네일품질);
+      // 캔버스가 메모리 부족으로 null 을 돌려줄 때가 있다. 그대로 저장하면
+      // 나중에 사진을 열 때 엉뚱한 곳에서 터져서 원인을 못 찾는다.
+      if (!blob || !thumb) throw new Error('사진을 줄이지 못했습니다');
       return { blob: blob, thumb: thumb };
     } finally {
-      bmp.close();
+      원본.닫기();
     }
   }
 
@@ -178,13 +266,13 @@
      바깥에서 안쪽으로 메워 나간다(굵은 선은 여러 번 돌아야 가운데까지 찬다).
      하양으로 덮으면 바닥 위 동그라미가 하얀 얼룩으로 남는다. */
   async function 빨강지우기(blob) {
-    const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    const 원본 = await 이미지원본(blob);
     try {
-      const W = bmp.width, H = bmp.height;
+      const W = 원본.폭, H = 원본.높이;
       const cv = document.createElement('canvas');
       cv.width = W; cv.height = H;
       const ctx = cv.getContext('2d');
-      ctx.drawImage(bmp, 0, 0);
+      ctx.drawImage(원본.그림, 0, 0);
       const img = ctx.getImageData(0, 0, W, H);
       const d = img.data;
       const 마스크 = new Uint8Array(W * H);
@@ -251,7 +339,7 @@
         cv.toBlob(function (b) { resolve(b); }, 'image/jpeg', 원본품질);
       });
     } finally {
-      bmp.close();
+      원본.닫기();
     }
   }
 
@@ -353,14 +441,14 @@
 
   async function 표시박은사진(blob, 사각) {
     const 사각들 = 사각목록(사각);
-    const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    const 원본 = await 이미지원본(blob);
     try {
-      const c = 맞춤크기(bmp.width, bmp.height, 견적사진최대);
+      const c = 맞춤크기(원본.폭, 원본.높이, 견적사진최대);
       const cv = document.createElement('canvas');
       cv.width = c.폭;
       cv.height = c.높이;
       const ctx = cv.getContext('2d');
-      ctx.drawImage(bmp, 0, 0, c.폭, c.높이);
+      ctx.drawImage(원본.그림, 0, 0, c.폭, c.높이);
 
       // 굵기를 사진 크기에 맞춘다. 고정 px 로 두면 작은 사진에서 네모가 다 덮는다.
       const 굵기 = Math.max(3, Math.round(c.폭 / 200));
@@ -381,7 +469,7 @@
         cv.toBlob(function (b) { resolve(b); }, 'image/jpeg', 0.82);
       });
     } finally {
-      bmp.close();
+      원본.닫기();
     }
   }
 
@@ -422,6 +510,8 @@
     올릴사진목록: 올릴사진목록,
     빨간가: 빨간가,
     빨강지우기: 빨강지우기,
+    HEIC머리인가: HEIC머리인가,
+    HEIC인가: HEIC인가,
     네모색: 네모색,
     표시박은사진: 표시박은사진,
     base64로: base64로,
