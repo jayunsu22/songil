@@ -330,6 +330,25 @@
   border-radius: 10px;
   padding: 9px 11px;
 }
+/* 실패했을 때는 사유·못 올라간 품목·다음에 할 일을 줄바꿈해서 적는다.
+   한 줄로 붙여두면 현장에서 폰으로 읽다가 품목 이름을 놓친다. */
+#photoUp.up-fail { white-space: pre-line; line-height: 1.5; }
+
+/* 못 올라간 사진만 같은 견적코드로 마저 올리는 버튼.
+   '다시 발행' 옆에 묻히면 안 된다 - 그쪽을 누르면 새 코드가 생겨서
+   이미 보낸 링크는 사진이 없는 채로 남는다. */
+#photoRetry {
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 13px 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  background: #c0400f;
+  border: 0;
+  border-radius: 10px;
+}
+#photoRetry:active { background: #9a2f14; }
 
 /* 표시 화면의 도구줄: 네모 색 · 빨간 표시 지우기 */
 #markTools {

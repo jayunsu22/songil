@@ -2705,11 +2705,146 @@ $('#markBack').addEventListener('click', 표시닫기);
 /* ---------- 표시 사진 올리기 ----------
    발행이 끝난 뒤에 시작한다. 링크는 이미 완성되어 있으므로 급하면
    사진을 안 기다리고 먼저 보낼 수 있다. 한 장씩 순서대로 올린다 -
-   한꺼번에 보내면 요청이 커져서 신호 약한 현장에서 통째로 실패한다. */
+   한꺼번에 보내면 요청이 커져서 신호 약한 현장에서 통째로 실패한다.
+
+   현장은 전파가 약하다. 한 장이 한 번 삐끗했다고 그 사진을 영영 포기하면
+   안 된다 - 못 올라간 것만 따로 들고 있다가 자동으로 몇 번 더 시도하고,
+   그래도 안 되면 '사진 다시 올리기' 버튼으로 같은 견적코드에 마저 올린다.
+   '다시 발행'으로는 안 된다: 새 견적코드가 생겨서 이미 보낸 링크는
+   사진이 없는 채로 굳는다. */
+
+// 한 장이 이만큼 안 끝나면 끊는다. 끊지 않으면 '사진 올리는 중…' 에서
+// 영원히 멈춰 있어, 사장님이 사진이 다 올라간 줄 알고 링크를 보낸다.
+// 한 장이 60KB 안팎이라 정상이면 2~3초다. 20초면 전파가 죽은 것으로 본다.
+const 사진타임아웃_MS = 20000;
+// 한 장당 시도 횟수. 지하·엘리베이터에서 잠깐 끊기는 정도는 이걸로 넘어간다.
+const 사진시도횟수 = 3;
+
+let 사진실패목록 = [];   // 못 올라간 것들. '사진 다시 올리기' 가 이것만 다시 보낸다.
+let 사진올리는중 = false; // 발행 직후 자동 올리기와 재시도 버튼이 겹치지 않게 한다
+// 이번 견적코드에 지금까지 올라간 장수. 사진올림 은 끝나면 null 이 되므로
+// 재시도에서 '3/5 부터 이어서' 를 보여주려면 따로 들고 있어야 한다.
+let 사진올린수 = 0;
+
+function 잠깐(ms) {
+  return new Promise(function (r) { setTimeout(r, ms); });
+}
+
+/* 실패 사유를 사장님 말로 바꾼다. 'TypeError: Failed to fetch' 를 그대로
+   보여주면 통신 문제인지 우리 잘못인지 알 수가 없어 전화가 온다. */
+function 사진실패사유(e) {
+  if (!e) return '알 수 없는 문제';
+  if (e.name === 'AbortError') return '시간 초과 (전파가 약합니다)';
+  if (e.name === 'TypeError') return '통신이 끊겼습니다';
+  const m = String(e.message || '');
+  if (m.indexOf('HTTP') === 0) return '서버가 거절했습니다 (' + m + ')';
+  return m || '알 수 없는 문제';
+}
+
+/* 한 장 보내기. 성공하면 조용히 끝나고, 실패하면 마지막 오류를 던진다. */
+async function 사진한장올리기(견적코드, it) {
+  let 마지막 = null;
+  for (let 시도 = 1; 시도 <= 사진시도횟수; 시도++) {
+    // AbortController 가 없는 오래된 웹뷰에서도 올리기는 돼야 한다.
+    const ac = typeof AbortController === 'function' ? new AbortController() : null;
+    const 타이머 = ac ? setTimeout(function () { ac.abort(); }, 사진타임아웃_MS) : null;
+    try {
+      const 구운것 = await QuotePhotos.표시박은사진(it.사진.blob, it.사각들);
+      // 캔버스가 메모리 부족으로 null 을 돌려줄 때가 있다. 그대로 두면
+      // FileReader 에서 엉뚱한 오류가 나서 원인을 못 찾는다.
+      if (!구운것) throw new Error('사진을 만들지 못했습니다');
+      const b64 = await QuotePhotos.base64로(구운것);
+      const res = await fetch(CONFIG.photoUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          견적코드: 견적코드,
+          체크_ID: it.체크_ID,
+          파일명: it.파일명,
+          이미지: b64,
+        }),
+        signal: ac ? ac.signal : undefined,
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return;
+    } catch (e) {
+      마지막 = e;
+      console.warn('사진 올리기 실패(시도 ' + 시도 + ')', it.체크_ID, e);
+      // 서버가 '그런 견적 없다' 고 답하면 몇 번을 더 보내도 똑같다.
+      if (String(e.message || '').indexOf('HTTP 4') === 0) break;
+      if (시도 < 사진시도횟수) await 잠깐(시도 * 1500);
+    } finally {
+      if (타이머) clearTimeout(타이머);
+    }
+  }
+  throw 마지막 || new Error('알 수 없는 문제');
+}
+
+/* 올릴 목록을 받아 한 장씩 보낸다. 자동 올리기와 재시도가 같이 쓴다. */
+async function 사진목록올리기(견적코드, 올릴것, 이미올린수) {
+  const 상태 = $('#photoUp');
+  const 재시도버튼 = $('#photoRetry');
+  const 먼저 = 이미올린수 || 0;
+
+  사진올리는중 = true;
+  재시도버튼.hidden = true;
+  사진실패목록 = [];
+  let 성공 = 0;
+  const 실패 = [];
+  사진올림 = { 끝난것: 먼저, 전체: 먼저 + 올릴것.length };
+
+  for (let i = 0; i < 올릴것.length; i++) {
+    상태.className = 'hint up-busy';
+    상태.textContent = '사진 올리는 중… ' + (먼저 + i + 1) + '/' + (먼저 + 올릴것.length) +
+      ' · 다 올라간 뒤에 보내세요';
+    const it = 올릴것[i];
+    try {
+      await 사진한장올리기(견적코드, it);
+      성공 += 1;
+      사진올림.끝난것 = 먼저 + 성공;
+      사진올린수 = 먼저 + 성공;
+    } catch (e) {
+      실패.push({ it: it, 사유: 사진실패사유(e) });
+    }
+  }
+
+  사진올림 = null;
+  사진올리는중 = false;
+  사진실패목록 = 실패.map(function (x) { return x.it; });
+
+  if (!실패.length) {
+    상태.className = 'hint up-done';
+    상태.textContent = '사진 ' + (먼저 + 성공) + '장까지 다 올라갔습니다. 이제 보내세요.';
+    재시도버튼.hidden = true;
+    return;
+  }
+
+  // 어느 품목이 빠졌는지 알아야 다시 찍을지 그냥 보낼지 정한다.
+  const 이름들 = 실패.map(function (x) { return 품목이름(x.it.체크_ID); });
+  상태.className = 'hint up-fail';
+  상태.textContent = '사진 ' + (먼저 + 성공) + '장 올림 · ' + 실패.length + '장 실패 — ' +
+    실패[0].사유 +
+    '\n못 올라간 품목: ' + 이름들.join(', ') +
+    '\n아래 ‘사진 다시 올리기’ 를 누르세요. 링크는 그대로 씁니다.';
+  재시도버튼.hidden = false;
+  재시도버튼.textContent = '사진 다시 올리기 (' + 실패.length + '장)';
+}
+
+/* 체크_ID 로 사람이 읽는 품목명을 찾는다. 직접 입력 품목도 같이 본다. */
+function 품목이름(체크_ID) {
+  const row = ROWS.get(체크_ID);
+  if (row) return row.item.표시_품목명;
+  const c = (state.직접품목 || []).find(function (x) { return x.id === 체크_ID; });
+  return c ? c.품목명 : 체크_ID;
+}
+
 async function 표시사진올리기(견적코드) {
   const 상태 = $('#photoUp');
   사진올림 = null;
+  사진실패목록 = [];
+  사진올린수 = 0;
   상태.className = 'hint';
+  $('#photoRetry').hidden = true;
   if (!사진가능 || !견적코드) { 상태.textContent = ''; return; }
 
   let 사진들 = [];
@@ -2725,41 +2860,19 @@ async function 표시사진올리기(견적코드) {
 
   if (!올릴것.length) { 상태.textContent = ''; 상태.className = 'hint'; return; }
 
-  let 성공 = 0, 실패 = 0;
-  사진올림 = { 끝난것: 0, 전체: 올릴것.length };
-  for (let i = 0; i < 올릴것.length; i++) {
-    상태.className = 'hint up-busy';
-    상태.textContent = '사진 올리는 중… ' + (i + 1) + '/' + 올릴것.length +
-      ' · 다 올라간 뒤에 보내세요';
-    const it = 올릴것[i];
-    try {
-      const 구운것 = await QuotePhotos.표시박은사진(it.사진.blob, it.사각들);
-      const b64 = await QuotePhotos.base64로(구운것);
-      const res = await fetch(CONFIG.photoUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          견적코드: 견적코드,
-          체크_ID: it.체크_ID,
-          파일명: it.파일명,
-          이미지: b64,
-        }),
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      성공 += 1;
-      사진올림.끝난것 = 성공;
-    } catch (e) {
-      실패 += 1;
-      console.warn('사진 올리기 실패', it.체크_ID, e);
-    }
-  }
-
-  사진올림 = null;
-  상태.className = 'hint ' + (실패 ? 'up-fail' : 'up-done');
-  상태.textContent = 실패
-    ? '사진 ' + 성공 + '장 올림 · ' + 실패 + '장 실패 (다시 발행하면 재시도합니다)'
-    : '사진 ' + 성공 + '장까지 다 올라갔습니다. 이제 보내세요.';
+  await 사진목록올리기(견적코드, 올릴것, 0);
 }
+
+/* 못 올라간 것만 같은 견적코드로 다시 보낸다. 성공한 사진을 또 보내면
+   에어테이블에 같은 사진이 두 장 붙어서 견적서에 중복으로 나온다. */
+$('#photoRetry').addEventListener('click', async () => {
+  if (사진올리는중) { toast('아직 올리는 중입니다.'); return; }
+  if (!발행결과 || !발행결과.견적코드) { toast('먼저 발행해 주세요.'); return; }
+  if (!사진실패목록.length) { $('#photoRetry').hidden = true; return; }
+  // 이미 올라간 장수를 진행 표시에 반영한다. 3/5 에서 다시 시작해야
+  // 사장님이 앞의 것까지 또 올리는 줄 알고 기다리지 않는다.
+  await 사진목록올리기(발행결과.견적코드, 사진실패목록.slice(), 사진올린수);
+});
 
 /* ---------- 품목설명 고치기 ----------
    "방화문은 보이는면만 시공" 같은 기본 설명이 이번 건과 안 맞을 때가 있다.
