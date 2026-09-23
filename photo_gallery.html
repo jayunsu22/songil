@@ -287,10 +287,14 @@
 
             const isValidPhoto = (p) => !!p && p.url && !p.url.includes('1x1.png') && !(p.filename && p.filename.includes('1x1.png'));
 
+            // 뒷정리(현장정리·본드붓 세척·짐정리) 사진은 고객에게 보여줄 사진이 아니다 - 이 공유 갤러리에서는 뺀다
+            const 뒷정리품목 = new Set((data.masterItems || []).filter(item => item.작업방식 === '한번에').map(item => item.품목명));
+
             // 관리자 갤러리와 똑같이, 찍혀서 저장된 사진은 완료보고 여부와 상관없이 시공/밑작업 모두 보여준다
             const photos = [];
             (data.tasks || []).forEach(task => {
                 const fields = task.fields || {};
+                if (뒷정리품목.has(fields.시공품목)) return;
                 const zone = zoneByItem[fields.시공품목] || '기타';
                 (fields.시공후사진 || []).forEach(photo => {
                     if (isValidPhoto(photo)) {
