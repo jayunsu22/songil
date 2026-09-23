@@ -174,6 +174,15 @@
   <p class="hint" id="vendorStatus" hidden></p>
   <div id="vendorList"></div>
 
+  <!-- 업체를 고르면 그 업체의 현장 목록이 여기에 뜬다. 현장까지 고르면
+       현장명이 자동으로 채워지고, 발행할 때 그 현장의 id 가 같이 나간다. -->
+  <div id="siteStep" hidden>
+    <p class="hint" id="siteHead"></p>
+    <div id="siteList"></div>
+    <button id="siteNone" type="button">현장 없이 이 업체만</button>
+    <button id="siteBack" type="button">← 업체 다시 고르기</button>
+  </div>
+
   <button id="vendorNone" type="button">업체 선택 안 함</button>
   <button id="vendorReload" type="button">목록 새로고침</button>
   <button id="vendorKeyEdit" type="button">백업키 바꾸기</button>

@@ -42,7 +42,10 @@ let MASTER = null;
 //
 // 구역명: { 원래이름: 바꾼이름 } — 평면도에 '서재', '다용도실' 처럼 적혀 오는
 // 경우가 있어 이번 견적에서만 구역 이름을 바꿔 쓴다. 에어테이블 원본은 안 건드린다.
-let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3, 업체: null };
+// 현장연결: '거래처별 현장관리' 앱의 현장과 묶은 표시 { id, 이름, 시공일 }.
+// 이름으로 묶으면 안 된다 - 두 앱에 손으로 따로 치다 보면 '월곡래미안'/'월곡레미안'
+// 처럼 한 글자가 갈린다. 현장관리 앱이 준 id 로 묶는다.
+let state = { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3, 업체: null, 현장연결: null };
 
 // 화면·견적서·텍스트에 나갈 구역 이름
 function 표시구역명(원래) {
@@ -1142,6 +1145,13 @@ $('#doPublish').addEventListener('click', async () => {
         메모: state.메모,
         소비자_전달사항: state.전달사항,
         안내문구_수정: state.안내문구,
+        // 현장관리 앱의 현장·거래처와 묶는 열쇠. 나중에 그 현장의 견적을 찾아오는 데 쓴다.
+        // 이름이 아니라 id 로 보낸다 - 두 앱에 손으로 친 이름은 한 글자씩 갈린다.
+        현장관리_현장ID: (state.현장연결 && state.현장연결.id) || '',
+        현장관리_거래처ID: (state.업체 && state.업체.id) || '',
+        // '업체명' 이 아니라 '거래처명' 이다 - 이 표의 업체명은 조회 때
+        // 가맹점(섬세한손길)을 뜻해서 같은 이름을 쓰면 반드시 헷갈린다
+        현장관리_거래처명: (state.업체 && state.업체.이름) || '',
       }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1500,7 +1510,7 @@ $('#boxList').addEventListener('click', async (e) => {
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
     state = Object.assign(
-      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3, 업체: null },
+      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3, 업체: null, 현장연결: null },
       항목.상태
     );
     if (!state.현장ID) state.현장ID = 항목.현장ID || '';
@@ -1547,7 +1557,9 @@ function 업체키() { return load(VENDOR_KEY_LS) || ''; }
 
 function 업체캐시() {
   const v = load(VENDOR_CACHE_LS);
-  return (v && Array.isArray(v.목록)) ? v : { 받은시각: 0, 목록: [] };
+  if (!v || !Array.isArray(v.목록)) return { 받은시각: 0, 목록: [], 현장: [] };
+  if (!Array.isArray(v.현장)) v.현장 = [];   // 현장을 담기 전에 저장된 캐시
+  return v;
 }
 
 /* 백업 응답(거래처·현장·사진·설정)에서 견적에 필요한 것만 추린다.
@@ -1566,16 +1578,52 @@ function 업체추리기(clients) {
     .sort((a, b) => a.순서 - b.순서 || a.이름.localeCompare(b.이름, 'ko'));
 }
 
+/* 같은 응답에 현장(sites)도 들어 있다. 여기서 추려두면 견적을 그 현장에 묶을 수 있다.
+   시공날짜는 현장을 고를 때 어느 건인지 가리는 데 쓴다(같은 이름이 여러 번 나온다). */
+function 현장추리기(sites) {
+  return (sites || [])
+    .filter((s) => s && s.id && s.clientId)
+    .map((s) => {
+      // 현장관리 앱의 제목 줄과 같은 규칙: 이름에 이미 든 동·호수는 또 안 붙인다
+      const 뭉침 = (v) => String(v || '').replace(/\s+/g, '');
+      const 이름 = String(s.name || '').trim();
+      const 조각 = [이름];
+      [s.unit, s.size].forEach((v) => {
+        const t = String(v || '').trim();
+        if (t && 뭉침(이름).indexOf(뭉침(t)) === -1) 조각.push(t);
+      });
+      const 날들 = (Array.isArray(s.days) ? s.days : [])
+        .map((d) => String((d && d.date) || '')).filter(Boolean);
+      return {
+        id: s.id,
+        업체ID: s.clientId,
+        이름: 조각.filter(Boolean).join(' ') || '(이름없음)',
+        주소: String(s.address || '').trim(),
+        시공일: 날들.length ? 날들 : (s.date ? [String(s.date)] : []),
+        만든때: Number(s.createdAt) || 0,
+      };
+    })
+    .filter((s) => s.이름 !== '(이름없음)' || s.주소)
+    // 시공일이 늦은 것부터. 최근에 잡은 현장을 먼저 고르는 일이 많다
+    .sort((a, b) => String(b.시공일[0] || '').localeCompare(String(a.시공일[0] || '')) || b.만든때 - a.만든때);
+}
+
 async function 업체받기(키) {
   const res = await fetch(CONFIG.vendorUrl + '?key=' + encodeURIComponent(키));
   if (res.status === 401) throw new Error('키틀림');
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const j = await res.json();
   const 목록 = 업체추리기(j && j.clients);
-  save(VENDOR_CACHE_LS, { 받은시각: Date.now(), 목록: 목록 });
+  save(VENDOR_CACHE_LS, { 받은시각: Date.now(), 목록: 목록, 현장: 현장추리기(j && j.sites) });
   save(VENDOR_KEY_LS, 키);          // 한 번 통한 키만 저장한다
   업체정보맞추기();
   return 목록;
+}
+
+// 그 업체의 현장 목록
+function 업체현장들(업체ID) {
+  const c = 업체캐시();
+  return (Array.isArray(c.현장) ? c.현장 : []).filter((s) => s.업체ID === 업체ID);
 }
 
 /* 이 견적에 적어둔 업체 정보를 방금 받은 목록 기준으로 맞춘다.
@@ -1594,7 +1642,10 @@ function 업체정보맞추기() {
 function 업체줄그리기() {
   const v = state.업체;
   const btn = $('#vendorBtn');
-  btn.textContent = (v && v.이름) ? '🏢 ' + v.이름 : '🏢 업체 선택';
+  const 현 = state.현장연결;
+  // 현장까지 묶었으면 버튼에 현장명을 띄운다. 업체명만 보이면 어느 현장 건지 모른다
+  btn.textContent = 현 && 현.이름 ? '🏢 ' + (v && v.이름 ? v.이름 + ' · ' : '') + 현.이름
+    : ((v && v.이름) ? '🏢 ' + v.이름 : '🏢 업체 선택');
   btn.classList.toggle('on', !!(v && v.이름));
 
   const 칸 = $('#vendorNote');
@@ -1635,6 +1686,78 @@ function 업체목록그리기() {
     '</button>').join('');
 }
 
+/* ---------- 현장 고르기 ----------
+   업체를 고른 다음 그 업체의 현장을 고른다. 현장관리 앱에 이미 적어둔 현장이라
+   이름을 다시 칠 일이 없다 - 두 앱에 따로 치면 한 글자씩 갈려서 나중에 못 묶는다. */
+let 현장고를업체 = null;
+
+function 시공일표시(날들) {
+  const ds = (날들 || []).map((d) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d));
+    return m ? parseInt(m[2], 10) + '/' + parseInt(m[3], 10) : '';
+  }).filter(Boolean);
+  if (!ds.length) return '시공날짜 없음';
+  return ds.join(', ') + (ds.length > 1 ? ' (' + ds.length + '일)' : '');
+}
+
+function 현장단계열기(업체) {
+  현장고를업체 = 업체;
+  const 현장들 = 업체현장들(업체.id);
+  $('#vendorList').hidden = true;
+  $('#vendorNone').hidden = true;
+  $('#vendorReload').hidden = true;
+  $('#vendorKeyEdit').hidden = true;
+  $('#siteStep').hidden = false;
+  $('#siteHead').textContent = 현장들.length
+    ? '‘' + 업체.이름 + '’ 의 현장입니다. 견적을 낼 현장을 고르세요.'
+    : '‘' + 업체.이름 + '’ 에 등록된 현장이 없습니다. 현장관리 앱에서 현장을 먼저 넣거나, 아래에서 업체만 잡고 진행하세요.';
+  const 지금 = (state.현장연결 && state.현장연결.id) || '';
+  $('#siteList').innerHTML = 현장들.map((s) =>
+    '<button type="button" class="vendor-row' + (s.id === 지금 ? ' on' : '') + '" data-id="' + esc(s.id) + '">' +
+      '<b>' + esc(s.이름) + '</b>' +
+      '<span>' + esc(시공일표시(s.시공일)) + (s.주소 ? ' · ' + esc(s.주소) : '') + '</span>' +
+    '</button>').join('');
+}
+
+function 현장단계닫기() {
+  현장고를업체 = null;
+  $('#siteStep').hidden = true;
+  $('#vendorList').hidden = false;
+  $('#vendorNone').hidden = false;
+  $('#vendorReload').hidden = false;
+  $('#vendorKeyEdit').hidden = false;
+}
+
+// 현장을 묶으면 현장명 칸도 그 이름으로 맞춘다. 두 앱이 같은 이름을 쓰게 하는 게 요점이다
+function 현장묶기(s) {
+  state.현장연결 = s ? { id: s.id, 이름: s.이름, 시공일: s.시공일 } : null;
+  if (s) {
+    state.현장명 = s.이름;
+    $('#siteName').value = s.이름;
+  }
+  save(STORAGE_KEY, state);
+  업체줄그리기();
+}
+
+$('#siteList').addEventListener('click', (e) => {
+  const 줄 = e.target.closest('.vendor-row');
+  if (!줄 || !현장고를업체) return;
+  const 찾음 = 업체현장들(현장고를업체.id).find((s) => s.id === 줄.dataset.id);
+  if (!찾음) return;
+  현장묶기(찾음);
+  현장단계닫기();
+  closeVendor();
+  toast('‘' + 찾음.이름 + '’ 현장에 묶었습니다');
+});
+
+$('#siteNone').addEventListener('click', () => {
+  현장묶기(null);
+  현장단계닫기();
+  closeVendor();
+});
+
+$('#siteBack').addEventListener('click', 현장단계닫기);
+
 async function 업체목록받기(키) {
   업체알림('업체 목록을 받는 중…');
   try {
@@ -1664,6 +1787,7 @@ async function 업체목록받기(키) {
 function openVendor() {
   $('#vendorBack').hidden = false;
   $('#vendorSheet').hidden = false;
+  현장단계닫기();     // 늘 업체 목록부터 보여준다
   업체목록그리기();
   const 키 = 업체키();
   if (!키) {
@@ -1701,15 +1825,17 @@ $('#vendorList').addEventListener('click', (e) => {
   if (!줄) return;
   const 찾음 = 업체캐시().목록.find((c) => c.id === 줄.dataset.id);
   if (!찾음) return;
+  // 업체가 바뀌면 앞 업체의 현장에 묶여 있던 것은 푼다
+  if (!state.업체 || state.업체.id !== 찾음.id) state.현장연결 = null;
   state.업체 = 찾음;
   save(STORAGE_KEY, state);
   업체줄그리기();
-  closeVendor();
-  toast('‘' + 찾음.이름 + '’ 업체로 잡았습니다');
+  현장단계열기(찾음);   // 업체만 고르고 끝나는 일은 거의 없다. 바로 현장까지 고른다
 });
 
 $('#vendorNone').addEventListener('click', () => {
   state.업체 = null;
+  state.현장연결 = null;
   save(STORAGE_KEY, state);
   업체줄그리기();
   closeVendor();
