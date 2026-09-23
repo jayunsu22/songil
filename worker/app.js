@@ -12,6 +12,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentWorker = "";
     let pendingUploadCount = 0; // 백그라운드에서 병렬로 진행 중인 사진 업로드 개수 (제출 버튼 가드용)
     const expandedCardIds = new Set(); // 아코디언이 열려 있는 카드의 ID를 추적하기 위한 Set
+
+    // ---------- 뒷정리 ('한번에' 품목: 현장정리·본드붓 세척·짐정리) ----------
+    // 밑작업/시공으로 안 나뉘는 일. 담당은 시공기사 칸, 완료는 시공완료 칸을 쓴다.
+    // '매일' 반복은 시공완료를 켜지 않고 완료일자에 'YYYY-MM-DD 이름' 줄을 쌓는다 - 오늘 줄이 있으면 오늘은 끝낸 것.
+    // 체크 결과와 사진도 '오늘 것'만 보여야 한다 (어제 체크가 남아 있으면 오늘 안 해도 끝난 것처럼 보인다)
+    //   - 체크 결과(점검결과) 맨 윗줄에 '📅 YYYY-MM-DD' 를 붙여 저장하고, 날짜가 다르면 빈 것으로 본다
+    //   - 사진 파일 이름을 '뒷정리_YYYY-MM-DD_…' 로 올려서 오늘 찍은 것만 골라 보여준다
+    function 오늘날짜() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function 품목정보(itemName) {
+        return (projectData && projectData.items && projectData.items[itemName]) || {};
+    }
+    function is뒷정리(itemName) { return 품목정보(itemName).작업방식 === '한번에'; }
+    function is매일(itemName) { return 품목정보(itemName).반복 === '매일'; }
+    function 완료줄들(fields) {
+        return String(fields.완료일자 || '').split('\n').map(l => l.trim()).filter(Boolean);
+    }
+    function 뒷정리완료(fields) {
+        if (is매일(fields.시공품목)) {
+            const 오늘 = 오늘날짜();
+            return 완료줄들(fields).some(l => l === 오늘 || l.startsWith(오늘 + ' '));
+        }
+        return !!fields.시공완료;
+    }
+    function 날짜머리() { return `📅 ${오늘날짜()}`; }
+    // 매일 반복이면 오늘 저장한 체크 결과만 쓴다
+    function 오늘체크결과(fields) {
+        const text = fields.점검결과 || '';
+        if (!is매일(fields.시공품목)) return text;
+        const lines = text.split('\n');
+        return lines[0] === 날짜머리() ? lines.slice(1).join('\n') : '';
+    }
+    function 체크결과저장용(itemName, text) {
+        return is매일(itemName) ? `${날짜머리()}\n${text}` : text;
+    }
+    // 매일 반복 뒷정리에서 보여줄 사진: 오늘 찍은 것(파일 이름에 오늘 날짜)과 지금 폰에서 올리는 중인 것
+    function 오늘사진인가(p) {
+        return !!p && (p.isLocal || String(p.filename || '').includes(`_${오늘날짜()}_`));
+    }
     
     // UI Elements
     const loadingOverlay = document.getElementById('loadingOverlay');
@@ -382,41 +423,53 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cardEntries = [];
         filteredTasks.forEach(task => {
             const fields = task.fields;
-            if (fields.밑작업기사 === currentWorker) {
+            const 뒷정리 = is뒷정리(fields.시공품목);
+            if (!뒷정리 && fields.밑작업기사 === currentWorker) {
                 const priority = fields.작업우선순위 !== undefined ? fields.작업우선순위 : (savedOrder.indexOf(task.id) !== -1 ? savedOrder.indexOf(task.id) : 999);
                 cardEntries.push({ task, stage: '밑작업', isCompleted: !!fields.밑작업완료, priority });
             }
             if (fields.시공기사 === currentWorker) {
                 const priority = fields.시공우선순위 !== undefined ? fields.시공우선순위 : (fields.작업우선순위 !== undefined ? fields.작업우선순위 : (savedOrder.indexOf(task.id) !== -1 ? savedOrder.indexOf(task.id) : 999));
-                cardEntries.push({ task, stage: '시공', isCompleted: !!fields.시공완료, priority });
+                cardEntries.push({ task, stage: '시공', isCompleted: 뒷정리 ? 뒷정리완료(fields) : !!fields.시공완료, priority, 뒷정리 });
             }
         });
 
         cardEntries.sort((a, b) => a.priority - b.priority);
+        // 뒷정리는 하루 일과 끝에 하는 일이라 시공 카드들 아래로 모은다 (그 안에서는 원래 순서)
+        cardEntries.sort((a, b) => (!!a.뒷정리 === !!b.뒷정리) ? 0 : (a.뒷정리 ? 1 : -1));
         // 완료된 카드를 맨 아래로 - 완료 여부로만 재배치하고, 그 안에서는 원래 순서(우선순위) 유지
         cardEntries.sort((a, b) => (a.isCompleted === b.isCompleted) ? 0 : (a.isCompleted ? 1 : -1));
 
-        cardEntries.forEach(({ task, stage }) => {
+        cardEntries.forEach(({ task, stage, 뒷정리 }) => {
             const fields = task.fields;
             const item = projectData.items[fields.시공품목] || { 밑작업지침: "", 시공후점검지침: "", 필수사진슬롯: "" };
 
             if (stage === '밑작업') {
                 renderTaskCard(task, '밑작업', item.밑작업지침, "시공전사진");
+            } else if (뒷정리) {
+                // 시공 후 점검 지침 칸을 '할 일' 목록으로 쓴다. 이름 붙은 사진 칸은 없다
+                renderTaskCard(task, '시공', item.시공후점검지침, "시공후사진", "", true);
             } else {
                 renderTaskCard(task, '시공', item.시공후점검지침, "시공후사진", item.필수사진슬롯);
             }
         });
     }
 
-    function renderTaskCard(task, stage, guidelinesText, photoField, optionalSlotsText = "") {
+    function renderTaskCard(task, stage, guidelinesText, photoField, optionalSlotsText = "", 뒷정리 = false) {
         const fields = task.fields;
         const recordId = task.id;
-        const isCompleted = stage === '밑작업' ? fields.밑작업완료 : fields.시공완료;
+        const 매일 = 뒷정리 && is매일(fields.시공품목);
+        // 뒷정리는 품목설정에서 '사진 필수' 를 켠 것만 사진이 있어야 완료된다 (사진은 언제든 올릴 수 있다)
+        const 사진필수 = 뒷정리 ? !!품목정보(fields.시공품목).사진필수 : true;
+        const isCompleted = 뒷정리 ? 뒷정리완료(fields) : (stage === '밑작업' ? fields.밑작업완료 : fields.시공완료);
         
         const card = document.createElement('div');
-        card.className = `task-card ${isCompleted ? 'completed' : ''}`;
+        card.className = `task-card ${isCompleted ? 'completed' : ''} ${뒷정리 ? 'cleanup' : ''}`;
         card.dataset.id = recordId;
         card.dataset.stage = stage;
+        card.dataset.cleanup = 뒷정리 ? '1' : '0';
+        card.dataset.daily = 매일 ? '1' : '0';
+        card.dataset.photoRequired = 사진필수 ? '1' : '0';
 
         const cardKey = `${recordId}-${stage}`;
         const isExpanded = expandedCardIds.has(cardKey);
@@ -427,11 +480,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="task-card-header task-card-toggle" data-target="${cardBodyId}">
                 <div class="task-badge-container">
                     <span class="task-title">${fields.시공품목}</span>
-                    <span class="task-badge ${stage === '밑작업' ? 'prep' : 'wrap'}">${stage}</span>
+                    ${뒷정리
+                        ? `<span class="task-badge cleanup">🧹 뒷정리${매일 ? ' · 매일' : ''}</span>`
+                        : `<span class="task-badge ${stage === '밑작업' ? 'prep' : 'wrap'}">${stage}</span>`}
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span class="task-status-badge ${isCompleted ? 'completed' : ''}">
-                        ${isCompleted ? '✅ 완료됨' : '진행중'}
+                        ${매일 ? (isCompleted ? '✅ 오늘 완료' : '오늘 할 일') : (isCompleted ? '✅ 완료됨' : '진행중')}
                     </span>
                     <span class="task-accordion-icon">${isExpanded ? '▲' : '▼'}</span>
                 </div>
@@ -446,12 +501,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         let checklistHtml = "";
 
         // Airtable 점검결과 텍스트 읽어서 이전에 체크했던 값 파싱
-        const existingResults = fields.점검결과 || "";
+        // 매일 하는 뒷정리는 오늘 저장한 체크만 (어제 체크가 남아 있으면 안 된다)
+        const existingResults = 뒷정리 ? 오늘체크결과(fields) : (fields.점검결과 || "");
 
         if (lines.length > 0 || siteNote) {
             checklistHtml = `
                 <div class="checklist-box">
-                    <h3>📋 품질 준수사항 점검</h3>
+                    <h3>${뒷정리 ? '📋 할 일 체크' : '📋 품질 준수사항 점검'}</h3>
                     <div class="checklist-list">
             `;
 
@@ -537,7 +593,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let tilesHtml = "";
 
-        if (stage === '밑작업') {
+        let shownPhotoCount = validPhotosCount;
+        if (뒷정리) {
+            // 뒷정리: 이름 붙은 칸 없이 '사진 추가' 만. 매일 하는 일은 오늘 찍은 사진만 보인다
+            // (새 사진은 항상 맨 뒤 칸에 붙는다 - 지난 날 사진이 든 칸을 덮으면 안 된다)
+            shownPhotoCount = 0;
+            for (let i = 0; i < existingPhotos.length; i++) {
+                const p = existingPhotos[i];
+                if (!isValidPhoto(p) && !(p && p.isUploading)) continue;
+                if (매일 && !오늘사진인가(p)) continue;
+                if (isValidPhoto(p) && !(p && p.isUploading)) shownPhotoCount++;
+                tilesHtml += renderPhotoTile(i, "뒷정리 사진");
+            }
+            if (shownPhotoCount < MAX_EXTRA_PHOTOS) {
+                tilesHtml += renderAddTile(existingPhotos.length, "뒷정리 사진");
+            }
+        } else if (stage === '밑작업') {
             for (let i = 0; i < existingPhotos.length; i++) {
                 const p = existingPhotos[i];
                 if (!isValidPhoto(p) && !(p && p.isUploading)) continue;
@@ -566,12 +637,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        const headerCountText = `${validPhotosCount}장 촬영됨 · 최소 1장 필요`;
+        const headerCountText = 뒷정리
+            ? `${매일 ? '오늘 ' : ''}${shownPhotoCount}장 · ${사진필수 ? '최소 1장 필요' : '선택'}`
+            : `${validPhotosCount}장 촬영됨 · 최소 1장 필요`;
+        const completedNote = 매일
+            ? '✓ 오늘은 끝났어요. 내일 다시 할 일로 뜹니다. 사진은 계속 추가할 수 있어요.'
+            : '✓ 제출은 완료됐지만, 사진은 계속 추가·삭제할 수 있어요.';
 
         photoHtml = `
             <div class="photo-slots-box">
-                <h3>📸 필수 품질 사진 촬영 (${headerCountText})</h3>
-                ${isCompleted ? `<p class="photo-slots-note">✓ 제출은 완료됐지만, 사진은 계속 추가·삭제할 수 있어요.</p>` : ''}
+                <h3>${뒷정리 ? '📸 사진' : '📸 필수 품질 사진 촬영'} (${headerCountText})</h3>
+                ${isCompleted ? `<p class="photo-slots-note">${completedNote}</p>` : ''}
                 <div class="photo-slots-grid">
                     ${tilesHtml}
                 </div>
@@ -670,7 +746,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <button class="task-submit-btn ${isCompleted ? 'completed' : ''}"
                         ${isCompleted ? 'disabled' : ''}
                         onclick="submitTask('${recordId}', '${stage}')">
-                    ${isCompleted ? '✓ 품질 보고서 제출 완료' : `${stage}완료보고`}
+                    ${뒷정리
+                        ? (isCompleted ? (매일 ? '✓ 오늘 뒷정리 완료' : '✓ 뒷정리 완료') : (매일 ? '오늘 뒷정리 완료' : '뒷정리 완료'))
+                        : (isCompleted ? '✓ 품질 보고서 제출 완료' : `${stage}완료보고`)}
                 </button>
                 <button class="task-close-btn" onclick="closeTaskCard('${recordId}', '${stage}')">
                     창닫기
@@ -732,7 +810,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     const t = projectData.tasks.find(x => x.id === recordId);
                     if (t) {
-                        t.fields.점검결과 = checkedTexts.join('\n');
+                        t.fields.점검결과 = 뒷정리 ? 체크결과저장용(t.fields.시공품목, checkedTexts.join('\n')) : checkedTexts.join('\n');
                     }
 
                     validateCardSubmitButton(card);
@@ -767,7 +845,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 파손 복구 사진은 선택 항목이라 필수 장수에서 빼고, 필수 품질 사진 칸만 셈
         const anyUploading = cardElement.querySelectorAll('.photo-slots-grid .photo-slot.uploading').length > 0;
         const filledCount = cardElement.querySelectorAll('.photo-slots-grid .photo-slot.has-image:not(.uploading)').length;
-        const allUploaded = filledCount >= 1 && !anyUploading;
+        // 뒷정리는 품목설정에서 '사진 필수' 를 켠 것만 사진이 있어야 한다
+        const photoRequired = cardElement.dataset.photoRequired !== '0';
+        const allUploaded = (!photoRequired || filledCount >= 1) && !anyUploading;
 
         if (allChecked && allUploaded) {
             submitBtn.classList.add('active');
@@ -902,10 +982,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const resizedFile = await resizeImageFile(file);
+            // 뒷정리 사진은 파일 이름에 날짜를 넣는다 - 매일 하는 일은 이걸로 오늘 찍은 사진만 골라 보여준다
+            const cleanupName = (task && is뒷정리(task.fields.시공품목)) ? `뒷정리_${오늘날짜()}_${Date.now()}.jpg` : '';
 
             // Form 데이터 구성
             const formData = new FormData();
-            formData.append('image', resizedFile);
+            if (cleanupName) formData.append('image', resizedFile, cleanupName);
+            else formData.append('image', resizedFile);
             formData.append('recordId', recordId);
             formData.append('fieldName', fieldName);
             formData.append('slotIndex', slotIndex);
@@ -916,7 +999,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // 구글드라이브 백업은 별도 웹훅으로 분리 발사 (응답을 기다리지 않음 — 업로드 체감속도 개선)
             const driveBackupFormData = new FormData();
-            driveBackupFormData.append('image', resizedFile);
+            if (cleanupName) driveBackupFormData.append('image', resizedFile, cleanupName);
+            else driveBackupFormData.append('image', resizedFile);
             driveBackupFormData.append('recordId', recordId);
             driveBackupFormData.append('fieldName', fieldName);
             driveBackupFormData.append('slotIndex', slotIndex);
@@ -1015,7 +1099,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 recordId: recordId,
                 type: 'save_draft',
                 stage: stage,
-                resultsText: checkedTexts.join('\n')
+                resultsText: card.dataset.daily === '1' ? `${날짜머리()}\n${checkedTexts.join('\n')}` : checkedTexts.join('\n')
             })
         });
     }
@@ -1051,7 +1135,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             checkedTexts.push(`${isChecked ? '[✓]' : '[ ]'} ${text}`);
         });
 
-        const promptMessage = `정말로 이 ${stage} 품질 검수 보고서를 제출하시겠습니까? 제출 후에는 수정이 불가능합니다.`;
+        const 뒷정리 = card.dataset.cleanup === '1';
+        const 매일 = card.dataset.daily === '1';
+        const task = projectData.tasks.find(t => t.id === recordId);
+        const taskFields = (task && task.fields) || {};
+        const promptMessage = 뒷정리
+            ? `${taskFields.시공품목 || '뒷정리'}${매일 ? ' (오늘)' : ''} 끝났나요? 완료로 기록합니다.`
+            : `정말로 이 ${stage} 품질 검수 보고서를 제출하시겠습니까? 제출 후에는 수정이 불가능합니다.`;
 
         openModal(promptMessage, async () => {
             showLoading("보고서 제출 데이터 기록 중...");
@@ -1063,8 +1153,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     type: 'submit_task',
                     stage: stage,
                     workerName: currentWorker,
-                    resultsText: checkedTexts.join('\n')
+                    resultsText: 매일 ? `${날짜머리()}\n${checkedTexts.join('\n')}` : checkedTexts.join('\n')
                 };
+                if (뒷정리) {
+                    // 누가 며칠에 했는지 남긴다 (오늘 줄이 이미 있으면 새 이름으로 바꿔 씀).
+                    // 매일 반복은 완료 칸을 켜지 않는다 - 켜 두면 내일 다시 할 일로 안 뜬다.
+                    const 오늘 = 오늘날짜();
+                    payload.stageLabel = '뒷정리';
+                    payload.daily = 매일;
+                    payload.doneDates = 완료줄들(taskFields)
+                        .filter(l => !(l === 오늘 || l.startsWith(오늘 + ' ')))
+                        .concat(`${오늘} ${currentWorker}`)
+                        .join('\n');
+                }
 
                 const response = await fetchWithTimeout(API_SAVE_URL, {
                     method: 'POST',
@@ -1074,7 +1175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (!response.ok) throw new Error("서버 제출 오류");
 
-                showToast(`${stage} 완료 보고 완료!`);
+                showToast(뒷정리 ? '🧹 뒷정리 완료!' : `${stage} 완료 보고 완료!`);
                 
                 // 데이터 리로드 및 렌더링
                 await loadProjectData(projectRecordId);
