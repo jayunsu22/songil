@@ -106,25 +106,34 @@
      보는 사람에 따라 값이 다르다.
        인테리어 업체 — 소비자가만. 단가표에 소비자가가 없는 계열은 칸 자체를 안 그린다.
        사장님 기기   — 시공가·업체가·소비자가·대리점 전부.
-     사장님 기기는 ?key=암호 로 한 번 들어오면 정해진다(?key=0 이면 해제).
+     사장님 기기는 ?owner 로 열어 암호를 한 번 넣으면 정해진다(?owner=0 이면 해제).
      원가 파일은 암호로 잠겨 있어서, 저장소나 네트워크에서 파일을 받아가도 숫자는 안 보인다.
      단가가 안 불러와져도 필름찾기는 그대로 돌아가야 한다 — 그래서 실패는 전부 조용히 넘긴다. */
 
   var 단가표 = null;   // film_price.json — 계열·소비자가
   var 원가 = null;     // 사장님 기기에서만: 줄 id → { 시공가, 업체가, 대리점, … }
-  var 가격키 = 'filmdamoa_pricekey_v1';
+  var 가격키 = 'filmdamoa_pricekey_v2';
 
+  // 암호는 주소에 싣지 않는다. 예전에 ?key=암호 로 열게 했더니, 그 주소가 그대로
+  // 인테리어 업체에 전달돼 업체 폰에서도 시공가가 보였다(2026-09-24).
+  // 이제 ?owner 로 열면 암호를 묻는다. 그 주소는 누구에게 넘어가도 암호를 모르면 소용없다.
+  // ?owner=0 이면 이 기기에서 단가를 다시 숨긴다.
   function 가격암호() {
     try {
+      localStorage.removeItem('filmdamoa_pricekey_v1');   // 옛 암호가 남은 기기(업체 폰 포함)를 비운다
       var 주소 = new URL(location.href);
-      var q = 주소.searchParams.get('key');
-      if (q != null) {
-        if (q === '0' || q === '') { localStorage.removeItem(가격키); 알림('이 기기에서 단가를 숨깁니다'); }
-        else localStorage.setItem(가격키, q);
-        // 주소창에 암호를 남겨두지 않는다. 그대로 캡처하거나 복사해 보내면 암호가 샌다.
-        주소.searchParams.delete('key');
-        history.replaceState(null, '', 주소.pathname + 주소.search + 주소.hash);
+      var 고침 = false;
+      if (주소.searchParams.has('key')) { 주소.searchParams.delete('key'); 고침 = true; }
+      if (주소.searchParams.has('owner')) {
+        var q = 주소.searchParams.get('owner');
+        if (q === '0') { localStorage.removeItem(가격키); 알림('이 기기에서 단가를 숨깁니다'); }
+        else {
+          var 넣은 = window.prompt('단가 암호를 넣어 주세요');
+          if (넣은) localStorage.setItem(가격키, 넣은.trim());
+        }
+        주소.searchParams.delete('owner'); 고침 = true;
       }
+      if (고침) history.replaceState(null, '', 주소.pathname + 주소.search + 주소.hash);
       return localStorage.getItem(가격키);
     } catch (e) { return null; }
   }
