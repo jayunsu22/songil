@@ -83,6 +83,8 @@
     el.hidden = false;
   }
 
+  단가준비();
+
   // 질감은 film-db.json 과 따로 둔다. film-db.json 은 에어테이블에서 자동 생성되는 파일이라
   // 거기 손으로 넣은 값을 적으면 다음 생성 때 지워진다(한솔 색상값에서 이미 겪었다).
   // 따로 두면 파일 하나만 고쳐 올리면 되고, 되돌리기도 쉽다.
@@ -98,6 +100,114 @@
     .catch(function (e) {
       $('총건수').textContent = '데이터를 불러오지 못했습니다 (' + e.message + ')';
     });
+
+  /* ---------- 단가 ----------
+
+     보는 사람에 따라 값이 다르다.
+       인테리어 업체 — 소비자가만. 단가표에 소비자가가 없는 계열은 칸 자체를 안 그린다.
+       사장님 기기   — 시공가·업체가·소비자가·대리점 전부.
+     사장님 기기는 ?key=암호 로 한 번 들어오면 정해진다(?key=0 이면 해제).
+     원가 파일은 암호로 잠겨 있어서, 저장소나 네트워크에서 파일을 받아가도 숫자는 안 보인다.
+     단가가 안 불러와져도 필름찾기는 그대로 돌아가야 한다 — 그래서 실패는 전부 조용히 넘긴다. */
+
+  var 단가표 = null;   // film_price.json — 계열·소비자가
+  var 원가 = null;     // 사장님 기기에서만: 줄 id → { 시공가, 업체가, 대리점, … }
+  var 가격키 = 'filmdamoa_pricekey_v1';
+
+  function 가격암호() {
+    try {
+      var 주소 = new URL(location.href);
+      var q = 주소.searchParams.get('key');
+      if (q != null) {
+        if (q === '0' || q === '') { localStorage.removeItem(가격키); 알림('이 기기에서 단가를 숨깁니다'); }
+        else localStorage.setItem(가격키, q);
+        // 주소창에 암호를 남겨두지 않는다. 그대로 캡처하거나 복사해 보내면 암호가 샌다.
+        주소.searchParams.delete('key');
+        history.replaceState(null, '', 주소.pathname + 주소.search + 주소.hash);
+      }
+      return localStorage.getItem(가격키);
+    } catch (e) { return null; }
+  }
+
+  function 단가준비() {
+    var P = window.FilmPrice;
+    if (!P) return;
+    fetch('film_price.json').then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (v) { 단가표 = v; }).catch(function () { /* 무시 */ });
+
+    var 암호 = 가격암호();
+    if (!암호 || typeof crypto === 'undefined' || !crypto.subtle) return;
+    fetch('film_price_owner.json').then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+      .then(function (잠긴) { return P.풀기(잠긴, 암호); })
+      .then(function (v) { 원가 = v; })
+      .catch(function (e) {
+        // 암호가 틀리면 GCM 이 OperationError 를 낸다. 그때만 저장된 암호를 지운다 —
+        // 신호가 약해 파일을 못 받은 것까지 지우면 현장에서 매번 다시 넣어야 한다.
+        if (e && e.name === 'OperationError') {
+          try { localStorage.removeItem(가격키); } catch (x) { /* 무시 */ }
+          알림('단가 암호가 맞지 않습니다');
+        }
+      });
+  }
+
+  function 원(n) { return n == null ? '—' : n.toLocaleString('ko-KR') + '원'; }
+
+  function 계열이름(x) {
+    return x.줄.제조사 === '한솔 스토리필름' ? x.계열 : x.계열 + ' 계열';
+  }
+
+  function 가격칸만들기(p) {
+    if (!단가표 || !window.FilmPrice) return null;
+    var 찾음 = FilmPrice.찾기(단가표, p);
+    return 원가 ? 사장님가격칸(찾음) : 소비자가격칸(찾음);
+  }
+
+  function 소비자가격칸(찾음) {
+    var 보일 = 찾음.filter(function (x) { return x.줄.소비자가 != null; });
+    if (!보일.length) return null;
+    var 칸 = document.createElement('div');
+    칸.className = '가격칸';
+    칸.innerHTML =
+      '<p class="가격머리">소비자가 <span>m당 · VAT포함</span></p>' +
+      보일.map(function (x) {
+        return '<div class="가격줄"><span class="가격이름">' + 이스케이프(x.줄.구분) +
+          ' <em>' + 이스케이프(계열이름(x)) + '</em></span>' +
+          '<b>' + 원(x.줄.소비자가) + '</b></div>';
+      }).join('');
+    return 칸;
+  }
+
+  function 사장님가격칸(찾음) {
+    var 칸 = document.createElement('div');
+    칸.className = '가격칸 사장님';
+    var 머리 = '<p class="가격머리">단가 <span>m당 · VAT포함 · 이 기기에서만 보임</span></p>';
+    if (!찾음.length) {
+      칸.innerHTML = 머리 + '<p class="가격없음">단가표에 없는 계열입니다</p>';
+      return 칸;
+    }
+    칸.innerHTML = 머리 + 찾음.map(function (x) {
+      var 속 = 원가[x.줄.id] || {};
+      var 곁 = [속.대리점, 속.적용일 && 속.적용일 !== '미표기' ? 속.적용일 : '', 속.롤 ? 속.롤 + ' 롤' : '']
+        .filter(Boolean).join(' · ');
+      return '<div class="가격묶음">' +
+        '<div class="가격이름">' + 이스케이프(x.줄.구분) + ' <em>' + 이스케이프(계열이름(x)) + '</em>' +
+          (x.호환 ? ' <span class="호환">같은 무늬 호환 — 대리점 확인</span>' : '') + '</div>' +
+        '<div class="가격셋">' +
+          '<div><span>시공가</span><b>' + 원(속.시공가) + '</b></div>' +
+          '<div><span>업체가</span><b>' + 원(속.업체가) + '</b></div>' +
+          '<div class="업체에보임"><span>소비자가</span><b>' + 원(x.줄.소비자가) + '</b></div>' +
+        '</div>' +
+        (곁 ? '<p class="가격곁">' + 이스케이프(곁) + '</p>' : '') +
+        (속.비고 ? '<p class="가격곁">' + 이스케이프(속.비고) + '</p>' : '') +
+      '</div>';
+    }).join('') +
+    '<p class="가격곁">업체 화면에는 <b>소비자가</b>만 나갑니다' +
+      (찾음.some(function (x) { return x.줄.소비자가 != null; }) ? '' : ' — 이 필름은 소비자가가 없어 가격 칸이 안 보입니다') + '</p>';
+    return 칸;
+  }
 
   /* ---------- 질감 ----------
 
@@ -1823,6 +1933,9 @@
       return '<tr><th>' + 이스케이프(r[0]) + '</th><td>' + 이스케이프(String(r[1])) + '</td></tr>';
     }).join('');
     el.appendChild(표);
+
+    var 가격칸 = 가격칸만들기(p);
+    if (가격칸) el.appendChild(가격칸);
 
     // 저장·공유는 정보 바로 아래에 둔다. 정보를 보고 판단한 직후가 누를 때다.
     var 동작 = document.createElement('div');
