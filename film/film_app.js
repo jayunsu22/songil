@@ -83,8 +83,6 @@
     el.hidden = false;
   }
 
-  단가준비();
-
   // 질감은 film-db.json 과 따로 둔다. film-db.json 은 에어테이블에서 자동 생성되는 파일이라
   // 거기 손으로 넣은 값을 적으면 다음 생성 때 지워진다(한솔 색상값에서 이미 겪었다).
   // 따로 두면 파일 하나만 고쳐 올리면 되고, 되돌리기도 쉽다.
@@ -100,6 +98,47 @@
     .catch(function (e) {
       $('총건수').textContent = '데이터를 불러오지 못했습니다 (' + e.message + ')';
     });
+
+  /* ---------- 단종 ----------
+
+     사장님이 에어테이블 필름 표의 '단종' 칸에 체크하면 목록에서 필름넘버 옆에 빨갛게 붙는다.
+     film-db.json 은 에어테이블에서 가끔 새로 만드는 파일이라, 거기에만 의존하면 체크하고
+     며칠 뒤에야 보인다. 그래서 단종만 n8n 을 거쳐 열 때마다 새로 받는다(1분 캐시).
+     못 받아도 필름찾기는 그대로 돌아간다 — 단종 표시만 안 붙는다. */
+
+  var 단종주소 = 'https://primary-production-a6fa.up.railway.app/webhook/film-discontinued';
+  var 단종id = null;   // Set — 받기 전에는 null
+
+  function 단종받기() {
+    fetch(단종주소).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (v) {
+        if (!v || !Array.isArray(v.ids)) return;
+        단종id = new Set(v.ids);
+        단종붙이기();
+      })
+      .catch(function () { /* 무시 */ });
+  }
+
+  // 데이터와 단종 목록 중 어느 쪽이 먼저 올지 모른다. 둘 다 왔을 때 한 번 맞춘다.
+  function 단종붙이기() {
+    if (!단종id || !전체.length) return;
+    전체.forEach(function (p) { p.단종 = 단종id.has(p.id); });
+    // 이미 그려진 카드에도 붙인다(첫 화면 기록·공유 목록이 먼저 그려져 있을 수 있다)
+    document.querySelectorAll('.카드').forEach(function (b) { if (b.제품) 단종표시(b, b.제품); });
+  }
+
+  function 단종표시(카드, p) {
+    var 코 = 카드.querySelector('.몸 .코드');
+    var 옛 = 카드.querySelector('.단종표');
+    if (옛) 옛.remove();
+    카드.classList.toggle('단종카드', !!p.단종);
+    if (p.단종 && 코) {
+      var t = document.createElement('span');
+      t.className = '단종표';
+      t.textContent = '단종';
+      코.appendChild(t);
+    }
+  }
 
   /* ---------- 단가 ----------
 
@@ -161,6 +200,17 @@
         }
       });
   }
+
+  // 위의 var 값(주소·저장키)이 채워진 뒤에 불러야 한다. 파일 맨 위에서 부르면
+  // 함수는 있어도 var 는 아직 undefined 라, 단종은 '/film/undefined' 로 요청하고
+  // 암호는 'undefined' 라는 이름으로 저장됐다(2026-09-24).
+  try {
+    var 잘못된 = localStorage.getItem('undefined');
+    if (잘못된 && !localStorage.getItem(가격키)) localStorage.setItem(가격키, 잘못된);
+    localStorage.removeItem('undefined');
+  } catch (e) { /* 무시 */ }
+  단가준비();
+  단종받기();
 
   function 원(n) { return n == null ? '—' : n.toLocaleString('ko-KR') + '원'; }
 
@@ -284,6 +334,7 @@
 
   function 시작(목록) {
     전체 = 목록;
+    단종붙이기();
     var 브랜드수 = new Set(목록.map(function (p) { return p.제조사; })).size;
     $('총건수').textContent =
       브랜드수 + '개사 ' + 목록.length.toLocaleString() + '개 제품에서 찾습니다';
@@ -1780,6 +1831,7 @@
       (x.등급 ? '<div class="등급">' + x.등급 + '</div>' : '') +
       (x.곁말 ? '<div class="곁말">' + 이스케이프(x.곁말) + '</div>' : '');
     b.appendChild(몸);
+    단종표시(b, p);
 
     b.addEventListener('click', function () { 상세열기(p, x); });
 
@@ -1897,6 +1949,13 @@
       바탕.appendChild(img);
     }
     el.appendChild(바탕);
+
+    if (p.단종) {
+      var 단 = document.createElement('div');
+      단.className = '단종알림';
+      단.textContent = '단종된 제품입니다';
+      el.appendChild(단);
+    }
 
     // 사용자가 알아야 할 한계를 숨기지 않는다.
     if (p.코드미확인) {
