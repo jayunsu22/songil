@@ -185,17 +185,19 @@
     return b;
   }
 
+  // 딱지는 견본 사진 한가운데에 크게 얹는다. 필름넘버 옆에 두었더니 목록을 훑을 때
+  // 눈이 사진에 먼저 가서 지나치기 쉬웠다(2026-09-25 사장님 요청).
   function 단종표시(카드, p) {
-    var 코 = 카드.querySelector('.몸 .코드');
-    var 옛 = 카드.querySelector('.단종표');
+    var 옛 = 카드.querySelector('.단종덮개');
     if (옛) 옛.remove();
     카드.classList.toggle('단종카드', !!p.단종);
-    if (p.단종 && 코) {
-      var t = document.createElement('span');
-      t.className = '단종표';
-      t.textContent = '단종';
-      코.appendChild(t);
-    }
+    if (!p.단종) { 카드.removeAttribute('aria-label'); return; }
+    var 덮 = document.createElement('span');
+    덮.className = '단종덮개';
+    덮.setAttribute('aria-hidden', 'true');
+    덮.innerHTML = '<span class="단종표">단종</span>';
+    카드.insertBefore(덮, 카드.firstChild);
+    카드.setAttribute('aria-label', 브랜드(p.제조사) + ' ' + 제목(p) + ' 단종');
   }
 
   /* ---------- 단가 ----------
