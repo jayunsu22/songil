@@ -110,7 +110,8 @@
   var 단종id = null;   // Set — 받기 전에는 null
 
   function 단종받기() {
-    fetch(단종주소).then(function (r) { return r.ok ? r.json() : null; })
+    // 사장님 기기는 방금 바꾼 것이 바로 보여야 하니 캐시를 쓰지 않는다
+    fetch(단종주소, 원가있나() ? { cache: 'no-store' } : undefined).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (v) {
         if (!v || !Array.isArray(v.ids)) return;
         단종id = new Set(v.ids);
@@ -125,6 +126,63 @@
     전체.forEach(function (p) { p.단종 = 단종id.has(p.id); });
     // 이미 그려진 카드에도 붙인다(첫 화면 기록·공유 목록이 먼저 그려져 있을 수 있다)
     document.querySelectorAll('.카드').forEach(function (b) { if (b.제품) 단종표시(b, b.제품); });
+  }
+
+  function 원가있나() {
+    try { return !!localStorage.getItem('filmdamoa_pricekey_v2'); } catch (e) { return false; }
+  }
+
+  /* 단종 켜고 끄기 — 사장님 기기(단가 암호가 풀린 기기)에만 단추가 나온다.
+     암호 자체는 보내지 않는다. 암호로 만든 토큰을 보내고, n8n 은 그 토큰의 해시만
+     들고 있다가 맞춰 본다. 그래서 n8n 워크플로를 누가 열어봐도 암호는 나오지 않는다. */
+  var 단종쓰기주소 = 'https://primary-production-a6fa.up.railway.app/webhook/film-discontinued-set';
+
+  function 단종토큰() {
+    var 암호 = null;
+    try { 암호 = localStorage.getItem(가격키); } catch (e) { /* 무시 */ }
+    if (!암호 || typeof crypto === 'undefined' || !crypto.subtle) return Promise.reject(new Error('암호 없음'));
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode('film-discontinued|' + 암호))
+      .then(function (b) {
+        return Array.prototype.map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+      });
+  }
+
+  function 단종단추만들기(p, 띠) {
+    if (!원가) return null;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = '상세버튼 단종단추';
+    var 글 = function () {
+      b.textContent = p.단종 ? '단종 해제' : '단종으로 표시';
+      b.classList.toggle('켜짐', !!p.단종);
+    };
+    글();
+    b.addEventListener('click', function () {
+      var 새값 = !p.단종;
+      b.disabled = true;
+      b.textContent = '저장 중…';
+      단종토큰().then(function (t) {
+        // text/plain 으로 보낸다 — application/json 이면 브라우저가 CORS 사전요청을 먼저 보낸다
+        return fetch(단종쓰기주소, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ id: p.id, 단종: 새값, t: t }),
+        });
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function (v) {
+        if (!v || !v.ok) throw new Error('거절');
+        p.단종 = !!v.단종;
+        if (!단종id) 단종id = new Set();
+        if (p.단종) 단종id.add(p.id); else 단종id.delete(p.id);
+        띠.hidden = !p.단종;
+        document.querySelectorAll('.카드').forEach(function (c) { if (c.제품 === p) 단종표시(c, p); });
+        알림(p.단종 ? '단종으로 표시했습니다' : '단종을 풀었습니다');
+      }).catch(function () {
+        알림('저장하지 못했습니다. 잠시 뒤 다시 눌러 주세요');
+      }).then(function () { b.disabled = false; 글(); });
+    });
+    return b;
   }
 
   function 단종표시(카드, p) {
@@ -1950,12 +2008,13 @@
     }
     el.appendChild(바탕);
 
-    if (p.단종) {
-      var 단 = document.createElement('div');
-      단.className = '단종알림';
-      단.textContent = '단종된 제품입니다';
-      el.appendChild(단);
-    }
+    // 단종 띠는 늘 자리만 만들어 두고 hidden 으로 켜고 끈다. 사장님이 상세 화면에서
+    // 단종을 바꾸면 화면을 다시 그리지 않고 이 띠만 켠다(보던 위치가 튀지 않게).
+    var 단 = document.createElement('div');
+    단.className = '단종알림';
+    단.textContent = '단종된 제품입니다';
+    단.hidden = !p.단종;
+    el.appendChild(단);
 
     // 사용자가 알아야 할 한계를 숨기지 않는다.
     if (p.코드미확인) {
@@ -2004,6 +2063,8 @@
 
     var 가격칸 = 가격칸만들기(p);
     if (가격칸) el.appendChild(가격칸);
+    var 단종단추 = 단종단추만들기(p, 단);
+    if (단종단추) el.appendChild(단종단추);
 
     // 저장·공유는 정보 바로 아래에 둔다. 정보를 보고 판단한 직후가 누를 때다.
     var 동작 = document.createElement('div');
