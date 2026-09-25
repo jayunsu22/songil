@@ -771,3 +771,6 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
   padding: 12px 14px; margin-bottom: 12px; border-radius: 10px;
   background: #d0021b; color: #fff; font-size: 17px; font-weight: 800; text-align: center;
 }
+.단종단추 { color: #d0021b; border-color: #d0021b; font-weight: 700; margin-bottom: 8px; }
+.단종단추.켜짐 { background: #d0021b; color: #fff; }
+.단종단추:disabled { opacity: .6; }
