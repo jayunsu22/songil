@@ -151,5 +151,22 @@
     return '기타';
   }
 
-  return { 견적품목들: 견적품목들, 짝짓기: 짝짓기, 현장정렬: 현장정렬, 사진구역: 사진구역 };
+  /* 견적에 넣은 품목에 붙은 사진만 고른다. 현장에서는 견적에 안 넣을 품목도
+     일단 찍어두기 때문에, 폰에 있는 사진을 다 보내면 안 된다.
+     기준은 견적서 발행 때(QuotePhotos.올릴사진목록)와 같다: 태그한 품목 +
+     네모만 남은 품목. 어느 품목에도 안 붙은 사진은 보내지 않는다. */
+  function 견적사진만(사진들, 상태) {
+    const 넣은 = new Set(Object.keys((상태 && 상태.선택) || {}));
+    ((상태 && 상태.직접품목) || []).forEach((c) => { if (c && c.id) 넣은.add(c.id); });
+    return (사진들 || []).filter((p) => {
+      const ids = (p.태그 || []).slice();
+      Object.keys(p.표시 || {}).forEach((id) => {
+        const v = p.표시[id];
+        if (v && (!Array.isArray(v) || v.length)) ids.push(id);
+      });
+      return ids.some((id) => 넣은.has(id));
+    });
+  }
+
+  return { 견적품목들: 견적품목들, 짝짓기: 짝짓기, 현장정렬: 현장정렬, 사진구역: 사진구역, 견적사진만: 견적사진만 };
 });

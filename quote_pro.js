@@ -1674,23 +1674,28 @@ async function 미리보기그리기(결과말) {
       r.짝없음.map((x) => esc(x.구역 + ' ' + x.견적품목)).join(', ') + '</div>';
   }
 
-  // 사진: 이 폰에 있는 이 견적의 사진 중 이 현장에 아직 안 보낸 것.
+  // 사진: 이 폰에 있는 이 견적의 사진 중 견적에 넣은 품목에 붙은 것만,
+  // 그리고 이 현장에 아직 안 보낸 것만. 품목과 함께 원본사진으로 간다.
   // 사진은 찍은 폰에만 있다 - 다른 폰에서 열면 0장으로 나온다.
   안보낸사진 = [];
-  let 보낸장수 = 0;
+  let 보낸장수 = 0, 뺀장수 = 0;
   if (사진가능 && 보낼견적.현장ID) {
     let 전부 = [];
     try { 전부 = await PDB.현장사진(보낼견적.현장ID); } catch (e) { 전부 = []; }
+    const 견적것 = QuoteToSite.견적사진만(전부, 상태);
+    뺀장수 = 전부.length - 견적것.length;
     const 보낸 = new Set(보낸사진ID들(보낼견적.id, 고른현장.id));
-    안보낸사진 = 전부.filter((p) => !보낸.has(p.id));
-    보낸장수 = 전부.length - 안보낸사진.length;
+    안보낸사진 = 견적것.filter((p) => !보낸.has(p.id));
+    보낸장수 = 견적것.length - 안보낸사진.length;
   }
   if (안보낸사진.length) {
-    html += '<label class="site-item site-photo"><input type="checkbox" id="sitePhotos" checked>' +
-      '📸 사진 ' + 안보낸사진.length + '장도 원본사진으로 보내기</label>';
+    html += '<div class="site-item">📸 견적 품목 사진 ' + 안보낸사진.length + '장 함께 보냄 (원본사진)</div>';
   }
   if (보낸장수) {
     html += '<div class="site-item done">📸 사진 ' + 보낸장수 + '장은 이미 보냄 (건너뜀)</div>';
+  }
+  if (뺀장수) {
+    html += '<div class="site-item done">📷 견적에 안 넣은 품목·구역 사진 ' + 뺀장수 + '장은 안 보냄</div>';
   }
 
   $('#siteBody').innerHTML = html;
@@ -1698,7 +1703,7 @@ async function 미리보기그리기(결과말) {
 
   const 버튼갱신 = () => {
     const n = $('#siteBody').querySelectorAll('.site-item input[data-name]:checked').length;
-    const 사진 = $('#sitePhotos') && $('#sitePhotos').checked ? 안보낸사진.length : 0;
+    const 사진 = 안보낸사진.length;
     $('#siteGo').hidden = !새것.length && !안보낸사진.length;
     $('#siteGo').disabled = !n && !사진;
     $('#siteGo').textContent = [n ? '품목 ' + n + '개' : '', 사진 ? '사진 ' + 사진 + '장' : ''].filter(Boolean).join(' + ') + ' 보내기';
@@ -1747,7 +1752,7 @@ async function 원본사진올리기(사진) {
 async function 현장으로보내기() {
   if (보내는중 || !고른현장) return;
   const 이름들 = [...$('#siteBody').querySelectorAll('.site-item input[data-name]:checked')].map((c) => c.dataset.name);
-  const 사진들 = $('#sitePhotos') && $('#sitePhotos').checked ? 안보낸사진.slice() : [];
+  const 사진들 = 안보낸사진.slice();
   if (!이름들.length && !사진들.length) return;
   보내는중 = true;
   const 버튼 = $('#siteGo');
