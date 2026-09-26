@@ -11,6 +11,7 @@ const CONFIG = {
   siteListUrl:   'https://primary-production-a6fa.up.railway.app/webhook/film-admin-get-v2',
   siteDetailUrl: 'https://primary-production-a6fa.up.railway.app/webhook/film-quality-get-v2',
   siteSaveUrl:   'https://primary-production-a6fa.up.railway.app/webhook/film-quality-save',
+  rawPhotoUrl:   'https://primary-production-a6fa.up.railway.app/webhook/raw-photo-upload',   // 현장관리자 원본사진
 };
 
 const STORAGE_KEY = 'quote_pro_state_v1';
@@ -1672,29 +1673,88 @@ async function 미리보기그리기(결과말) {
     html += '<div class="site-miss">⚠️ 현장관리자에 짝이 없는 품목입니다. 필요하면 현장관리자에서 직접 골라주세요.<br>' +
       r.짝없음.map((x) => esc(x.구역 + ' ' + x.견적품목)).join(', ') + '</div>';
   }
+
+  // 사진: 이 폰에 있는 이 견적의 사진 중 이 현장에 아직 안 보낸 것.
+  // 사진은 찍은 폰에만 있다 - 다른 폰에서 열면 0장으로 나온다.
+  안보낸사진 = [];
+  let 보낸장수 = 0;
+  if (사진가능 && 보낼견적.현장ID) {
+    let 전부 = [];
+    try { 전부 = await PDB.현장사진(보낼견적.현장ID); } catch (e) { 전부 = []; }
+    const 보낸 = new Set(보낸사진ID들(보낼견적.id, 고른현장.id));
+    안보낸사진 = 전부.filter((p) => !보낸.has(p.id));
+    보낸장수 = 전부.length - 안보낸사진.length;
+  }
+  if (안보낸사진.length) {
+    html += '<label class="site-item site-photo"><input type="checkbox" id="sitePhotos" checked>' +
+      '📸 사진 ' + 안보낸사진.length + '장도 원본사진으로 보내기</label>';
+  }
+  if (보낸장수) {
+    html += '<div class="site-item done">📸 사진 ' + 보낸장수 + '장은 이미 보냄 (건너뜀)</div>';
+  }
+
   $('#siteBody').innerHTML = html;
   $('#siteBody .site-back').addEventListener('click', 현장목록그리기);
 
   const 버튼갱신 = () => {
-    const n = $('#siteBody').querySelectorAll('.site-item input:checked').length;
-    $('#siteGo').hidden = !새것.length;
-    $('#siteGo').disabled = !n;
-    $('#siteGo').textContent = n + '개 보내기';
+    const n = $('#siteBody').querySelectorAll('.site-item input[data-name]:checked').length;
+    const 사진 = $('#sitePhotos') && $('#sitePhotos').checked ? 안보낸사진.length : 0;
+    $('#siteGo').hidden = !새것.length && !안보낸사진.length;
+    $('#siteGo').disabled = !n && !사진;
+    $('#siteGo').textContent = [n ? '품목 ' + n + '개' : '', 사진 ? '사진 ' + 사진 + '장' : ''].filter(Boolean).join(' + ') + ' 보내기';
+    if (!n && !사진) $('#siteGo').textContent = '보낼 것이 없습니다';
   };
   $('#siteBody').querySelectorAll('.site-item input').forEach((c) => c.addEventListener('change', 버튼갱신));
   버튼갱신();
 }
 
+let 안보낸사진 = [];   // 미리보기에서 계산한, 이 현장에 아직 안 보낸 사진들
+
+// 저장함 항목.보낸사진 = { 현장관리자현장ID: [사진id, ...] }
+function 보낸사진ID들(항목id, 현장id) {
+  const x = 저장함읽기().find((v) => v.id === 항목id);
+  return (x && x.보낸사진 && x.보낸사진[현장id]) || [];
+}
+
+// 한 장 보낼 때마다 바로 적는다. 중간에 끊겨도 보낸 사진을 다시 보내지 않게.
+function 보낸사진적기(항목id, 현장id, 사진id) {
+  const 목록 = 저장함읽기();
+  const x = 목록.find((v) => v.id === 항목id);
+  if (!x) return;
+  x.보낸사진 = x.보낸사진 || {};
+  const arr = x.보낸사진[현장id] || [];
+  if (arr.indexOf(사진id) < 0) arr.push(사진id);
+  x.보낸사진[현장id] = arr;
+  저장함쓰기(목록);
+}
+
+// 현장관리자 📸 원본 버튼과 같은 곳(raw-photo-upload)으로 올린다.
+async function 원본사진올리기(사진) {
+  const fd = new FormData();
+  fd.append('projectCode', 고른현장.id);
+  fd.append('구역', QuoteToSite.사진구역(사진.구역));
+  fd.append('image', 사진.blob, 'quote_' + 사진.id + '.jpg');
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 30000);
+  try {
+    const res = await fetch(CONFIG.rawPhotoUrl, { method: 'POST', body: fd, signal: ctl.signal });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function 현장으로보내기() {
   if (보내는중 || !고른현장) return;
-  const 이름들 = [...$('#siteBody').querySelectorAll('.site-item input:checked')].map((c) => c.dataset.name);
-  if (!이름들.length) return;
+  const 이름들 = [...$('#siteBody').querySelectorAll('.site-item input[data-name]:checked')].map((c) => c.dataset.name);
+  const 사진들 = $('#sitePhotos') && $('#sitePhotos').checked ? 안보낸사진.slice() : [];
+  if (!이름들.length && !사진들.length) return;
   보내는중 = true;
   const 버튼 = $('#siteGo');
   버튼.disabled = true;
-  let 성공 = 0, 실패 = 0;
+  let 성공 = 0, 실패 = 0, 사진성공 = 0, 사진실패 = 0;
   for (let i = 0; i < 이름들.length; i++) {
-    버튼.textContent = '보내는 중… ' + (i + 1) + '/' + 이름들.length;
+    버튼.textContent = '품목 보내는 중… ' + (i + 1) + '/' + 이름들.length;
     try {
       const res = await fetch(CONFIG.siteSaveUrl, {
         method: 'POST',
@@ -1708,21 +1768,35 @@ async function 현장으로보내기() {
       console.warn('품목 체크 실패', 이름들[i], e);
     }
   }
+  for (let i = 0; i < 사진들.length; i++) {
+    버튼.textContent = '사진 보내는 중… ' + (i + 1) + '/' + 사진들.length;
+    try {
+      await 원본사진올리기(사진들[i]);
+      보낸사진적기(보낼견적.id, 고른현장.id, 사진들[i].id);
+      사진성공 += 1;
+    } catch (e) {
+      사진실패 += 1;
+      console.warn('사진 보내기 실패', 사진들[i].id, e);
+    }
+  }
   보내는중 = false;
 
-  if (성공) {
+  if (성공 || 사진성공) {
     const 목록 = 저장함읽기();
     const k = 목록.findIndex((x) => x.id === 보낼견적.id);
     if (k >= 0) {
-      목록[k].보낸기록 = { 현장ID: 고른현장.id, 현장명: 고른현장.현장명, 일시: new Date().toISOString(), 건수: 성공 };
+      목록[k].보낸기록 = { 현장ID: 고른현장.id, 현장명: 고른현장.현장명, 일시: new Date().toISOString(), 건수: 성공, 사진: 사진성공 };
       저장함쓰기(목록);
     }
   }
-  const 말 = 실패
-    ? '품목 ' + 성공 + '개 체크 · ' + 실패 + '개 실패. 다시 보내면 실패한 것만 보냅니다.'
-    : '품목 ' + 성공 + '개를 현장에 체크했습니다. 현장관리자에서 확인해 보세요.';
-  toast(실패 ? '일부 실패했습니다' : '현장에 보냈습니다');
-  미리보기그리기(말);     // 다시 조회해서 방금 보낸 것은 '이미 체크됨' 으로 보인다
+  const 조각 = [];
+  if (이름들.length) 조각.push('품목 ' + 성공 + '개 체크' + (실패 ? ' · ' + 실패 + '개 실패' : ''));
+  if (사진들.length) 조각.push('사진 ' + 사진성공 + '장 보냄' + (사진실패 ? ' · ' + 사진실패 + '장 실패' : ''));
+  const 말 = 조각.join(', ') + '. ' + ((실패 || 사진실패)
+    ? '다시 보내면 실패한 것만 보냅니다.'
+    : '현장관리자에서 확인해 보세요.');
+  toast((실패 || 사진실패) ? '일부 실패했습니다' : '현장에 보냈습니다');
+  미리보기그리기(말);     // 다시 조회해서 방금 보낸 것은 '이미 체크됨·이미 보냄' 으로 보인다
 }
 
 $('#siteGo').addEventListener('click', 현장으로보내기);
