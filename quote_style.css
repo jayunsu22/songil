@@ -490,6 +490,39 @@ header {
 }
 .box-info .box-sent { display: block; color: #2d6e43; }
 
+/* 시트 오른쪽 위 ✕. 목록이 길면 맨 아래 '닫기' 까지 내려가야 해서 위에도 둔다.
+   sticky 라 목록을 내려도 따라온다. float 로 제목 옆에 붙인다. */
+/* #boxSheet > button (전체 폭 닫기 버튼) 규칙을 이겨야 해서 아이디까지 붙인다 */
+#boxSheet > .sheet-x, #siteSheet > .sheet-x {
+  position: sticky; top: 0; float: right; z-index: 2;
+  width: 40px; height: 40px; margin: -6px -4px 0 8px; padding: 0;
+  border: 1px solid var(--line); border-radius: 50%;
+  background: #fff; color: var(--muted); font-size: 18px; line-height: 1;
+}
+
+/* 현장 목록에 없을 때 저장함 이름으로 새 현장을 만든다 */
+.site-new {
+  display: block; width: 100%; text-align: left;
+  padding: 12px; margin-bottom: 12px;
+  border: 1px dashed #3f8f5a; border-radius: 12px; background: #fff;
+  color: #2d6e43; font-size: 15px; font-weight: 700;
+}
+.site-newform {
+  padding: 12px; margin-bottom: 12px;
+  border: 1px solid #3f8f5a; border-radius: 12px; background: #eef8f1;
+}
+.site-newform label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin: 0 0 4px; }
+.site-newform input {
+  width: 100%; box-sizing: border-box; height: 44px; padding: 0 10px; margin-bottom: 10px;
+  border: 1px solid var(--line); border-radius: 10px; font-size: 15px; background: #fff;
+}
+.site-newform .row { display: flex; gap: 8px; }
+.site-newform .row button {
+  flex: 1; height: 44px; border-radius: 10px; font-size: 15px; font-weight: 700;
+  border: 1px solid var(--line); background: #fff; color: var(--text);
+}
+.site-newform .row .go { background: #3f8f5a; border-color: #3f8f5a; color: #fff; }
+
 /* ---------- 현장으로 보내기 시트 (저장함 시트와 같은 모양) ---------- */
 #siteBack { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; }
 #siteSheet {

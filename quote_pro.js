@@ -1585,7 +1585,7 @@ function 현장보내기열기(항목) {
 
 async function 현장목록그리기() {
   $('#siteTitle').textContent = '‘' + 보낼견적.이름 + '’ 보낼 현장 고르기';
-  $('#siteHint').textContent = '현장관리자에 개설된 현장입니다. 새 현장은 현장관리자에서 먼저 개설해 주세요.';
+  $('#siteHint').textContent = '현장관리자에 개설된 현장입니다. 목록에 없으면 맨 위 ➕ 로 새 현장을 만드세요.';
   $('#siteGo').hidden = true;
   $('#siteBody').innerHTML = '<p class="hint">현장 목록을 불러오는 중…</p>';
   let 현장들;
@@ -1603,15 +1603,17 @@ async function 현장목록그리기() {
     현장오류('현장 목록을 불러오지 못했습니다.', 현장목록그리기);
     return;
   }
-  if (!현장들.length) {
-    $('#siteBody').innerHTML = '<p class="hint">진행 중인 현장이 없습니다. 현장관리자에서 먼저 개설해 주세요.</p>';
-    return;
-  }
   const 정렬 = QuoteToSite.현장정렬(현장들, 보낼견적.이름);
-  $('#siteBody').innerHTML = 정렬.map((p) =>
-    '<button type="button" class="site-pick' + (p.비슷함 ? ' like' : '') + '" data-id="' + esc(p.id) + '">' +
-      esc(p.현장명) + '<span>🗓 ' + esc(p.시공일자 || '날짜 미정') + '</span></button>'
-  ).join('');
+  // 목록에 없으면 저장함 이름 그대로 현장관리자에 새 현장을 만든다.
+  // 주소·기사·공지는 비워 두고 현장관리자에서 채운다.
+  $('#siteBody').innerHTML =
+    '<button type="button" class="site-new">➕ ‘' + esc(보낼견적.이름) + '’ 새 현장으로 만들기</button>' +
+    (정렬.length ? '' : '<p class="hint">진행 중인 현장이 없습니다.</p>') +
+    정렬.map((p) =>
+      '<button type="button" class="site-pick' + (p.비슷함 ? ' like' : '') + '" data-id="' + esc(p.id) + '">' +
+        esc(p.현장명) + '<span>🗓 ' + esc(p.시공일자 || '날짜 미정') + '</span></button>'
+    ).join('');
+  $('#siteBody .site-new').addEventListener('click', 새현장폼열기);
   $('#siteBody').querySelectorAll('.site-pick').forEach((b) => {
     b.addEventListener('click', () => {
       const p = 정렬.find((x) => x.id === b.dataset.id);
@@ -1619,6 +1621,58 @@ async function 현장목록그리기() {
       미리보기그리기();
     });
   });
+}
+
+function 새현장폼열기() {
+  const 버튼 = $('#siteBody .site-new');
+  const 폼 = document.createElement('div');
+  폼.className = 'site-newform';
+  폼.innerHTML =
+    '<label for="siteNewName">현장명</label><input id="siteNewName" type="text">' +
+    '<label for="siteNewDate">시공일자 (모르면 비워두세요)</label><input id="siteNewDate" type="date">' +
+    '<div class="row"><button type="button" class="cancel">취소</button>' +
+    '<button type="button" class="go">현장 만들기</button></div>';
+  버튼.replaceWith(폼);
+  $('#siteNewName').value = 보낼견적.이름 || '';
+  폼.querySelector('.cancel').addEventListener('click', 현장목록그리기);
+  폼.querySelector('.go').addEventListener('click', 새현장만들기);
+}
+
+async function 새현장만들기() {
+  const 이름 = ($('#siteNewName').value || '').trim();
+  const 날짜 = $('#siteNewDate').value || '';
+  if (!이름) { alert('현장명을 적어주세요.'); return; }
+  const go = $('#siteBody .site-newform .go');
+  go.disabled = true; go.textContent = '만드는 중…';
+  try {
+    // 현장관리자 '새 현장 개설' 과 같은 요청
+    const res = await fetch(CONFIG.siteSaveUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'create_project', projectName: 이름, projectDate: 날짜, address: '', notice: '', workersText: '' }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    let d = await res.json().catch(() => null);
+    if (Array.isArray(d)) d = d[0];
+    let id = d && (d.id || (d.fields && d.fields.id));
+    // 응답에 id 가 없으면 목록을 다시 받아 방금 만든 이름으로 찾는다
+    if (!id) {
+      const r2 = await fetch(CONFIG.siteListUrl + '?_t=' + Date.now(), { cache: 'no-store' });
+      let l = await r2.json();
+      if (Array.isArray(l)) l = l[0] || {};
+      const 같은 = (l.projects || []).filter((p) => ((p.fields || p).현장명 || '') === 이름)
+        .sort((a, b) => String((b.fields || b).createdTime || '').localeCompare(String((a.fields || a).createdTime || '')));
+      id = 같은.length ? 같은[0].id : '';
+    }
+    if (!id) throw new Error('새 현장 id 를 못 찾음');
+    toast('현장을 만들었습니다');
+    고른현장 = { id: id, 현장명: 이름 };
+    미리보기그리기('‘' + 이름 + '’ 현장을 만들었습니다. 체크될 품목을 확인하고 보내세요.');
+  } catch (e) {
+    console.warn('새 현장 만들기 실패', e);
+    alert('현장을 만들지 못했습니다. 현장관리자에서 이미 생겼는지 확인한 뒤 다시 시도해 주세요.');
+    현장목록그리기();
+  }
 }
 
 async function 미리보기그리기(결과말) {
@@ -1806,6 +1860,8 @@ async function 현장으로보내기() {
 
 $('#siteGo').addEventListener('click', 현장으로보내기);
 $('#siteClose').addEventListener('click', 현장시트닫기);
+$('#siteX').addEventListener('click', 현장시트닫기);
+$('#boxX').addEventListener('click', closeBox);
 $('#siteBack').addEventListener('click', 현장시트닫기);
 
 /* ---------- 업체(거래처) ----------
