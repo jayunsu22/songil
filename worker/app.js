@@ -97,6 +97,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         return map[`${구분}|${품목명 || ''}|${텍스트}`];
     }
 
+    // 시공품목명 -> 구역 조회 (관리자 화면의 품목 배정 매트릭스와 같은 기준: 시공품목 마스터의 구역 값)
+    // -> 그 구역에서 사장님이 미리 찍어둔 원본사진(구역 표시/시공방법 코멘트 마킹된 사진)들을 반환
+    function getRawPhotosForItem(품목명) {
+        const master = (projectData.masterItems || []).find(m => m.품목명 === 품목명);
+        const zone = master ? (master.구역 || '기타') : null;
+        if (!zone) return [];
+        return (projectData.rawPhotos || []).filter(rp => rp.구역 === zone);
+    }
+
     function showToast(message, type = 'success') {
         toast.textContent = message;
         toast.className = `toast show ${type}`;
@@ -493,6 +502,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         `;
 
+        // 사장님이 배정 전 미리 찍어둔 원본사진(구역 표시/시공방법 코멘트가 마킹된 사진) 미리보기
+        // - 밑작업/시공 둘 다 같은 구역 기준으로 보여줌 (시공 전에 참고하라는 용도라 완료 여부와 무관하게 항상 노출)
+        const rawPhotosForItem = getRawPhotosForItem(fields.시공품목);
+        let rawPhotoPreviewHtml = "";
+        if (rawPhotosForItem.length > 0) {
+            rawPhotoPreviewHtml = `
+                <div class="raw-photo-preview-box">
+                    <h3>🖼️ 원본사진 참고 (${rawPhotosForItem.length}장)</h3>
+                    <div class="raw-photo-preview-strip">
+                        ${rawPhotosForItem.map(rp => `
+                            <img src="${rp.url}" class="raw-photo-preview-thumb" alt="원본사진" loading="lazy" onclick="event.stopPropagation(); openImageLightbox('${rp.url}')">
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
         // 가이드라인 체크리스트 파싱 (이 현장에서 제외 처리된 지침은 숨김)
         const excludedLines = (fields.제외된지침 || '').split('\n').map(s => s.trim()).filter(Boolean);
         const importantLines = (fields.중요지침 || '').split('\n').map(s => s.trim()).filter(Boolean);
@@ -760,7 +786,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         card.innerHTML = `
             ${headerHtml}
             <div class="task-card-body" id="${cardBodyId}" style="display: ${isExpanded ? 'block' : 'none'};">
-                ${checklistHtml}${photoHtml}${damageHtml}${buttonHtml}
+                ${rawPhotoPreviewHtml}${checklistHtml}${photoHtml}${damageHtml}${buttonHtml}
             </div>
         `;
         taskListContainer.appendChild(card);

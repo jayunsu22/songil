@@ -417,6 +417,30 @@ body {
     gap: 8px;
 }
 
+/* 사장님이 배정 전 미리 찍어둔 원본사진(구역 표시/코멘트 마킹) 미리보기 - 가로 스크롤 썸네일 */
+.raw-photo-preview-box {
+    margin-bottom: 20px;
+}
+
+.raw-photo-preview-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.raw-photo-preview-thumb {
+    width: 84px;
+    height: 84px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1.5px solid var(--border-color);
+    flex-shrink: 0;
+    cursor: zoom-in;
+    background: #f1f5f9;
+}
+
 /* 사진 슬롯 컨테이너 */
 .photo-slots-container {
     display: flex;
