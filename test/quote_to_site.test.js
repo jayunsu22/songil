@@ -137,3 +137,12 @@ test('현장정렬: 이름이 겹치는 현장 먼저, 나머지는 시공일자
   assert.strictEqual(r[0].비슷함, true);
   assert.strictEqual(r[1].비슷함, false);
 });
+
+test('현장정렬: 동 번호나 흔한 한 조각만 겹치면 비슷하지 않다', () => {
+  const r = 현장정렬([
+    { id: 'a', 현장명: '인천 송도 퍼스트월드 3동 503호', 시공일자: '2026-09-09' },
+    { id: 'b', 현장명: '송도 그린스퀘어 101동 503호', 시공일자: '2026-07-15' },
+  ], '우장산 한화꿈에그린 103동');
+  assert.deepStrictEqual(r.map((x) => x.비슷함), [false, false]);
+  assert.deepStrictEqual(r.map((x) => x.id), ['a', 'b']);   // 날짜순 그대로
+});

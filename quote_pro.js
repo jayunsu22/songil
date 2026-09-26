@@ -7,6 +7,10 @@ const CONFIG = {
   photoUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-photo',
   // '거래처별 현장관리' 앱이 쓰는 백업 읽기 주소. 같은 백업키로 거래처를 읽어온다.
   vendorUrl:  'https://primary-production-a6fa.up.railway.app/webhook/sitenote-restore',
+  // 필름현장관리자(admin) 가 쓰는 주소들. 저장함 견적의 품목을 현장에 체크해 보낼 때 쓴다.
+  siteListUrl:   'https://primary-production-a6fa.up.railway.app/webhook/film-admin-get-v2',
+  siteDetailUrl: 'https://primary-production-a6fa.up.railway.app/webhook/film-quality-get-v2',
+  siteSaveUrl:   'https://primary-production-a6fa.up.railway.app/webhook/film-quality-save',
 };
 
 const STORAGE_KEY = 'quote_pro_state_v1';
@@ -1366,9 +1370,13 @@ async function openBox() {
           (x.상태 && x.상태.내부메모
             ? '<span class="box-priv">' + esc(String(x.상태.내부메모).split('\n')[0]) + '</span>'
             : '') +
+          (x.보낸기록
+            ? '<span class="box-sent">→ ' + esc(x.보낸기록.현장명) + ' (' + 짧은날짜(x.보낸기록.일시).split(' ')[0] + ' 보냄)</span>'
+            : '') +
         '</div>' +
         '<div class="box-acts">' +
           '<button type="button" class="box-load">불러오기</button>' +
+          '<button type="button" class="box-site">🏗 현장으로</button>' +
           // 발행한 적이 없으면 열 견적서가 없다. 버튼을 아예 안 만든다.
           (x.현장코드
             ? '<button type="button" class="box-view">내역보기</button>' +
@@ -1468,6 +1476,11 @@ $('#boxList').addEventListener('click', async (e) => {
     return;
   }
 
+  if (e.target.classList.contains('box-site')) {
+    현장보내기열기(항목);
+    return;
+  }
+
   if (e.target.classList.contains('box-view')) {
     if (!항목.현장코드) return;
     // 발행 시점 그대로의 견적서를 새 탭에서 연다. 작성 화면은 건드리지 않는다.
@@ -1539,6 +1552,182 @@ $('#boxList').addEventListener('click', async (e) => {
 $('#boxBtn').addEventListener('click', openBox);
 $('#boxClose').addEventListener('click', closeBox);
 $('#boxBack').addEventListener('click', closeBox);
+
+/* ---------- 현장으로 보내기 ----------
+   저장함 견적의 품목을 필름현장관리자의 (이미 개설된) 현장에 체크해 준다.
+   관리자 앱 품목 표에서 하나씩 누르던 것과 같은 요청(toggle_item_create)을 보낸다.
+   체크를 추가만 하고 해제는 절대 하지 않는다. 짝짓기 규칙은 quote_to_site.js. */
+let 보낼견적 = null;     // 저장함 항목
+let 고른현장 = null;     // { id, 현장명 }
+let 보내는중 = false;
+
+function 현장시트열기() { $('#siteBack').hidden = false; $('#siteSheet').hidden = false; }
+function 현장시트닫기() {
+  if (보내는중) { toast('보내는 중입니다. 끝날 때까지 기다려 주세요.'); return; }
+  $('#siteBack').hidden = true; $('#siteSheet').hidden = true;
+}
+
+function 현장오류(말, 다시) {
+  $('#siteGo').hidden = true;
+  $('#siteBody').innerHTML = '<p class="hint">' + esc(말) + '</p>' +
+    '<button type="button" class="site-retry">다시 시도</button>';
+  $('#siteBody .site-retry').addEventListener('click', 다시);
+}
+
+function 현장보내기열기(항목) {
+  보낼견적 = 항목;
+  고른현장 = null;
+  closeBox();
+  현장시트열기();
+  현장목록그리기();
+}
+
+async function 현장목록그리기() {
+  $('#siteTitle').textContent = '‘' + 보낼견적.이름 + '’ 보낼 현장 고르기';
+  $('#siteHint').textContent = '현장관리자에 개설된 현장입니다. 새 현장은 현장관리자에서 먼저 개설해 주세요.';
+  $('#siteGo').hidden = true;
+  $('#siteBody').innerHTML = '<p class="hint">현장 목록을 불러오는 중…</p>';
+  let 현장들;
+  try {
+    const res = await fetch(CONFIG.siteListUrl + '?_t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    let d = await res.json();
+    if (Array.isArray(d)) d = d[0] || {};
+    현장들 = (d.projects || []).map((p) => {
+      const f = p.fields || p;
+      return { id: p.id, 현장명: f.현장명 || '(이름 없음)', 시공일자: f.시공일자 || '', 보관: !!f.보관함 };
+    }).filter((p) => p.id && !p.보관);
+  } catch (e) {
+    console.warn('현장 목록 실패', e);
+    현장오류('현장 목록을 불러오지 못했습니다.', 현장목록그리기);
+    return;
+  }
+  if (!현장들.length) {
+    $('#siteBody').innerHTML = '<p class="hint">진행 중인 현장이 없습니다. 현장관리자에서 먼저 개설해 주세요.</p>';
+    return;
+  }
+  const 정렬 = QuoteToSite.현장정렬(현장들, 보낼견적.이름);
+  $('#siteBody').innerHTML = 정렬.map((p) =>
+    '<button type="button" class="site-pick' + (p.비슷함 ? ' like' : '') + '" data-id="' + esc(p.id) + '">' +
+      esc(p.현장명) + '<span>🗓 ' + esc(p.시공일자 || '날짜 미정') + '</span></button>'
+  ).join('');
+  $('#siteBody').querySelectorAll('.site-pick').forEach((b) => {
+    b.addEventListener('click', () => {
+      const p = 정렬.find((x) => x.id === b.dataset.id);
+      고른현장 = { id: p.id, 현장명: p.현장명 };
+      미리보기그리기();
+    });
+  });
+}
+
+async function 미리보기그리기(결과말) {
+  $('#siteTitle').textContent = '‘' + 보낼견적.이름 + '’ → ' + 고른현장.현장명;
+  $('#siteHint').textContent = 결과말 || '체크될 품목을 확인하고 보내세요. 빼고 싶은 품목은 체크를 끄세요.';
+  $('#siteGo').hidden = true;
+  $('#siteBody').innerHTML = '<p class="hint">현장 품목을 확인하는 중…</p>';
+  let 상세;
+  try {
+    const res = await fetch(CONFIG.siteDetailUrl + '?code=' + encodeURIComponent(고른현장.id) + '&_t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    상세 = await res.json();
+    if (Array.isArray(상세)) 상세 = 상세[0] || {};
+  } catch (e) {
+    console.warn('현장 상세 실패', e);
+    현장오류('현장 정보를 불러오지 못했습니다.', () => 미리보기그리기());
+    return;
+  }
+
+  const 현장품목명 = (상세.masterItems || []).map((m) => m.품목명).filter(Boolean);
+  const 이미 = new Set(상세.activeItems || []);
+  const 상태 = 보낼견적.상태 || {};
+  const r = QuoteToSite.짝짓기(QuoteToSite.견적품목들(상태), 상태.방수 || 3, 현장품목명);
+  const 새것 = r.짝.filter((x) => !이미.has(x.현장품목));
+  const 있던것 = r.짝.filter((x) => 이미.has(x.현장품목));
+
+  // 견적 구역별로 묶어 보여준다. 사장님이 견적을 낼 때 본 순서가 그게 익숙하다.
+  const 묶기 = (arr) => {
+    const m = new Map();
+    arr.forEach((x) => { if (!m.has(x.구역)) m.set(x.구역, []); m.get(x.구역).push(x); });
+    return m;
+  };
+  let html = '<button type="button" class="site-back">← 다른 현장 고르기</button>';
+  if (새것.length) {
+    묶기(새것).forEach((arr, 구역) => {
+      html += '<div class="site-group">' + esc(구역) + '</div>';
+      arr.forEach((x) => {
+        html += '<label class="site-item"><input type="checkbox" checked data-name="' + esc(x.현장품목) + '">' +
+          esc(x.현장품목) + '<small>견적: ' + esc(x.견적품목) + '</small></label>';
+      });
+    });
+  } else {
+    html += '<p class="hint">새로 체크할 품목이 없습니다.</p>';
+  }
+  if (있던것.length) {
+    html += '<div class="site-group">이미 체크돼 있음 (건너뜀)</div>';
+    있던것.forEach((x) => {
+      html += '<div class="site-item done">☑️ ' + esc(x.현장품목) + '</div>';
+    });
+  }
+  if (r.짝없음.length) {
+    html += '<div class="site-miss">⚠️ 현장관리자에 짝이 없는 품목입니다. 필요하면 현장관리자에서 직접 골라주세요.<br>' +
+      r.짝없음.map((x) => esc(x.구역 + ' ' + x.견적품목)).join(', ') + '</div>';
+  }
+  $('#siteBody').innerHTML = html;
+  $('#siteBody .site-back').addEventListener('click', 현장목록그리기);
+
+  const 버튼갱신 = () => {
+    const n = $('#siteBody').querySelectorAll('.site-item input:checked').length;
+    $('#siteGo').hidden = !새것.length;
+    $('#siteGo').disabled = !n;
+    $('#siteGo').textContent = n + '개 보내기';
+  };
+  $('#siteBody').querySelectorAll('.site-item input').forEach((c) => c.addEventListener('change', 버튼갱신));
+  버튼갱신();
+}
+
+async function 현장으로보내기() {
+  if (보내는중 || !고른현장) return;
+  const 이름들 = [...$('#siteBody').querySelectorAll('.site-item input:checked')].map((c) => c.dataset.name);
+  if (!이름들.length) return;
+  보내는중 = true;
+  const 버튼 = $('#siteGo');
+  버튼.disabled = true;
+  let 성공 = 0, 실패 = 0;
+  for (let i = 0; i < 이름들.length; i++) {
+    버튼.textContent = '보내는 중… ' + (i + 1) + '/' + 이름들.length;
+    try {
+      const res = await fetch(CONFIG.siteSaveUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'toggle_item_create', projectCode: 고른현장.id, itemName: 이름들[i] }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      성공 += 1;
+    } catch (e) {
+      실패 += 1;
+      console.warn('품목 체크 실패', 이름들[i], e);
+    }
+  }
+  보내는중 = false;
+
+  if (성공) {
+    const 목록 = 저장함읽기();
+    const k = 목록.findIndex((x) => x.id === 보낼견적.id);
+    if (k >= 0) {
+      목록[k].보낸기록 = { 현장ID: 고른현장.id, 현장명: 고른현장.현장명, 일시: new Date().toISOString(), 건수: 성공 };
+      저장함쓰기(목록);
+    }
+  }
+  const 말 = 실패
+    ? '품목 ' + 성공 + '개 체크 · ' + 실패 + '개 실패. 다시 보내면 실패한 것만 보냅니다.'
+    : '품목 ' + 성공 + '개를 현장에 체크했습니다. 현장관리자에서 확인해 보세요.';
+  toast(실패 ? '일부 실패했습니다' : '현장에 보냈습니다');
+  미리보기그리기(말);     // 다시 조회해서 방금 보낸 것은 '이미 체크됨' 으로 보인다
+}
+
+$('#siteGo').addEventListener('click', 현장으로보내기);
+$('#siteClose').addEventListener('click', 현장시트닫기);
+$('#siteBack').addEventListener('click', 현장시트닫기);
 
 /* ---------- 업체(거래처) ----------
    업체마다 견적시 주의사항이 다르다 (예: 문틀 안쪽면은 안 한다, 몰딩은 따로 받는다).

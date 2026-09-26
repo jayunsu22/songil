@@ -157,6 +157,16 @@
   <button id="boxClose" type="button">닫기</button>
 </section>
 
+<!-- 저장함 견적을 현장관리자의 현장으로 보내 품목을 체크한다 -->
+<div id="siteBack" hidden></div>
+<section id="siteSheet" hidden aria-label="현장으로 보내기">
+  <h2 id="siteTitle">현장으로 보내기</h2>
+  <p class="hint" id="siteHint"></p>
+  <div id="siteBody"></div>
+  <button id="siteGo" type="button" hidden>보내기</button>
+  <button id="siteClose" type="button">닫기</button>
+</section>
+
 <div id="vendorBack" hidden></div>
 <section id="vendorSheet" hidden aria-label="업체 선택">
   <h2>업체 선택</h2>
@@ -312,6 +322,7 @@
 <!-- quote_calc.js 가 먼저 로드되어야 한다 (quote_pro.js 가 QuoteCalc 를 쓴다) -->
 <script src="quote_calc.js"></script>
 <script src="quote_photos.js"></script>
+<script src="quote_to_site.js"></script>
 <script src="quote_pro.js"></script>
 </body>
 </html>

@@ -111,24 +111,27 @@
     return { 짝: 짝, 짝없음: 짝없음 };
   }
 
-  // 두 글자 조각. 숫자만으로 된 조각('10')은 동·호수끼리 우연히 겹치므로 뺀다.
+  // 두 글자 조각. 숫자가 섞인 조각('3동', '10')은 동·호수끼리 우연히 겹치므로 뺀다.
   function 조각들(s) {
     const out = new Set();
     String(s || '').split(/\s+/).forEach((w) => {
       for (let i = 0; i + 1 < w.length; i++) {
         const g = w.slice(i, i + 2);
-        if (!/^\d+$/.test(g)) out.add(g);
+        if (!/\d/.test(g)) out.add(g);
       }
     });
     return out;
   }
 
-  /* 현장 목록 정렬: 견적 이름과 겹치는 조각이 많은 현장이 위, 나머지는 시공일자 최신순. */
+  /* 현장 목록 정렬: 견적 이름과 겹치는 조각이 많은 현장이 위, 나머지는 시공일자 최신순.
+     한 조각만 겹치는 건('그린', '송도') 흔한 말이라 비슷하다고 치지 않는다. */
+  const 비슷함기준 = 2;
   function 현장정렬(현장들, 견적이름) {
     const 기준 = 조각들(견적이름);
     return (현장들 || []).map((p) => {
       let 점수 = 0;
       조각들(p.현장명).forEach((g) => { if (기준.has(g)) 점수++; });
+      if (점수 < 비슷함기준) 점수 = 0;
       return Object.assign({}, p, { 점수: 점수, 비슷함: 점수 > 0 });
     }).sort((a, b) =>
       (b.점수 - a.점수) || String(b.시공일자 || '').localeCompare(String(a.시공일자 || '')));

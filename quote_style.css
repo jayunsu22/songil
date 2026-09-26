@@ -481,6 +481,61 @@ header {
   background: #fff; color: var(--muted);
   font-size: 13px;
 }
+/* 현장관리자로 품목 체크를 보내는 버튼. 견적서 쪽(갈색)과 다른 일이라 초록으로 가른다. */
+.box-site {
+  flex: 0 0 auto; height: 40px; padding: 0 14px;
+  border: 1px solid #3f8f5a; border-radius: 10px;
+  background: #eef8f1; color: #2d6e43;
+  font-size: 14px; font-weight: 700;
+}
+.box-info .box-sent { display: block; color: #2d6e43; }
+
+/* ---------- 현장으로 보내기 시트 (저장함 시트와 같은 모양) ---------- */
+#siteBack { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; }
+#siteSheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  background: var(--card);
+  border-radius: 18px 18px 0 0;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+}
+#siteSheet h2 { margin: 0 0 6px; font-size: 17px; }
+#siteSheet .hint { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+#siteSheet > button {
+  width: 100%; height: 48px; margin-top: 10px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; color: var(--text); font-size: 15px; font-weight: 700;
+}
+#siteSheet > #siteGo { background: var(--accent); border-color: var(--accent); color: #fff; }
+#siteSheet > #siteGo:disabled { opacity: .6; }
+.site-pick {
+  display: block; width: 100%; text-align: left;
+  padding: 12px; margin-bottom: 8px;
+  border: 1px solid var(--line); border-radius: 12px; background: #fff;
+  font-size: 15px; font-weight: 700; color: var(--text);
+}
+.site-pick span { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+.site-pick.like { border-color: #3f8f5a; background: #eef8f1; }
+.site-pick.like span::before { content: '이름이 비슷함 · '; color: #2d6e43; font-weight: 700; }
+.site-group { margin: 12px 0 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.site-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 4px; border-top: 1px solid var(--line); font-size: 15px;
+}
+.site-item input { width: 20px; height: 20px; flex: 0 0 auto; }
+.site-item small { margin-left: auto; font-size: 12px; color: var(--muted); text-align: right; }
+.site-item.done { color: var(--muted); }
+.site-miss {
+  margin-top: 14px; padding: 12px;
+  border: 1px dashed #d9a24a; border-radius: 12px; background: #fdf6ea;
+  font-size: 13px; color: #7c5620; line-height: 1.5;
+}
+.site-back, .site-retry {
+  border: 0; background: none; padding: 4px 0; margin-bottom: 8px;
+  color: var(--accent); font-size: 14px; font-weight: 700;
+}
+
 .box-orphan {
   display: flex; align-items: center; gap: 10px;
   margin-top: 12px; padding: 12px;
@@ -758,7 +813,7 @@ header {
    left:0; right:0 에 max-width + margin auto 를 주면 같은 폭으로 가운데 선다. */
 @media (min-width: 600px) {
   body { max-width: 480px; margin: 0 auto; box-shadow: 0 0 24px rgba(0,0,0,.08); min-height: 100vh; }
-  header, #totalBar, #pubSheet, #boxSheet, #vendorSheet, #customSheet, #descSheet,
+  header, #totalBar, #pubSheet, #boxSheet, #siteSheet, #vendorSheet, #customSheet, #descSheet,
   #traySheet, #tagSheet, #markSheet {
     max-width: 480px;
     margin-left: auto;
