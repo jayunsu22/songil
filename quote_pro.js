@@ -1575,67 +1575,50 @@ function 현장오류(말, 다시) {
   $('#siteBody .site-retry').addEventListener('click', 다시);
 }
 
+/* 현장 목록은 불러오지 않는다 - 현장이 쌓이면 목록 조회가 오래 걸린다.
+   처음 보내는 견적은 새 현장을 만들고, 이미 이 견적으로 만든(보낸) 현장이 있으면
+   그 현장으로 바로 간다 (나중에 찍은 사진·빠진 품목을 같은 현장에 더 보낼 수 있게).
+   현장관리자에 같은 현장이 이미 있었다면 사장님이 현장관리자에서 정리한다. */
 function 현장보내기열기(항목) {
   보낼견적 = 항목;
   고른현장 = null;
   closeBox();
   현장시트열기();
-  현장목록그리기();
-}
-
-async function 현장목록그리기() {
-  $('#siteTitle').textContent = '‘' + 보낼견적.이름 + '’ 보낼 현장 고르기';
-  $('#siteHint').textContent = '현장관리자에 개설된 현장입니다. 목록에 없으면 맨 위 ➕ 로 새 현장을 만드세요.';
-  $('#siteGo').hidden = true;
-  $('#siteBody').innerHTML = '<p class="hint">현장 목록을 불러오는 중…</p>';
-  let 현장들;
-  try {
-    const res = await fetch(CONFIG.siteListUrl + '?_t=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    let d = await res.json();
-    if (Array.isArray(d)) d = d[0] || {};
-    현장들 = (d.projects || []).map((p) => {
-      const f = p.fields || p;
-      return { id: p.id, 현장명: f.현장명 || '(이름 없음)', 시공일자: f.시공일자 || '', 보관: !!f.보관함 };
-    }).filter((p) => p.id && !p.보관);
-  } catch (e) {
-    console.warn('현장 목록 실패', e);
-    현장오류('현장 목록을 불러오지 못했습니다.', 현장목록그리기);
-    return;
+  const 기록 = 저장함읽기().find((x) => x.id === 항목.id);
+  if (기록 && 기록.보낸기록 && 기록.보낸기록.현장ID) {
+    고른현장 = { id: 기록.보낸기록.현장ID, 현장명: 기록.보낸기록.현장명 };
+    미리보기그리기();
+  } else {
+    새현장폼그리기();
   }
-  const 정렬 = QuoteToSite.현장정렬(현장들, 보낼견적.이름);
-  // 목록에 없으면 저장함 이름 그대로 현장관리자에 새 현장을 만든다.
-  // 주소·기사·공지는 비워 두고 현장관리자에서 채운다.
-  $('#siteBody').innerHTML =
-    '<button type="button" class="site-new">➕ ‘' + esc(보낼견적.이름) + '’ 새 현장으로 만들기</button>' +
-    (정렬.length ? '' : '<p class="hint">진행 중인 현장이 없습니다.</p>') +
-    정렬.map((p) =>
-      '<button type="button" class="site-pick' + (p.비슷함 ? ' like' : '') + '" data-id="' + esc(p.id) + '">' +
-        esc(p.현장명) + '<span>🗓 ' + esc(p.시공일자 || '날짜 미정') + '</span></button>'
-    ).join('');
-  $('#siteBody .site-new').addEventListener('click', 새현장폼열기);
-  $('#siteBody').querySelectorAll('.site-pick').forEach((b) => {
-    b.addEventListener('click', () => {
-      const p = 정렬.find((x) => x.id === b.dataset.id);
-      고른현장 = { id: p.id, 현장명: p.현장명 };
-      미리보기그리기();
-    });
-  });
 }
 
-function 새현장폼열기() {
-  const 버튼 = $('#siteBody .site-new');
-  const 폼 = document.createElement('div');
-  폼.className = 'site-newform';
-  폼.innerHTML =
+function 새현장폼그리기() {
+  고른현장 = null;
+  $('#siteTitle').textContent = '‘' + 보낼견적.이름 + '’ 새 현장 만들기';
+  $('#siteHint').textContent = '현장관리자에 새 현장을 만들고, 이 견적의 품목과 사진을 보냅니다. 주소·기사·공지는 현장관리자에서 채우세요.';
+  $('#siteGo').hidden = true;
+  $('#siteBody').innerHTML =
+    '<div class="site-newform">' +
     '<label for="siteNewName">현장명</label><input id="siteNewName" type="text">' +
     '<label for="siteNewDate">시공일자 (모르면 비워두세요)</label><input id="siteNewDate" type="date">' +
     '<div class="row"><button type="button" class="cancel">취소</button>' +
-    '<button type="button" class="go">현장 만들기</button></div>';
-  버튼.replaceWith(폼);
+    '<button type="button" class="go">현장 만들기</button></div></div>';
   $('#siteNewName').value = 보낼견적.이름 || '';
-  폼.querySelector('.cancel').addEventListener('click', 현장목록그리기);
-  폼.querySelector('.go').addEventListener('click', 새현장만들기);
+  $('#siteBody .site-newform .cancel').addEventListener('click', 현장시트닫기);
+  $('#siteBody .site-newform .go').addEventListener('click', 새현장만들기);
+}
+
+// 이 견적이 어느 현장으로 갔는지 적는다. 품목을 아직 안 보냈어도 현장을 만든 순간 적어야
+// 다시 눌렀을 때 현장이 또 생기지 않는다.
+function 보낸현장적기(extra) {
+  const 목록 = 저장함읽기();
+  const k = 목록.findIndex((x) => x.id === 보낼견적.id);
+  if (k < 0) return;
+  const 전 = 목록[k].보낸기록 || {};
+  목록[k].보낸기록 = Object.assign({ 건수: 0, 사진: 0 }, 전.현장ID === 고른현장.id ? 전 : {},
+    { 현장ID: 고른현장.id, 현장명: 고른현장.현장명, 일시: new Date().toISOString() }, extra || {});
+  저장함쓰기(목록);
 }
 
 async function 새현장만들기() {
@@ -1667,11 +1650,12 @@ async function 새현장만들기() {
     if (!id) throw new Error('새 현장 id 를 못 찾음');
     toast('현장을 만들었습니다');
     고른현장 = { id: id, 현장명: 이름 };
+    보낸현장적기();
     미리보기그리기('‘' + 이름 + '’ 현장을 만들었습니다. 체크될 품목을 확인하고 보내세요.');
   } catch (e) {
     console.warn('새 현장 만들기 실패', e);
     alert('현장을 만들지 못했습니다. 현장관리자에서 이미 생겼는지 확인한 뒤 다시 시도해 주세요.');
-    현장목록그리기();
+    새현장폼그리기();
   }
 }
 
@@ -1705,7 +1689,8 @@ async function 미리보기그리기(결과말) {
     arr.forEach((x) => { if (!m.has(x.구역)) m.set(x.구역, []); m.get(x.구역).push(x); });
     return m;
   };
-  let html = '<button type="button" class="site-back">← 다른 현장 고르기</button>';
+  // 이 견적으로 이미 만든 현장이 잘못됐을 때만 쓰는 탈출구. 현장이 하나 더 생긴다.
+  let html = '<button type="button" class="site-back">➕ 다른 새 현장으로 따로 만들기</button>';
   if (새것.length) {
     묶기(새것).forEach((arr, 구역) => {
       html += '<div class="site-group">' + esc(구역) + '</div>';
@@ -1753,7 +1738,7 @@ async function 미리보기그리기(결과말) {
   }
 
   $('#siteBody').innerHTML = html;
-  $('#siteBody .site-back').addEventListener('click', 현장목록그리기);
+  $('#siteBody .site-back').addEventListener('click', 새현장폼그리기);
 
   const 버튼갱신 = () => {
     const n = $('#siteBody').querySelectorAll('.site-item input[data-name]:checked').length;
@@ -1840,14 +1825,7 @@ async function 현장으로보내기() {
   }
   보내는중 = false;
 
-  if (성공 || 사진성공) {
-    const 목록 = 저장함읽기();
-    const k = 목록.findIndex((x) => x.id === 보낼견적.id);
-    if (k >= 0) {
-      목록[k].보낸기록 = { 현장ID: 고른현장.id, 현장명: 고른현장.현장명, 일시: new Date().toISOString(), 건수: 성공, 사진: 사진성공 };
-      저장함쓰기(목록);
-    }
-  }
+  if (성공 || 사진성공) 보낸현장적기({ 건수: 성공, 사진: 사진성공 });
   const 조각 = [];
   if (이름들.length) 조각.push('품목 ' + 성공 + '개 체크' + (실패 ? ' · ' + 실패 + '개 실패' : ''));
   if (사진들.length) 조각.push('사진 ' + 사진성공 + '장 보냄' + (사진실패 ? ' · ' + 사진실패 + '장 실패' : ''));
