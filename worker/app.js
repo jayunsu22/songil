@@ -559,10 +559,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (siteNote) {
                 const noteLine = `⚠️ 현장 특이사항: ${siteNote}`;
                 const isNoteChecked = isCompleted || existingResults.includes(`[✓] ${noteLine}`);
+                const isNoteImportant = !!fields.특이사항중요;
+                const noteStarHtml = isNoteImportant ? `<span class="important-star">⭐</span>` : '';
 
                 checklistHtml += `
-                    <div class="check-item site-note-item ${isNoteChecked ? 'checked' : ''} ${isCompleted ? 'disabled' : ''}" data-index="site-note">
+                    <div class="check-item site-note-item ${isNoteChecked ? 'checked' : ''} ${isCompleted ? 'disabled' : ''} ${isNoteImportant ? 'important-flag' : ''}" data-index="site-note">
                         <div class="custom-checkbox"></div>
+                        ${noteStarHtml}
                         <div class="check-text">${noteLine}</div>
                     </div>
                 `;
