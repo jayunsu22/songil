@@ -153,6 +153,66 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('lightboxOverlay').style.display = 'none';
     };
 
+    // 원본사진 모아보기: 헤더의 "📷 원본사진 보기" 버튼. 관리자 화면의 사진 갤러리를 '원본'만 체크해서 연 것과 같은 모양
+    const RAW_GALLERY_ZONE_ORDER = ['방1', '방2', '방3', '방4', '방5', '거실', '주방', '현관', '기타'];
+    let rawGalleryActiveZone = '전체';
+
+    // "청라 호반4차 베르디움 490동 2503호" -> 큰 제목 "청라 호반4차 베르디움" + 작은 제목 "490동 2503호"
+    function splitProjectTitle(str) {
+        const m = (str || '').match(/^(.*?)\s+(\d+\s*동(?:\s*\d+\s*호)?)$/);
+        if (m) return { main: m[1].trim(), sub: m[2].trim() };
+        return { main: str || '현장', sub: '' };
+    }
+
+    window.openRawPhotoGallery = function() {
+        if (!projectData || !projectData.project) {
+            showToast("현장 정보를 불러온 뒤 다시 눌러주세요.", "danger");
+            return;
+        }
+        const title = splitProjectTitle(projectData.project.현장명);
+        document.getElementById('rawGalleryTitleMain').textContent = title.main;
+        document.getElementById('rawGalleryTitleSub').textContent = title.sub;
+        rawGalleryActiveZone = '전체';
+        renderRawPhotoGallery();
+        document.getElementById('rawPhotoGalleryModal').style.display = 'flex';
+    };
+
+    window.closeRawPhotoGallery = function() {
+        document.getElementById('rawPhotoGalleryModal').style.display = 'none';
+    };
+
+    window.filterRawGalleryByZone = function(zone) {
+        rawGalleryActiveZone = zone;
+        renderRawPhotoGallery();
+    };
+
+    function renderRawPhotoGallery() {
+        const isValidPhoto = (p) => !!p && p.url && !p.url.includes('1x1.png') && !(p.filename && p.filename.includes('1x1.png'));
+        const photos = (projectData.rawPhotos || []).filter(isValidPhoto).map(rp => ({ url: rp.url, 구역: rp.구역 || '기타' }));
+
+        const zones = RAW_GALLERY_ZONE_ORDER.filter(zone => photos.some(p => p.구역 === zone));
+        photos.forEach(p => { if (!zones.includes(p.구역)) zones.push(p.구역); }); // 목록에 없는 구역 이름도 빠뜨리지 않음
+        if (rawGalleryActiveZone !== '전체' && !zones.includes(rawGalleryActiveZone)) rawGalleryActiveZone = '전체';
+
+        document.getElementById('rawGalleryZoneTabs').innerHTML = ['전체', ...zones].map(zone => {
+            const count = zone === '전체' ? photos.length : photos.filter(p => p.구역 === zone).length;
+            return `<button type="button" class="raw-gallery-zone-tab ${zone === rawGalleryActiveZone ? 'active' : ''}" onclick="filterRawGalleryByZone('${zone.replace(/'/g, "\\'")}')">${zone} (${count})</button>`;
+        }).join('');
+
+        const visible = rawGalleryActiveZone === '전체' ? photos : photos.filter(p => p.구역 === rawGalleryActiveZone);
+        const grid = document.getElementById('rawGalleryGrid');
+        if (visible.length === 0) {
+            grid.innerHTML = `<div class="empty-state">등록된 원본사진이 아직 없습니다.</div>`;
+            return;
+        }
+        grid.innerHTML = visible.map(p => `
+            <div class="raw-gallery-tile" onclick="openImageLightbox('${p.url}')">
+                <img src="${p.url}" alt="${p.구역} 원본사진" loading="lazy">
+                <div class="raw-gallery-caption">${p.구역}</div>
+            </div>
+        `).join('');
+    }
+
     // 3. URL 파라미터 분석 및 초기화 데이터 로드
     // 주소는 /w/<현장코드> 형태로 들어온다 (_redirects 가 이 파일로 연결).
     // ?code= 는 예전 주소(jayunsu22.github.io/autoblog/index.html?code=...) 에서

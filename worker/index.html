@@ -13,7 +13,7 @@
     <meta property="og:description" content="현장 품질 점검/사진 기록 페이지입니다.">
     <meta property="og:type" content="website">
     <!-- 주소가 /w/<현장코드> 라서 상대경로는 /w/ 기준으로 잡힌다. 반드시 절대경로로 쓸 것. -->
-    <link rel="stylesheet" href="/worker/style.css?v=20260927">
+    <link rel="stylesheet" href="/worker/style.css?v=20260930">
 
     <!-- 홈화면 추가(PWA) 설정: 아이콘/앱 이름/전체화면 모드 -->
     <link rel="manifest" href="/worker/manifest.json">
@@ -47,6 +47,7 @@
             </div>
             <div style="display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
                 <div class="project-date-badge" id="projectDate" style="display: none;">시공일자 로드 중...</div>
+                <button id="rawPhotoGalleryBtn" class="refresh-btn" onclick="openRawPhotoGallery()" title="사장님이 미리 찍어둔 현장 원본사진을 모아서 봅니다">📷 원본사진 보기</button>
                 <button id="workerRefreshBtn" class="refresh-btn" onclick="location.reload()" title="사장님이 순서/내용을 바꾸셨으면 눌러서 최신 내용으로 새로고침하세요">🔄 새로고침</button>
             </div>
             <div class="project-address" id="projectAddress" style="display: none;">주소 로드 중...</div>
@@ -101,11 +102,26 @@
         </div>
     </div>
 
+    <!-- 원본사진 모아보기 (사장님이 구역별로 미리 찍어둔 현장 사전상태 사진만) -->
+    <div id="rawPhotoGalleryModal" class="raw-gallery-overlay" style="display: none;" onclick="if (event.target === this) closeRawPhotoGallery()">
+        <div class="raw-gallery-content">
+            <div class="raw-gallery-header">
+                <div>
+                    <h2 id="rawGalleryTitleMain"></h2>
+                    <div class="raw-gallery-title-sub" id="rawGalleryTitleSub"></div>
+                </div>
+                <button type="button" class="raw-gallery-close-btn" onclick="closeRawPhotoGallery()">✕</button>
+            </div>
+            <div class="raw-gallery-zone-tabs" id="rawGalleryZoneTabs"></div>
+            <div class="raw-gallery-grid" id="rawGalleryGrid"></div>
+        </div>
+    </div>
+
     <!-- 샘플사진 확대보기 -->
     <div id="lightboxOverlay" class="lightbox-overlay" style="display: none;" onclick="closeImageLightbox()">
         <img id="lightboxImage" src="" alt="샘플사진 확대">
     </div>
 
-    <script src="/worker/app.js?v=20260929"></script>
+    <script src="/worker/app.js?v=20260930"></script>
 </body>
 </html>

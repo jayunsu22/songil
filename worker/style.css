@@ -968,3 +968,133 @@ body {
     flex-shrink: 0;
 }
 
+
+/* 원본사진 모아보기 팝업 (확대보기 lightbox 보다 아래에 깔림) */
+.raw-gallery-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.55);
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 12px;
+}
+
+.raw-gallery-content {
+    background: var(--bg-card);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 18px;
+    overflow: hidden;
+}
+
+.raw-gallery-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.raw-gallery-header h2 {
+    font-size: 18px;
+    font-weight: 800;
+    margin: 0;
+    color: var(--text-main);
+}
+
+.raw-gallery-title-sub {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.raw-gallery-close-btn {
+    background: none;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+}
+
+.raw-gallery-zone-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 4px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.raw-gallery-zone-tab {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 800;
+    border-radius: 20px;
+    border: 1.5px solid var(--border-color);
+    background: #fff;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.raw-gallery-zone-tab.active {
+    background: var(--primary-blue);
+    border-color: var(--primary-blue);
+    color: white;
+}
+
+.raw-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+    overflow-y: auto;
+    min-height: 200px;
+}
+
+.raw-gallery-tile {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: zoom-in;
+    background: #f1f5f9;
+}
+
+.raw-gallery-tile img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.raw-gallery-caption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(transparent, rgba(15, 23, 42, 0.78));
+    color: white;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 14px 6px 5px;
+    text-align: center;
+}
+
+.raw-gallery-grid .empty-state {
+    grid-column: 1 / -1;
+    align-self: center;
+}
