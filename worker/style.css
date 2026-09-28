@@ -516,6 +516,9 @@ body {
     justify-content: center;
     padding: 24px;
     cursor: zoom-out;
+    /* 좌우로 쓸어 사진 넘길 때 브라우저의 '뒤로가기' 제스처가 먼저 먹지 않게 (확대는 그대로 됨) */
+    touch-action: pinch-zoom;
+    overscroll-behavior: contain;
 }
 
 .lightbox-overlay img {
@@ -1097,4 +1100,18 @@ body {
 .raw-gallery-grid .empty-state {
     grid-column: 1 / -1;
     align-self: center;
+}
+
+.lightbox-counter {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.55);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 14px;
+    pointer-events: none;
 }

@@ -144,14 +144,69 @@ document.addEventListener('DOMContentLoaded', async () => {
     modalConfirmBtn.addEventListener('click', () => closeModal(true));
 
     // 샘플사진 확대보기
-    window.openImageLightbox = function(url) {
-        document.getElementById('lightboxImage').src = url;
+    // 여러 장을 묶어서 열면(원본사진 모아보기/원본사진 참고) 좌우 스와이프로 넘겨볼 수 있음
+    let lightboxUrls = [];
+    let lightboxIndex = 0;
+    let lightboxTouch = null; // { x, y, multi } 한 손가락으로 시작한 터치만 (두 손가락 확대는 무시)
+
+    function showLightboxPhoto() {
+        document.getElementById('lightboxImage').src = lightboxUrls[lightboxIndex] || '';
+        const counter = document.getElementById('lightboxCounter');
+        counter.textContent = `${lightboxIndex + 1} / ${lightboxUrls.length}`;
+        counter.style.display = lightboxUrls.length > 1 ? 'block' : 'none';
+    }
+
+    window.openImageLightbox = function(url, urls) {
+        lightboxUrls = (urls && urls.length) ? urls : [url];
+        lightboxIndex = Math.max(0, lightboxUrls.indexOf(url));
+        showLightboxPhoto();
         document.getElementById('lightboxOverlay').style.display = 'flex';
     };
+
+    // el(누른 사진 또는 사진을 감싼 칸)이 속한 묶음(groupSelector)의 사진들을 한 세트로 엶
+    window.openImageLightboxGroup = function(el, groupSelector) {
+        const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+        const group = el.closest(groupSelector);
+        const urls = group ? Array.from(group.querySelectorAll('img')).map(i => i.src) : [];
+        openImageLightbox(img.src, urls);
+    };
+
+    function moveLightbox(step) {
+        if (lightboxUrls.length < 2) return;
+        lightboxIndex = (lightboxIndex + step + lightboxUrls.length) % lightboxUrls.length;
+        showLightboxPhoto();
+    }
 
     window.closeImageLightbox = function() {
         document.getElementById('lightboxOverlay').style.display = 'none';
     };
+
+    // 터치는 여기서 직접 처리: 좌우로 쓸면 넘기고, 톡 누르면 닫음 (마우스 클릭은 onclick 이 닫음)
+    const lightboxOverlayEl = document.getElementById('lightboxOverlay');
+    lightboxOverlayEl.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 1) { if (lightboxTouch) lightboxTouch.multi = true; return; }
+        lightboxTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY, multi: false };
+    }, { passive: true });
+    lightboxOverlayEl.addEventListener('touchend', (e) => {
+        if (!lightboxTouch || e.touches.length > 0) return; // 손가락이 아직 남아 있으면 끝난 게 아님
+        const start = lightboxTouch;
+        lightboxTouch = null;
+        e.preventDefault(); // 뒤따르는 click 으로 한 번 더 처리되지 않게
+        if (start.multi) return; // 두 손가락 확대/축소였으면 아무것도 안 함
+        const dx = e.changedTouches[0].clientX - start.x;
+        const dy = e.changedTouches[0].clientY - start.y;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+            moveLightbox(dx < 0 ? 1 : -1);
+        } else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+            closeImageLightbox();
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (lightboxOverlayEl.style.display !== 'flex') return;
+        if (e.key === 'ArrowRight') moveLightbox(1);
+        else if (e.key === 'ArrowLeft') moveLightbox(-1);
+        else if (e.key === 'Escape') closeImageLightbox();
+    });
 
     // 원본사진 모아보기: 헤더의 "📷 원본사진 보기" 버튼. 관리자 화면의 사진 갤러리를 '원본'만 체크해서 연 것과 같은 모양
     const RAW_GALLERY_ZONE_ORDER = ['방1', '방2', '방3', '방4', '방5', '거실', '주방', '현관', '기타'];
@@ -206,7 +261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         grid.innerHTML = visible.map(p => `
-            <div class="raw-gallery-tile" onclick="openImageLightbox('${p.url}')">
+            <div class="raw-gallery-tile" onclick="openImageLightboxGroup(this, '.raw-gallery-grid')">
                 <img src="${p.url}" alt="${p.구역} 원본사진" loading="lazy">
                 <div class="raw-gallery-caption">${p.구역}</div>
             </div>
@@ -572,7 +627,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <h3>🖼️ 원본사진 참고 (${rawPhotosForItem.length}장)</h3>
                     <div class="raw-photo-preview-strip">
                         ${rawPhotosForItem.map(rp => `
-                            <img src="${rp.url}" class="raw-photo-preview-thumb" alt="원본사진" loading="lazy" onclick="event.stopPropagation(); openImageLightbox('${rp.url}')">
+                            <img src="${rp.url}" class="raw-photo-preview-thumb" alt="원본사진" loading="lazy" onclick="event.stopPropagation(); openImageLightboxGroup(this, '.raw-photo-preview-strip')">
                         `).join('')}
                     </div>
                 </div>
