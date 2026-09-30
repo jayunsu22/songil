@@ -55,7 +55,7 @@ let toastTimer = null;
 let keySeq = 1;
 
 function 빈상태() {
-  return { 품수: '', 품단가ID: '', 품단가직접: '', 전체자재ID: '', 줄들: [], 부가: [], 메모: '', 부가세별도: true };
+  return { 품수: '', 품단가ID: '', 품단가직접: '', 전체자재ID: '', 줄들: [], 부가: [], 메모: '', 부가세별도: true, 만원절사: false };
 }
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* 시크릿 모드 등 */ }
@@ -242,7 +242,13 @@ function 품단가값() {
   return SettleCalc.수(state.품단가ID);
 }
 function 계산() {
-  return SettleCalc.합계({ 품수: state.품수, 품단가: 품단가값(), 줄들: state.줄들, 부가: state.부가 }, 자재표);
+  const r = SettleCalc.합계({ 품수: state.품수, 품단가: 품단가값(), 줄들: state.줄들, 부가: state.부가 }, 자재표);
+  // "만원 단위 절사" 옵션 켜면 최종 합계만 만원 단위로 내림해서 보여줌(예: 351,300원 → 350,000원).
+  // 인건비/자재비/부가 각 항목 자체는 실제 값 그대로 두고, 합계만 끝전을 잘라낸다.
+  if (state.만원절사 && r.총액 > 0) {
+    return Object.assign({}, r, { 총액: Math.floor(r.총액 / 10000) * 10000 });
+  }
+  return r;
 }
 
 /* =========================================================================
@@ -265,6 +271,7 @@ function renderAll() {
   renderExtras();
   $('#memoText').value = state.메모 || '';
   $('#optVat').checked = state.부가세별도 !== false;
+  $('#optRound').checked = !!state.만원절사;
   renderTotals();
 }
 
@@ -503,6 +510,7 @@ $('#addExtraBtn').addEventListener('click', () => {
 });
 $('#memoText').addEventListener('input', (ev) => { state.메모 = ev.target.value; save(); });
 $('#optVat').addEventListener('change', (ev) => { state.부가세별도 = ev.target.checked; save(); renderTotals(); });
+$('#optRound').addEventListener('change', (ev) => { state.만원절사 = ev.target.checked; save(); renderTotals(); });
 $('#resetBtn').addEventListener('click', () => {
   if (!confirm('입력한 품수·길이·부가 항목을 모두 지우고 처음부터 다시 시작할까요?')) return;
   try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* 무시 */ }
