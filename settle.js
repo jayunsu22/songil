@@ -23,6 +23,9 @@ const 품수선택지 = Array.from({ length: 39 }, (_, i) => (i + 2) / 2);
 // 길이 품목(샤시·몰딩·수납장 등)의 길이 선택지: 1 ~ 10m, 0.5 단위. 그 밖은 '직접 입력'.
 const 길이선택지 = Array.from({ length: 19 }, (_, i) => (i + 2) / 2);
 const CUSTOM_LEN = '__custom';
+// 개당 품목의 수량 선택지: 0.1 ~ 7.0, 0.1 단위 (한쪽면만 시공 등 부분 시공 시 0.5개처럼 고를 수 있게). 그 밖은 '직접 입력'.
+const 수량선택지 = Array.from({ length: 70 }, (_, i) => (i + 1) / 10);
+const CUSTOM_QTY = '__customqty';
 // 부가항목 금액 선택지. 항목명으로 종류를 고른다 - 부자재비 1~10만(1만), 식대 인건비포함/1~20만(1만), 퀵비·택배비 1~10만(5천).
 // 그 밖에 설정에서 새로 만든 항목은 부자재비와 같은 선택지. 직접 추가한 줄은 숫자칸.
 const 만 = 10000;
@@ -186,6 +189,7 @@ function mergeSaved() {
       if (!s) return;
       l.체크 = !!s.체크;
       l.수량 = s.수량 ?? 1;
+      l.수량직접 = !!s.수량직접;
       l.길이 = s.길이 ?? null;
       l.길이직접 = !!s.길이직접;
       l.직접소모량 = s.직접소모량 ?? null;
@@ -322,7 +326,15 @@ function 줄HTML(l) {
     ctl = `<select class="len" data-f="길이sel">${opts.join('')}</select>` +
       (직접입력중 ? `<input class="len" type="number" inputmode="decimal" min="0" step="0.1" data-f="길이" value="${값 === null ? '' : esc(값)}" placeholder="m" autocomplete="off"><span class="q-unit">m</span>` : '');
   } else {
-    ctl = `<div class="qty"><button type="button" data-f="qty-" aria-label="수량 줄이기">−</button><input type="number" inputmode="numeric" min="0" data-f="수량" value="${esc(l.수량)}" autocomplete="off"><button type="button" data-f="qty+" aria-label="수량 늘리기">+</button></div>`;
+    // 드롭다운(0.1~7.0개, 0.1 단위)이 기본 - 한쪽면만 시공처럼 0.5개 같은 부분 수량도 고를 수 있게.
+    // 목록에 없는 수량이거나 '직접 입력'을 골랐으면 숫자칸이 옆에 뜬다
+    const 값 = l.수량 == null || l.수량 === '' ? null : Number(l.수량);
+    const 직접입력중 = l.수량직접 || (값 !== null && !수량선택지.includes(값));
+    const opts = ['<option value="">개수</option>']
+      .concat(수량선택지.map((n) => `<option value="${n}"${!직접입력중 && 값 === n ? ' selected' : ''}>${n}개</option>`))
+      .concat([`<option value="${CUSTOM_QTY}"${직접입력중 ? ' selected' : ''}>직접 입력</option>`]);
+    ctl = `<select class="len" data-f="수량sel">${opts.join('')}</select>` +
+      (직접입력중 ? `<input class="len" type="number" inputmode="decimal" min="0" step="0.1" data-f="수량" value="${값 === null ? '' : esc(값)}" placeholder="개" autocomplete="off"><span class="q-unit">개</span>` : '');
   }
   const del = l.출처 === '추가' ? `<button type="button" class="del" data-f="del" aria-label="줄 삭제">✕</button>` : '';
   return `<div class="row ${l.체크 ? 'on' : 'off'}${경고 ? ' warn' : ''}" data-key="${l.key}">
@@ -343,8 +355,12 @@ function bindLineEvents() {
       const f = el.dataset.f;
       if (f === '체크') el.addEventListener('change', () => { l.체크 = el.checked; save(); 줄다시그리기(l); renderTotals(); });
       else if (f === '수량') el.addEventListener('input', () => { l.수량 = el.value; save(); 줄갱신(l); });
-      else if (f === 'qty-') el.addEventListener('click', () => { l.수량 = Math.max(0, SettleCalc.수(l.수량) - 1); save(); 줄다시그리기(l); renderTotals(); });
-      else if (f === 'qty+') el.addEventListener('click', () => { l.수량 = SettleCalc.수(l.수량) + 1; save(); 줄다시그리기(l); renderTotals(); });
+      else if (f === '수량sel') el.addEventListener('change', () => {
+        if (el.value === CUSTOM_QTY) { l.수량직접 = true; }
+        else { l.수량직접 = false; l.수량 = el.value === '' ? null : el.value; }
+        save(); 줄다시그리기(l); renderTotals();
+        if (l.수량직접) { const inp = $('#lines').querySelector(`.row[data-key="${l.key}"] input[data-f="수량"]`); if (inp) inp.focus(); }
+      });
       else if (f === '길이') el.addEventListener('input', () => { l.길이 = el.value === '' ? null : el.value; save(); 줄갱신(l); });
       else if (f === '길이sel') el.addEventListener('change', () => {
         if (el.value === CUSTOM_LEN) { l.길이직접 = true; }
