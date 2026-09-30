@@ -326,15 +326,15 @@ function 줄HTML(l) {
     ctl = `<select class="len" data-f="길이sel">${opts.join('')}</select>` +
       (직접입력중 ? `<input class="len" type="number" inputmode="decimal" min="0" step="0.1" data-f="길이" value="${값 === null ? '' : esc(값)}" placeholder="m" autocomplete="off"><span class="q-unit">m</span>` : '');
   } else {
-    // 드롭다운(0.1~7.0개, 0.1 단위)이 기본 - 한쪽면만 시공처럼 0.5개 같은 부분 수량도 고를 수 있게.
-    // 목록에 없는 수량이거나 '직접 입력'을 골랐으면 숫자칸이 옆에 뜬다
-    const 값 = l.수량 == null || l.수량 === '' ? null : Number(l.수량);
-    const 직접입력중 = l.수량직접 || (값 !== null && !수량선택지.includes(값));
-    const opts = ['<option value="">개수</option>']
-      .concat(수량선택지.map((n) => `<option value="${n}"${!직접입력중 && 값 === n ? ' selected' : ''}>${n}개</option>`))
+    // 드롭다운(0.1~7.0m, 0.1 단위)으로 실제 쓰는 자재 길이(m)를 바로 고른다 - "개수"가 아니라
+    // "1개 2.5m"처럼 m 단위로 보여줘야 기사님이 한쪽면만 시공 같은 부분 작업량을 이해하기 쉬움.
+    // 고른 값은 직접소모량으로 저장돼서(마스터소모량×수량 계산을 건너뛰고) 그 m × 단가로 바로 계산됨.
+    const 직접입력중 = l.수량직접 || !수량선택지.includes(소모량);
+    const opts = ['<option value="">m</option>']
+      .concat(수량선택지.map((n) => `<option value="${n}"${!직접입력중 && 소모량 === n ? ' selected' : ''}>1개 ${n}m</option>`))
       .concat([`<option value="${CUSTOM_QTY}"${직접입력중 ? ' selected' : ''}>직접 입력</option>`]);
-    ctl = `<select class="len" data-f="수량sel">${opts.join('')}</select>` +
-      (직접입력중 ? `<input class="len" type="number" inputmode="decimal" min="0" step="0.1" data-f="수량" value="${값 === null ? '' : esc(값)}" placeholder="개" autocomplete="off"><span class="q-unit">개</span>` : '');
+    ctl = `<select class="len" data-f="소모량sel">${opts.join('')}</select>` +
+      (직접입력중 ? `<input class="len" type="number" inputmode="decimal" min="0" step="0.1" data-f="소모량직접" value="${소모량 || ''}" placeholder="m" autocomplete="off"><span class="q-unit">m</span>` : '');
   }
   const del = l.출처 === '추가' ? `<button type="button" class="del" data-f="del" aria-label="줄 삭제">✕</button>` : '';
   return `<div class="row ${l.체크 ? 'on' : 'off'}${경고 ? ' warn' : ''}" data-key="${l.key}">
@@ -354,12 +354,12 @@ function bindLineEvents() {
     row.querySelectorAll('[data-f]').forEach((el) => {
       const f = el.dataset.f;
       if (f === '체크') el.addEventListener('change', () => { l.체크 = el.checked; save(); 줄다시그리기(l); renderTotals(); });
-      else if (f === '수량') el.addEventListener('input', () => { l.수량 = el.value; save(); 줄갱신(l); });
-      else if (f === '수량sel') el.addEventListener('change', () => {
+      else if (f === '소모량직접') el.addEventListener('input', () => { l.직접소모량 = el.value === '' ? null : el.value; save(); 줄갱신(l); });
+      else if (f === '소모량sel') el.addEventListener('change', () => {
         if (el.value === CUSTOM_QTY) { l.수량직접 = true; }
-        else { l.수량직접 = false; l.수량 = el.value === '' ? null : el.value; }
+        else { l.수량직접 = false; l.직접소모량 = el.value === '' ? null : el.value; }
         save(); 줄다시그리기(l); renderTotals();
-        if (l.수량직접) { const inp = $('#lines').querySelector(`.row[data-key="${l.key}"] input[data-f="수량"]`); if (inp) inp.focus(); }
+        if (l.수량직접) { const inp = $('#lines').querySelector(`.row[data-key="${l.key}"] input[data-f="소모량직접"]`); if (inp) inp.focus(); }
       });
       else if (f === '길이') el.addEventListener('input', () => { l.길이 = el.value === '' ? null : el.value; save(); 줄갱신(l); });
       else if (f === '길이sel') el.addEventListener('change', () => {
