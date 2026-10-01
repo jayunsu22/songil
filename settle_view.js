@@ -111,12 +111,18 @@ function render(d) {
   } else {
     H.push('<div class="v-empty">자재비 없음</div>');
   }
+  // 2중창 샤시는 자재가 두 배 가까이 든다. 품목 내역을 펼치지 않아도 보이게 자재비 바로 아래에 적는다
+  const 이중창 = 품목.filter((p) => p.이중창);
+  if (이중창.length) {
+    H.push('<div class="v-dbl">🪟 2중창 샤시 ' + 이중창.length + '곳 포함 <small>' +
+      이중창.map((p) => esc((p.구역 ? p.구역 + ' ' : '') + p.품목명)).join(' · ') + '</small></div>');
+  }
   if (품목.length) {
     H.push('<details><summary>품목 내역 보기 (' + 품목.length + ')</summary>');
     품목.forEach((p) => {
       const 수량 = p.길이 != null ? m(p.길이) : (p.수량 != null ? p.수량 + '개' : '');
       H.push('<div class="sub' + (Number(p.소모량) ? '' : ' zero') + '"><span>' +
-        (p.구역 ? esc(p.구역) + ' · ' : '') + esc(p.품목명) + (수량 ? ' ' + esc(수량) : '') + '</span>' +
+        (p.구역 ? esc(p.구역) + ' · ' : '') + esc(p.품목명) + (p.이중창 ? ' <b class="v-dbl-tag">2중창</b>' : '') + (수량 ? ' ' + esc(수량) : '') + '</span>' +
         '<span>' + m(p.소모량) + ' · ' + esc(p.자재명) + '</span></div>');
     });
     H.push('</details>');
