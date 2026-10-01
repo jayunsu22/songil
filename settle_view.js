@@ -120,7 +120,9 @@ function render(d) {
   if (품목.length) {
     H.push('<details><summary>품목 내역 보기 (' + 품목.length + ')</summary>');
     품목.forEach((p) => {
-      const 수량 = p.길이 != null ? m(p.길이) : (p.수량 != null ? p.수량 + '개' : '');
+      // 2중창은 "2중창" 표시 뒤 길이가 오른쪽 자재소모량과 헷갈려 보이고,
+      // 직접 추가 줄은 수량 선택이 없이 늘 1개라 이름에 적은 숫자와 겹쳐 보여서 — 둘 다 생략한다
+      const 수량 = (p.이중창 || p.구역 === '직접 추가') ? '' : (p.길이 != null ? m(p.길이) : (p.수량 != null ? p.수량 + '개' : ''));
       H.push('<div class="sub' + (Number(p.소모량) ? '' : ' zero') + '"><span>' +
         (p.구역 ? esc(p.구역) + ' · ' : '') + esc(p.품목명) + (p.이중창 ? ' <b class="v-dbl-tag">2중창</b>' : '') + (수량 ? ' ' + esc(수량) : '') + '</span>' +
         '<span>' + m(p.소모량) + ' · ' + esc(p.자재명) + '</span></div>');
