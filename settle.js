@@ -193,6 +193,7 @@ function mergeSaved() {
       l.길이 = s.길이 ?? null;
       l.길이직접 = !!s.길이직접;
       l.직접소모량 = s.직접소모량 ?? null;
+      l.이중창 = !!s.이중창;
       if (s.자재ID) l.자재ID = s.자재ID;
     });
     saved.줄들.filter((l) => l.출처 === '추가').forEach((l) => {
@@ -311,6 +312,11 @@ function renderLines() {
   bindLineEvents();
 }
 
+/* 2중창 표시: 샤시 줄에만 체크박스를 둔다. 계산은 바꾸지 않고 견적서에 '2중창' 이라고만 적힌다 -
+   업자가 보고 '샤시 자재가 왜 이렇게 많이 들었지' 를 바로 알 수 있게. 소모량(길이)은 사장님이 늘려 잡는다. */
+function is샤시(l) { return String(l.품목명 || '').includes('샤시'); }
+function is이중창(l) { return is샤시(l) && !!l.이중창; }
+
 function 줄HTML(l) {
   const 소모량 = SettleCalc.줄소모량(l);
   const 단위설명 = l.출처 === '추가' ? '' :
@@ -319,7 +325,7 @@ function 줄HTML(l) {
   const 직접 = l.직접소모량 !== null && l.직접소모량 !== undefined && l.직접소모량 !== '';
   const nm = l.출처 === '추가'
     ? `<div class="nm"><input type="text" data-f="품목명" value="${esc(l.품목명)}" placeholder="품목명" autocomplete="off"></div>`
-    : `<div class="nm">${esc(l.품목명)}<small>${esc(단위설명)}</small></div>`;
+    : `<div class="nm">${esc(l.품목명)}${is이중창(l) ? '<span class="dbl-badge">2중창</span>' : ''}<small>${esc(단위설명)}</small></div>`;
   let ctl;
   if (l.출처 === '추가') {
     ctl = `<span class="q-unit">소모량은 오른쪽 숫자를 눌러 입력</span>`;
@@ -348,7 +354,7 @@ function 줄HTML(l) {
     <input type="checkbox" data-f="체크"${l.체크 ? ' checked' : ''}>
     ${nm}
     <button type="button" class="use${소모량 === 0 ? ' zero' : ''}" data-f="use" title="눌러서 소모량 직접 입력">${l.체크 ? 소모량 + 'm' : '—'}${직접 ? '<span class="tag">직접</span>' : ''}</button>
-    ${l.체크 ? `<div class="ctl">${ctl}<select class="mat${자재표[l.자재ID] ? '' : ' none'}" data-f="자재ID">${자재옵션(l.자재ID)}</select>${del}</div>` : ''}
+    ${l.체크 ? `<div class="ctl">${ctl}${is샤시(l) ? `<label class="dbl"><input type="checkbox" data-f="이중창"${l.이중창 ? ' checked' : ''}>2중창</label>` : ''}<select class="mat${자재표[l.자재ID] ? '' : ' none'}" data-f="자재ID">${자재옵션(l.자재ID)}</select>${del}</div>` : ''}
   </div>`;
 }
 
@@ -375,6 +381,7 @@ function bindLineEvents() {
         save(); 줄다시그리기(l); renderTotals();
         if (l.길이직접) { const inp = $('#lines').querySelector(`.row[data-key="${l.key}"] input[data-f="길이"]`); if (inp) inp.focus(); }
       });
+      else if (f === '이중창') el.addEventListener('change', () => { l.이중창 = el.checked; save(); 줄다시그리기(l); });
       else if (f === '품목명') el.addEventListener('input', () => { l.품목명 = el.value; save(); });
       else if (f === '자재ID') el.addEventListener('change', () => { l.자재ID = el.value; save(); 줄다시그리기(l); renderTotals(); });
       else if (f === 'del') el.addEventListener('click', () => {
@@ -541,6 +548,7 @@ function 스냅샷만들기() {
       길이: l.길이입력 ? SettleCalc.수(l.길이) : null,
       소모량: SettleCalc.줄소모량(l),
       자재명: 자재표[l.자재ID] ? 자재표[l.자재ID].항목명 : '자재 없음',
+      ...(is이중창(l) ? { 이중창: true } : {}),
     })),
     자재소계: r.자재소계.map((s) => ({ 자재명: s.자재명, 단가: s.단가, 소모량합: s.소모량합, 금액: s.금액 })),
     부가: state.부가.filter((e) => e.인건비포함 || Math.round(SettleCalc.수(e.금액)) !== 0)
