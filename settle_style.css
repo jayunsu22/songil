@@ -181,3 +181,8 @@ button.addrow { display: block; width: 100%; text-align: left; padding: 10px 14p
 
 /* quote_style 의 display:flex/block 이 UA 의 [hidden]{display:none} 을 덮어쓴다 - 명시적으로 숨긴다 */
 #totalBar[hidden], #retryBtn[hidden], #setSheet[hidden], #setBack[hidden], .row .ctl[hidden] { display: none; }
+
+/* 2중창 (샤시 줄에만). 켜면 이름 옆에 배지, 견적서에도 '2중창' 이 나간다 */
+.row .ctl .dbl { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.row .ctl .dbl input { width: 18px; height: 18px; margin: 0; accent-color: #c2410c; }
+.row .nm .dbl-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: #ffedd5; color: #c2410c; font-size: 12px; font-weight: 800; vertical-align: middle; }

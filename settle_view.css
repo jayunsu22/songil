@@ -40,3 +40,8 @@
 
 /* quote_view.css 의 #vBar{display:flex} 가 [hidden] 을 덮는다 - 못 찾았을 때 빈 합계바가 남지 않게 */
 #vBar[hidden] { display: none; }
+
+/* 2중창 샤시 표시 - 자재가 많이 든 이유를 업자가 바로 알아보게 */
+.v-dbl { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: #fff7ed; color: #c2410c; font-size: 14px; font-weight: 800; }
+.v-dbl small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: #9a3412; }
+.v-dbl-tag { color: #c2410c; font-weight: 800; }
