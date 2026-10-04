@@ -75,3 +75,29 @@ test('발행을상태로: 품목·종류·수량·조정·구역이름·방개�
   assert.strictEqual(st.직접품목[1].자재비, 20000);
   assert.strictEqual(r.직접으로, 1);
 });
+
+test('사진서명: 태그만 바뀌면 이미지서명은 그대로, 사진을 바꾸면 이미지서명이 바뀐다', () => {
+  const { 사진서명, 이미지서명 } = require('../quote_box.js');
+  const p = { blob: { size: 1000 }, 구역: '거실', 태그: ['a'], 표시: {} };
+  const q = Object.assign({}, p, { 태그: ['a', 'b'] });
+  assert.notStrictEqual(사진서명(p), 사진서명(q));
+  assert.strictEqual(이미지서명(p), 이미지서명(q));
+  assert.notStrictEqual(이미지서명(p), 이미지서명(Object.assign({}, p, { 바뀐때: 5 })));
+});
+
+test('정리할현장: 되살린 직후(사진 0장·보낸 적 없음)에는 서버 사진을 지우지 않는다', () => {
+  const { 정리할현장 } = require('../quote_box.js');
+  // 폰이 지워지고 저장함만 되살아난 상태 — 사진은 아직 없다
+  assert.deepStrictEqual(정리할현장(['s1'], {}, {}).일, []);
+  // 처음 올린 뒤
+  let r = 정리할현장(['s1'], { s1: ['k2', 'k1'] }, {});
+  assert.deepStrictEqual(r.일, [{ 현장ID: 's1', 키들: ['k1', 'k2'] }]);
+  // 그대로면 안 보낸다
+  assert.deepStrictEqual(정리할현장(['s1'], { s1: ['k1', 'k2'] }, r.맵).일, []);
+  // 사진을 다 지웠으면 0장 남김을 보낸다 (전에 보낸 적이 있으니)
+  assert.deepStrictEqual(정리할현장(['s1'], { s1: [] }, r.맵).일, [{ 현장ID: 's1', 키들: [] }]);
+  // 저장함에서 빠진 현장
+  r = 정리할현장([], {}, { s1: 'k1' });
+  assert.deepStrictEqual(r.일, [{ 현장ID: 's1', 키들: [] }]);
+  assert.deepStrictEqual(r.맵, {});
+});

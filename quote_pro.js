@@ -17,6 +17,9 @@ const CONFIG = {
   boxRestoreUrl: 'https://primary-production-a6fa.up.railway.app/webhook/pro-box-restore',
   // 발행한 견적 한 건 (견적서 화면이 읽는 주소). 저장함에 없던 견적을 되살릴 때 쓴다.
   quoteUrl:      'https://primary-production-a6fa.up.railway.app/webhook/pro-quote',
+  // 저장함 사진 백업. 올리기는 키 없이, 목록 받기(되살리기)는 키가 있어야 한다
+  boxPhotoUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photo',
+  boxPhotosUrl:  'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photos',
 };
 
 const STORAGE_KEY = 'quote_pro_state_v1';
@@ -46,11 +49,18 @@ let 사진가능 = true;
 let 사진대상 = null;          // { 구역, 체크_ID, 품목명 }
 let 표시된품목 = new Set();   // 네모를 그려둔 품목 id — 줄의 버튼을 '사진 있음'으로 바꾼다
 // 저장함 서버 백업 (boot() 이 부르므로 여기 둔다 — 아래에 두면 TDZ)
+const BOX_KEY = 'quote_pro_box_v1';
 const BOX_QUEUE_KEY = 'quote_pro_box_queue_v1';   // 서버에 아직 못 올린 저장함 변경
 let 올리는중 = null;      // 올리는 요청이 겹치지 않게
 let 백업오류 = '';
 let 발행목록 = null;      // 서버에 있는 발행 견적 머리 정보 (가져오기 목록)
 let 열며받는중 = false;
+const BOX_SEEDED_KEY = 'quote_pro_box_seeded_v1';      // 이 폰 저장함을 서버에 처음 다 올렸는지
+const PHOTO_KEEP_KEY = 'quote_pro_photo_keep_v1';      // 현장별로 서버에 '남길 사진' 을 보낸 기록
+let 백업사진중 = false;
+let 사진다시 = false;     // 올리는 동안 또 불렸으면 끝나고 한 번 더
+let 사진올릴수 = 0;       // 남은 장수 (백업 줄에 보인다)
+let 사진오류 = '';
 
 let MASTER = null;
 // 평형 기본값은 '확인안됨'. 모르는 채로 40평 몰딩 같은 게 잘못 들어가는 것보다
@@ -229,9 +239,20 @@ function boot() {
   업체줄그리기();
   업체조용히맞추기();
   // 저장함을 서버와 맞춘다. 폰 저장함이 지워졌으면 여기서 되살아난다
-  저장함받기().then((r) => {
-    if (r && r.되살림) toast('저장함 ' + r.되살림 + '건을 서버에서 되살렸습니다');
-  }).catch(() => { /* 통신이 안 되면 다음에 */ });
+  // 키가 없어도 이 폰 저장함은 서버에 한 번 다 올려 둔다 (이 기능 전에 담은 건들)
+  if (!load(BOX_SEEDED_KEY)) {
+    const 지금 = 저장함읽기();
+    if (지금.length) save(BOX_QUEUE_KEY, QuoteBox.큐합치기(load(BOX_QUEUE_KEY) || [],
+      지금.map((x) => ({ op: 'put', id: String(x.id), data: x }))));
+    save(BOX_SEEDED_KEY, 1);
+  }
+  저장함올리기();
+  저장함받기().then(async (r) => {
+    const n = await 사진되살리기().catch(() => 0);
+    if ((r && r.되살림) || n) {
+      toast('서버에서 되살렸습니다 · 저장함 ' + ((r && r.되살림) || 0) + '건' + (n ? ' · 사진 ' + n + '장' : ''));
+    }
+  }).catch(() => { /* 통신이 안 되면 다음에 */ }).then(() => 사진올리기());
   buildAll();
   구역장수갱신();
   refresh();
@@ -1281,7 +1302,6 @@ $('#rePublish').addEventListener('click', () => {
 /* ---------- 저장함 ----------
    작성 중인 내용은 자동저장되지만 한 건뿐이다. 현장을 여러 곳 도는 날에는
    앞 현장 견적이 덮여버리므로, 이름을 붙여 따로 담아둘 수 있게 한다. */
-const BOX_KEY = 'quote_pro_box_v1';
 
 function 저장함읽기() {
   const v = load(BOX_KEY);
@@ -1298,19 +1318,20 @@ function 저장함쓰기(list) {
   if (!ops.length) return;
   save(BOX_QUEUE_KEY, QuoteBox.큐합치기(load(BOX_QUEUE_KEY) || [], ops));
   저장함올리기();
+  사진올리기();
 }
 function 올릴건수() { return (load(BOX_QUEUE_KEY) || []).length; }
 
+// 올리는 건 백업키가 없어도 한다 — 저장은 무조건 (2026-10-04). 꺼내 올 때만 키를 묻는다
 function 저장함올리기() {
   const 키 = 업체키();
-  if (!키) return Promise.resolve(false);
   if (올리는중) return 올리는중;
   const 보낼 = (load(BOX_QUEUE_KEY) || []).slice(0, 30);
   if (!보낼.length) return Promise.resolve(true);
   올리는중 = fetch(CONFIG.boxSyncUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key: 키, ops: 보낼 }),
+    body: JSON.stringify({ key: 키 || '', ops: 보낼 }),
   }).then((res) => {
     if (res.status === 401) throw new Error('키틀림');
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1320,7 +1341,7 @@ function 저장함올리기() {
     백업오류 = (j && j.tooBig && j.tooBig.length) ? '너무 커서 못 올린 건이 있습니다' : '';
     return true;
   }).catch((e) => {
-    백업오류 = e.message === '키틀림' ? '백업키가 맞지 않습니다' : '통신이 안 돼 아직 못 올렸습니다';
+    백업오류 = '통신이 안 돼 아직 못 올렸습니다';
     return false;
   }).finally(() => {
     올리는중 = null;
@@ -1332,7 +1353,99 @@ function 저장함올리기() {
   });
   return 올리는중;
 }
-window.addEventListener('online', () => { 저장함올리기(); });
+window.addEventListener('online', () => { 저장함올리기(); 사진올리기(); });
+// 앱을 내릴 때 — 저장함 견적을 불러와 사진 태그를 고쳤으면 그때 올린다
+document.addEventListener('visibilitychange', () => { if (document.hidden) 사진올리기(); });
+
+/* 저장함에 담긴 현장의 사진을 서버에도 올린다 (항상 자동, 2026-10-04).
+   한 장씩 차례로 — 현장에서 신호가 약할 때 수십 장을 한꺼번에 밀면 다 실패한다.
+   이미지가 그대로면 태그·네모만 보낸다. */
+async function 사진올리기() {
+  if (!사진가능) return;
+  if (백업사진중) { 사진다시 = true; return; }
+  백업사진중 = true;
+  사진오류 = '';
+  try {
+    const 박스현장 = [...new Set(저장함읽기().map((x) => x.현장ID).filter(Boolean))];
+    const 할일 = [];
+    const 현장별키 = {};
+    for (const sid of 박스현장) {
+      const list = await PDB.현장사진(sid);
+      현장별키[sid] = [];
+      list.forEach((p) => {
+        if (!p.서버키 || p.올린서명 !== QuoteBox.사진서명(p)) 할일.push(p);
+        else 현장별키[sid].push(p.서버키);
+      });
+    }
+    사진올릴수 = 할일.length;
+    백업줄그리기();
+    for (const p of 할일) {
+      const 키 = p.서버키 || (p.현장ID + '-' + p.id + '-' + Math.random().toString(36).slice(2, 6));
+      const body = { op: 'put', 사진키: 키, 현장ID: p.현장ID, 구역: p.구역, 태그: p.태그 || [], 표시: p.표시 || {}, 촬영일시: p.촬영일시 || '' };
+      if (!p.서버키 || p.올린이미지 !== QuoteBox.이미지서명(p)) body.이미지 = await QuotePhotos.base64로(p.blob);
+      const res = await fetch(CONFIG.boxPhotoUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      // 올린 그 모습을 적어 둔다. 그 사이 또 고쳤으면 서명이 달라 다음에 다시 올라간다
+      await PDB.필드저장(p.id, { 서버키: 키, 올린서명: QuoteBox.사진서명(p), 올린이미지: QuoteBox.이미지서명(p) });
+      현장별키[p.현장ID].push(키);
+      사진올릴수--;
+      백업줄그리기();
+    }
+    // 폰에서 지운 사진은 서버에서도 '삭제' 표시
+    const 정리 = QuoteBox.정리할현장(박스현장, 현장별키, load(PHOTO_KEEP_KEY) || {});
+    for (const 일 of 정리.일) {
+      const res = await fetch(CONFIG.boxPhotoUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op: 'keep', 현장ID: 일.현장ID, 키들: 일.키들 }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+    }
+    save(PHOTO_KEEP_KEY, 정리.맵);
+  } catch (e) {
+    사진오류 = '사진을 다 못 올렸습니다';
+  } finally {
+    백업사진중 = false;
+    백업줄그리기();
+  }
+  if (사진다시) { 사진다시 = false; 사진올리기(); }
+}
+
+/* 서버에 백업해 둔 사진을 받아 폰에 넣는다. 폰에 사진이 한 장도 없는 현장만 —
+   있는 현장은 폰 쪽이 최신이다. 꺼내 오는 것이라 백업키가 있어야 한다. */
+async function 사진되살리기() {
+  const 키 = 업체키();
+  if (!키 || !사진가능) return 0;
+  const 빈현장 = [];
+  for (const sid of new Set(저장함읽기().map((x) => x.현장ID).filter(Boolean))) {
+    if (!(await PDB.현장사진(sid)).length) 빈현장.push(sid);
+  }
+  if (!빈현장.length) return 0;
+  const res = await fetch(CONFIG.boxPhotosUrl + '?key=' + encodeURIComponent(키) + '&ids=' + encodeURIComponent(빈현장.join(',')));
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const j = await res.json();
+  const 받은 = (j && j.photos) || [];
+  let n = 0;
+  const 맵 = load(PHOTO_KEEP_KEY) || {};
+  const 현장별키 = {};
+  for (const s of 받은) {
+    try {
+      const blob = await (await fetch(s.url)).blob();
+      const p = await PDB.들여오기(s.현장ID, s.구역, blob, {
+        태그: s.태그 || [], 표시: s.표시 || {}, 촬영일시: s.촬영일시 || new Date().toISOString(), 서버키: s.사진키,
+      });
+      await PDB.필드저장(p.id, { 올린서명: QuoteBox.사진서명(p), 올린이미지: QuoteBox.이미지서명(p) });
+      (현장별키[s.현장ID] = 현장별키[s.현장ID] || []).push(s.사진키);
+      n++;
+    } catch (e) { /* 한 장 실패는 건너뛴다 — 다음에 다시 (그 현장은 아직 0장이 아닐 수 있다) */ }
+  }
+  // 받은 사진 그대로가 서버와 같은 상태다 — 정리 기록을 맞춰 두어 엉뚱하게 지우지 않게
+  Object.keys(현장별키).forEach((sid) => { 맵[sid] = 현장별키[sid].slice().sort().join(','); });
+  save(PHOTO_KEEP_KEY, 맵);
+  if (n) 구역장수갱신();
+  return n;
+}
 
 /* 서버 저장함을 받아 폰 저장함과 합친다. 폰에 없는 건 되살리고,
    서버에 없는 건(이 기능 전에 담은 것) 올린다. 키를 주면 그 키로 해 본다(처음 넣을 때). */
@@ -1359,17 +1472,23 @@ function 백업줄그리기() {
   const 키 = 업체키();
   const 남음 = 올릴건수();
   let 글, 버튼 = '';
-  if (!키) {
-    글 = '☁ 저장함이 이 폰에만 있습니다. 백업키를 넣으면 서버에도 저장돼, 폰 기록이 지워져도 되살릴 수 있습니다.';
-    버튼 = '<button type="button" id="boxKeyBtn">백업키 넣기</button>';
-  } else if (남음) {
+  const 사진남음 = 사진올릴수;
+  if (남음) {
     글 = '☁ 서버에 아직 못 올린 것 ' + 남음 + '건' + (백업오류 ? ' · ' + 백업오류 : '');
     버튼 = '<button type="button" id="boxRetry">다시 올리기</button>';
   } else {
     글 = '☁ 저장함이 서버에도 저장돼 있습니다' + (백업오류 ? ' · ' + 백업오류 : '');
   }
-  if (키) 버튼 += '<button type="button" id="pubImportBtn">📄 발행한 견적 가져오기</button>';
-  el.className = 'box-cloud' + (!키 || 남음 ? ' warn' : '');
+  if (사진남음) 글 += ' · 사진 ' + 사진남음 + '장 올리는 중';
+  else if (사진오류) 글 += ' · ' + 사진오류 + ' (다음에 다시 올립니다)';
+  // 꺼내 오기(되살리기·발행 견적 가져오기)만 키가 있어야 한다
+  if (!키) {
+    글 += '\n폰 기록이 지워졌을 때 서버에서 되살리려면 백업키를 한 번 넣어주세요.';
+    버튼 += '<button type="button" id="boxKeyBtn">🔑 백업키 넣고 되살리기</button>';
+  } else {
+    버튼 += '<button type="button" id="pubImportBtn">📄 발행한 견적 가져오기</button>';
+  }
+  el.className = 'box-cloud' + (남음 ? ' warn' : '');
   el.innerHTML = '<p>' + esc(글) + '</p>' + (버튼 ? '<div class="box-cloud-acts">' + 버튼 + '</div>' : '');
 }
 
@@ -1513,10 +1632,14 @@ async function openBox() {
   // 열 때마다 서버와 맞춘다. 서버에서 되살린 건이 있으면 다시 그린다
   if (!열며받는중 && 업체키()) {
     열며받는중 = true;
-    저장함받기().then((r) => {
+    저장함받기().then(async (r) => {
+      const n = await 사진되살리기().catch(() => 0);
       열며받는중 = false;
-      if (r && r.되살림 && !$('#boxSheet').hidden) { toast('저장함 ' + r.되살림 + '건을 서버에서 되살렸습니다'); openBox(); }
-      else 백업줄그리기();
+      if (((r && r.되살림) || n) && !$('#boxSheet').hidden) {
+        toast('서버에서 되살렸습니다 · 저장함 ' + ((r && r.되살림) || 0) + '건' + (n ? ' · 사진 ' + n + '장' : ''));
+        openBox();
+      } else 백업줄그리기();
+      사진올리기();
     }).catch((e) => {
       열며받는중 = false;
       백업오류 = e.message === '키틀림' ? '백업키가 맞지 않습니다' : '서버에 연결하지 못했습니다';
@@ -1533,8 +1656,13 @@ $('#boxCloud').addEventListener('click', async (e) => {
     try {
       const r = await 저장함받기(k);
       save(VENDOR_KEY_LS, k);      // 통한 키만 저장한다 (업체 선택도 같은 키를 쓴다)
+      toast('서버에서 받는 중…');
+      const n = await 사진되살리기().catch(() => 0);
       저장함올리기();
-      toast(r && r.되살림 ? '저장함 ' + r.되살림 + '건을 서버에서 되살렸습니다' : '이제 저장함이 서버에도 저장됩니다');
+      사진올리기();
+      toast((r && r.되살림) || n
+        ? '서버에서 되살렸습니다 · 저장함 ' + ((r && r.되살림) || 0) + '건' + (n ? ' · 사진 ' + n + '장' : '')
+        : '백업키를 넣었습니다. 서버에 되살릴 것은 없었습니다');
       openBox();
     } catch (err) {
       alert(err.message === '키틀림' ? '백업키가 맞지 않습니다. 현장관리 앱 ⚙ 설정의 백업키를 확인해 주세요.' : '서버에 연결하지 못했습니다. 잠시 뒤 다시 해 주세요.');
