@@ -368,6 +368,33 @@
     if (!p) return null;
     p.blob = 이미지.blob;
     p.thumb = 이미지.thumb;
+    p.바뀐때 = Date.now();   // 서버 백업이 '이미지가 바뀌었다' 를 알아채는 표시
+    await 요청(st.put(p));
+    return p;
+  }
+
+  /* 서버 백업에서 받은 사진을 넣는다. 받은 이미지는 이미 줄인 것이라 다시 줄이지 않고
+     (다시 압축하면 화질만 깎인다) 목록용 썸네일만 만든다. */
+  async function 들여오기(현장ID, 구역, blob, 메타) {
+    const 원본 = await 이미지원본(blob);
+    let thumb;
+    try { thumb = await 줄이기(원본, 썸네일최대, 썸네일품질); } finally { 원본.닫기(); }
+    if (!thumb) throw new Error('썸네일을 못 만들었습니다');
+    const 사진 = Object.assign({ 태그: [], 촬영일시: new Date().toISOString() }, 메타 || {}, {
+      현장ID: 현장ID, 구역: 구역, blob: blob, thumb: thumb,
+    });
+    delete 사진.id;
+    const st = await 트랜잭션('readwrite');
+    사진.id = await 요청(st.add(사진));
+    return 사진;
+  }
+
+  // 사진 기록에 값 몇 개만 덧쓴다 (서버 백업 표시 등). 그 사이 바뀐 태그·네모는 그대로 둔다
+  async function 필드저장(id, 값) {
+    const st = await 트랜잭션('readwrite');
+    const p = await 요청(st.get(id));
+    if (!p) return null;
+    Object.assign(p, 값);
     await 요청(st.put(p));
     return p;
   }
@@ -518,7 +545,7 @@
     PhotoDB: {
       열기: 열기, 추가: 추가, 구역사진: 구역사진, 현장사진: 현장사진,
       구역장수: 구역장수, 태그저장: 태그저장, 표시저장: 표시저장, 삭제: 삭제,
-      사진바꾸기: 사진바꾸기,
+      사진바꾸기: 사진바꾸기, 들여오기: 들여오기, 필드저장: 필드저장,
       현장삭제: 현장삭제, 모든현장ID: 모든현장ID, 영구요청: 영구요청,
     },
   };

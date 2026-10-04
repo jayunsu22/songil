@@ -984,7 +984,7 @@ header { column-gap: 6px; }
 /* 저장함 서버 백업 줄 (2026-10-04). 이 폰에만 있거나 못 올렸으면 노랗게 */
 .box-cloud { margin: 6px 0 10px; padding: 10px 12px; border-radius: 12px; background: #eef6ff; font-size: 13px; color: #1e3a8a; }
 .box-cloud.warn { background: #fff7e6; color: #92400e; }
-.box-cloud p { margin: 0; line-height: 1.45; }
+.box-cloud p { margin: 0; line-height: 1.45; white-space: pre-line; }
 .box-cloud-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .box-cloud-acts button { min-height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 13px; font-weight: 700; color: var(--text); }
 .pub-import { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
