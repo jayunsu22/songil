@@ -12,6 +12,11 @@ const CONFIG = {
   siteDetailUrl: 'https://primary-production-a6fa.up.railway.app/webhook/film-quality-get-v2',
   siteSaveUrl:   'https://primary-production-a6fa.up.railway.app/webhook/film-quality-save',
   rawPhotoUrl:   'https://primary-production-a6fa.up.railway.app/webhook/raw-photo-upload',   // 현장관리자 원본사진
+  // 저장함 서버 백업 (2026-10-04). 백업키는 업체 선택과 같은 키(현장관리 앱 백업키)를 쓴다.
+  boxSyncUrl:    'https://primary-production-a6fa.up.railway.app/webhook/pro-box-sync',
+  boxRestoreUrl: 'https://primary-production-a6fa.up.railway.app/webhook/pro-box-restore',
+  // 발행한 견적 한 건 (견적서 화면이 읽는 주소). 저장함에 없던 견적을 되살릴 때 쓴다.
+  quoteUrl:      'https://primary-production-a6fa.up.railway.app/webhook/pro-quote',
 };
 
 const STORAGE_KEY = 'quote_pro_state_v1';
@@ -40,6 +45,12 @@ let 사진가능 = true;
 // 이게 있으면 사진 한 장을 고르는 순간 그 품목에 태그하고 네모 표시로 바로 넘어간다.
 let 사진대상 = null;          // { 구역, 체크_ID, 품목명 }
 let 표시된품목 = new Set();   // 네모를 그려둔 품목 id — 줄의 버튼을 '사진 있음'으로 바꾼다
+// 저장함 서버 백업 (boot() 이 부르므로 여기 둔다 — 아래에 두면 TDZ)
+const BOX_QUEUE_KEY = 'quote_pro_box_queue_v1';   // 서버에 아직 못 올린 저장함 변경
+let 올리는중 = null;      // 올리는 요청이 겹치지 않게
+let 백업오류 = '';
+let 발행목록 = null;      // 서버에 있는 발행 견적 머리 정보 (가져오기 목록)
+let 열며받는중 = false;
 
 let MASTER = null;
 // 평형 기본값은 '확인안됨'. 모르는 채로 40평 몰딩 같은 게 잘못 들어가는 것보다
@@ -217,6 +228,10 @@ function boot() {
   필름칸그리기();
   업체줄그리기();
   업체조용히맞추기();
+  // 저장함을 서버와 맞춘다. 폰 저장함이 지워졌으면 여기서 되살아난다
+  저장함받기().then((r) => {
+    if (r && r.되살림) toast('저장함 ' + r.되살림 + '건을 서버에서 되살렸습니다');
+  }).catch(() => { /* 통신이 안 되면 다음에 */ });
   buildAll();
   구역장수갱신();
   refresh();
@@ -1273,8 +1288,89 @@ function 저장함읽기() {
   return Array.isArray(v) ? v : [];
 }
 
+/* 저장함을 고칠 때마다 서버에도 올린다 (2026-10-04).
+   폰 저장함은 브라우저 데이터를 지우면 통째로 사라진다 — 실제로 한 번 다 사라졌다.
+   바로 못 올리면(통신·키 없음) 큐에 남겨 두고 다음에 올린다. */
 function 저장함쓰기(list) {
+  const 이전 = 저장함읽기();
   save(BOX_KEY, list);
+  const ops = QuoteBox.바뀐것(이전, list);
+  if (!ops.length) return;
+  save(BOX_QUEUE_KEY, QuoteBox.큐합치기(load(BOX_QUEUE_KEY) || [], ops));
+  저장함올리기();
+}
+function 올릴건수() { return (load(BOX_QUEUE_KEY) || []).length; }
+
+function 저장함올리기() {
+  const 키 = 업체키();
+  if (!키) return Promise.resolve(false);
+  if (올리는중) return 올리는중;
+  const 보낼 = (load(BOX_QUEUE_KEY) || []).slice(0, 30);
+  if (!보낼.length) return Promise.resolve(true);
+  올리는중 = fetch(CONFIG.boxSyncUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 키, ops: 보낼 }),
+  }).then((res) => {
+    if (res.status === 401) throw new Error('키틀림');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }).then((j) => {
+    save(BOX_QUEUE_KEY, QuoteBox.보낸것빼기(load(BOX_QUEUE_KEY) || [], 보낼));
+    백업오류 = (j && j.tooBig && j.tooBig.length) ? '너무 커서 못 올린 건이 있습니다' : '';
+    return true;
+  }).catch((e) => {
+    백업오류 = e.message === '키틀림' ? '백업키가 맞지 않습니다' : '통신이 안 돼 아직 못 올렸습니다';
+    return false;
+  }).finally(() => {
+    올리는중 = null;
+    백업줄그리기();
+  }).then((ok) => {
+    // 30건씩 나눠 보낸다. 남았으면 이어서
+    if (ok && 올릴건수()) return 저장함올리기();
+    return ok;
+  });
+  return 올리는중;
+}
+window.addEventListener('online', () => { 저장함올리기(); });
+
+/* 서버 저장함을 받아 폰 저장함과 합친다. 폰에 없는 건 되살리고,
+   서버에 없는 건(이 기능 전에 담은 것) 올린다. 키를 주면 그 키로 해 본다(처음 넣을 때). */
+async function 저장함받기(키) {
+  키 = 키 || 업체키();
+  if (!키) return null;
+  const res = await fetch(CONFIG.boxRestoreUrl + '?key=' + encodeURIComponent(키));
+  if (res.status === 401) throw new Error('키틀림');
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const j = await res.json();
+  발행목록 = Array.isArray(j && j.published) ? j.published : [];
+  const r = QuoteBox.서버와합치기(저장함읽기(), (j && j.items) || [], load(BOX_QUEUE_KEY) || []);
+  if (r.되살림) save(BOX_KEY, r.목록);      // 서버에서 온 것이라 다시 올리지 않는다
+  if (r.올릴것.length) save(BOX_QUEUE_KEY, QuoteBox.큐합치기(load(BOX_QUEUE_KEY) || [], r.올릴것));
+  백업오류 = '';
+  저장함올리기();
+  return r;
+}
+
+/* 저장함 맨 위 '☁' 줄 — 서버에 잘 올라가 있는지, 아니면 왜 아닌지 */
+function 백업줄그리기() {
+  const el = $('#boxCloud');
+  if (!el) return;
+  const 키 = 업체키();
+  const 남음 = 올릴건수();
+  let 글, 버튼 = '';
+  if (!키) {
+    글 = '☁ 저장함이 이 폰에만 있습니다. 백업키를 넣으면 서버에도 저장돼, 폰 기록이 지워져도 되살릴 수 있습니다.';
+    버튼 = '<button type="button" id="boxKeyBtn">백업키 넣기</button>';
+  } else if (남음) {
+    글 = '☁ 서버에 아직 못 올린 것 ' + 남음 + '건' + (백업오류 ? ' · ' + 백업오류 : '');
+    버튼 = '<button type="button" id="boxRetry">다시 올리기</button>';
+  } else {
+    글 = '☁ 저장함이 서버에도 저장돼 있습니다' + (백업오류 ? ' · ' + 백업오류 : '');
+  }
+  if (키) 버튼 += '<button type="button" id="pubImportBtn">📄 발행한 견적 가져오기</button>';
+  el.className = 'box-cloud' + (!키 || 남음 ? ' warn' : '');
+  el.innerHTML = '<p>' + esc(글) + '</p>' + (버튼 ? '<div class="box-cloud-acts">' + 버튼 + '</div>' : '');
 }
 
 /* 작성 중인 견적을 저장함에 담는다. 머리줄 '저장' 과 발행 창 '저장함에 담기' 가
@@ -1411,8 +1507,107 @@ async function openBox() {
     });
   }
 
+  백업줄그리기();
   $('#boxBack').hidden = false;
   $('#boxSheet').hidden = false;
+  // 열 때마다 서버와 맞춘다. 서버에서 되살린 건이 있으면 다시 그린다
+  if (!열며받는중 && 업체키()) {
+    열며받는중 = true;
+    저장함받기().then((r) => {
+      열며받는중 = false;
+      if (r && r.되살림 && !$('#boxSheet').hidden) { toast('저장함 ' + r.되살림 + '건을 서버에서 되살렸습니다'); openBox(); }
+      else 백업줄그리기();
+    }).catch((e) => {
+      열며받는중 = false;
+      백업오류 = e.message === '키틀림' ? '백업키가 맞지 않습니다' : '서버에 연결하지 못했습니다';
+      백업줄그리기();
+    });
+  }
+}
+
+/* 백업키 넣기 · 다시 올리기 · 발행한 견적 가져오기 */
+$('#boxCloud').addEventListener('click', async (e) => {
+  if (e.target.id === 'boxKeyBtn') {
+    const k = (prompt('현장관리 앱 ⚙ 설정에 적어둔 백업키를 넣어주세요.', '') || '').trim();
+    if (!k) return;
+    try {
+      const r = await 저장함받기(k);
+      save(VENDOR_KEY_LS, k);      // 통한 키만 저장한다 (업체 선택도 같은 키를 쓴다)
+      저장함올리기();
+      toast(r && r.되살림 ? '저장함 ' + r.되살림 + '건을 서버에서 되살렸습니다' : '이제 저장함이 서버에도 저장됩니다');
+      openBox();
+    } catch (err) {
+      alert(err.message === '키틀림' ? '백업키가 맞지 않습니다. 현장관리 앱 ⚙ 설정의 백업키를 확인해 주세요.' : '서버에 연결하지 못했습니다. 잠시 뒤 다시 해 주세요.');
+    }
+    return;
+  }
+  if (e.target.id === 'boxRetry') {
+    e.target.disabled = true;
+    const ok = await 저장함올리기();
+    toast(ok ? '서버에 올렸습니다' : '아직 못 올렸습니다. 통신 상태를 확인해 주세요.');
+    백업줄그리기();
+    return;
+  }
+  if (e.target.id === 'pubImportBtn') { 발행목록열기(); return; }
+  const 가져오기 = e.target.closest('.pub-get');
+  if (가져오기) { 발행견적가져오기(가져오기.dataset.code, 가져오기); return; }
+});
+
+/* 발행한 견적 목록 — 저장함에 없는 것만. 발행만 하고 저장함에 안 담았거나,
+   저장함이 지워졌는데 서버 백업이 없던 견적을 여기서 되살린다. */
+async function 발행목록열기() {
+  const box = $('#boxCloud');
+  let 목록 = 발행목록;
+  if (!목록) {
+    try { await 저장함받기(); 목록 = 발행목록 || []; }
+    catch (err) { toast('발행한 견적 목록을 못 받았습니다'); return; }
+  }
+  const 있는코드 = new Set(저장함읽기().map((x) => x.현장코드).filter(Boolean));
+  const 남은 = 목록.filter((p) => !있는코드.has(p.견적코드));
+  const old = $('#pubImport');
+  if (old) old.remove();
+  box.insertAdjacentHTML('beforeend',
+    '<div id="pubImport" class="pub-import">' +
+      '<p class="hint">발행한 견적을 저장함에 다시 담습니다. 견적서에 찍힌 품목·수량·조정·문구를 되살리고, 사진은 오지 않습니다.' +
+      (목록.length - 남은.length ? ' (이미 저장함에 있는 ' + (목록.length - 남은.length) + '건은 뺐습니다)' : '') + '</p>' +
+      (남은.length
+        ? 남은.map((p) => '<div class="pub-row"><div><b>' + esc(p.현장명 || '(이름 없음)') + '</b>' +
+            '<span>' + 짧은날짜(p.발행일시).split(' ')[0] + ' 발행 · ' + won(p.총액 || 0) + ' · ' + esc(p.견적코드) + '</span></div>' +
+            '<button type="button" class="pub-get" data-code="' + esc(p.견적코드) + '">가져오기</button></div>').join('')
+        : '<p class="hint">가져올 견적이 없습니다.</p>') +
+    '</div>');
+}
+
+async function 발행견적가져오기(코드, 버튼) {
+  if (!MASTER) { toast('단가를 아직 못 받았습니다. 잠시 뒤 다시 해 주세요.'); return; }
+  if (버튼) { 버튼.disabled = true; 버튼.textContent = '가져오는 중…'; }
+  try {
+    const res = await fetch(CONFIG.quoteUrl + '?id=' + encodeURIComponent(코드));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || !d.견적코드) throw new Error('견적 없음');
+    const r = QuoteBox.발행을상태로(d, MASTER, 기본자재비());
+    const st = r.상태;
+    st.현장ID = QuotePhotos.새현장ID();
+    const list = 저장함읽기();
+    list.unshift({
+      id: Date.now(),
+      이름: st.현장명 || 코드,
+      저장일시: new Date().toISOString(),
+      건수: r.줄수,
+      총액: d.총액 || 0,
+      현장ID: st.현장ID,
+      현장코드: 코드,
+      상태: st,
+    });
+    저장함쓰기(list);
+    toast('‘' + (st.현장명 || 코드) + '’ 저장함에 담았습니다' +
+      (r.직접으로 ? ' · 지금 단가표에 없는 ' + r.직접으로 + '개는 직접 입력으로 넣었습니다' : ''));
+    openBox();
+  } catch (err) {
+    if (버튼) { 버튼.disabled = false; 버튼.textContent = '가져오기'; }
+    toast('견적을 못 가져왔습니다. 통신 상태를 확인해 주세요.');
+  }
 }
 
 function closeBox() {
