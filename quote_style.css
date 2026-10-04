@@ -980,3 +980,16 @@ header { column-gap: 6px; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .vendor-row.on span { color: var(--accent); }
+
+/* 저장함 서버 백업 줄 (2026-10-04). 이 폰에만 있거나 못 올렸으면 노랗게 */
+.box-cloud { margin: 6px 0 10px; padding: 10px 12px; border-radius: 12px; background: #eef6ff; font-size: 13px; color: #1e3a8a; }
+.box-cloud.warn { background: #fff7e6; color: #92400e; }
+.box-cloud p { margin: 0; line-height: 1.45; }
+.box-cloud-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.box-cloud-acts button { min-height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 13px; font-weight: 700; color: var(--text); }
+.pub-import { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.pub-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.pub-row > div { flex: 1; min-width: 0; }
+.pub-row b { display: block; font-size: 14px; color: var(--text); }
+.pub-row span { font-size: 12px; color: var(--muted); }
+.pub-row .pub-get { flex: none; min-height: 38px; padding: 0 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 700; }
