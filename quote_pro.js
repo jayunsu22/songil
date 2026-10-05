@@ -20,6 +20,7 @@ const CONFIG = {
   // 저장함 사진 백업. 올리기는 키 없이, 목록 받기(되살리기)는 키가 있어야 한다
   boxPhotoUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photo',
   boxPhotosUrl:  'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photos',
+  boxPhotoUsageUrl: 'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photo-usage',   // 서버 사진 사용량 (키)
 };
 
 const STORAGE_KEY = 'quote_pro_state_v1';
@@ -1360,9 +1361,15 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) 사�
 /* 저장함에 담긴 현장의 사진을 서버에도 올린다 (항상 자동, 2026-10-04).
    한 장씩 차례로 — 현장에서 신호가 약할 때 수십 장을 한꺼번에 밀면 다 실패한다.
    이미지가 그대로면 태그·네모만 보낸다. */
-async function 사진올리기() {
-  if (!사진가능) return;
-  if (백업사진중) { 사진다시 = true; return; }
+// 이미 올리는 중이면 그 일이 (다시 한 바퀴까지) 끝날 때 함께 끝나는 약속을 돌려준다
+let 사진진행 = Promise.resolve();
+function 사진올리기() {
+  if (!사진가능) return Promise.resolve();
+  if (백업사진중) { 사진다시 = true; return 사진진행; }
+  사진진행 = 사진올리기한바퀴();
+  return 사진진행;
+}
+async function 사진올리기한바퀴() {
   백업사진중 = true;
   사진오류 = '';
   try {
@@ -1409,7 +1416,7 @@ async function 사진올리기() {
     백업사진중 = false;
     백업줄그리기();
   }
-  if (사진다시) { 사진다시 = false; 사진올리기(); }
+  if (사진다시) { 사진다시 = false; return 사진올리기한바퀴(); }
 }
 
 /* 서버에 백업해 둔 사진을 받아 폰에 넣는다. 폰에 사진이 한 장도 없는 현장만 —
@@ -1627,6 +1634,9 @@ async function openBox() {
   }
 
   백업줄그리기();
+  // 사진이 붙은 건이 있을 때만 정리 버튼을 보인다. 정리 창은 열 때마다 닫아 둔다
+  $('#cleanBtn').hidden = !list.some((x) => x.현장ID && 통계[x.현장ID] && 통계[x.현장ID].장수);
+  $('#cleanPanel').hidden = true;
   $('#boxBack').hidden = false;
   $('#boxSheet').hidden = false;
   // 열 때마다 서버와 맞춘다. 서버에서 되살린 건이 있으면 다시 그린다
@@ -1826,6 +1836,7 @@ $('#boxList').addEventListener('click', async (e) => {
     if (!ph.length) return;
     if (!confirm('‘' + 항목.이름 + '’ 의 사진 ' + ph.length + '장을 지울까요?\n견적은 남습니다.')) return;
     await PDB.현장삭제(항목.현장ID);
+    사진올리기();      // 서버 백업에서도 지운다
     toast('사진 ' + ph.length + '장을 지웠습니다');
     openBox();
     return;
@@ -1871,6 +1882,71 @@ $('#boxList').addEventListener('click', async (e) => {
     closeBox();
     toast('‘' + 항목.이름 + '’ 불러왔습니다');
   }
+});
+
+/* ---------- 오래된 현장 사진 정리 (2026-10-05) ----------
+   저장함에 담아 둔 지 오래된(마지막으로 담거나 고친 때 기준) 현장의 사진을 지운다.
+   견적은 남는다. 폰에서 지우면 서버 백업에서도 '삭제' 표시가 되고, 서버는 30일 뒤
+   (매주 일요일 새벽) 완전히 비운다 — 그 사이에는 잘못 지운 걸 되돌릴 수 있다. */
+let 정리개월 = 3;
+async function 정리창그리기() {
+  const 판 = $('#cleanPanel');
+  const 통계 = await 현장별사진통계();
+  const 후보 = QuoteBox.정리후보(저장함읽기(), 통계, 정리개월);
+  const 고른 = new Set(후보.map((x) => String(x.id)));
+  const 기간 = [1, 3, 6, 12].map((m) => '<button type="button" class="clean-m' + (m === 정리개월 ? ' on' : '') +
+    '" data-m="' + m + '">' + m + '개월</button>').join('');
+  판.innerHTML =
+    '<p class="clean-q">마지막으로 저장한 지 <span class="clean-ms">' + 기간 + '</span> 넘은 현장</p>' +
+    '<p class="hint" id="cleanUsage"></p>' +
+    (후보.length
+      ? 후보.map((x) => '<label class="clean-row"><input type="checkbox" data-id="' + x.id + '" checked>' +
+          '<span><b>' + esc(x.이름) + '</b><small>' + 짧은날짜(x.저장일시).split(' ')[0] + ' 저장 · 사진 ' + x.장수 + '장 (' + MB(x.용량) + ')</small></span></label>').join('') +
+        '<p class="hint">견적은 남고 사진만 지워집니다. 서버 백업에서도 지워지고, 30일 뒤 서버 공간이 비워집니다.</p>' +
+        '<button type="button" id="cleanGo" class="clean-go"></button>'
+      : '<p class="hint">' + 정리개월 + '개월 넘은 현장 중 사진이 있는 곳이 없습니다.</p>');
+  판.hidden = false;
+  const 합계글 = () => {
+    const 고름 = 후보.filter((x) => 고른.has(String(x.id)));
+    const b = $('#cleanGo');
+    if (!b) return;
+    b.disabled = !고름.length;
+    b.textContent = 고름.length
+      ? '선택한 ' + 고름.length + '곳 사진 ' + 고름.reduce((s, x) => s + x.장수, 0) + '장 지우기 (' + MB(고름.reduce((s, x) => s + x.용량, 0)) + ')'
+      : '지울 현장을 고르세요';
+  };
+  합계글();
+  판.querySelectorAll('.clean-m').forEach((b) => b.addEventListener('click', () => { 정리개월 = +b.dataset.m; 정리창그리기(); }));
+  판.querySelectorAll('.clean-row input').forEach((cb) => cb.addEventListener('change', () => {
+    if (cb.checked) 고른.add(cb.dataset.id); else 고른.delete(cb.dataset.id);
+    합계글();
+  }));
+  const go = $('#cleanGo');
+  if (go) go.addEventListener('click', async () => {
+    const 고름 = 후보.filter((x) => 고른.has(String(x.id)));
+    if (!고름.length) return;
+    const 장수 = 고름.reduce((s, x) => s + x.장수, 0);
+    if (!confirm(고름.length + '곳의 사진 ' + 장수 + '장을 지울까요?\n견적은 남습니다. 폰과 서버 백업에서 모두 지워집니다.')) return;
+    go.disabled = true; go.textContent = '지우는 중…';
+    for (const x of 고름) await PDB.현장삭제(x.현장ID);
+    사진올리기();
+    toast('사진 ' + 장수 + '장을 지웠습니다');
+    openBox();
+  });
+  // 서버 사용량 — 꺼내 보는 것이라 백업키가 있을 때만
+  const 키 = 업체키();
+  if (키) {
+    fetch(CONFIG.boxPhotoUsageUrl + '?key=' + encodeURIComponent(키)).then((r) => r.ok ? r.json() : null).then((u) => {
+      const el = $('#cleanUsage');
+      if (!u || !el) return;
+      el.textContent = '서버에 사진 ' + u.장수 + '장 · ' + MB(u.바이트) + ' 저장 중' +
+        (u.비울장수 ? ' (지운 ' + u.비울장수 + '장 · ' + MB(u.비울바이트) + '는 30일 안에 비워집니다)' : '');
+    }).catch(() => { /* 사용량은 못 받아도 정리는 된다 */ });
+  }
+}
+$('#cleanBtn').addEventListener('click', () => {
+  if (!$('#cleanPanel').hidden) { $('#cleanPanel').hidden = true; return; }
+  정리창그리기();
 });
 
 $('#boxBtn').addEventListener('click', openBox);

@@ -993,3 +993,18 @@ header { column-gap: 6px; }
 .pub-row b { display: block; font-size: 14px; color: var(--text); }
 .pub-row span { font-size: 12px; color: var(--muted); }
 .pub-row .pub-get { flex: none; min-height: 38px; padding: 0 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 700; }
+
+/* 오래된 현장 사진 정리 (2026-10-05) */
+.box-clean-btn { width: 100%; min-height: 42px; margin: 0 0 8px; border: 1px dashed var(--line); border-radius: 12px; background: #fff; font-size: 14px; font-weight: 700; color: var(--text); }
+.clean-panel { margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: #fafafa; }
+.clean-q { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.9; }
+.clean-ms { display: inline-flex; gap: 4px; flex-wrap: wrap; vertical-align: middle; }
+.clean-m { min-height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 16px; background: #fff; font-size: 13px; color: var(--text); }
+.clean-m.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 800; }
+.clean-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.clean-row input { width: 20px; height: 20px; flex: none; }
+.clean-row span { display: flex; flex-direction: column; min-width: 0; }
+.clean-row b { font-size: 14px; color: var(--text); }
+.clean-row small { font-size: 12px; color: var(--muted); }
+.clean-go { width: 100%; min-height: 44px; margin-top: 6px; border: 0; border-radius: 12px; background: #dc2626; color: #fff; font-size: 14px; font-weight: 800; }
+.clean-go:disabled { background: #e5e7eb; color: #9ca3af; }
