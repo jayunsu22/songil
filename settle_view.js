@@ -131,6 +131,12 @@ function render(d) {
 
   // 부가 항목 (금액 있는 줄만 발행 시 담겨 온다)
   const 부가 = s.부가 || [];
+  const 미수금 = s.미수금 || [];
+  // 미수금이 있을 때는 부가 항목이 비어도 '부가항목 없음' 으로 자리를 지킨다 -
+  // 표가 통째로 빠지면 받는 쪽이 미수금을 시공비의 일부로 오해한다.
+  if (!부가.length && 미수금.length) {
+    H.push('<div class="v-tbl"><h3>부가 항목</h3><div class="v-empty">부가항목 없음</div></div>');
+  }
   if (부가.length) {
     H.push('<div class="v-tbl"><h3>부가 항목</h3>');
     부가.forEach((e) => {
@@ -140,12 +146,25 @@ function render(d) {
     H.push('</div>');
   }
 
+  // 미수금: 지난 현장에서 못 받은 돈. 이번 시공과 섞이지 않게 따로 표로 둔다.
+  if (미수금.length) {
+    H.push('<div class="v-tbl due"><h3>미수금</h3>');
+    미수금.forEach((d) => {
+      H.push('<div class="v-line"><span class="v-nm">' + esc(d.현장명) + '</span><span class="v-amt">' + won(d.금액) + '</span></div>');
+    });
+    H.push('</div>');
+  }
+
   // 합계
+  const 미수금합 = 합계.미수금 || 0;
+  const 시공대금 = 합계.시공대금 != null ? 합계.시공대금 : (합계.총액 || 0) - 미수금합;
   H.push('<div class="v-sum">' +
     '<div class="v-row"><span>인건비</span><span>' + won(합계.인건비) + '</span></div>' +
     '<div class="v-row"><span>자재비</span><span>' + won(합계.자재비) + '</span></div>' +
     // 부가 항목은 합계에서도 한 줄로 뭉치지 않고 항목별로 적는다 (부자재비 6만 / 식대 인건비 포함 / 퀵비 없으면 안 나옴)
     부가.map((e) => '<div class="v-row"><span>' + esc(e.항목명) + '</span><span>' + (e.비고 ? esc(e.비고) : won(e.금액)) + '</span></div>').join('') +
+    (미수금합 ? '<div class="v-row sub"><span>시공대금</span><span>' + won(시공대금) + '</span></div>' +
+      미수금.map((d) => '<div class="v-row"><span>미수금 <span class="v-why">(' + esc(d.현장명) + ')</span></span><span>' + won(d.금액) + '</span></div>').join('') : '') +
     '<div class="v-row total"><span>합계</span><span>' + won(합계.총액) +
       (d.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span></div>' +
     '</div>');

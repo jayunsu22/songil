@@ -109,6 +109,22 @@ button.addrow { display: block; width: 100%; text-align: left; padding: 10px 14p
 .extra select.amtsel + input.amt { width: 100px; border-color: var(--accent); }
 .extra .del { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #b91c1c; font-size: 14px; }
 
+/* ④ 미수금 — 현장명(글자) + 금액(숫자). 폰에서 한 줄에 들어가야 해서 금액칸 폭을 고정한다 */
+.due { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid #f0f1f3; }
+.due input.site {
+  flex: 1 1 auto; min-width: 0; height: 38px;
+  border: 1px solid var(--line); border-radius: 10px; padding: 0 10px;
+  font-size: 14px; font-weight: 600; background: #fff; color: var(--text);
+}
+.due input.amt {
+  width: 110px; height: 38px; text-align: right;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 15px; font-weight: 700; padding: 0 10px; background: #fff; color: var(--text);
+}
+.due .won { color: var(--muted); font-size: 14px; }
+.due .del { width: 34px; height: 34px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #b91c1c; font-size: 14px; padding: 0; }
+.due-empty { padding: 12px 14px; font-size: 14px; color: var(--muted); }
+
 /* 메모 · 부가세 */
 #memoCard { padding: 12px 14px 8px; }
 #memoCard .memo-label { margin-top: 0; }

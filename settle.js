@@ -55,7 +55,7 @@ let toastTimer = null;
 let keySeq = 1;
 
 function 빈상태() {
-  return { 품수: '', 품단가ID: '', 품단가직접: '', 전체자재ID: '', 줄들: [], 부가: [], 메모: '', 부가세별도: true, 만원절사: false };
+  return { 품수: '', 품단가ID: '', 품단가직접: '', 전체자재ID: '', 줄들: [], 부가: [], 미수금: [], 메모: '', 부가세별도: true, 만원절사: false };
 }
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* 시크릿 모드 등 */ }
@@ -225,6 +225,9 @@ function mergeSaved() {
   }
 
   state = Object.assign(빈상태(), saved || {}, { 줄들: fresh, 부가 });
+  // 미수금은 마스터와 무관한 손입력이라 저장분을 그대로 쓴다. key 는 화면 전용이라 다시 매긴다.
+  state.미수금 = (Array.isArray(state.미수금) ? state.미수금 : [])
+    .map((d) => ({ key: 'd' + (keySeq++), 현장명: d.현장명 || '', 금액: d.금액 == null ? '' : d.금액 }));
   // 품단가ID 는 '250000' 같은 금액 문자열 또는 '__custom'. (예전 저장값에 에어테이블 레코드 ID가 있으면 기본값으로)
   if (state.품단가ID !== CUSTOM_WAGE && !품단가선택지.some((w) => String(w) === String(state.품단가ID))) {
     state.품단가ID = String(품단가선택지[0]);
@@ -243,11 +246,12 @@ function 품단가값() {
   return SettleCalc.수(state.품단가ID);
 }
 function 계산() {
-  const r = SettleCalc.합계({ 품수: state.품수, 품단가: 품단가값(), 줄들: state.줄들, 부가: state.부가 }, 자재표);
-  // "만원 단위 절사" 옵션 켜면 최종 합계만 만원 단위로 내림해서 보여줌(예: 351,300원 → 350,000원).
-  // 인건비/자재비/부가 각 항목 자체는 실제 값 그대로 두고, 합계만 끝전을 잘라낸다.
-  if (state.만원절사 && r.총액 > 0) {
-    return Object.assign({}, r, { 총액: Math.floor(r.총액 / 10000) * 10000 });
+  const r = SettleCalc.합계({ 품수: state.품수, 품단가: 품단가값(), 줄들: state.줄들, 부가: state.부가, 미수금: state.미수금 }, 자재표);
+  // "만원 단위 절사" 옵션 켜면 시공대금만 만원 단위로 내림한다(예: 351,300원 → 350,000원).
+  // 미수금은 지난번에 못 받은 금액 그대로여야 하므로 절사하지 않는다 - 깎으면 받을 돈이 줄어든다.
+  if (state.만원절사 && r.시공대금 > 0) {
+    const 시공대금 = Math.floor(r.시공대금 / 10000) * 10000;
+    return Object.assign({}, r, { 시공대금: 시공대금, 총액: 시공대금 + r.미수금 });
   }
   return r;
 }
@@ -270,6 +274,7 @@ function renderAll() {
   renderLabor();
   renderLines();
   renderExtras();
+  renderDues();
   $('#memoText').value = state.메모 || '';
   $('#optVat').checked = state.부가세별도 !== false;
   $('#optRound').checked = !!state.만원절사;
@@ -470,6 +475,31 @@ function renderExtras() {
   });
 }
 
+function renderDues() {
+  const box = $('#dues');
+  if (!state.미수금.length) {
+    box.innerHTML = '<div class="due-empty">못 받은 돈이 있으면 아래 “+ 줄 추가”를 눌러 현장명과 금액을 적어 주세요.</div>';
+    return;
+  }
+  box.innerHTML = state.미수금.map((d) => `<div class="due" data-key="${d.key}">
+    <input class="site" type="text" data-f="현장명" value="${esc(d.현장명)}" placeholder="현장명" autocomplete="off">
+    <input class="amt" type="number" inputmode="numeric" min="0" step="10000" data-f="금액" value="${d.금액 === '' || d.금액 == null || Number(d.금액) === 0 ? '' : esc(d.금액)}" placeholder="0" autocomplete="off">
+    <span class="won">원</span>
+    <button type="button" class="del" data-f="del" aria-label="줄 삭제">✕</button>
+  </div>`).join('');
+  box.querySelectorAll('.due').forEach((div) => {
+    const d = state.미수금.find((x) => x.key === div.dataset.key);
+    div.querySelectorAll('[data-f]').forEach((el) => {
+      const f = el.dataset.f;
+      if (f === '현장명') el.addEventListener('input', () => { d.현장명 = el.value; save(); });
+      else if (f === '금액') el.addEventListener('input', () => { d.금액 = el.value; save(); renderTotals(); });
+      else if (f === 'del') el.addEventListener('click', () => {
+        state.미수금 = state.미수금.filter((x) => x !== d); save(); renderDues(); renderTotals();
+      });
+    });
+  });
+}
+
 function renderTotals() {
   const r = 계산();
   $('#laborSum').textContent = won(r.인건비);
@@ -479,7 +509,9 @@ function renderTotals() {
     ? ` <small>(${Math.floor(품)}품 ${won(Math.floor(품) * 단가)} + 반품 ${won(Math.round(단가 / 2 / 10000) * 10000)})</small>` : '';
   $('#laborAmt').innerHTML = '= ' + won(r.인건비) + 반품설명;
   $('#matSum').textContent = won(r.자재비);
-  $('#extraSum').textContent = won(r.부가);
+  // 부가항목을 하나도 안 골랐으면 금액 대신 '부가항목 없음' 이라고 적는다 (번호 ③④ 는 그대로 둔다)
+  $('#extraSum').textContent = r.부가 > 0 || state.부가.some((e) => e.인건비포함) ? won(r.부가) : '부가항목 없음';
+  $('#dueSum').textContent = r.미수금 > 0 ? won(r.미수금) : '없음';
   $('#matSubtotals').innerHTML = r.자재소계.map((s) =>
     `<div><span>${esc(s.자재명)} · ${won(s.단가)}/m × ${s.소모량합}m</span><b>${won(s.금액)}</b></div>`).join('');
   $('#totalAmount').innerHTML = won(r.총액) + (state.부가세별도 !== false ? '<small>부가세 별도</small>' : '');
@@ -513,6 +545,12 @@ $('#addExtraBtn').addEventListener('click', () => {
   state.부가.push({ key: 'e' + (keySeq++), 항목명: '', 금액: '', 출처: '추가' });
   save(); renderExtras();
   const last = $('#extras').querySelector('.extra:last-child input[data-f="항목명"]');
+  if (last) last.focus();
+});
+$('#addDueBtn').addEventListener('click', () => {
+  state.미수금.push({ key: 'd' + (keySeq++), 현장명: '', 금액: '' });
+  save(); renderDues(); renderTotals();
+  const last = $('#dues').querySelector('.due:last-child input[data-f="현장명"]');
   if (last) last.focus();
 });
 $('#memoText').addEventListener('input', (ev) => { state.메모 = ev.target.value; save(); });
@@ -553,7 +591,9 @@ function 스냅샷만들기() {
     자재소계: r.자재소계.map((s) => ({ 자재명: s.자재명, 단가: s.단가, 소모량합: s.소모량합, 금액: s.금액 })),
     부가: state.부가.filter((e) => e.인건비포함 || Math.round(SettleCalc.수(e.금액)) !== 0)
       .map((e) => Object.assign({ 항목명: e.항목명 || '기타', 금액: e.인건비포함 ? 0 : Math.round(SettleCalc.수(e.금액)) }, e.인건비포함 ? { 비고: '인건비 포함' } : {})),
-    합계: { 인건비: r.인건비, 자재비: r.자재비, 부가: r.부가, 총액: r.총액 },
+    미수금: state.미수금.filter((d) => Math.round(SettleCalc.수(d.금액)) !== 0)
+      .map((d) => ({ 현장명: String(d.현장명 || '').trim() || '현장 미기재', 금액: Math.round(SettleCalc.수(d.금액)) })),
+    합계: { 인건비: r.인건비, 자재비: r.자재비, 부가: r.부가, 미수금: r.미수금, 시공대금: r.시공대금, 총액: r.총액 },
   };
 }
 
@@ -571,7 +611,8 @@ function openPublish() {
   $('#pubSummary').innerHTML =
     `<div><span>인건비</span><span>${won(r.인건비)}</span></div>` +
     `<div><span>자재비</span><span>${won(r.자재비)}</span></div>` +
-    `<div><span>부가 항목</span><span>${won(r.부가)}</span></div>` +
+    `<div><span>부가 항목</span><span>${r.부가 > 0 ? won(r.부가) : '없음'}</span></div>` +
+    (r.미수금 > 0 ? `<div><span>미수금</span><span>${won(r.미수금)}</span></div>` : '') +
     `<div class="tot"><span>합계${state.부가세별도 !== false ? ' (부가세 별도)' : ''}</span><span>${won(r.총액)}</span></div>`;
   $('#pubBefore').hidden = false;
   $('#pubAfter').hidden = true;

@@ -57,6 +57,14 @@
     <button type="button" class="addrow" id="addExtraBtn">+ 직접 추가</button>
   </section>
 
+  <!-- ④ 미수금: 지난 현장에서 못 받은 돈을 이번 견적서에 같이 실어 보낸다.
+       현장명·금액을 직접 적고, 여러 건이면 줄을 추가한다. 합계에는 더해지되 시공대금과 갈라서 보인다. -->
+  <section class="card" id="dueCard">
+    <h2>④ 미수금 <span class="sum" id="dueSum">0원</span></h2>
+    <div id="dues"></div>
+    <button type="button" class="addrow" id="addDueBtn">+ 줄 추가</button>
+  </section>
+
   <section class="card" id="memoCard">
     <label class="memo-label" for="memoText">메모 <em>견적서에 그대로 나갑니다</em></label>
     <textarea id="memoText" rows="2" autocomplete="off" placeholder="예: 안방 드레스룸 수납장은 실측 2.4m 기준"></textarea>

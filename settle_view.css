@@ -45,3 +45,8 @@
 .v-dbl { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: #fff7ed; color: #c2410c; font-size: 14px; font-weight: 800; }
 .v-dbl small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: #9a3412; }
 .v-dbl-tag { color: #c2410c; font-weight: 800; }
+
+/* 미수금 표 — 이번 시공분이 아니라는 게 한눈에 보여야 해서 머리글 색을 달리한다 */
+.v-tbl.due h3 { color: #7c2d12; background: #fde9d9; border-color: #e7b88f; border-left-color: #c2410c; }
+/* 합계 안의 '시공대금' 소계 줄 */
+.v-sum .v-row.sub { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; font-weight: 700; }
