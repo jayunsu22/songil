@@ -564,6 +564,11 @@ header {
   border: 1px dashed #d9a24a; border-radius: 12px; background: #fdf6ea;
   font-size: 13px; color: #7c5620; line-height: 1.5;
 }
+.site-link {
+  display: block; margin-bottom: 6px; padding: 12px 14px; border-radius: 10px; text-align: center;
+  background: var(--accent); color: #fff; font-size: 15px; font-weight: 800; text-decoration: none;
+}
+
 .site-back, .site-retry {
   border: 0; background: none; padding: 4px 0; margin-bottom: 8px;
   color: var(--accent); font-size: 14px; font-weight: 700;

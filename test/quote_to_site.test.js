@@ -207,3 +207,35 @@ test('현장정렬: 동 번호나 흔한 한 조각만 겹치면 비슷하지 �
   assert.deepStrictEqual(r.map((x) => x.비슷함), [false, false]);
   assert.deepStrictEqual(r.map((x) => x.id), ['a', 'b']);   // 날짜순 그대로
 });
+
+// ---------- 일정 앱 현장 ↔ 현장업무 연결 (2026-10-05) ----------
+const { 연결된현장업무, 일정앱연결링크 } = require('../quote_to_site.js');
+
+// 현장목록은 quote_pro.js 의 현장추리기 결과 모양: { id, 업체ID, 이름, adminId, ... }
+const 현장목록 = [
+  { id: 's_a', 업체ID: 'c1', 이름: '인천 부평 3동 101호', adminId: 'recAAA111' },
+  { id: 's_b', 업체ID: 'c1', 이름: '수원 영통 5동', adminId: '' },
+];
+
+test('연결된현장업무: 일정 앱 현장에 adminId 가 있으면 그 현장업무를 돌려준다', () => {
+  assert.deepStrictEqual(연결된현장업무({ id: 's_a', 이름: 'x' }, 현장목록), { id: 'recAAA111', 이름: '인천 부평 3동 101호' });
+});
+
+test('연결된현장업무: adminId 없음·모르는 현장·현장연결 없음은 null', () => {
+  assert.strictEqual(연결된현장업무({ id: 's_b' }, 현장목록), null);
+  assert.strictEqual(연결된현장업무({ id: 's_zzz' }, 현장목록), null);
+  assert.strictEqual(연결된현장업무(null, 현장목록), null);
+  assert.strictEqual(연결된현장업무({ id: 's_a' }, null), null);
+});
+
+test('일정앱연결링크: adminId 가 아직 없는 일정 앱 현장이면 연결 주소를 만든다', () => {
+  assert.strictEqual(일정앱연결링크({ id: 's_b' }, 'recNEW999', 현장목록),
+    'https://jayunsu22.github.io/sitenote/#adminlink=s_b:recNEW999');
+});
+
+test('일정앱연결링크: 이미 연결됐거나 모르는 현장·현장연결 없음·현장업무 id 없음은 빈 문자열', () => {
+  assert.strictEqual(일정앱연결링크({ id: 's_a' }, 'recNEW999', 현장목록), '');
+  assert.strictEqual(일정앱연결링크({ id: 's_zzz' }, 'recNEW999', 현장목록), '');
+  assert.strictEqual(일정앱연결링크(null, 'recNEW999', 현장목록), '');
+  assert.strictEqual(일정앱연결링크({ id: 's_b' }, '', 현장목록), '');
+});
