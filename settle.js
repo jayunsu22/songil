@@ -13,8 +13,10 @@ const CONFIG = {
 };
 
 // admin.html 과 같은 PIN(SHA-256 해시로만 비교). 정산 화면은 단가가 다 보이는 관리자용이다.
-const ADMIN_PIN_HASH = '7e25b45addda2b4082938558981200dfe5a3cfb20ee4a81092510d26715c2049';
+const ADMIN_PIN_HASH = '0f0a7bcf9f760e453e4719af259d31ddba9a638dd73831df3e244b615a7c4c7e';
 const UNLOCK_KEY = 'settleUnlocked';
+// 열려 있다는 표시는 암호 해시에서 따온 값 — 암호를 바꾸면 이미 열려 있던 기기가 한 번 잠긴다(예전 값 '1' 도 무효)
+const UNLOCK_VALUE = ADMIN_PIN_HASH.slice(0, 16);
 const CUSTOM_WAGE = '__custom';
 // 품단가 선택지(원/품). 사장님이 쓰는 단가는 이 넷이라 고정으로 둔다. 그 밖은 '직접 입력'.
 const 품단가선택지 = [250000, 260000, 270000, 280000];
@@ -87,7 +89,7 @@ async function sha256Hex(text) {
 }
 function 잠금확인() {
   let ok = false;
-  try { ok = localStorage.getItem(UNLOCK_KEY) === '1'; } catch (e) { ok = false; }
+  try { ok = localStorage.getItem(UNLOCK_KEY) === UNLOCK_VALUE; } catch (e) { ok = false; }
   if (ok) return Promise.resolve();
   $('#pinLockOverlay').hidden = false;
   $('#pinLockInput').focus();
@@ -96,7 +98,7 @@ function 잠금확인() {
       ev.preventDefault();
       const v = $('#pinLockInput').value.trim();
       if (await sha256Hex(v) === ADMIN_PIN_HASH) {
-        try { localStorage.setItem(UNLOCK_KEY, '1'); } catch (e) { /* 무시 */ }
+        try { localStorage.setItem(UNLOCK_KEY, UNLOCK_VALUE); } catch (e) { /* 무시 */ }
         $('#pinLockOverlay').hidden = true;
         resolve();
       } else {
