@@ -13,7 +13,7 @@ const CONFIG = {
 };
 
 // admin.html 과 같은 PIN(SHA-256 해시로만 비교). 정산 화면은 단가가 다 보이는 관리자용이다.
-const ADMIN_PIN_HASH = '0f0a7bcf9f760e453e4719af259d31ddba9a638dd73831df3e244b615a7c4c7e';
+const ADMIN_PIN_HASH = 'a003cd9b9678a76cb3d2c7716575044695340503a755935065154c30ce40ea20';
 const UNLOCK_KEY = 'settleUnlocked';
 // 열려 있다는 표시는 암호 해시에서 따온 값 — 암호를 바꾸면 이미 열려 있던 기기가 한 번 잠긴다(예전 값 '1' 도 무효)
 const UNLOCK_VALUE = ADMIN_PIN_HASH.slice(0, 16);
