@@ -10,7 +10,7 @@
      계산은 settle_calc.js(SettleCalc), 화면·상태는 settle.js.
      절대경로로 두는 이유는 quote_view.html 주석 참조(/s/ 경로와 같은 저장소라 습관을 맞춘다). -->
 <link rel="stylesheet" href="/quote_style.css">
-<link rel="stylesheet" href="/settle_style.css">
+<link rel="stylesheet" href="/settle_style.css?v=20261007">
 </head>
 <body>
 
@@ -46,6 +46,8 @@
     <div class="allmat">전체 자재
       <select id="allMat" autocomplete="off"></select>
     </div>
+    <!-- 일정 앱에 적어둔 이 현장의 필름 번호별 단가(기본 9,000원). 위 '전체 자재'와 줄별 자재 선택지에 자동으로 들어간다 -->
+    <div id="filmBox" class="filmbox" hidden></div>
     <div id="lines"></div>
     <button type="button" class="addrow" id="addLineBtn">+ 품목 추가</button>
     <div class="matsum" id="matSubtotals"></div>
@@ -138,7 +140,8 @@
 
 <script src="/owner-key.js?v=20261006d"></script>
 <script src="/settle_calc.js"></script>
-<script src="/settle.js"></script>
+<script src="/settle_films.js?v=20261007"></script>
+<script src="/settle.js?v=20261007"></script>
 <script src="/app-switcher.js?v=20261006e" data-app-id="settle"></script>
 </body>
 </html>

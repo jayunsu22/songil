@@ -55,9 +55,16 @@ let 자재표 = {};      // 자재ID -> { 항목명, 단가 }  (사용여부 켜
 let 발행결과 = null;
 let toastTimer = null;
 let keySeq = 1;
+let 필름안내 = '';    // 일정 앱 필름을 못 불러왔을 때 이유 (필름 박스에 작게)
+
+// 일정 앱(거래처별 현장관리)에 적어둔 이 현장의 필름 번호를 자재 선택지로 쓴다.
+// 현장견적 화면이 저장해 둔 백업키로 같은 백업을 읽는다 (두 앱은 같은 주소라 키를 같이 쓴다).
+const VENDOR_URL = 'https://primary-production-a6fa.up.railway.app/webhook/sitenote-restore';
+const VENDOR_KEY_LS = 'quote_pro_vendor_key_v1';
 
 function 빈상태() {
-  return { 품수: '', 품단가ID: '', 품단가직접: '', 전체자재ID: '', 줄들: [], 부가: [], 미수금: [], 메모: '', 부가세별도: true, 만원절사: false };
+  return { 품수: '', 품단가ID: '', 품단가직접: '', 전체자재ID: '', 줄들: [], 부가: [], 미수금: [], 메모: '', 부가세별도: true, 만원절사: false,
+    필름: [], 필름단가: {} };   // 필름: 일정 앱에서 받아둔 번호 · 필름단가: 번호별로 고친 단가 (이 견적에만)
 }
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* 시크릿 모드 등 */ }
@@ -129,6 +136,10 @@ async function loadMaster() {
     status('현장 정보를 불러오지 못했습니다. 통신 상태를 확인해 주세요.', true);
     return false;
   }
+  // 필름 선택지는 저장해 둔 것으로 먼저 만든다 (통신이 안 돼도 쓰던 번호가 있어야 한다)
+  const 저장 = loadSaved();
+  state.필름 = 저장 && Array.isArray(저장.필름) ? 저장.필름 : [];
+  state.필름단가 = 저장 && 저장.필름단가 && typeof 저장.필름단가 === 'object' ? 저장.필름단가 : {};
   단가표적용();
   mergeSaved();
   if (!발행결과 && state.마지막발행 && state.마지막발행.견적코드) 발행결과 = { 견적코드: state.마지막발행.견적코드, 현장명: state.마지막발행.현장명 };
@@ -136,16 +147,55 @@ async function loadMaster() {
   status('');
   $('#doc').hidden = false;
   $('#totalBar').hidden = false;
+  필름불러오기();   // 기다리지 않는다 - 늦어도 화면은 이미 쓸 수 있다
   return true;
 }
 
 function 단가표적용() {
   자재표 = {};
-  (MASTER.단가표 || []).forEach((r) => {
-    if (r.구분 === '자재단가' && r.사용여부) 자재표[r.id] = { 항목명: r.항목명, 단가: r.단가 };
-  });
+  자재목록().forEach((r) => { 자재표[r.id] = { 항목명: r.항목명, 단가: r.단가 }; });
 }
-const 자재목록 = () => (MASTER.단가표 || []).filter((r) => r.구분 === '자재단가' && r.사용여부);
+const 마스터자재 = () => (MASTER.단가표 || []).filter((r) => r.구분 === '자재단가' && r.사용여부);
+const 필름자재 = () => SettleFilms.필름자재목록(state.필름, state.필름단가);
+// 이 현장 필름을 선택지 맨 위에 둔다. 기본으로 골라지는 자재는 아니다 - 줄마다 사장님이 고른다.
+const 자재목록 = () => 필름자재().concat(마스터자재());
+
+function 백업키() {
+  try {
+    const v = localStorage.getItem(VENDOR_KEY_LS);
+    if (!v) return '';
+    try { const p = JSON.parse(v); return typeof p === 'string' ? p : ''; } catch (e) { return v; }
+  } catch (e) { return ''; }
+}
+
+/* 일정 앱 백업에서 이 현장업무에 연결된 현장의 필름 번호를 받아 선택지를 갱신한다.
+   실패해도 견적은 그대로 쓸 수 있어야 한다 - 받아둔 번호가 있으면 그대로 두고, 없을 때만 작게 알린다. */
+async function 필름불러오기() {
+  const 키 = 백업키();
+  if (!키) {
+    필름안내 = state.필름.length ? '' : '일정 앱 필름을 불러오지 못했습니다 — 현장견적 화면에서 백업키를 한 번 넣어주세요.';
+    renderFilms();
+    return;
+  }
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 10000);
+    const res = await fetch(VENDOR_URL + '?key=' + encodeURIComponent(키), { signal: ctl.signal }).finally(() => clearTimeout(t));
+    if (res.status === 401) throw new Error('키틀림');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const j = await res.json();
+    const 새 = SettleFilms.필름코드들(j && j.sites, 현장ID);
+    const 남길 = SettleFilms.남길코드들(새, state.필름, state.줄들);
+    필름안내 = '';
+    if (JSON.stringify(남길) !== JSON.stringify(state.필름)) { state.필름 = 남길; save(); }
+    단가표적용();
+    renderLines(); renderFilms(); renderTotals();
+  } catch (e) {
+    필름안내 = state.필름.length ? '' : (e.message === '키틀림'
+      ? '백업키가 맞지 않아 일정 앱 필름을 불러오지 못했습니다.' : '일정 앱 필름을 불러오지 못했습니다 — 통신 상태를 확인해 주세요.');
+    renderFilms();
+  }
+}
 const 부가목록 = () => (MASTER.단가표 || []).filter((r) => r.구분 === '부가항목' && r.사용여부);
 
 function 구역정렬키(구역) {
@@ -164,7 +214,7 @@ function mergeSaved() {
   const saved = loadSaved();
   const 마스터맵 = {};
   (MASTER.시공품목 || []).forEach((m) => { 마스터맵[m.품목명] = m; });
-  const 기본자재 = (자재목록()[0] || {}).id || '';
+  const 기본자재 = (마스터자재()[0] || {}).id || '';   // 필름 번호는 선택지일 뿐 기본값이 아니다
 
   const fresh = (MASTER.작업목록 || []).map((t) => {
     const m = 마스터맵[t.시공품목] || {};
@@ -275,6 +325,7 @@ function renderAll() {
   d.hidden = !MASTER.현장.시공일자;
   renderLabor();
   renderLines();
+  renderFilms();
   renderExtras();
   renderDues();
   $('#memoText').value = state.메모 || '';
@@ -295,6 +346,32 @@ function renderLabor() {
   const custom = $('#wageCustom');
   custom.hidden = state.품단가ID !== CUSTOM_WAGE;
   custom.value = state.품단가직접 === '' ? '' : state.품단가직접;
+}
+
+/* 이 현장 필름 번호별 단가 칸. 기본 9,000원이고 이 견적에서만 고친다(설정의 자재단가는 안 바뀐다).
+   입력 중에는 이 박스를 다시 그리지 않는다 - 다시 그리면 키보드가 내려간다. 칸을 벗어날 때 다시 그린다. */
+function renderFilms() {
+  const box = $('#filmBox');
+  if (!box) return;
+  const 줄 = 필름자재();
+  if (!줄.length && !필름안내) { box.hidden = true; box.innerHTML = ''; return; }
+  box.innerHTML =
+    (줄.length ? `<div class="ftitle">이 현장 필름 <em>일정 앱 · 단가는 이 견적에만 적용</em></div>` +
+      줄.map((r) => `<div class="frow"><span class="fcode">${esc(r.항목명)}</span>` +
+        `<input class="fprice" type="number" inputmode="numeric" min="0" step="500" data-code="${esc(r.항목명)}" value="${esc(r.단가)}" autocomplete="off">` +
+        `<span class="unit">원/m</span></div>`).join('') : '') +
+    (필름안내 ? `<div class="fnote">${esc(필름안내)}</div>` : '');
+  box.hidden = false;
+  box.querySelectorAll('.fprice').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      const code = inp.dataset.code;
+      const v = Math.round(Number(inp.value));
+      // 비우거나 0 이하면 기본 단가로 되돌린다 - 자재비 0원 견적이 나가면 안 된다
+      if (inp.value !== '' && isFinite(v) && v > 0) state.필름단가[code] = v; else delete state.필름단가[code];
+      save(); 단가표적용(); renderLines(); renderTotals();
+    });
+    inp.addEventListener('change', () => renderFilms());
+  });
 }
 
 function 자재옵션(선택) {
@@ -560,9 +637,12 @@ $('#optVat').addEventListener('change', (ev) => { state.부가세별도 = ev.tar
 $('#optRound').addEventListener('change', (ev) => { state.만원절사 = ev.target.checked; save(); renderTotals(); });
 $('#resetBtn').addEventListener('click', () => {
   if (!confirm('입력한 품수·길이·부가 항목을 모두 지우고 처음부터 다시 시작할까요?')) return;
+  const 필름 = state.필름 || [];   // 일정 앱에서 받아온 번호는 입력이 아니라 지우지 않는다 (단가는 입력이라 지운다)
   try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* 무시 */ }
   발행결과 = null;
-  mergeSaved(); renderAll();
+  mergeSaved();
+  state.필름 = 필름; state.필름단가 = {};
+  단가표적용(); save(); renderAll();
 });
 $('#retryBtn').addEventListener('click', loadMaster);
 // 입력은 매번 자동 저장되지만, 눌러서 저장한 게 아니면 안심이 안 된다고 하셔서 둔 버튼.
