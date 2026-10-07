@@ -5,6 +5,9 @@ const VIEW = {
   quoteUrl: 'https://primary-production-a6fa.up.railway.app/webhook/settle-quote',
 };
 
+// 견적서 합계 아래에 보이는 입금계좌. 복사 버튼은 은행 앱에 붙여넣기 좋게 '은행 번호' 만 복사한다.
+const 입금계좌 = { 은행: '기업은행', 예금주: '김정헌', 번호: '062-128950-01-018' };
+
 // /s/CODE 또는 /settle_view.html?id=CODE (개발용) 둘 다 받는다
 const params = new URLSearchParams(location.search);
 const 코드 = (location.pathname.match(/\/s\/([A-Za-z0-9]+)/) || [])[1] || params.get('id') || '';
@@ -55,6 +58,27 @@ async function load() {
   } catch (e) {
     status('견적서를 불러오지 못했습니다. 통신 상태를 확인해 주세요.', true);
   }
+}
+
+/* 클립보드 복사. 카톡 인앱 브라우저처럼 navigator.clipboard 가 막힌 곳이 있어 예전 방식으로도 한 번 더 시도한다.
+   성공하면 버튼 글자를 잠깐 바꿔 눌렀다는 걸 보여준다 - 아무 반응이 없으면 받은 사람이 몇 번이고 누른다. */
+async function 클립보드복사(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+async function 계좌복사(btn) {
+  const ok = await 클립보드복사(입금계좌.은행 + ' ' + 입금계좌.번호);
+  btn.textContent = ok ? '복사됨 ✓' : '길게 눌러 복사하세요';
+  btn.classList.toggle('done', ok);
+  clearTimeout(btn._t);
+  btn._t = setTimeout(() => { btn.textContent = '복사하기'; btn.classList.remove('done'); }, 2000);
 }
 
 function render(d) {
@@ -169,11 +193,19 @@ function render(d) {
       (d.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span></div>' +
     '</div>');
 
+  // 입금계좌: 합계 바로 아래. 받는 쪽이 금액을 보고 바로 이체할 수 있게 복사 버튼을 둔다
+  H.push('<div class="v-pay"><h3>입금계좌</h3><div class="v-pay-row">' +
+    '<div class="v-pay-info"><div class="v-pay-bank">' + esc(입금계좌.은행) + ' <small>예금주 ' + esc(입금계좌.예금주) + '</small></div>' +
+    '<div class="v-pay-no">' + esc(입금계좌.번호) + '</div></div>' +
+    '<button type="button" class="v-pay-copy" id="vPayCopy">복사하기</button></div></div>');
+
   if (d.메모) H.push('<div class="v-memo"><b>메모</b>' + esc(d.메모) + '</div>');
 
   H.push('<div class="v-card"><img src="/quote_card.jpg" alt="' + esc(co.업체명 || '섬세한손길') + ' 명함" loading="lazy" width="1080" height="600"></div>');
 
   $v('#vDoc').innerHTML = H.join('');
+  const 복사버튼 = $v('#vPayCopy');
+  if (복사버튼) 복사버튼.addEventListener('click', () => 계좌복사(복사버튼));
   $v('#vBarAmt').innerHTML = won(합계.총액) + (d.부가세_별도표기 ? ' <small>부가세 별도</small>' : '');
 }
 

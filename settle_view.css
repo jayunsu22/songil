@@ -48,5 +48,25 @@
 
 /* 미수금 표 — 이번 시공분이 아니라는 게 한눈에 보여야 해서 머리글 색을 달리한다 */
 .v-tbl.due h3 { color: #7c2d12; background: #fde9d9; border-color: #e7b88f; border-left-color: #c2410c; }
+/* 입금계좌 (합계 바로 아래). 머리글은 다른 표와 같은 갈색 톤 */
+.v-pay { background: var(--card); margin-top: 10px; }
+.v-pay h3 {
+  margin: 0; padding: 10px 18px 10px 15px;
+  font-size: 15px; font-weight: 800; letter-spacing: -0.2px;
+  color: #4a3416; background: #ecdfc9;
+  border-left: 4px solid #9c6f2e; border-top: 1px solid #d6c2a1; border-bottom: 1px solid #d6c2a1;
+}
+.v-pay-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; }
+.v-pay-info { min-width: 0; }
+.v-pay-bank { font-size: 15px; font-weight: 800; color: #3a2a10; }
+.v-pay-bank small { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+.v-pay-no { margin-top: 3px; font-size: 19px; font-weight: 800; letter-spacing: 0.3px; color: #1f2937; font-variant-numeric: tabular-nums; word-break: keep-all; }
+.v-pay-copy {
+  flex: 0 0 auto; min-width: 92px; height: 42px; padding: 0 14px;
+  border: 1.5px solid #9c6f2e; border-radius: 10px; background: #fdf7ec; color: #6b4a14;
+  font-size: 14px; font-weight: 800; cursor: pointer;
+}
+.v-pay-copy:active { background: #f7ecd8; }
+.v-pay-copy.done { background: #047857; border-color: #047857; color: #fff; }
 /* 합계 안의 '시공대금' 소계 줄 */
 .v-sum .v-row.sub { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; font-weight: 700; }
