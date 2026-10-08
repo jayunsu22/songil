@@ -505,7 +505,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         cardEntries.sort((a, b) => a.priority - b.priority);
         // 뒷정리는 하루 일과 끝에 하는 일이라 시공 카드들 아래로 모은다 (그 안에서는 원래 순서)
-        cardEntries.sort((a, b) => (!!a.뒷정리 === !!b.뒷정리) ? 0 : (a.뒷정리 ? 1 : -1));
+        // 현장정리 카드: '현장세팅' 처럼 하루 시작에 하는 일은 맨 앞, 나머지(현장마무리 등)는 하루 끝이라
+        // 맨 아래(완료된 카드 위)로. 관리자 업무배정표와 같은 규칙 (2026-10-08)
+        const 정리자리 = (e) => !e.뒷정리 ? 1 : (/세팅/.test(e.task.fields.시공품목 || '') ? 0 : 2);
+        cardEntries.sort((a, b) => 정리자리(a) - 정리자리(b));
         // 완료된 카드를 맨 아래로 - 완료 여부로만 재배치하고, 그 안에서는 원래 순서(우선순위) 유지
         cardEntries.sort((a, b) => (a.isCompleted === b.isCompleted) ? 0 : (a.isCompleted ? 1 : -1));
 
@@ -550,7 +553,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="task-badge-container">
                     <span class="task-title">${fields.시공품목}</span>
                     ${뒷정리
-                        ? `<span class="task-badge cleanup">🧹 뒷정리${매일 ? ' · 매일' : ''}</span>`
+                        ? `<span class="task-badge cleanup">🧹 현장정리${매일 ? ' · 매일' : ''}</span>`
                         : `<span class="task-badge ${stage === '밑작업' ? 'prep' : 'wrap'}">${stage}</span>`}
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
@@ -692,10 +695,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!isValidPhoto(p) && !(p && p.isUploading)) continue;
                 if (매일 && !오늘사진인가(p)) continue;
                 if (isValidPhoto(p) && !(p && p.isUploading)) shownPhotoCount++;
-                tilesHtml += renderPhotoTile(i, "뒷정리 사진");
+                tilesHtml += renderPhotoTile(i, "현장정리 사진");
             }
             if (shownPhotoCount < MAX_EXTRA_PHOTOS) {
-                tilesHtml += renderAddTile(existingPhotos.length, "뒷정리 사진");
+                tilesHtml += renderAddTile(existingPhotos.length, "현장정리 사진");
             }
         } else if (stage === '밑작업') {
             for (let i = 0; i < existingPhotos.length; i++) {
@@ -836,7 +839,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         ${isCompleted ? 'disabled' : ''}
                         onclick="submitTask('${recordId}', '${stage}')">
                     ${뒷정리
-                        ? (isCompleted ? (매일 ? '✓ 오늘 뒷정리 완료' : '✓ 뒷정리 완료') : (매일 ? '오늘 뒷정리 완료' : '뒷정리 완료'))
+                        ? (isCompleted ? (매일 ? '✓ 오늘 완료' : '✓ 완료') : (매일 ? '오늘 완료' : '완료'))
                         : (isCompleted ? '✓ 품질 보고서 제출 완료' : `${stage}완료보고`)}
                 </button>
                 <button class="task-close-btn" onclick="closeTaskCard('${recordId}', '${stage}')">
@@ -1229,7 +1232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const task = projectData.tasks.find(t => t.id === recordId);
         const taskFields = (task && task.fields) || {};
         const promptMessage = 뒷정리
-            ? `${taskFields.시공품목 || '뒷정리'}${매일 ? ' (오늘)' : ''} 끝났나요? 완료로 기록합니다.`
+            ? `${taskFields.시공품목 || '현장정리'}${매일 ? ' (오늘)' : ''} 끝났나요? 완료로 기록합니다.`
             : `정말로 이 ${stage} 품질 검수 보고서를 제출하시겠습니까? 제출 후에는 수정이 불가능합니다.`;
 
         openModal(promptMessage, async () => {
