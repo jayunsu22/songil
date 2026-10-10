@@ -25,6 +25,8 @@
 
 /* 소모량 0인 품목은 표시만 하고 금액이 없다는 것을 알린다 */
 .v-tbl .sub.zero span:last-child { color: #b45309; }
+/* 직접 추가한 줄 - 크게·굵게·파랗게 (2026-10-10) */
+.v-tbl .sub.add { font-size: 15.5px; font-weight: 800; color: #1d4ed8; background: #eff6ff; }
 
 /* 시공사진 갤러리 버튼. 머리말 명함 카드와 같은 좌우 여백·모서리로 맞춰서
    '카드 아래 붙은 버튼' 처럼 보이게 한다. 금액 표(인건비) 바로 위에 온다. */

@@ -142,10 +142,13 @@ function render(d) {
       이중창.map((p) => esc((p.구역 ? p.구역 + ' ' : '') + p.품목명)).join(' · ') + '</small></div>');
   }
   if (품목.length) {
-    H.push('<details><summary>품목 내역 보기 (' + 품목.length + ')</summary>');
+    // 처음부터 펼쳐 둔다 - 받는 쪽이 '보기' 를 눌러야 나오면 품목을 안 보고 넘어간다 (2026-10-10)
+    H.push('<details open><summary>품목 내역 (' + 품목.length + ')</summary>');
     품목.forEach((p) => {
       // 수량/길이(개·m)는 안 적는다 - 실제 자재소모량(오른쪽 칸)과 다른 숫자라 시공 치수로 오해할 수 있다
-      H.push('<div class="sub' + (Number(p.소모량) ? '' : ' zero') + '"><span>' +
+      // 직접 추가한 줄은 견적 기본 품목 밖에서 더 한 일이라 크게·굵게·파랗게 눈에 띄게 한다
+      const 추가 = p.구역 === '직접 추가';
+      H.push('<div class="sub' + (추가 ? ' add' : '') + (Number(p.소모량) ? '' : ' zero') + '"><span>' +
         (p.구역 ? esc(p.구역) + ' · ' : '') + esc(p.품목명) + (p.이중창 ? ' <b class="v-dbl-tag">2중창</b>' : '') + '</span>' +
         '<span>' + m(p.소모량) + ' · ' + esc(p.자재명) + '</span></div>');
     });
