@@ -447,7 +447,8 @@ function 줄HTML(l) {
     // 드롭다운(0.1~7.0m, 0.1 단위)으로 실제 쓰는 자재 길이(m)를 바로 고른다 - "개수"가 아니라
     // "1개 2.5m"처럼 m 단위로 보여줘야 기사님이 한쪽면만 시공 같은 부분 작업량을 이해하기 쉬움.
     // 고른 값은 직접소모량으로 저장돼서(마스터소모량×수량 계산을 건너뛰고) 그 m × 단가로 바로 계산됨.
-    const 직접입력중 = l.수량직접 || !수량선택지.includes(소모량);
+    // 소모량이 0(마스터에 값이 없는 새 품목 등)이면 숫자칸을 펼치지 않고 'm' 선택칸만 둔다
+    const 직접입력중 = l.수량직접 || (소모량 !== 0 && !수량선택지.includes(소모량));
     const opts = ['<option value="">m</option>']
       .concat(수량선택지.map((n) => `<option value="${n}"${!직접입력중 && 소모량 === n ? ' selected' : ''}>1개 ${n}m</option>`))
       .concat([`<option value="${CUSTOM_QTY}"${직접입력중 ? ' selected' : ''}>직접 입력</option>`]);
@@ -464,11 +465,11 @@ function 줄HTML(l) {
   </div>`;
 }
 
-/* 문+틀 줄의 시공 범위 고르기. 기본(양쪽면)이 아니면 주황으로 눈에 띄게 한다. */
+/* 문+틀 줄의 시공 범위 고르기. 아래 m·자재 칸과 좌우 끝을 맞춘 한 줄. 기본(양쪽면)이 아니면 주황. */
 function 시공범위HTML(l) {
   const v = 시공범위값(l);
-  return `<div class="scope${v === 기본시공범위 ? '' : ' part'}"><span class="scope-lbl">시공 범위</span>` +
-    `<select data-f="시공범위">${시공범위들.map((o, i) => `<option value="${esc(o)}"${o === v ? ' selected' : ''}>${esc(o)}${i === 0 ? ' (기본)' : ''}</option>`).join('')}</select></div>`;
+  return `<div class="scope${v === 기본시공범위 ? '' : ' part'}">` +
+    `<select data-f="시공범위" aria-label="시공 범위">${시공범위들.map((o) => `<option value="${esc(o)}"${o === v ? ' selected' : ''}>🚪 ${esc(o)}</option>`).join('')}</select></div>`;
 }
 
 /* 직접 추가 줄의 종류: '금액'(실리콘 시공처럼 금액을 바로 적는 품목) / '필름'(소모량 m 로 계산) */
