@@ -225,3 +225,5 @@ button.addrow { display: block; width: 100%; text-align: left; padding: 10px 14p
 .row.money.on { background: #eff6ff; }
 .row.money .nm input { color: #1d4ed8; font-weight: 800; }
 .matsum div.add span:first-child { color: #1d4ed8; font-weight: 800; }
+/* 직접 추가 필름 줄 안내 - 칸 사이에 끼면 세로로 깨져서 아래 한 줄로 뺀다 */
+.row .hint { flex: 1 0 100%; padding-left: 30px; font-size: 12px; color: var(--muted); }

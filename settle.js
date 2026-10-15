@@ -433,7 +433,7 @@ function 줄HTML(l) {
   
   let ctl;
   if (l.출처 === '추가') {
-    ctl = 종류선택HTML(l) + `<span class="q-unit">소모량은 오른쪽 숫자를 눌러 입력</span>`;
+    ctl = 종류선택HTML(l);
   } else if (l.길이입력) {
     // 드롭다운(1~10m)이 기본. 목록에 없는 길이거나 '직접 입력'을 골랐으면 숫자칸이 옆에 뜬다
     const 값 = l.길이 == null || l.길이 === '' ? null : Number(l.길이);
@@ -461,7 +461,8 @@ function 줄HTML(l) {
     ${nm}
     <button type="button" class="use${소모량 === 0 ? ' zero' : ''}" data-f="use" title="눌러서 소모량 직접 입력">${l.체크 ? 소모량 + 'm' : '—'}${직접 ? '<span class="tag">직접</span>' : ''}</button>
     ${l.체크 && is문(l) ? 시공범위HTML(l) : ''}
-    ${l.체크 ? `<div class="ctl">${ctl}${is샤시(l) ? `<label class="dbl"><input type="checkbox" data-f="이중창"${l.이중창 ? ' checked' : ''}>2중창</label>` : ''}<select class="mat${자재표[l.자재ID] ? '' : ' none'}" data-f="자재ID">${자재옵션(l.자재ID)}</select>${del}</div>` : ''}
+    ${l.체크 ? `<div class="ctl">${ctl}${is샤시(l) ? `<label class="dbl"><input type="checkbox" data-f="이중창"${l.이중창 ? ' checked' : ''}>2중창</label>` : ''}<select class="mat${자재표[l.자재ID] ? '' : ' none'}" data-f="자재ID">${자재옵션(l.자재ID)}</select>${del}</div>` +
+      (l.출처 === '추가' ? `<div class="hint">👆 소모량(m)은 오른쪽 위 숫자를 눌러 입력</div>` : '') : ''}
   </div>`;
 }
 
