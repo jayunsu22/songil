@@ -28,6 +28,10 @@ const CUSTOM_LEN = '__custom';
 // 개당 품목의 수량 선택지: 0.1 ~ 7.0, 0.1 단위 (한쪽면만 시공 등 부분 시공 시 0.5개처럼 고를 수 있게). 그 밖은 '직접 입력'.
 const 수량선택지 = Array.from({ length: 70 }, (_, i) => (i + 1) / 10);
 const CUSTOM_QTY = '__customqty';
+// 문+틀 시공 범위. 기본은 양쪽면이고, 일부만 한 현장은 줄에서 골라 견적서에 그대로 적힌다.
+// 표시만 바뀐다 - 소모량(m)은 사장님이 그 범위에 맞게 따로 고른다.
+const 시공범위들 = ['문+틀 양쪽면 시공', '문+틀 한쪽면 시공', '문틀만 시공', '문짝만 시공', '문짝 앞면만 시공', '문짝 뒷면만 시공', '문선만 시공'];
+const 기본시공범위 = 시공범위들[0];
 // 부가항목 금액 선택지. 항목명으로 종류를 고른다 - 부자재비 1~10만(1만), 식대 인건비포함/1~20만(1만), 퀵비·택배비 1~10만(5천).
 // 그 밖에 설정에서 새로 만든 항목은 부자재비와 같은 선택지. 직접 추가한 줄은 숫자칸.
 const 만 = 10000;
@@ -224,6 +228,7 @@ function mergeSaved() {
       구역: m.구역 || '기타',
       우선순위: m.우선순위 ?? 999,
       출처: '작업목록',
+      카테고리: m.카테고리 || '',
       체크: true,
       길이입력: !!m.길이입력,
       마스터소모량: (typeof m.자재소모량 === 'number') ? m.자재소모량 : 0,
@@ -246,10 +251,12 @@ function mergeSaved() {
       l.길이직접 = !!s.길이직접;
       l.직접소모량 = s.직접소모량 ?? null;
       l.이중창 = !!s.이중창;
+      if (시공범위들.includes(s.시공범위)) l.시공범위 = s.시공범위;
       if (s.자재ID) l.자재ID = s.자재ID;
     });
     saved.줄들.filter((l) => l.출처 === '추가').forEach((l) => {
-      fresh.push(Object.assign({}, l, { key: 'k' + (keySeq++) }));
+      // 종류가 없는 예전 줄은 필름 소모량 줄로 만든 것이라 그대로 필름으로 둔다
+      fresh.push(Object.assign({ 종류: '필름' }, l, { key: 'k' + (keySeq++) }));
     });
   }
   // 자재가 설정에서 사라졌으면 기본 자재로 되돌리지 않는다 - 조용히 다른 단가로 계산되면 사고.
@@ -401,7 +408,20 @@ function renderLines() {
 function is샤시(l) { return String(l.품목명 || '').includes('샤시'); }
 function is이중창(l) { return is샤시(l) && !!l.이중창; }
 
+/* 문+틀 줄: 시공품목 카테고리가 '문+틀' 인 것 중 문짝이 있는 것. 프레임·아치문틀·파티션·'…문틀' 은
+   문짝이 없어 범위를 고를 게 없다. 카테고리를 못 받았으면(예전 응답) 이름에 '문'이 들어간 것으로 본다. */
+function is문(l) {
+  if (l.출처 !== '작업목록') return false;
+  const n = String(l.품목명 || '');
+  if (/프레임|아치|파티션|문틀$/.test(n.trim())) return false;
+  return l.카테고리 ? l.카테고리 === '문+틀' : n.includes('문');
+}
+const 시공범위값 = (l) => (시공범위들.includes(l.시공범위) ? l.시공범위 : 기본시공범위);
+const is금액줄 = (l) => SettleCalc.is금액줄(l);
+function 금액값(l) { return Math.round(SettleCalc.수(l.금액)); }
+
 function 줄HTML(l) {
+  if (is금액줄(l)) return 금액줄HTML(l);
   const 소모량 = SettleCalc.줄소모량(l);
   const 단위설명 = l.출처 === '추가' ? '' :
     (l.길이입력 ? `길이 · ${l.마스터소모량}m/m` : `${l.마스터소모량}m/개`);
@@ -410,9 +430,10 @@ function 줄HTML(l) {
   const nm = l.출처 === '추가'
     ? `<div class="nm"><input type="text" data-f="품목명" value="${esc(l.품목명)}" placeholder="품목명" autocomplete="off"></div>`
     : `<div class="nm">${esc(l.품목명)}${is이중창(l) ? '<span class="dbl-badge">2중창</span>' : ''}<small>${esc(단위설명)}</small></div>`;
+  
   let ctl;
   if (l.출처 === '추가') {
-    ctl = `<span class="q-unit">소모량은 오른쪽 숫자를 눌러 입력</span>`;
+    ctl = 종류선택HTML(l) + `<span class="q-unit">소모량은 오른쪽 숫자를 눌러 입력</span>`;
   } else if (l.길이입력) {
     // 드롭다운(1~10m)이 기본. 목록에 없는 길이거나 '직접 입력'을 골랐으면 숫자칸이 옆에 뜬다
     const 값 = l.길이 == null || l.길이 === '' ? null : Number(l.길이);
@@ -438,7 +459,35 @@ function 줄HTML(l) {
     <input type="checkbox" data-f="체크"${l.체크 ? ' checked' : ''}>
     ${nm}
     <button type="button" class="use${소모량 === 0 ? ' zero' : ''}" data-f="use" title="눌러서 소모량 직접 입력">${l.체크 ? 소모량 + 'm' : '—'}${직접 ? '<span class="tag">직접</span>' : ''}</button>
+    ${l.체크 && is문(l) ? 시공범위HTML(l) : ''}
     ${l.체크 ? `<div class="ctl">${ctl}${is샤시(l) ? `<label class="dbl"><input type="checkbox" data-f="이중창"${l.이중창 ? ' checked' : ''}>2중창</label>` : ''}<select class="mat${자재표[l.자재ID] ? '' : ' none'}" data-f="자재ID">${자재옵션(l.자재ID)}</select>${del}</div>` : ''}
+  </div>`;
+}
+
+/* 문+틀 줄의 시공 범위 고르기. 기본(양쪽면)이 아니면 주황으로 눈에 띄게 한다. */
+function 시공범위HTML(l) {
+  const v = 시공범위값(l);
+  return `<div class="scope${v === 기본시공범위 ? '' : ' part'}"><span class="scope-lbl">시공 범위</span>` +
+    `<select data-f="시공범위">${시공범위들.map((o, i) => `<option value="${esc(o)}"${o === v ? ' selected' : ''}>${esc(o)}${i === 0 ? ' (기본)' : ''}</option>`).join('')}</select></div>`;
+}
+
+/* 직접 추가 줄의 종류: '금액'(실리콘 시공처럼 금액을 바로 적는 품목) / '필름'(소모량 m 로 계산) */
+function 종류선택HTML(l) {
+  const 금액 = is금액줄(l);
+  return `<select class="kind" data-f="종류"><option value="금액"${금액 ? ' selected' : ''}>💰 금액 입력</option>` +
+    `<option value="필름"${금액 ? '' : ' selected'}>🎞 필름 소모량</option></select>`;
+}
+
+/* 직접 추가 '금액' 줄: 품목명 + 금액(원). 필름이 아니라 소모량은 '없음' 으로 둔다. */
+function 금액줄HTML(l) {
+  const 값 = 금액값(l);
+  const 경고 = l.체크 && 값 === 0;
+  return `<div class="row money ${l.체크 ? 'on' : 'off'}${경고 ? ' warn' : ''}" data-key="${l.key}">
+    <input type="checkbox" data-f="체크"${l.체크 ? ' checked' : ''}>
+    <div class="nm"><input type="text" data-f="품목명" value="${esc(l.품목명)}" placeholder="품목명 (예: 실리콘 시공)" autocomplete="off"></div>
+    <span class="use none-use" title="필름이 아니라 소모량이 없습니다">소모량<br>없음</span>
+    ${l.체크 ? `<div class="ctl">${종류선택HTML(l)}<input class="amt" type="number" inputmode="numeric" min="0" step="1000" data-f="금액" value="${값 ? 값 : ''}" placeholder="금액" autocomplete="off"><span class="q-unit">원</span>` +
+      `<button type="button" class="del" data-f="del" aria-label="줄 삭제">✕</button></div>` : ''}
   </div>`;
 }
 
@@ -466,6 +515,17 @@ function bindLineEvents() {
         if (l.길이직접) { const inp = $('#lines').querySelector(`.row[data-key="${l.key}"] input[data-f="길이"]`); if (inp) inp.focus(); }
       });
       else if (f === '이중창') el.addEventListener('change', () => { l.이중창 = el.checked; save(); 줄다시그리기(l); });
+      else if (f === '시공범위') el.addEventListener('change', () => { l.시공범위 = el.value; save(); 줄다시그리기(l); });
+      else if (f === '종류') el.addEventListener('change', () => {
+        l.종류 = el.value; save(); 줄다시그리기(l); renderTotals();
+        const inp = $('#lines').querySelector(`.row[data-key="${l.key}"] input[data-f="${l.종류 === '금액' ? '금액' : '품목명'}"]`);
+        if (inp && l.종류 === '금액') inp.focus();
+      });
+      else if (f === '금액') el.addEventListener('input', () => {
+        l.금액 = el.value; save();
+        row.classList.toggle('warn', l.체크 && 금액값(l) === 0);
+        renderTotals();
+      });
       else if (f === '품목명') el.addEventListener('input', () => { l.품목명 = el.value; save(); });
       else if (f === '자재ID') el.addEventListener('change', () => { l.자재ID = el.value; save(); 줄다시그리기(l); renderTotals(); });
       else if (f === 'del') el.addEventListener('click', () => {
@@ -496,7 +556,7 @@ function 소모량직접입력(l, btn) {
 // 입력 중(포커스 유지)에는 소모량 표시만 갱신하고 줄 전체를 다시 그리지 않는다
 function 줄갱신(l) {
   const row = $('#lines').querySelector(`.row[data-key="${l.key}"]`);
-  if (row) {
+  if (row && !is금액줄(l)) {
     const 소모량 = SettleCalc.줄소모량(l);
     const use = row.querySelector('.use');
     use.className = 'use' + (소모량 === 0 ? ' zero' : '');
@@ -587,12 +647,13 @@ function renderTotals() {
   const 반품설명 = (품 - Math.floor(품)) >= 0.5 && 단가 > 0
     ? ` <small>(${Math.floor(품)}품 ${won(Math.floor(품) * 단가)} + 반품 ${won(Math.round(단가 / 2 / 10000) * 10000)})</small>` : '';
   $('#laborAmt').innerHTML = '= ' + won(r.인건비) + 반품설명;
-  $('#matSum').textContent = won(r.자재비);
+  $('#matSum').textContent = won(r.자재비 + r.직접비);
   // 부가항목을 하나도 안 골랐으면 금액 대신 '부가항목 없음' 이라고 적는다 (번호 ③④ 는 그대로 둔다)
   $('#extraSum').textContent = r.부가 > 0 || state.부가.some((e) => e.인건비포함) ? won(r.부가) : '부가항목 없음';
   $('#dueSum').textContent = r.미수금 > 0 ? won(r.미수금) : '없음';
   $('#matSubtotals').innerHTML = r.자재소계.map((s) =>
-    `<div><span>${esc(s.자재명)} · ${won(s.단가)}/m × ${s.소모량합}m</span><b>${won(s.금액)}</b></div>`).join('');
+    `<div><span>${esc(s.자재명)} · ${won(s.단가)}/m × ${s.소모량합}m</span><b>${won(s.금액)}</b></div>`).join('') +
+    금액줄들().map((l) => `<div class="add"><span>➕ ${esc(l.품목명 || '이름 없는 품목')}</span><b>${won(금액값(l))}</b></div>`).join('');
   $('#totalAmount').innerHTML = won(r.총액) + (state.부가세별도 !== false ? '<small>부가세 별도</small>' : '');
   $('#publishBtn').disabled = r.총액 <= 0;
 }
@@ -608,13 +669,15 @@ $('#wageSelect').addEventListener('change', (ev) => {
   renderTotals();
 });
 $('#wageCustom').addEventListener('input', (ev) => { state.품단가직접 = ev.target.value; save(); renderTotals(); });
+const 금액줄들 = () => state.줄들.filter((l) => l.체크 && is금액줄(l));
 $('#allMat').addEventListener('change', (ev) => {
   state.전체자재ID = ev.target.value;
   state.줄들.forEach((l) => { l.자재ID = state.전체자재ID; });
   save(); renderLines(); renderTotals();
 });
 $('#addLineBtn').addEventListener('click', () => {
-  state.줄들.push({ key: 'k' + (keySeq++), 품목명: '', 구역: '직접 추가', 우선순위: 999, 출처: '추가', 체크: true,
+  // 직접 추가는 대개 실리콘 시공처럼 금액으로 치는 일이라 '금액' 이 기본. 필름이면 줄에서 바꾼다.
+  state.줄들.push({ key: 'k' + (keySeq++), 품목명: '', 구역: '직접 추가', 우선순위: 999, 출처: '추가', 종류: '금액', 금액: '', 체크: true,
     길이입력: false, 마스터소모량: 0, 소모량없음: true, 수량: 1, 길이: null, 직접소모량: null, 자재ID: state.전체자재ID });
   save(); renderLines(); renderTotals();
   const last = $('#lines').querySelector('.row:last-child input[data-f="품목명"]');
@@ -662,20 +725,23 @@ function 스냅샷만들기() {
   const r = 계산();
   return {
     인건비: { 품수: SettleCalc.수(state.품수), 품단가: 품단가값(), 금액: r.인건비 },
-    품목: state.줄들.filter((l) => l.체크).map((l) => ({
+    품목: state.줄들.filter((l) => l.체크).map((l) => is금액줄(l) ? ({
+      품목명: String(l.품목명 || '').trim() || '추가 시공', 구역: '직접 추가', 종류: '금액', 금액: 금액값(l), 소모량: 0,
+    }) : ({
       품목명: l.품목명, 구역: l.출처 === '추가' ? '직접 추가' : l.구역,
       수량: l.길이입력 ? null : SettleCalc.수(l.수량),
       길이: l.길이입력 ? SettleCalc.수(l.길이) : null,
       소모량: SettleCalc.줄소모량(l),
       자재명: 자재표[l.자재ID] ? 자재표[l.자재ID].항목명 : '자재 없음',
       ...(is이중창(l) ? { 이중창: true } : {}),
+      ...(is문(l) ? { 시공범위: 시공범위값(l) } : {}),
     })),
     자재소계: r.자재소계.map((s) => ({ 자재명: s.자재명, 단가: s.단가, 소모량합: s.소모량합, 금액: s.금액 })),
     부가: state.부가.filter((e) => e.인건비포함 || Math.round(SettleCalc.수(e.금액)) !== 0)
       .map((e) => Object.assign({ 항목명: e.항목명 || '기타', 금액: e.인건비포함 ? 0 : Math.round(SettleCalc.수(e.금액)) }, e.인건비포함 ? { 비고: '인건비 포함' } : {})),
     미수금: state.미수금.filter((d) => Math.round(SettleCalc.수(d.금액)) !== 0)
       .map((d) => ({ 현장명: String(d.현장명 || '').trim() || '현장 미기재', 금액: Math.round(SettleCalc.수(d.금액)) })),
-    합계: { 인건비: r.인건비, 자재비: r.자재비, 부가: r.부가, 미수금: r.미수금, 시공대금: r.시공대금, 총액: r.총액 },
+    합계: { 인건비: r.인건비, 자재비: r.자재비, 직접비: r.직접비, 부가: r.부가, 미수금: r.미수금, 시공대금: r.시공대금, 총액: r.총액 },
   };
 }
 
@@ -686,13 +752,18 @@ function openPublish() {
     alert('자재가 정해지지 않은 품목이 있습니다:\n\n' + 자재없음.map((l) => '· ' + l.품목명).join('\n') + '\n\n줄의 자재를 골라 주세요.');
     return;
   }
-  const 영 = state.줄들.filter((l) => l.체크 && SettleCalc.줄소모량(l) === 0);
+  const 이름없음 = 금액줄들().filter((l) => !String(l.품목명 || '').trim());
+  if (이름없음.length) { alert('직접 추가한 품목 중 품목명이 비어 있는 줄이 있습니다.\n품목명(예: 실리콘 시공)을 적어 주세요.'); return; }
+  const 영원 = 금액줄들().filter((l) => 금액값(l) === 0);
+  if (영원.length && !confirm('금액이 0원인 추가 품목이 있습니다 (' + 영원.map((l) => l.품목명).join(', ') + ').\n그래도 발행할까요?')) return;
+  const 영 = state.줄들.filter((l) => l.체크 && !is금액줄(l) && SettleCalc.줄소모량(l) === 0);
   if (영.length && !confirm('소모량이 0m 인 품목이 ' + 영.length + '개 있습니다 (' +
       영.slice(0, 5).map((l) => l.품목명).join(', ') + (영.length > 5 ? ' …' : '') +
       ').\n자재비 0원으로 견적서에 나갑니다. 그래도 발행할까요?')) return;
   $('#pubSummary').innerHTML =
     `<div><span>인건비</span><span>${won(r.인건비)}</span></div>` +
     `<div><span>자재비</span><span>${won(r.자재비)}</span></div>` +
+    금액줄들().map((l) => `<div><span>${esc(l.품목명)}</span><span>${won(금액값(l))}</span></div>`).join('') +
     `<div><span>부가 항목</span><span>${r.부가 > 0 ? won(r.부가) : '없음'}</span></div>` +
     (r.미수금 > 0 ? `<div><span>미수금</span><span>${won(r.미수금)}</span></div>` : '') +
     `<div class="tot"><span>합계${state.부가세별도 !== false ? ' (부가세 별도)' : ''}</span><span>${won(r.총액)}</span></div>`;

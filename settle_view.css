@@ -72,3 +72,15 @@
 .v-pay-copy.done { background: #047857; border-color: #047857; color: #fff; }
 /* 합계 안의 '시공대금' 소계 줄 */
 .v-sum .v-row.sub { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; font-weight: 700; }
+
+/* 문+틀 시공 범위 표시 (2026-10-15). 기본(양쪽면)은 차분하게, 일부만 시공은 주황으로 */
+.v-scope { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 6px; background: #f3f4f6; color: #4b5563; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.v-scope.part { background: #fff7ed; color: #c2410c; font-weight: 800; }
+.v-tbl .sub.add .v-scope { font-size: 12px; }
+
+/* 추가 시공 (직접 추가 금액 품목) - 크게·굵게·파랗게 */
+.v-tbl.addwork h3 { color: #1e3a8a; background: #dbeafe; border-color: #bfdbfe; border-left-color: #1d4ed8; }
+.v-tbl.addwork .v-line { background: #eff6ff; }
+.v-tbl.addwork .v-nm { font-size: 16px; font-weight: 800; color: #1d4ed8; }
+.v-tbl.addwork .v-amt { font-size: 16px; font-weight: 800; color: #1d4ed8; }
+.v-sum .v-row.add span { color: #1d4ed8; font-weight: 800; }

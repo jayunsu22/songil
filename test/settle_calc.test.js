@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { 줄소모량, 자재별소계, 자재없음줄, 인건비, 합계 } = require('../settle_calc.js');
+const { 줄소모량, 자재별소계, 자재없음줄, 인건비, 합계, 직접비 } = require('../settle_calc.js');
 
 /* 정산견적 계산. 기대값은 스펙(docs/superpowers/specs/2026-09-20-settle-quote-design.md §3)의
    규칙을 손으로 계산한 것이다:
@@ -126,4 +126,22 @@ test('미수금이 없으면 0, 총액은 시공대금과 같다', () => {
   assert.strictEqual(r.미수금, 0);
   assert.strictEqual(r.시공대금, 500000);
   assert.strictEqual(r.총액, 500000);
+});
+
+test('직접 추가 금액 줄(실리콘 시공 등): 소모량 0, 자재비에서 빠지고 직접비로 합계에 더해진다', () => {
+  const 실리콘 = { 출처: '추가', 종류: '금액', 체크: true, 품목명: '실리콘 시공', 금액: '80000', 자재ID: 'recA', 직접소모량: '3' };
+  assert.strictEqual(줄소모량(실리콘), 0);
+  assert.deepStrictEqual(자재별소계([실리콘], 자재표), []);
+  assert.deepStrictEqual(자재없음줄([Object.assign({}, 실리콘, { 자재ID: 'none' })], 자재표), []);
+  const r = 합계({ 품수: 1, 품단가: 250000, 줄들: [실리콘, { 출처: '추가', 종류: '금액', 체크: false, 금액: 50000 }], 부가: [] }, 자재표);
+  assert.strictEqual(r.직접비, 80000);   // 체크 안 된 줄은 빠진다
+  assert.strictEqual(r.자재비, 0);
+  assert.strictEqual(r.시공대금, 330000);
+  assert.strictEqual(r.총액, 330000);
+});
+
+test('직접 추가 줄 중 종류가 없거나 필름이면 예전처럼 소모량으로 계산한다', () => {
+  const 예전 = { 출처: '추가', 체크: true, 직접소모량: '2', 자재ID: Object.keys(자재표)[0] };
+  assert.strictEqual(줄소모량(예전), 2);
+  assert.strictEqual(직접비([예전, Object.assign({}, 예전, { 종류: '필름', 금액: 9999 })]), 0);
 });
