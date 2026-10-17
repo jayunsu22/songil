@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>견적요청 내역 목업</title>
+<style>
+  :root{--blue:#3a63e0;--teal:#5fa3ad;--bg:#f1f3f6;--card:#fff;--line:#e3e6ec;--ink:#1d1f24;--sub:#6b7280;--red:#e5484d;--amber:#f5a524;--green:#2f9e62;--lav:#c4b5fd;--yel:#fdf3a6}
+  *{box-sizing:border-box}
+  body{margin:0;background:#dfe3ea;font-family:-apple-system,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:var(--ink)}
+  h1{font-size:20px;text-align:center;margin:24px 16px 4px}
+  .lead{text-align:center;color:var(--sub);font-size:14px;margin:0 16px 20px}
+  .row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;padding:0 16px 40px}
+  .col{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .cap{font-weight:700;font-size:15px}.cap small{display:block;font-weight:400;color:var(--sub);font-size:12px;max-width:360px;text-align:center;margin-top:4px}
+  .phone{width:360px;height:740px;background:var(--bg);border-radius:28px;border:8px solid #222;overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .top{background:#fff;padding:14px 16px 10px;display:flex;align-items:center;gap:8px;font-weight:800;font-size:19px}
+  .top .sp{flex:1}.top .ic{font-size:20px}
+  .tabs{display:flex;background:#e6e9ef;font-size:14px;font-weight:700;border-bottom:2px solid #c9ced8}
+  .tabs div{padding:12px 10px;color:#333;white-space:nowrap}.tabs .on{background:var(--teal);color:#fff}
+  .scroll{flex:1;overflow:auto;padding:12px}
+  .card{background:var(--card);border-radius:14px;border:1px solid var(--line);padding:12px 14px;margin-bottom:10px}
+  .fold{display:flex;align-items:center;gap:8px;font-weight:800}.fold .h{flex:1;text-align:right;font-weight:400;color:var(--sub);font-size:12px}
+  .hl{outline:3px solid var(--red);outline-offset:2px}
+  .badge{display:inline-block;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff}
+  .b-red{background:var(--red)}.b-amb{background:var(--amber)}.b-grn{background:var(--green)}.b-gray{background:#9aa1ad}
+  .req{border-top:1px dashed var(--line);padding:9px 0;display:flex;gap:10px;align-items:flex-start}
+  .req:first-of-type{border-top:0}
+  .req .t{flex:1;font-size:13px;line-height:1.45}.req .t b{font-size:14px}
+  .req .m{font-size:11px;color:var(--sub)}
+  .site{border-radius:14px;padding:14px;margin-bottom:10px;font-weight:800;font-size:15px}
+  .site small{display:block;font-weight:400;font-size:13px;margin-top:6px}
+  .fab{position:absolute;right:16px;bottom:18px;background:var(--blue);color:#fff;border-radius:999px;padding:12px 18px;font-weight:800;box-shadow:0 6px 16px #3a63e055}
+  .hdr{background:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;font-weight:800;border-bottom:1px solid var(--line)}
+  .hdr .back{font-size:20px}
+  label.l{display:block;font-size:12px;color:var(--sub);margin:4px 0}
+  .inp{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:13px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 10px;font-size:12px}
+  .chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .kakao{background:#fff8c5;border:1px solid #f0e08a;border-radius:10px;padding:9px 10px;font-size:13px;line-height:1.5}
+  .thumbs{display:flex;gap:6px;margin-top:6px}
+  .th{width:58px;height:58px;border-radius:8px;background:linear-gradient(135deg,#cfd6e3,#9fb0c8);position:relative;font-size:10px;color:#fff;display:flex;align-items:flex-end;padding:3px;font-weight:700}
+  .th.k{background:linear-gradient(135deg,#ffe58a,#d9b84a)}
+  .th.add{background:#fff;border:1.5px dashed #b9c0cc;color:var(--sub);align-items:center;justify-content:center;font-size:20px}
+  .it{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}
+  .it .r1{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700}
+  .it .r1 .z{background:#eef2ff;color:var(--blue);border-radius:6px;padding:2px 6px;font-size:11px}
+  .it .r1 .sp{flex:1}
+  .qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px}
+  .qty span{padding:3px 8px}.qty .b{background:#f3f4f6}
+  .it .r2{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:12px}
+  sel,.sel{border:1px solid var(--line);border-radius:8px;padding:4px 8px;background:#fff;font-size:12px}
+  .warn{color:var(--red);font-size:12px;font-weight:700}
+  .sum{background:#fff;border-top:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:8px}
+  .sum .p{flex:1;font-size:12px;color:var(--sub)}.sum .p b{display:block;font-size:18px;color:var(--ink)}
+  .btn{background:var(--blue);color:#fff;border-radius:10px;padding:10px 14px;font-weight:800;font-size:14px}
+  .btn.g{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;top:110px;background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -8px 30px #0003;display:flex;flex-direction:column}
+  .dim{position:absolute;inset:0;background:#0006}
+  .grab{width:40px;height:4px;background:#ccd;border-radius:4px;margin:8px auto}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:0 12px}
+  .ph{aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#d5dbe6,#8ea2c0);position:relative;color:#fff;font-size:10px;padding:4px;display:flex;flex-direction:column;justify-content:flex-end;font-weight:700}
+  .ph.s{outline:3px solid var(--blue)}
+  .ph .ck{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px}
+  .ph .ba{position:absolute;top:4px;left:4px;background:#0007;border-radius:4px;padding:1px 4px}
+  .alert{background:#fff1f1;border:1px solid #f8c4c4;color:#a32;border-radius:10px;padding:9px 11px;font-size:12px;margin-bottom:10px;line-height:1.45}
+  .note{max-width:1180px;margin:0 auto 40px;padding:0 16px;font-size:13.5px;line-height:1.6}
+  .note h2{font-size:16px;margin:18px 0 6px}
+  .note li{margin-bottom:3px}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) body{background:#1b1d22;color:#e8e8ea} :root:not([data-theme="light"]) .lead,:root:not([data-theme="light"]) .cap small{color:#a6acb8}}
+</style>
+</head>
+<body>
+<h1>견적요청 내역 — 목업 (거래처별 현장관리 앱)</h1>
+<p class="lead">카톡으로 들어온 견적요청을 거래처 화면에서 바로 받아두고, 사진이 없으면 기존 시공사진에서 골라 방문견적 계산으로 이어 붙이는 흐름</p>
+
+<div class="row">
+
+<!-- ① 거래처 화면 -->
+<div class="col">
+  <div class="phone">
+    <div class="top">거래처별 현장관리<span class="sp"></span><span class="ic">📅</span><span class="ic">📝</span><span class="ic">⚙️</span></div>
+    <div class="tabs"><div>인테리어(군포)</div><div>딥트앤무드디자인</div><div class="on">이종수실장님</div></div>
+    <div class="scroll">
+      <div class="card fold">▶ 고정값<span class="h">담당자 · 단가 · 사진 · 주의사항</span></div>
+      <div class="card fold">▶ 메모 내역<span class="h">통화·확인한 내용을 날짜별로</span></div>
+
+      <div class="card hl">
+        <div class="fold">▼ 견적요청 내역 <span class="badge b-red">답장 전 2</span><span class="h">카톡 요청 → 견적</span></div>
+        <div style="margin-top:8px">
+          <div class="req"><span class="badge b-red">답장 전</span><div class="t"><b>송도 풍림아이원 2단지</b><br>안방 분합창 1, 거실 샤시 2, 냉장고장<div class="m">10/17 14:20 접수 · 사진 0장 · ⏰ 6시간째</div></div></div>
+          <div class="req"><span class="badge b-amb">작성 중</span><div class="t"><b>연수동 우성 3차</b><br>카톡 사진 5장 · 수납장, 현관문<div class="m">10/17 09:05 접수 · 품목 3/4 확인</div></div></div>
+          <div class="req"><span class="badge b-grn">발행</span><div class="t"><b>에듀포레 204동</b><br>발행 1,860,000원 · /q/AB12<div class="m">10/15 방문견적에서 발행 → 발행내역 자동 기록</div></div></div>
+          <div style="text-align:center;margin-top:6px"><span class="chip on">+ 견적요청 작성하기</span> <span class="chip">지난 요청 12건</span></div>
+        </div>
+      </div>
+
+      <div class="site" style="background:var(--lav)">인천 송도동 3-10 풍림아이원 2단지<small>📅 11/12 (1일)</small></div>
+      <div class="site" style="background:var(--yel)">인천 송도동 191-4 에듀포레 204동 1803호<small>📅 10/19 (3일) 👤 1명</small></div>
+    </div>
+    <div class="fab">+ 현장</div>
+  </div>
+  <div class="cap">① 거래처 화면에 ‘견적요청 내역’ 칸<small>메모 내역 바로 아래. 답장 안 한 요청은 빨간 배지 + 경과시간 표시 — 놓친 견적이 눈에 띄게</small></div>
+</div>
+
+<!-- ② 요청 받기 -->
+<div class="col">
+  <div class="phone">
+    <div class="hdr"><span class="back">‹</span>견적요청 작성하기 · 이종수실장님</div>
+    <div class="scroll">
+      <label class="l">현장 (주소·단지)</label>
+      <div class="inp">송도 풍림아이원 2단지 &nbsp;<span style="color:var(--sub)">34평</span></div>
+      <label class="l" style="margin-top:10px">카톡 내용 붙여넣기</label>
+      <div class="kakao">실장님 풍림 2단지 견적 부탁드려요<br>안방 분합창 1<br>거실 샤시 2 (이중창)<br>냉장고장 하나요</div>
+      <div class="thumbs"><div class="th add">＋</div><div style="font-size:11px;color:var(--sub);align-self:center">카톡 사진 가져오기 (없으면 비워둠)</div></div>
+
+      <label class="l" style="margin-top:12px">자동으로 나눈 품목 — 맞는지 확인</label>
+      <div class="it">
+        <div class="r1"><span class="z">안방</span>분합창<span class="sp"></span><div class="qty"><span class="b">−</span><span>1</span><span class="b">＋</span></div></div>
+        <div class="r2"><span class="warn">📷 사진 없음</span><span class="sp" style="flex:1"></span><span class="chip on">기존 시공사진에서 고르기</span></div>
+      </div>
+      <div class="it">
+        <div class="r1"><span class="z">거실</span>샤시<span class="sp"></span><div class="qty"><span class="b">−</span><span>2</span><span class="b">＋</span></div></div>
+        <div class="r2"><span class="sel">종류: 2중창 ▾</span><span class="sel">난이도 1.0 ▾</span><span style="flex:1"></span><span class="chip">📷 2장 골라둠</span></div>
+      </div>
+      <div class="it">
+        <div class="r1"><span class="z">주방</span>냉장고장<span class="sp"></span><div class="qty"><span class="b">−</span><span>1</span><span class="b">＋</span></div></div>
+        <div class="r2"><span class="warn">❓ 크기 모름</span><span style="flex:1"></span><span class="chip">📷 고르기</span></div>
+      </div>
+      <div class="chip" style="display:inline-block">+ 품목 추가</div>
+    </div>
+    <div class="sum"><div class="p">예상 금액 (방문견적 단가)<b>1,240,000원</b></div><div class="btn g">저장</div><div class="btn">방문견적에서 발행 →</div></div>
+  </div>
+  <div class="cap">② [견적요청 작성하기] → 카톡 글 붙여넣기 → 품목 자동 분리<small>[방문견적에서 발행]을 누르면 방문견적 화면이 품목·사진이 채워진 채로 열리고, 발행하면 링크·금액이 이 요청에 되돌아와 남음. “안방 분합창 1” 같은 줄을 구역·품목·수량으로 쪼갬. 샤시는 단창/2중창/시스템 고르기. 금액은 방문견적(quote_calc) 단가 그대로</small></div>
+</div>
+
+<!-- ③ 사진 고르기 -->
+<div class="col">
+  <div class="phone">
+    <div class="hdr"><span class="back">‹</span>견적요청 작성하기 · 이종수실장님</div>
+    <div class="scroll" style="filter:blur(1px)">
+      <div class="it"><div class="r1"><span class="z">안방</span>분합창</div></div>
+    </div>
+    <div class="dim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div style="padding:0 14px 8px;font-weight:800">‘분합창’ 시공사진에서 고르기</div>
+      <div style="padding:0 14px 10px" class="chips"><span class="chip on">분합창</span><span class="chip">같은 단지 먼저</span><span class="chip">시공 후만</span><span class="chip">전·후 같이</span></div>
+      <div class="grid">
+        <div class="ph s"><span class="ba">후</span><span class="ck">✓</span>풍림 1단지<br>10/02</div>
+        <div class="ph"><span class="ba">전</span>풍림 1단지<br>10/02</div>
+        <div class="ph"><span class="ba">후</span>에듀포레<br>09/21</div>
+        <div class="ph"><span class="ba">후</span>우성3차<br>09/14</div>
+        <div class="ph"><span class="ba">전</span>송도 더샵<br>08/30</div>
+        <div class="ph"><span class="ba">후</span>송도 더샵<br>08/30</div>
+        <div class="ph"><span class="ba">후</span>연수 롯데<br>08/11</div>
+        <div class="ph"><span class="ba">후</span>청라 SK<br>07/28</div>
+        <div class="ph"><span class="ba">전</span>청라 SK<br>07/28</div>
+      </div>
+      <div style="padding:10px 14px;font-size:12px;color:var(--sub)">필름현장관리자 앱에 올라간 작업사진 중 품목이 ‘분합창’ 인 것 · 최근 순</div>
+      <div style="margin-top:auto;padding:12px 14px;display:flex;gap:8px;border-top:1px solid var(--line)"><div class="btn g" style="flex:1;text-align:center">취소</div><div class="btn" style="flex:2;text-align:center">1장 붙이기</div></div>
+    </div>
+  </div>
+  <div class="cap">③ 기존 시공사진 DB에서 품목별로 고르기<small>말로만 온 요청도 “이런 거 맞으시죠?” 하고 사진을 붙여 보낼 수 있게. 냉장고장·수납장도 같은 방식</small></div>
+</div>
+
+<!-- ④ 놓침 방지 -->
+<div class="col">
+  <div class="phone">
+    <div class="top">거래처별 현장관리<span class="sp"></span><span class="ic">📅</span><span class="ic">📝</span><span class="ic">⚙️</span></div>
+    <div class="scroll">
+      <div class="alert">🔔 <b>답장 안 한 견적요청 3건</b><br>· 이종수실장님 — 풍림 2단지 (6시간째)<br>· 딥트앤무드 — 청라 호반 (어제)<br>· 인테리어(군포) — 산본 주공 (2일째)</div>
+      <div class="card"><div class="fold">오늘 할 일<span class="h">10/17</span></div>
+        <div class="req"><span class="badge b-red">견적</span><div class="t">풍림 2단지 견적 보내기<div class="m">견적요청에서 자동으로 생김 · 보내면 자동 완료</div></div></div>
+        <div class="req"><span class="badge b-gray">통화</span><div class="t">에듀포레 실장님 일정 확인</div></div>
+      </div>
+      <div class="card">
+        <div style="font-weight:800;margin-bottom:6px">보낸 견적 → 진행</div>
+        <div class="req"><span class="badge b-grn">발행</span><div class="t"><b>에듀포레 204동</b> 1,860,000원<div class="m">확정되면 [현장으로 등록] → 현장 카드 생김 (품목 그대로)</div></div></div>
+        <div class="req"><span class="badge b-gray">안 됨</span><div class="t">송도 더샵 · 가격 안 맞음<div class="m">지난 요청에 보관</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">④ 놓침 방지<small>답장 전 요청은 첫 화면 맨 위 + 오늘 할 일에 자동으로 올라감. 견적서를 보내야 꺼짐</small></div>
+</div>
+
+</div>
+
+<div class="note">
+<h2>상태 흐름</h2>
+<ol>
+<li><b>답장 전</b> — 카톡 내용만 붙여넣은 상태 (현장에서 바빠도 10초면 끝)</li>
+<li><b>작성 중</b> — 품목·사진·수량 확인 중</li>
+<li><b>발행</b> — 방문견적 화면에서 발행 (/q/ 링크). 발행내역(코드·금액·날짜)은 현장관리 앱의 이 요청에 남음. 고쳐서 다시 발행하면 내역이 한 줄 더 쌓임</li>
+<li><b>확정 → 현장 등록</b> 또는 <b>안 됨</b> (사유 한 줄)</li>
+</ol>
+<h2>가정 (확인 필요)</h2>
+<ul>
+<li>‘기존 시공사진’ = 필름현장관리자 앱에 품목별로 올라간 작업사진(시공 전/후). 방문견적 저장함 사진은 폰 안에만 있어서 제외.</li>
+<li>금액 = 방문견적(quote_pro)의 품목 단가·난이도·평형 계산을 그대로 씀. 정산견적(품수 기반)은 참고만.</li>
+</ul>
+</div>
+</body>
+</html>

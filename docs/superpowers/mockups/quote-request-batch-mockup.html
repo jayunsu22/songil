@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>견적요청 일괄입력 목업</title>
+<style>
+  :root{--blue:#3a63e0;--bg:#f1f3f6;--line:#e3e6ec;--ink:#1d1f24;--sub:#6b7280;--red:#e5484d;--green:#2f9e62;--amber:#f5a524}
+  *{box-sizing:border-box}
+  body{margin:0;background:#dfe3ea;font-family:-apple-system,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:var(--ink)}
+  h1{font-size:20px;text-align:center;margin:24px 16px 4px}
+  .lead{text-align:center;color:var(--sub);font-size:14px;margin:0 16px 20px}
+  .row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;padding:0 16px 30px}
+  .col{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .cap{font-weight:700;font-size:15px;text-align:center}.cap small{display:block;font-weight:400;color:var(--sub);font-size:12px;max-width:360px;margin-top:4px}
+  .phone{width:360px;height:740px;background:var(--bg);border-radius:28px;border:8px solid #222;overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .hdr{background:#fff;padding:12px 14px 0;font-weight:800;border-bottom:1px solid var(--line)}
+  .seg{display:flex;margin-top:10px}
+  .seg div{flex:1;text-align:center;padding:9px 0;font-size:13px;color:var(--sub);border-bottom:3px solid transparent}
+  .seg .on{color:var(--blue);border-color:var(--blue);font-weight:800}
+  .scroll{flex:1;overflow:auto;padding:12px}
+  .hint{font-size:12px;color:var(--sub);margin-bottom:8px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .ph{aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#ffe8a0,#c9a742);position:relative;color:#fff;font-size:10px;padding:4px;display:flex;flex-direction:column;justify-content:flex-end;font-weight:700}
+  .ph.b{background:linear-gradient(135deg,#c8d3e6,#7e93b5)}
+  .ph.g{background:linear-gradient(135deg,#d6e8d0,#7ea676)}
+  .ph.s{outline:3px solid var(--blue);outline-offset:-3px}
+  .ph .ck{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;border:2px solid #fff;background:#0003;font-size:12px;display:flex;align-items:center;justify-content:center}
+  .ph.s .ck{background:var(--blue)}
+  .lab{background:#000a;border-radius:4px;padding:1px 4px;display:inline-block}
+  .none{background:var(--red);border-radius:4px;padding:1px 4px;display:inline-block}
+  .bar{background:#fff;border-top:1px solid var(--line);padding:10px 12px}
+  .bar .t{font-size:12px;font-weight:800;margin:2px 0 6px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 10px;font-size:12px}
+  .chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .btn{background:var(--blue);color:#fff;border-radius:10px;padding:10px 14px;font-weight:800;font-size:14px;text-align:center}
+  .btn.g{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .kakao{background:#fff8c5;border:1px solid #f0e08a;border-radius:10px;padding:9px 10px;font-size:13px;line-height:1.6;margin-bottom:10px}
+  .ln{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 9px;margin-bottom:6px;font-size:13px}
+  .ln .raw{color:var(--sub);font-size:11px;width:92px;flex:none}
+  .ln .arr{color:var(--sub)}
+  .z{background:#eef2ff;color:var(--blue);border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700}
+  .i{font-weight:800}
+  .q{margin-left:auto;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:1px 7px}
+  .bad{border-color:#f3b4b4;background:#fff6f6}
+  .bad .i{color:var(--red)}
+  .it{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}
+  .it .r1{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:800}
+  .it .r2{display:flex;gap:5px;margin-top:8px;align-items:center}
+  .mini{width:44px;height:44px;border-radius:6px;background:linear-gradient(135deg,#ffe8a0,#c9a742)}
+  .mini.b{background:linear-gradient(135deg,#c8d3e6,#7e93b5)}
+  .src{font-size:10px;font-weight:700;border-radius:4px;padding:1px 5px}
+  .s-both{background:#e7f6ec;color:var(--green)}.s-txt{background:#fff4e0;color:#b26b00}.s-ph{background:#eef2ff;color:var(--blue)}
+  .sel{border:1px solid var(--line);border-radius:8px;padding:3px 7px;background:#fff;font-size:12px}
+  .warn{color:var(--red);font-size:12px;font-weight:700}
+  .sum{background:#fff;border-top:1px solid var(--line);padding:10px 12px;display:flex;align-items:center;gap:8px}
+  .sum .p{flex:1;font-size:12px;color:var(--sub)}.sum .p b{display:block;font-size:18px;color:var(--ink)}
+  .note{max-width:1180px;margin:0 auto 40px;padding:0 16px;font-size:13.5px;line-height:1.6}
+  .note h2{font-size:16px;margin:18px 0 6px}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) body{background:#1b1d22;color:#e8e8ea} :root:not([data-theme="light"]) .lead,:root:not([data-theme="light"]) .cap small{color:#a6acb8}}
+</style>
+</head>
+<body>
+<h1>견적요청 작성하기 — 사진 일괄 + 텍스트 일괄 → 겹쳐서 견적 항목</h1>
+<p class="lead">카톡 사진은 여러 장 골라 위치·품목을 한 번에 지정하고, 카톡 글은 줄마다 품목으로 바꾼 뒤, 둘을 겹쳐 견적 항목 하나로 합칩니다</p>
+
+<div class="row">
+
+<!-- A 사진 일괄 -->
+<div class="col">
+  <div class="phone">
+    <div class="hdr">‹ 견적요청 작성하기 · 풍림 2단지
+      <div class="seg"><div class="on">① 사진 7</div><div>② 글</div><div>③ 견적 항목</div></div>
+    </div>
+    <div class="scroll">
+      <div class="hint">카톡 사진을 한꺼번에 올림 → 같은 곳 사진을 여러 장 눌러 고르고 → 아래에서 위치·품목 누르기</div>
+      <div class="grid">
+        <div class="ph s"><span class="ck">✓</span></div>
+        <div class="ph s"><span class="ck">✓</span></div>
+        <div class="ph b"><span class="ck"></span><span class="lab">거실 · 샤시</span></div>
+        <div class="ph b"><span class="ck"></span><span class="lab">거실 · 샤시</span></div>
+        <div class="ph g"><span class="ck"></span><span class="lab">현관 · 현관문</span></div>
+        <div class="ph"><span class="ck"></span><span class="none">미지정</span></div>
+        <div class="ph"><span class="ck"></span><span class="none">미지정</span></div>
+        <div class="ph" style="background:#fff;border:1.5px dashed #b9c0cc;color:var(--sub);align-items:center;justify-content:center;font-size:22px">＋</div>
+      </div>
+    </div>
+    <div class="bar">
+      <div class="t">고른 2장 →  위치</div>
+      <div class="chips"><span class="chip">거실</span><span class="chip">주방</span><span class="chip on">안방</span><span class="chip">방2</span><span class="chip">방3</span><span class="chip">현관</span><span class="chip">+</span></div>
+      <div class="t">품목</div>
+      <div class="chips"><span class="chip">샤시</span><span class="chip on">분합창</span><span class="chip">방문</span><span class="chip">냉장고장</span><span class="chip">수납장</span><span class="chip">붙박이장</span><span class="chip">🔍</span></div>
+      <div class="btn">2장에 ‘안방 · 분합창’ 붙이기</div>
+    </div>
+  </div>
+  <div class="cap">① 사진 일괄 지정<small>여러 장 눌러 고르고 → 위치·품목을 한 번에. 지정한 사진은 라벨이 붙고, 남은 사진은 빨간 ‘미지정’으로 표시돼 빠뜨리지 않음. 품목 칩은 자주 쓰는 순서, 🔍로 방문견적 전체 품목 검색</small></div>
+</div>
+
+<!-- B 텍스트 일괄 -->
+<div class="col">
+  <div class="phone">
+    <div class="hdr">‹ 견적요청 작성하기 · 풍림 2단지
+      <div class="seg"><div>① 사진 7</div><div class="on">② 글</div><div>③ 견적 항목</div></div>
+    </div>
+    <div class="scroll">
+      <div class="hint">카톡 글을 통째로 붙여넣기 → 한 줄씩 위치·품목·수량으로 바뀜</div>
+      <div class="kakao">실장님 풍림 2단지 견적 부탁드려요<br>안방 분합창 1<br>거실 샤시 2 이중창<br>냉장고장 하나요<br>현관문이랑 신발장도요</div>
+      <div class="ln" style="opacity:.45"><span class="raw">실장님 풍림…</span><span class="arr">→</span><span>인사말 · 건너뜀</span></div>
+      <div class="ln"><span class="raw">안방 분합창 1</span><span class="arr">→</span><span class="z">안방</span><span class="i">분합창</span><span class="q">1</span></div>
+      <div class="ln"><span class="raw">거실 샤시 2 이중창</span><span class="arr">→</span><span class="z">거실</span><span class="i">샤시·2중창</span><span class="q">2</span></div>
+      <div class="ln bad"><span class="raw">냉장고장 하나요</span><span class="arr">→</span><span class="z">위치?</span><span class="i">냉장고장</span><span class="q">1</span></div>
+      <div class="ln"><span class="raw">현관문이랑 신발장도요</span><span class="arr">→</span><span class="z">현관</span><span class="i">현관문</span><span class="q">1</span></div>
+      <div class="ln"><span class="raw">〃</span><span class="arr">→</span><span class="z">현관</span><span class="i">신발장</span><span class="q">1</span></div>
+      <div class="hint" style="margin-top:8px">줄을 누르면 위치·품목·수량을 고칠 수 있음. 빨간 줄은 확인 필요</div>
+    </div>
+    <div class="bar"><div class="btn">5개 품목 → ③ 견적 항목으로</div></div>
+  </div>
+  <div class="cap">② 텍스트 일괄 설정<small>“이중창” → 샤시 종류 2중창, “하나요” → 1. 방문견적의 품목명·구역명 목록에 맞춰 바꾸고, 못 알아본 단어(위치 없음 등)는 빨갛게. 숫자가 없으면 1</small></div>
+</div>
+
+<!-- C 합치기 -->
+<div class="col">
+  <div class="phone">
+    <div class="hdr">‹ 견적요청 작성하기 · 풍림 2단지
+      <div class="seg"><div>① 사진 7</div><div>② 글</div><div class="on">③ 견적 항목 6</div></div>
+    </div>
+    <div class="scroll">
+      <div class="it"><div class="r1"><span class="z">안방</span>분합창<span class="src s-both">사진+글</span><span class="q">1</span></div>
+        <div class="r2"><div class="mini"></div><div class="mini"></div><span class="sel" style="margin-left:auto">난이도 1.0</span></div></div>
+      <div class="it"><div class="r1"><span class="z">거실</span>샤시<span class="src s-both">사진+글</span><span class="q">2</span></div>
+        <div class="r2"><div class="mini b"></div><div class="mini b"></div><span class="sel">2중창 ▾</span><span class="sel" style="margin-left:auto">난이도 1.0</span></div></div>
+      <div class="it"><div class="r1"><span class="z">현관</span>현관문<span class="src s-both">사진+글</span><span class="q">1</span></div>
+        <div class="r2"><div class="mini" style="background:linear-gradient(135deg,#d6e8d0,#7ea676)"></div></div></div>
+      <div class="it"><div class="r1"><span class="z">현관</span>신발장<span class="src s-txt">글만</span><span class="q">1</span></div>
+        <div class="r2"><span class="warn">📷 사진 없음</span><span class="chip on" style="margin-left:auto">시공사진에서 고르기</span></div></div>
+      <div class="it" style="border-color:#f3b4b4"><div class="r1"><span class="z" style="color:var(--red);background:#fff1f1">위치?</span>냉장고장<span class="src s-txt">글만</span><span class="q">1</span></div>
+        <div class="r2"><span class="warn">위치 고르기</span><span class="chip" style="margin-left:auto">시공사진에서 고르기</span></div></div>
+      <div class="it" style="border-color:#f3b4b4"><div class="r1"><span class="none" style="color:#fff;font-size:11px">미지정 사진 2장</span></div>
+        <div class="r2"><div class="mini"></div><div class="mini"></div><span class="warn" style="margin-left:auto">① 사진에서 지정 필요</span></div></div>
+    </div>
+    <div class="sum"><div class="p">예상 (방문견적 단가)<b>1,640,000원</b></div><div class="btn">방문견적에서 발행 →</div></div>
+  </div>
+  <div class="cap">③ 겹쳐서 견적 항목<small>위치+품목이 같은 사진과 글 줄은 한 항목으로 합침(중복 없음). 글만 있는 항목은 시공사진 DB에서 고르기, 사진만 있는 항목은 수량 1로 자동 추가. 빨간 카드가 남아 있으면 발행 전에 알려줌</small></div>
+</div>
+
+</div>
+
+<div class="note">
+<h2>합치는 규칙</h2>
+<ul>
+<li><b>사진+글</b>: 위치·품목이 같으면 한 항목. 수량은 글의 숫자(사진 장수가 아님).</li>
+<li><b>글만</b>: 사진 없음 → 시공사진 DB(필름현장관리자 작업사진, 품목명으로 거름)에서 골라 견적서에 같이 보여줌.</li>
+<li><b>사진만</b>: 글에 없던 품목 → 수량 1로 추가하고 ‘글에 없음’ 표시 (카톡에서 사진으로만 보낸 경우).</li>
+<li><b>순서 자유</b>: 사진만, 글만, 둘 다 — 어느 탭부터 해도 ③에서 합쳐짐.</li>
+</ul>
+</div>
+</body>
+</html>
