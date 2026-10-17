@@ -119,3 +119,12 @@ test('괄호 안 샤시 종류도 읽는다', () => {
   const r = 해석('거실 샤시 1 (단창)');
   assert.strictEqual(r[0].옵션, 옵션번호('거실', '샤시1', '단창'));
 });
+
+test('한개: 사진에만 붙인 품목도 보통 길이·2중창으로 1개 줄', () => {
+  const r = P.한개('z03_거실_샤시2_공통', 사전());
+  assert.strictEqual(r.체크_ID, 'z03_거실_샤시2_공통');
+  assert.strictEqual(r.수량, 3);
+  assert.strictEqual(r.기본길이, true);
+  assert.strictEqual(r.옵션, 옵션번호('거실', '샤시2', '2중창'));
+  assert.strictEqual(P.한개('없는ID', 사전()), null);
+});

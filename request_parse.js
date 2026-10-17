@@ -185,5 +185,18 @@
     return 결과;
   }
 
-  return { 해석: 해석, 보통길이: 보통길이, 기본이름: 기본이름 };
+  /* 품목 하나(체크_ID) 1개짜리 줄. 사진에만 품목을 붙이고 글에는 없는 경우 수량을 채운다. */
+  function 한개(체크_ID, 사전) {
+    const zones = (사전 && 사전.zones) || [];
+    for (const z of zones) {
+      const it = (z.items || []).find((x) => x.체크_ID === 체크_ID);
+      if (!it) continue;
+      const 줄 = 줄만들기('', { 구역: z.구역, 기본이름: 기본이름(it.표시_품목명), 개수: 1 },
+        [{ 구역: z.구역, items: [it] }]);
+      return 줄[0];
+    }
+    return null;
+  }
+
+  return { 해석: 해석, 한개: 한개, 보통길이: 보통길이, 기본이름: 기본이름 };
 });

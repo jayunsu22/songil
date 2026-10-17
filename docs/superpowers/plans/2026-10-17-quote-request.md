@@ -165,7 +165,7 @@ MASTER.zones = [{ 구역: '거실', items: [{ 체크_ID, 품목명, 표시_품�
 
 ### Task 11: 끝맺음
 
-- [ ] songil `node --test test/` 전체 PASS, 현장관리 `node --test test/` 전체 PASS
+- [ ] songil `node --test test/*.test.js` 전체 PASS (Windows 에서 `test/` 폴더 형태는 실패), 현장관리도 같은 방식
 - [ ] 폰 폭(375px)에서 시트 3탭·내역 칸 확인
 - [ ] **사용자 확인 뒤** 두 저장소 push(배포). 배포 후 실제 폰에서 한 건 끝까지
 
