@@ -79,7 +79,7 @@
 
   // 한 줄 → 덩어리[] (구역·기본이름·개수·종류). 아직 체크_ID 는 모른다.
   function 덩어리로(줄, 사전, 색) {
-    const 낱말들 = 줄.split(/[\s,·/]+/).filter(Boolean);
+    const 낱말들 = 줄.split(/[\s,·/()]+/).filter(Boolean);
     const 덩어리 = [];
     let 구역 = null, 남은수 = null, 남은종류 = null, 열림 = false;
     let 구역있음 = false, 아라비아수 = false;
