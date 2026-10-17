@@ -162,3 +162,28 @@
 @media (min-width: 600px) {
   #reqSheet, #reqDbSheet { max-width: 480px; margin-left: auto; margin-right: auto; }
 }
+
+/* ① 구역 칩 끝 '+ 직접 입력' · 직접 입력 줄 */
+.req-chip.add { border: 1.5px dashed var(--accent); color: var(--accent); background: #fff; font-weight: 800; }
+.req-item.direct small { color: var(--accent); font-weight: 700; }
+
+/* 직접 입력 창 (아래에서 올라오는 시트) */
+#reqCustomBack { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 70; }
+#reqCustomSheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 75;
+  background: var(--card); border-radius: 18px 18px 0 0;
+  padding: 16px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  max-height: 90vh; overflow-y: auto; box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+}
+#reqCustomSheet[hidden] { display: none; }
+#reqCustomSheet h2 { margin: 0 0 6px; font-size: 17px; }
+#reqCustomSheet .hint { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; }
+.req-lb { display: block; margin: 10px 0 4px; font-size: 14px; font-weight: 800; }
+.req-lb em { font-style: normal; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-left: 4px; }
+#reqCustomSheet select, #reqCustomSheet input, #reqCustomSheet textarea {
+  width: 100%; box-sizing: border-box; min-height: var(--tap); padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: 10px; font-size: 15px; background: #fff; color: var(--text);
+}
+#reqCustomSheet .req-row { margin-top: 12px; }
+.req-delbig { width: 100%; min-height: 40px; margin-top: 8px; border: 1px solid #f3b4b4; border-radius: 12px; background: #fff; color: #b91c1c; font-weight: 700; }
+@media (min-width: 600px) { #reqCustomSheet { max-width: 480px; margin-left: auto; margin-right: auto; } }

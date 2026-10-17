@@ -53,6 +53,11 @@ function 요청필름목록() {
 const 요청필름 = (id) => 요청필름목록().find((f) => f.id === id) || null;
 
 function 요청줄계산(줄) {
+  // 직접 입력 줄: 표 계산 없이 적은 인건비·자재비 그대로 (방문견적 직접 입력과 같다)
+  if (줄.직접) {
+    const 인 = Math.round(Number(줄.인건비) || 0), 자 = Math.round(Number(줄.자재비) || 0);
+    return { 기준: null, 길이: null, 필름m: 0, 인건비: 인, 자재비: 자, 합: 인 + 자, 문제: null, 필름ID: '', 필름없음: false };
+  }
   const p = 요청품목(줄.품목명) || { 품목명: 줄.품목명 };
   const f = 요청필름(줄.필름ID);
   const r = RequestPrice.줄계산(p, 줄, (요청M && 요청M.품목정보) || [], 요청고정(), f ? f.단가 : null);
@@ -252,13 +257,18 @@ function 요청품목그리기() {
     cc.appendChild(b);
   });
   const 묶 = 목록.filter((p) => 요청묶음of(p) === 요청묶음);
-  const 구역들 = 요청구역들(묶);
+  const 직접들 = 요청줄들().filter((x) => x.직접 && x.카테고리 === 요청묶음);
+  const 구역들 = 요청구역들(묶.concat(직접들.map((x) => ({ 구역: x.구역 }))));
   if (요청구역칩 !== '전체' && 구역들.indexOf(요청구역칩) < 0) 요청구역칩 = '전체';
   zc.appendChild(요청칩('전체', 요청구역칩 === '전체', null, () => { 요청구역칩 = '전체'; 다시(); }));
   구역들.forEach((z) => {
-    const 몇 = 몇개(묶.filter((p) => (p.구역 || '기타') === z));
+    const 몇 = 몇개(묶.filter((p) => (p.구역 || '기타') === z)) + 직접들.filter((x) => x.구역 === z).length;
     zc.appendChild(요청칩(z + (몇 ? ' ✓' + 몇 : ''), 요청구역칩 === z, 색of(z), () => { 요청구역칩 = z; 다시(); }));
   });
+  // 맨 끝: 방문견적처럼 표에 없는 건을 금액으로 바로 적는 '직접 입력'
+  const 추가 = 요청칩('＋ 직접 입력', false, null, () => 요청직접열기(null));
+  추가.classList.add('add');
+  zc.appendChild(추가);
   const 보일 = 묶.filter((p) => 요청구역칩 === '전체' || (p.구역 || '기타') === 요청구역칩);
 
   const box = $('#reqItemList');
@@ -276,7 +286,77 @@ function 요청품목그리기() {
     row.addEventListener('click', () => 요청품목토글(p));
     box.appendChild(row);
   });
+  직접들.filter((x) => 요청구역칩 === '전체' || x.구역 === 요청구역칩).forEach((x) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'req-item on direct';
+    row.innerHTML = '<span class="req-ck">✓</span><b>' + esc(x.품목명) + '</b><small>직접 · ' + won((Number(x.인건비) || 0) + (Number(x.자재비) || 0)) + '</small>';
+    row.addEventListener('click', () => 요청직접열기(x));
+    box.appendChild(row);
+  });
   $('#reqItemsCount').textContent = '고른 품목 ' + 요청줄들().length + '개';
+}
+
+/* ---------- 직접 입력 (방문견적 '직접 입력' 과 같은 칸) ---------- */
+let 요청직접편집 = null;   // 고치는 줄 (null = 새로)
+
+function 요청직접열기(줄) {
+  요청직접편집 = 줄;
+  const 구역들 = 요청구역들((요청M && 요청M.시공품목) || []);
+  const 기본구역 = 줄 ? 줄.구역 : (요청구역칩 !== '전체' ? 요청구역칩 : (구역들[0] || '기타'));
+  const sel = $('#reqCustomZone');
+  sel.innerHTML = 구역들.concat(구역들.indexOf(기본구역) < 0 ? [기본구역] : [])
+    .map((z) => '<option value="' + esc(z) + '"' + (z === 기본구역 ? ' selected' : '') + '>' + esc(z) + '</option>').join('');
+  $('#reqCustomTitle').textContent = (줄 ? '직접 입력 고치기' : '직접 입력') + ' · ' + (줄 ? 줄.카테고리 : 요청묶음);
+  $('#reqCustomName').value = 줄 ? 줄.품목명 : '';
+  $('#reqCustomWage').value = 줄 ? QuoteCalc.금액포맷(String(줄.인건비 || 0)) : '';
+  $('#reqCustomMat').value = 줄 ? QuoteCalc.금액포맷(String(줄.자재비 || 0)) : '';
+  $('#reqCustomDesc').value = 줄 ? (줄.설명 || '') : '';
+  $('#reqCustomDel').hidden = !줄;
+  요청직접합계();
+  $('#reqCustomBack').hidden = false;
+  $('#reqCustomSheet').hidden = false;
+}
+
+function 요청직접합계() {
+  const 인 = QuoteCalc.금액파싱($('#reqCustomWage').value);
+  const 자 = QuoteCalc.금액파싱($('#reqCustomMat').value);
+  $('#reqCustomSum').textContent = (isFinite(인) || isFinite(자))
+    ? '합계 ' + won((isFinite(인) ? 인 : 0) + (isFinite(자) ? 자 : 0)) : '합계 —';
+}
+
+function 요청직접닫기() {
+  $('#reqCustomBack').hidden = true;
+  $('#reqCustomSheet').hidden = true;
+  요청직접편집 = null;
+}
+
+function 요청직접저장() {
+  const 이름 = ($('#reqCustomName').value || '').trim();
+  const 인 = QuoteCalc.금액파싱($('#reqCustomWage').value);
+  const 자 = QuoteCalc.금액파싱($('#reqCustomMat').value);
+  if (!이름) { toast('품목명을 적어 주세요'); return; }
+  if (!isFinite(인) && !isFinite(자)) { toast('인건비나 자재비 중 하나는 적어 주세요'); return; }
+  const 값 = {
+    직접: true, 카테고리: 요청직접편집 ? 요청직접편집.카테고리 : 요청묶음,
+    구역: $('#reqCustomZone').value, 품목명: 이름,
+    인건비: isFinite(인) ? Math.round(인) : 0, 자재비: isFinite(자) ? Math.round(자) : 0,
+    설명: ($('#reqCustomDesc').value || '').trim(),
+  };
+  if (요청직접편집) Object.assign(요청직접편집, 값);
+  else 요청줄들().push(Object.assign({ id: 'rq' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }, 값));
+  요청저장();
+  요청직접닫기();
+  요청그리기();
+}
+
+function 요청직접삭제() {
+  const 줄 = 요청직접편집;
+  if (!줄 || !confirm('‘' + 줄.품목명 + '’ 을(를) 지울까요?')) return;
+  state.요청.줄 = 요청줄들().filter((x) => x !== 줄);
+  요청저장();
+  요청직접닫기();
+  요청그리기();
 }
 
 function 요청품목토글(p) {
@@ -387,7 +467,7 @@ function 요청줄그리기() {
   const 구역들 = [];
   줄들.forEach((줄) => {
     const p = 요청품목(줄.품목명);
-    const 구역 = (p && p.구역) || '기타';
+    const 구역 = 줄.직접 ? (줄.구역 || '기타') : ((p && p.구역) || '기타');
     let 묶 = 구역들.find((x) => x.구역 === 구역);
     if (!묶) { 묶 = { 구역: 구역, 줄들: [] }; 구역들.push(묶); }
     묶.줄들.push(줄);
@@ -401,20 +481,8 @@ function 요청줄그리기() {
   $('#reqLinesSum').textContent = '필름 ' + (Math.round(m * 10) / 10) + 'm · ' + won(합);
 }
 
-function 요청줄카드(줄) {
-  const p = 요청품목(줄.품목명) || { 품목명: 줄.품목명 };
-  const r = 요청줄계산(줄);
-  const k = r.기준;
-  const 바꿈 = (값) => { Object.assign(줄, 값); 요청저장(); 요청줄그리기(); 요청탭숫자(); };
-  const card = document.createElement('div');
-  card.className = 'req-line' + (r.문제 || r.필름없음 ? ' bad' : '');
-
-  const 단가글 = k ? (k.표이름 === p.품목명 ? '정한 단가' : k.표이름) + ' · ' + won(k.인건비단가) + '/m' : '단가 정해야 함';
-  card.innerHTML =
-    '<div class="r1"><b>' + esc(줄.품목명) + '</b><small>' + esc(단가글) + '</small>' +
-    '<span class="req-amt">' + (r.합 ? won(r.합) : '—') + '</span></div>';
-
-  // 사진: 붙은 사진 · 고른 사진 붙이기 · 시공사진에서 고르기
+/* 줄의 사진 칸: 붙은 사진 · 고른 사진 붙이기 · 시공사진에서 고르기 */
+function 요청사진줄(줄) {
   const ph = document.createElement('div');
   ph.className = 'req-phs';
   const 사진들 = 요청줄사진(줄);
@@ -442,7 +510,24 @@ function 요청줄카드(줄) {
   db.textContent = '시공사진';
   db.addEventListener('click', () => 요청디비열기(줄));
   ph.appendChild(db);
-  card.appendChild(ph);
+  return ph;
+}
+
+function 요청줄카드(줄) {
+  const p = 요청품목(줄.품목명) || { 품목명: 줄.품목명 };
+  const r = 요청줄계산(줄);
+  const k = r.기준;
+  const 바꿈 = (값) => { Object.assign(줄, 값); 요청저장(); 요청줄그리기(); 요청탭숫자(); };
+  const card = document.createElement('div');
+  card.className = 'req-line' + (r.문제 || r.필름없음 ? ' bad' : '');
+
+  if (줄.직접) return 요청직접카드(줄, r, card);
+  const 단가글 = k ? (k.표이름 === p.품목명 ? '정한 단가' : k.표이름) + ' · ' + won(k.인건비단가) + '/m' : '단가 정해야 함';
+  card.innerHTML =
+    '<div class="r1"><b>' + esc(줄.품목명) + '</b><small>' + esc(단가글) + '</small>' +
+    '<span class="req-amt">' + (r.합 ? won(r.합) : '—') + '</span></div>';
+
+  card.appendChild(요청사진줄(줄));
 
   if (!k) {
     // 표에 없는 품목: 여기서 단가를 정하면 다음부터 그대로 쓴다
@@ -538,6 +623,27 @@ function 요청줄카드(줄) {
   return card;
 }
 
+/* ② 직접 입력 줄: 적은 금액과 사진만 (옵션 없음). 고치기는 ① 과 같은 창 */
+function 요청직접카드(줄, r, card) {
+  card.innerHTML =
+    '<div class="r1"><b>' + esc(줄.품목명) + '</b><small>직접 입력 · 인건비 ' + won(r.인건비) + ' · 자재비 ' + won(r.자재비) + '</small>' +
+    '<span class="req-amt">' + won(r.합) + '</span></div>';
+  card.appendChild(요청사진줄(줄));
+  const row = document.createElement('div');
+  row.className = 'req-two';
+  row.appendChild(Object.assign(document.createElement('span'), { className: 'req-calc', textContent: 줄.설명 || '' }));
+  const fix = document.createElement('button');
+  fix.type = 'button'; fix.className = 'req-del'; fix.textContent = '고치기';
+  fix.addEventListener('click', () => 요청직접열기(줄));
+  row.appendChild(fix);
+  const del = document.createElement('button');
+  del.type = 'button'; del.className = 'req-del'; del.textContent = '빼기';
+  del.addEventListener('click', () => { state.요청.줄 = 요청줄들().filter((x) => x !== 줄); 요청저장(); 요청줄그리기(); 요청탭숫자(); });
+  row.appendChild(del);
+  card.appendChild(row);
+  return card;
+}
+
 /* ---------- ③ 합산·메모 ---------- */
 
 function 요청합산그리기() {
@@ -545,7 +651,7 @@ function 요청합산그리기() {
   const L = [];
   h.결과.forEach((r) => {
     L.push('<div class="req-sr' + (r.문제 || r.필름없음 ? ' bad' : '') + '"><span>' + esc(r.줄.품목명) +
-      '<small>' + (r.문제 === '단가없음' ? '단가 정해야 함' : r.문제 ? '길이·m 를 골라야 함' : '필름 ' + r.필름m + 'm · 인건비 ' + won(r.인건비)) + '</small></span>' +
+      '<small>' + (r.줄.직접 ? '직접 입력 · 인건비 ' + won(r.인건비) : r.문제 === '단가없음' ? '단가 정해야 함' : r.문제 ? '길이·m 를 골라야 함' : '필름 ' + r.필름m + 'm · 인건비 ' + won(r.인건비)) + '</small></span>' +
       '<b>' + won(r.합) + '</b></div>');
   });
   $('#reqSumLines').innerHTML = L.join('') || '<p class="hint">① 에서 품목을 고르세요.</p>';
@@ -629,6 +735,10 @@ async function 요청넣기() {
   h.결과.forEach((r) => {
     if (!r.합) return;
     const 줄 = r.줄;
+    if (줄.직접) {
+      새.push({ id: 줄.id, 구역: 요청방문구역(줄.구역), 품목명: 줄.품목명, 인건비: r.인건비, 자재비: r.자재비, 금액: r.합, 설명: 줄.설명 || '' });
+      return;
+    }
     const p = 요청품목(줄.품목명) || {};
     const 필름 = 요청필름(줄.필름ID);
     const 덧 = [];
@@ -814,6 +924,16 @@ $('#reqFilmNew').addEventListener('click', () => {
   요청합산그리기();
   toast('‘' + 코드 + '’ 추가 · 단가 9,000원 (고칠 수 있음) · ② 줄에서 고르세요');
 });
+$('#reqCustomClose').addEventListener('click', 요청직접닫기);
+$('#reqCustomBack').addEventListener('click', 요청직접닫기);
+$('#reqCustomSave').addEventListener('click', 요청직접저장);
+$('#reqCustomDel').addEventListener('click', 요청직접삭제);
+['#reqCustomWage', '#reqCustomMat'].forEach((id) => $(id).addEventListener('input', () => {
+  const el = $(id);
+  const 새값 = QuoteCalc.금액포맷(el.value);
+  if (새값 !== el.value) el.value = 새값;
+  요청직접합계();
+}));
 $('#reqDbClose').addEventListener('click', 요청디비닫기);
 $('#reqDbBack').addEventListener('click', 요청디비닫기);
 $('#reqDbAdd').addEventListener('click', 요청디비붙이기);
