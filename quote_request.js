@@ -359,9 +359,15 @@ function 요청직접사진그리기() {
 }
 
 async function 요청직접사진넣기(files) {
-  if (!files.length || !요청직접ID) return;
+  if (!요청직접ID) return;
+  await 요청사진태그넣기(files, 요청직접ID);
+  요청직접사진그리기();
+}
+
+/* 사진을 넣고 바로 그 줄(id)에 붙인다. 줄의 [사진 선택]·[사진 찍기], 직접 입력 창이 같이 쓴다 */
+async function 요청사진태그넣기(files, id) {
+  if (!files.length || !id) return;
   if (!사진가능) { toast('이 브라우저에서는 사진을 쓸 수 없습니다.'); return; }
-  const id = 요청직접ID;
   const 실패 = [];
   for (const f of files) {
     try {
@@ -370,7 +376,6 @@ async function 요청직접사진넣기(files) {
     } catch (err) { 실패.push(await 사진실패이유(err, f)); }
   }
   await 요청사진읽기();
-  요청직접사진그리기();
   toast(실패.length ? 실패.length + '장 실패 · ' + 실패[0] : '사진 ' + files.length + '장 붙였습니다');
 }
 
@@ -444,20 +449,6 @@ function 요청미지정사진() {
 
 const 요청줄사진 = (줄) => 요청사진.filter((p) => (p.태그 || []).indexOf(줄.id) >= 0);
 
-async function 요청사진넣기(files) {
-  if (!files.length) return;
-  if (!사진가능) { toast('이 브라우저에서는 사진을 쓸 수 없습니다.'); return; }
-  toast('사진 ' + files.length + '장 넣는 중…');
-  const 실패 = [];
-  for (const f of files) {
-    try { await PDB.추가(현장ID확보(), 요청구역, f); }
-    catch (err) { 실패.push(await 사진실패이유(err, f)); }
-  }
-  await 요청사진읽기();
-  요청그리기();
-  toast(실패.length ? 실패.length + '장 실패 · ' + 실패[0] : '사진 ' + files.length + '장 넣었습니다 · 사진을 고른 뒤 줄의 [붙이기]');
-}
-
 async function 요청사진붙이기(줄) {
   const ids = [...요청고른사진];
   if (!ids.length) return;
@@ -481,12 +472,12 @@ function 요청선택지(값들, 현재, 글) {
 
 function 요청줄그리기() {
   // 위: 아직 안 붙인 카톡 사진
+  // 사진은 줄마다 [사진 선택]·[사진 찍기] 로 넣는다. 위 칸은 예전에 넣고 아직 안 붙인 사진이 남았을 때만
   const 미지정 = 요청미지정사진();
   const g = $('#reqLoose');
   g.textContent = '';
-  $('#reqLooseHint').textContent = 미지정.length
-    ? '안 붙인 사진 ' + 미지정.length + '장 · 눌러서 고른 뒤 아래 줄의 [＋ 붙이기]'
-    : '카톡 사진을 한꺼번에 넣고, 골라서 품목 줄에 붙이세요.';
+  $('.req-loosebox').hidden = !미지정.length;
+  $('#reqLooseHint').textContent = '안 붙인 사진 ' + 미지정.length + '장 · 눌러서 고른 뒤 아래 줄의 [＋ 붙이기]';
   미지정.forEach((p) => {
     const d = document.createElement('button');
     d.type = 'button';
@@ -545,13 +536,30 @@ function 요청사진줄(줄) {
     ph.appendChild(b);
   }
   if (!사진들.length && !요청고른사진.size) ph.appendChild(Object.assign(document.createElement('span'), { className: 'req-warn', textContent: '📷 사진 없음' }));
-  const db = document.createElement('button');
-  db.type = 'button';
-  db.className = 'req-db';
-  db.textContent = '시공사진';
-  db.addEventListener('click', () => 요청디비열기(줄));
-  ph.appendChild(db);
+  const 버튼 = (글, 누름) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'req-db';
+    b.textContent = 글;
+    b.addEventListener('click', 누름);
+    return b;
+  };
+  const 줄버튼 = document.createElement('div');
+  줄버튼.className = 'req-phbtns';
+  줄버튼.appendChild(버튼('사진 선택', () => 요청줄사진고르기(줄, false)));
+  줄버튼.appendChild(버튼('사진 찍기', () => 요청줄사진고르기(줄, true)));
+  줄버튼.appendChild(버튼('시공사진', () => 요청디비열기(줄)));
+  ph.appendChild(줄버튼);
   return ph;
+}
+
+// 줄의 [사진 선택](앨범, 여러 장) · [사진 찍기](카메라) - 고른 사진은 바로 그 줄에 붙는다
+let 요청줄사진대상 = null;
+function 요청줄사진고르기(줄, 찍기) {
+  요청줄사진대상 = 줄.id;
+  const inp = 찍기 ? $('#reqLineCam') : $('#reqLinePick');
+  inp.value = '';
+  inp.click();
 }
 
 function 요청줄카드(줄) {
@@ -950,8 +958,13 @@ $('#reqSite').addEventListener('input', () => {
   요청저장();
 });
 $('#reqMemo').addEventListener('input', () => { if (state.요청) { state.요청.메모 = $('#reqMemo').value; 요청저장(); } });
-$('#reqAdd').addEventListener('click', () => { $('#reqFile').value = ''; $('#reqFile').click(); });
-$('#reqFile').addEventListener('change', () => 요청사진넣기(Array.from($('#reqFile').files || [])));
+['#reqLinePick', '#reqLineCam'].forEach((id) => $(id).addEventListener('change', async () => {
+  const files = Array.from($(id).files || []);
+  const 대상 = 요청줄사진대상;
+  요청줄사진대상 = null;
+  await 요청사진태그넣기(files, 대상);
+  요청그리기();
+}));
 $('#reqToLines').addEventListener('click', () => 요청탭바꾸기('옵션'));
 $('#reqToSum').addEventListener('click', () => 요청탭바꾸기('합산'));
 $('#reqSave').addEventListener('click', () => { 요청저장(); 저장함에담기(); });
