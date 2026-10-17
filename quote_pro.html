@@ -360,12 +360,12 @@
     </div>
 
     <div id="reqPaneLines" hidden>
-      <div class="req-loosebox">
+      <div class="req-loosebox" hidden>
         <p class="hint" id="reqLooseHint"></p>
         <div id="reqLoose"></div>
-        <button type="button" id="reqAdd">＋ 카톡 사진 넣기</button>
-        <input type="file" id="reqFile" accept="image/*" multiple hidden>
       </div>
+      <input type="file" id="reqLinePick" accept="image/*" multiple hidden>
+      <input type="file" id="reqLineCam" accept="image/*" capture="environment" hidden>
       <p class="hint" id="reqLinesEmpty" hidden>① 에서 품목을 먼저 고르세요.</p>
       <div id="reqLines"></div>
     </div>
