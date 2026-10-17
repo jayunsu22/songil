@@ -21,12 +21,9 @@ const 만원 = 10000;
 let 요청M = null;              // { 시공품목, 단가표, 품목정보 }
 let 요청탭 = '품목';
 let 요청묶음 = '문+틀';
-// ① 보기: 카테고리별(문+틀·샤시…) / 구역별(거실·방1…). 관리자 앱 '일괄품목 설정' 과 같은 두 가지.
-// 카테고리별에서도 아래 구역 칩으로 '문+틀 → 방4' 처럼 바로 좁힌다 - 방1 문을 고르다 방4 문까지 내려가지 않게.
-const 요청보기_LS = 'quote_req_view_v1';
-let 요청보기 = load(요청보기_LS) === '구역' ? '구역' : '카테고리';
-let 요청구역칩 = '전체';        // 카테고리별에서 고른 구역 ('전체' = 안 좁힘)
-let 요청구역탭 = null;          // 구역별에서 고른 구역
+// ① 카테고리(한 줄) 아래 구역 칩으로 '문+틀 → 방4' 처럼 바로 좁힌다 - 방1 문을 고르다 방4 문까지 내려가지 않게.
+// 구역 칩은 그 카테고리에 품목이 있는 구역만 (관리자 앱 품목설정의 구역 칸 그대로 - 2층 거실 등)
+let 요청구역칩 = '전체';        // '전체' = 안 좁힘
 const 요청구역순서 = ['거실', '주방', '현관', '방1', '방2', '방3', '방4', '방5', '기타'];
 // 관리자 앱 일괄품목 설정의 구역 탭 색과 같은 순서
 const 요청구역색 = [
@@ -237,7 +234,6 @@ function 요청품목그리기() {
   const 몇개 = (arr) => arr.filter((p) => 고른.has(p.품목명)).length;
   const 맨위로 = () => { $('#reqSheet .req-body').scrollTop = 0; };
   const 다시 = () => { 요청품목그리기(); 맨위로(); };
-  document.querySelectorAll('#reqView button').forEach((b) => b.classList.toggle('on', b.dataset.v === 요청보기));
 
   const cc = $('#reqCats');
   const zc = $('#reqZones');
@@ -245,35 +241,25 @@ function 요청품목그리기() {
   zc.textContent = '';
   const 전체구역 = 요청구역들(목록);
   const 색of = (z) => 요청구역색[전체구역.indexOf(z) % 요청구역색.length];
-  let 보일;
 
-  if (요청보기 === '카테고리') {
-    cc.hidden = false;
-    요청묶음들.forEach((k) => {
-      const 묶 = 목록.filter((p) => 요청묶음of(p) === k);
-      const 몇 = 몇개(묶);
-      cc.appendChild(요청칩(k + ' (' + 묶.length + ')' + (몇 ? ' ✓' + 몇 : ''), k === 요청묶음, null,
-        () => { 요청묶음 = k; 요청구역칩 = '전체'; 다시(); }));
-    });
-    const 묶 = 목록.filter((p) => 요청묶음of(p) === 요청묶음);
-    const 구역들 = 요청구역들(묶);
-    if (요청구역칩 !== '전체' && 구역들.indexOf(요청구역칩) < 0) 요청구역칩 = '전체';
-    zc.appendChild(요청칩('전체', 요청구역칩 === '전체', null, () => { 요청구역칩 = '전체'; 다시(); }));
-    구역들.forEach((z) => {
-      const 안 = 묶.filter((p) => (p.구역 || '기타') === z);
-      const 몇 = 몇개(안);
-      zc.appendChild(요청칩(z + (몇 ? ' ✓' + 몇 : ''), 요청구역칩 === z, 색of(z), () => { 요청구역칩 = z; 다시(); }));
-    });
-    보일 = 묶.filter((p) => 요청구역칩 === '전체' || (p.구역 || '기타') === 요청구역칩);
-  } else {
-    cc.hidden = true;
-    if (!요청구역탭 || 전체구역.indexOf(요청구역탭) < 0) 요청구역탭 = 전체구역[0] || null;
-    전체구역.forEach((z) => {
-      const 안 = 목록.filter((p) => (p.구역 || '기타') === z);
-      zc.appendChild(요청칩(z + ' (' + 몇개(안) + '/' + 안.length + ')', 요청구역탭 === z, 색of(z), () => { 요청구역탭 = z; 다시(); }));
-    });
-    보일 = 목록.filter((p) => (p.구역 || '기타') === 요청구역탭);
-  }
+  // 카테고리: 글자만 한 줄 (같은 폭)
+  요청묶음들.forEach((k) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = k === 요청묶음 ? 'on' : '';
+    b.textContent = k;
+    b.addEventListener('click', () => { 요청묶음 = k; 요청구역칩 = '전체'; 다시(); });
+    cc.appendChild(b);
+  });
+  const 묶 = 목록.filter((p) => 요청묶음of(p) === 요청묶음);
+  const 구역들 = 요청구역들(묶);
+  if (요청구역칩 !== '전체' && 구역들.indexOf(요청구역칩) < 0) 요청구역칩 = '전체';
+  zc.appendChild(요청칩('전체', 요청구역칩 === '전체', null, () => { 요청구역칩 = '전체'; 다시(); }));
+  구역들.forEach((z) => {
+    const 몇 = 몇개(묶.filter((p) => (p.구역 || '기타') === z));
+    zc.appendChild(요청칩(z + (몇 ? ' ✓' + 몇 : ''), 요청구역칩 === z, 색of(z), () => { 요청구역칩 = z; 다시(); }));
+  });
+  const 보일 = 묶.filter((p) => 요청구역칩 === '전체' || (p.구역 || '기타') === 요청구역칩);
 
   const box = $('#reqItemList');
   box.textContent = '';
@@ -803,12 +789,6 @@ async function 요청진입() {
 /* ---------- 이벤트 ---------- */
 
 document.querySelectorAll('#reqTabs button').forEach((b) => b.addEventListener('click', () => 요청탭바꾸기(b.dataset.tab)));
-document.querySelectorAll('#reqView button').forEach((b) => b.addEventListener('click', () => {
-  요청보기 = b.dataset.v;
-  save(요청보기_LS, 요청보기);
-  요청품목그리기();
-  $('#reqSheet .req-body').scrollTop = 0;
-}));
 $('#reqClose').addEventListener('click', 요청시트닫기);
 $('#reqBack').addEventListener('click', 요청시트닫기);
 $('#reqBarOpen').addEventListener('click', 요청시트열기);
