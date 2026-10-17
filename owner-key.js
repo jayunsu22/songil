@@ -20,7 +20,7 @@
   var OWNER_PATHS = {};
   [
     // 현장견적·정산견적·저장함 (별도 워크플로우)
-    'pro-master', 'pro-publish', 'pro-photo', 'pro-box-sync', 'pro-box-restore', 'pro-box-photo', 'pro-box-photos',
+    'pro-master', 'pro-publish', 'pro-photo', 'pro-box-sync', 'pro-box-restore', 'pro-box-photo', 'pro-box-photos', 'pro-wordbook', 'work-photos-by-item',
     'settle-master', 'settle-publish', 'settle-settings', 'owner-check',
     // 관리자 앱 (품질관리 워크플로우 안의 사장님 전용)
     'film-admin-get-v2', 'film-blog-publish', 'film-checkpoint-template-create',

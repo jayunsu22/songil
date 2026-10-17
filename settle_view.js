@@ -125,7 +125,9 @@ function render(d) {
 
   // 자재비: 자재별 한 줄 + 품목 내역 접기
   const 자재 = s.자재소계 || [];
-  const 품목 = s.품목 || [];
+  // 직접 추가 '금액' 줄(실리콘 시공 등)은 필름이 아니라 자재비 내역에서 빼고 따로 표로 보여준다
+  const 품목 = (s.품목 || []).filter((p) => p.종류 !== '금액');
+  const 추가금액 = (s.품목 || []).filter((p) => p.종류 === '금액');
   H.push('<div class="v-tbl"><h3>자재비</h3>');
   if (자재.length) {
     자재.forEach((r) => {
@@ -149,12 +151,24 @@ function render(d) {
       // 직접 추가한 줄은 견적 기본 품목 밖에서 더 한 일이라 크게·굵게·파랗게 눈에 띄게 한다
       const 추가 = p.구역 === '직접 추가';
       H.push('<div class="sub' + (추가 ? ' add' : '') + (Number(p.소모량) ? '' : ' zero') + '"><span>' +
-        (p.구역 ? esc(p.구역) + ' · ' : '') + esc(p.품목명) + (p.이중창 ? ' <b class="v-dbl-tag">2중창</b>' : '') + '</span>' +
+        (p.구역 ? esc(p.구역) + ' · ' : '') + esc(p.품목명) + (p.이중창 ? ' <b class="v-dbl-tag">2중창</b>' : '') +
+        // 문+틀 시공 범위. 기본(양쪽면)이 아니면 주황으로 눈에 띄게
+        (p.시공범위 ? ' <span class="v-scope' + (p.시공범위 === '문+틀 양쪽면 시공' ? '' : ' part') + '">' + esc(p.시공범위) + '</span>' : '') + '</span>' +
         '<span>' + m(p.소모량) + ' · ' + esc(p.자재명) + '</span></div>');
     });
     H.push('</details>');
   }
   H.push('</div>');
+
+  // 추가 시공: 사장님이 금액을 직접 적은 품목 (실리콘 시공 등). 크게·굵게·파랗게
+  if (추가금액.length) {
+    H.push('<div class="v-tbl addwork"><h3>추가 시공</h3>');
+    추가금액.forEach((p) => {
+      H.push('<div class="v-line"><span class="v-nm">' + esc(p.품목명) + '<small>소모량 없음</small></span>' +
+        '<span class="v-amt">' + won(p.금액) + '</span></div>');
+    });
+    H.push('</div>');
+  }
 
   // 부가 항목 (금액 있는 줄만 발행 시 담겨 온다)
   const 부가 = s.부가 || [];
@@ -188,6 +202,7 @@ function render(d) {
   H.push('<div class="v-sum">' +
     '<div class="v-row"><span>인건비</span><span>' + won(합계.인건비) + '</span></div>' +
     '<div class="v-row"><span>자재비</span><span>' + won(합계.자재비) + '</span></div>' +
+    추가금액.map((p) => '<div class="v-row add"><span>' + esc(p.품목명) + '</span><span>' + won(p.금액) + '</span></div>').join('') +
     // 부가 항목은 합계에서도 한 줄로 뭉치지 않고 항목별로 적는다 (부자재비 6만 / 식대 인건비 포함 / 퀵비 없으면 안 나옴)
     부가.map((e) => '<div class="v-row"><span>' + esc(e.항목명) + '</span><span>' + (e.비고 ? esc(e.비고) : won(e.금액)) + '</span></div>').join('') +
     (미수금합 ? '<div class="v-row sub"><span>시공대금</span><span>' + won(시공대금) + '</span></div>' +

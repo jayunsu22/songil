@@ -165,10 +165,28 @@ MASTER.zones = [{ 구역: '거실', items: [{ 체크_ID, 품목명, 표시_품�
 
 ### Task 11: 끝맺음
 
-- [ ] songil `node --test test/` 전체 PASS, 현장관리 `node --test test/` 전체 PASS
+- [ ] songil `node --test test/*.test.js` 전체 PASS (Windows 에서 `test/` 폴더 형태는 실패), 현장관리도 같은 방식
 - [ ] 폰 폭(375px)에서 시트 3탭·내역 칸 확인
 - [ ] **사용자 확인 뒤** 두 저장소 push(배포). 배포 후 실제 폰에서 한 건 끝까지
 
 ## 확인 결과 (Task 0 에서 채움)
 
-(실행 중 기록)
+- `pro-box-restore`(워크플로 `현장견적_저장함_백업` Sd4yefwVM3JcFwxq, 노드 `복원 합치기`): published 에 `현장관리_거래처ID` **없음** → Task 9 필요. 발행 워크플로(`현장견적_발행` fJEsn9CAylqGwt66)는 Airtable tblD4My1lpMjK1p6w 에 `현장관리_거래처ID` 를 이미 저장함
+- 작업목록: base `appV2Qy61YVhyRkZV` 표 `tblj2GWegEvPHICsb`, 필드 `현장명`·`시공품목`·`시공후사진`·`시공전사진`. 181노드 메인 워크플로는 건드리지 않고 Task 5 는 새 워크플로로
+- `pro-master` 는 사장님 열쇠(헤더) 필요 → fixture 는 마지막 성공 실행(33158) 응답에서 추출: `test/fixtures/master_sample.json`
+- CORS: Airtable 첨부 주소(v5.airtableusercontent.com)는 `Access-Control-Allow-Origin: *` → proxy 불필요
+- 관리자 작업목록 품목명은 '방1샤시', '방2문+틀', '거실샤시1', '냉장고장' 처럼 구역이 붙어 있음 → 시공사진은 낱말 '포함' 검색 + 같은 구역 먼저 정렬
+- 만든 워크플로: `현장견적_단어장` Kvfb9lEfcBf1WynW (GET/POST pro-wordbook, staticData), `현장견적_시공사진찾기` 7b9qHQISDn4ZyWIv (GET work-photos-by-item?q=). 둘 다 사장님 열쇠 헤더 필요 → 열쇠 없으면 403 확인함. 열쇠가 필요한 실제 응답은 앱 화면에서 확인
+- Task 9 완료: `복원 합치기` published 에 `현장관리_거래처ID`·`현장관리_현장ID` 추가
+- pro-box-restore 도 사장님 열쇠 헤더 필요 → 현장관리 앱 owner-key.js 가 이 주소에 헤더를 붙이는지 Task 10 에서 확인
+- **품목 단위 문제:** 샤시1/샤시2·신발장1/2·냉장고장·수납장·붙박이장은 단위가 `m`. 카톡의 "샤시 2" 는 개수(창 2개)라 수량으로 바로 못 넣는다. 샤시1·샤시2 는 "창 1·창 2" 슬롯
+- 마스터에 **분합창 없음** → 단어장 기본값에 넣지 않고 빨간 줄 → 사용자가 고르면 학습
+- 안방 → `방1`(화장대·드레스룸·화장실이 방1 에만 있음)
+
+## 실행 결과 (2026-10-17)
+
+- songil `claude/quote-request` (worktree `D:/songil-quote-request`): 글 해석·단어장·합치기 모듈 + 요청 입력 화면 + quote_pro 연결. `node --test test/*.test.js` 300 통과
+- 현장관리 `claude/quote-request` (worktree `D:/sitenote-quote-request`): 견적요청 내역 칸. 테스트 5개 파일 전부 통과
+- 브라우저(로컬, 폰 폭)에서 확인: 진입(?req=1&client=) → 글 6줄 해석 → 빨간 줄 고치기·단어장 학습 → 사진 3장 중 2장 일괄 지정 → ③ 합치기(사진+글) → 실제 Airtable 시공사진 받아 붙이기 → 방문견적으로(6품목·2중창·고친 길이, 합계 계산) → 품목 0건 요청 저장함 담기. 현장관리 칸: 배지·상태 3가지·발행 줄
+- 고친 문제: 현장관리 내역 칸이 서버 거절 시 다시 받기를 끝없이 반복하던 버그 (테스트 중 발견, 실서버에 403 요청 약 275건이 나감 — 열쇠 검사에서 거절, 데이터 변화 없음)
+- 열쇠가 필요한 실제 응답(pro-wordbook·work-photos-by-item·pro-box-restore 의 거래처ID)은 사장님 폰에서 배포 후 확인 필요

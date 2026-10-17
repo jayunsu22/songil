@@ -21,6 +21,9 @@ const CONFIG = {
   boxPhotoUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photo',
   boxPhotosUrl:  'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photos',
   boxPhotoUsageUrl: 'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photo-usage',   // 서버 사진 사용량 (키)
+  // 견적요청 입력 (2026-10-17): 글 해석 단어장 서버 보관, 관리자 앱 시공사진 찾기
+  wordbookUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-wordbook',
+  workPhotosUrl: 'https://primary-production-a6fa.up.railway.app/webhook/work-photos-by-item',
 };
 
 const STORAGE_KEY = 'quote_pro_state_v1';
@@ -259,6 +262,9 @@ function boot() {
   refresh();
   $('#adjWrap').hidden = false;
   $('#privWrap').hidden = false;
+  // 현장관리 앱의 [견적요청 작성하기] 로 들어왔으면 입력 화면을 연다 (quote_request.js).
+  // 캐시로 boot() 가 먼저 돌면 그 파일이 아직 안 읽혔으므로 그쪽 끝에서도 한 번 부른다.
+  if (typeof 요청진입 === 'function') 요청진입();
 }
 
 /* ---------- 필름 자재비 ----------
@@ -929,7 +935,11 @@ $('#roomSelect').addEventListener('change', (e) => {
   refresh();
   persist();
 });
-$('#resetBtn').addEventListener('click', async () => {
+$('#resetBtn').addEventListener('click', () => { 새견적시작(); });
+
+/* 지금 견적을 비우고 새로 시작한다. 그만두면 false.
+   견적요청으로 들어올 때(quote_request.js)도 같은 확인을 거친다. */
+async function 새견적시작() {
   // 사진이 있는데 저장함에 안 담았다면 그냥 시작하면 안 된다.
   // 견적은 사라지고 사진만 남아 '소속 없는 사진' 이 된다.
   const 담김 = 저장함읽기().some((x) => x.현장ID === state.현장ID);
@@ -943,10 +953,10 @@ $('#resetBtn').addEventListener('click', async () => {
       '저장함에 담지 않으면 견적은 사라지고 사진만 남습니다.\n\n' +
       '확인 = 사진을 지우고 새로 시작\n취소 = 그만두기 (저장함에 먼저 담으세요)'
     );
-    if (!답) return;
+    if (!답) return false;
     await PDB.현장삭제(state.현장ID);
   } else if (!confirm('지금 체크한 내용을 모두 지우고 새로 시작할까요?')) {
-    return;
+    return false;
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
   // 그 평형의 몰딩/걸레받이가 그대로 보여 잘못 체크하기 쉽다.
@@ -967,7 +977,9 @@ $('#resetBtn').addEventListener('click', async () => {
   buildAll();
   구역장수갱신();
   refresh();
-});
+  if (typeof 요청바그리기 === 'function') 요청바그리기();
+  return true;
+}
 
 /* 발행은 Task 6에서 붙인다 */
 $('#publishBtn').addEventListener('click', () => {
@@ -1505,7 +1517,8 @@ function 백업줄그리기() {
 function 저장함에담기() {
   persist();
   const 건수 = Object.keys(state.선택).length + (state.직접품목 || []).length;
-  if (!건수) { toast('체크한 품목이 없습니다.'); return false; }
+  // 견적요청은 품목을 고르기 전(답장 전)에도 담는다 - 받아 둔 요청이 빠지면 안 된다
+  if (!건수 && !state.요청) { toast('체크한 품목이 없습니다.'); return false; }
 
   const 이름 = (state.현장명 || '').trim() || prompt('저장할 이름을 적어주세요.', '') || '';
   if (!이름.trim()) { toast('이름이 없어 저장하지 않았습니다.'); return false; }
@@ -1519,6 +1532,8 @@ function 저장함에담기() {
     총액: (window.__quote && window.__quote.result.총액) || 0,
     현장ID: 현장ID확보(),   // 목록에서 사진 장수를 세려면 여기서 바로 읽혀야 한다
     현장코드: state.현장코드 || '',   // 발행했으면 '내역보기' 로 그 견적서를 연다
+    // 견적요청으로 시작한 견적. 현장관리 앱 거래처 화면의 '견적요청 내역' 이 이걸 읽는다
+    요청: state.요청 ? { 접수일시: state.요청.접수일시, 원문: state.요청.원문 || '', 거래처ID: state.요청.거래처ID || '', 거래처명: state.요청.거래처명 || '' } : null,
     상태: JSON.parse(JSON.stringify(state)),
   };
   // 같은 현장(현장ID)이면 덮어쓴다. 현장명을 고쳐도 새 건이 생기지 않는다.
