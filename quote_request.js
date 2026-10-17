@@ -175,8 +175,7 @@ function 요청바그리기() {
   if (!요) return;
   const d = new Date(요.접수일시 || Date.now());
   $('#reqBarText').textContent = '📝 견적요청 · ' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' +
-    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ' 접수' +
-    (요.거래처명 ? ' · ' + 요.거래처명 : '');
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ' 접수';   // 업체는 바로 위 업체 버튼에 있다
 }
 
 function 요청탭바꾸기(탭) {
