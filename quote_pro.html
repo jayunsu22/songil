@@ -415,6 +415,13 @@
   <p class="hint" id="reqCustomSum">합계 —</p>
   <label class="req-lb" for="reqCustomDesc">설명 <em>비워두면 견적서에 설명이 안 나갑니다</em></label>
   <textarea id="reqCustomDesc" rows="3" autocomplete="off" placeholder="예: 앞뒤면 모두 시공합니다."></textarea>
+  <label class="req-lb">사진 <em id="reqCustomPhotoHint"></em></label>
+  <div class="req-phs" id="reqCustomPhotos"></div>
+  <div class="req-row req-photo-btns">
+    <button type="button" id="reqCustomAdd">＋ 사진 넣기</button>
+    <button type="button" id="reqCustomDb">시공사진에서</button>
+  </div>
+  <input type="file" id="reqCustomFile" accept="image/*" multiple hidden>
   <div class="req-row">
     <button type="button" id="reqCustomClose">취소</button>
     <button type="button" id="reqCustomSave" class="primary">넣기</button>
