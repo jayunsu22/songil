@@ -21,7 +21,8 @@ const CONFIG = {
   boxPhotoUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photo',
   boxPhotosUrl:  'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photos',
   boxPhotoUsageUrl: 'https://primary-production-a6fa.up.railway.app/webhook/pro-box-photo-usage',   // 서버 사진 사용량 (키)
-  // 견적요청 입력 (2026-10-17): 글 해석 단어장 서버 보관, 관리자 앱 시공사진 찾기
+  // 견적요청 입력 (2026-10-17/18): 관리자 품목·단가표·시공품목정보, 정한 단가 보관(단어장 웹훅), 시공사진 찾기
+  requestMasterUrl: 'https://primary-production-a6fa.up.railway.app/webhook/request-master',
   wordbookUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-wordbook',
   workPhotosUrl: 'https://primary-production-a6fa.up.railway.app/webhook/work-photos-by-item',
 };

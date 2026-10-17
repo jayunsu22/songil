@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>견적요청 v2 목업</title>
+<style>
+  :root{--blue:#2563eb;--bg:#f4f5f7;--line:#e3e5e9;--ink:#1c1e21;--sub:#6b7280;--red:#e5484d;--zone:#efe4d2;--zoneb:#a07a3c;--scope:#fff5e6;--scopeb:#f0b860}
+  *{box-sizing:border-box}
+  body{margin:0;background:#dfe3ea;font-family:-apple-system,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:var(--ink)}
+  h1{font-size:20px;text-align:center;margin:22px 16px 4px}
+  .lead{text-align:center;color:var(--sub);font-size:14px;margin:0 16px 18px}
+  .row{display:flex;flex-wrap:wrap;gap:26px;justify-content:center;padding:0 16px 30px}
+  .col{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .cap{font-weight:700;font-size:15px;text-align:center}.cap small{display:block;font-weight:400;color:var(--sub);font-size:12px;max-width:350px;margin-top:4px}
+  .phone{width:360px;height:740px;background:var(--bg);border-radius:28px;border:8px solid #222;overflow:hidden;display:flex;flex-direction:column}
+  .hdr{background:#fff;padding:12px 14px 0;font-weight:800;border-bottom:1px solid var(--line)}
+  .hdr .site{font-weight:400;color:var(--sub);font-size:13px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:8px}
+  .seg{display:flex;margin-top:8px}.seg div{flex:1;text-align:center;padding:9px 0;font-size:13px;color:var(--sub);border-bottom:3px solid transparent}
+  .seg .on{color:var(--blue);border-color:var(--blue);font-weight:800}
+  .scroll{flex:1;overflow:auto;padding:10px 12px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;font-size:12.5px}
+  .chip.on{background:#1f2a44;color:#fff;border-color:#1f2a44;font-weight:700}
+  .it{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:6px;font-size:14.5px;font-weight:700}
+  .ck{width:22px;height:22px;border-radius:6px;border:2px solid #c3c8d2;flex:none}
+  .ck.on{background:var(--blue);border-color:var(--blue);color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .it small{color:var(--sub);font-weight:400;font-size:12px;margin-left:auto}
+  .bar{background:#fff;border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;align-items:center}
+  .bar .p{flex:1;font-size:12px;color:var(--sub)}.bar .p b{display:block;font-size:18px;color:var(--ink)}
+  .btn{background:var(--blue);color:#fff;border-radius:12px;padding:11px 14px;font-weight:800;font-size:14px;text-align:center}
+  .btn.g{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .zh{background:var(--zone);border-left:4px solid var(--zoneb);padding:8px 12px;font-weight:800;margin:6px -12px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}
+  .card .t{display:flex;align-items:center;gap:6px;font-weight:800;font-size:14.5px}.card .t small{color:var(--sub);font-weight:400;font-size:12px}
+  .card .t .m{margin-left:auto;font-size:15px}
+  .ph{display:flex;gap:5px;margin:8px 0}
+  .ph span{width:52px;height:52px;border-radius:7px;background:linear-gradient(135deg,#c8d3e6,#7e93b5)}
+  .ph .add{background:#fff;border:1.5px dashed #b9c0cc;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:11px;text-align:center;line-height:1.2}
+  .scope{background:var(--scope);border:1.5px solid var(--scopeb);border-radius:10px;padding:8px 10px;font-weight:800;font-size:13.5px;margin-bottom:6px}
+  .two{display:flex;gap:6px}
+  .sel{flex:1;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13.5px;font-weight:700;background:#fff}
+  .sel.f{font-weight:400}
+  .dbl{border:1px solid var(--line);border-radius:10px;padding:8px;font-size:12.5px;background:#fff}
+  .sum{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:13.5px}
+  .sum .r{display:flex;justify-content:space-between;padding:4px 0}.sum .r b{font-weight:800}
+  .sum h4{margin:0 0 6px;font-size:13px}
+  .memo{border:1px solid #f0e08a;background:#fff8c5;border-radius:10px;padding:8px 10px;font-size:13px;color:#7a6a20;min-height:56px}
+  .warn{color:var(--red);font-size:12px;font-weight:700}
+  .note{max-width:1150px;margin:0 auto 40px;padding:0 16px;font-size:13.5px;line-height:1.6}
+  .note h2{font-size:16px;margin:16px 0 6px}
+</style>
+</head>
+<body>
+<h1>견적요청 작성하기 v2 — 품목설정 → 사진·옵션 → 합산·메모</h1>
+<p class="lead">정산견적과 같은 계산(품수×품단가 + 필름 m×단가 + 부가항목) · 품목은 필름현장관리자 품목설정 그대로</p>
+
+<div class="row">
+
+<div class="col">
+  <div class="phone">
+    <div class="hdr">‹ 견적요청 작성하기 <span style="float:right;font-weight:400;color:var(--sub);font-size:12px">🏢 이종수실장님</span>
+      <div class="site">송도 풍림아이원 2단지 · 34평</div>
+      <div class="seg"><div class="on">① 품목 5</div><div>② 사진·옵션</div><div>③ 합산·메모</div></div>
+    </div>
+    <div class="scroll">
+      <div class="chips"><span class="chip on">문+틀 (39)</span><span class="chip">샤시 (27)</span><span class="chip">가구 (23)</span><span class="chip">몰딩 (17)</span><span class="chip">기타 (30)</span></div>
+      <div class="it"><span class="ck on">✓</span>방1문+틀<small>6.5m/개</small></div>
+      <div class="it"><span class="ck"></span>방1화장실문+틀<small>6.5m/개</small></div>
+      <div class="it"><span class="ck"></span>방1중문+틀<small>6.5m/개</small></div>
+      <div class="it"><span class="ck"></span>방1베란다문+틀<small>6.5m/개</small></div>
+      <div class="it"><span class="ck on">✓</span>방2문+틀<small>6.5m/개</small></div>
+      <div class="it"><span class="ck"></span>방3문+틀<small>6.5m/개</small></div>
+      <div class="it"><span class="ck on">✓</span>거실화장실문<small>6.5m/개</small></div>
+      <div class="it"><span class="ck on">✓</span>거실프레임<small>2m/개</small></div>
+      <div class="it"><span class="ck"></span>현관문<small>6.5m/개</small></div>
+    </div>
+    <div class="bar"><div class="p">고른 품목<b>5개</b></div><div class="btn">② 사진·옵션 →</div></div>
+  </div>
+  <div class="cap">① 품목설정 (일괄)<small>관리자 앱 품목설정 탭과 같은 묶음·같은 이름. 카톡이 말로만 와도 여기서 체크만 하면 됨. 다른 탭으로 옮겨도 체크 유지</small></div>
+</div>
+
+<div class="col">
+  <div class="phone">
+    <div class="hdr">‹ 견적요청 작성하기
+      <div class="site">송도 풍림아이원 2단지 · 34평</div>
+      <div class="seg"><div>① 품목 5</div><div class="on">② 사진·옵션</div><div>③ 합산·메모</div></div>
+    </div>
+    <div class="scroll">
+      <div style="font-size:12px;color:var(--sub);margin-bottom:6px">＋ 카톡 사진 한꺼번에 넣기 → 사진을 눌러 품목에 붙이기 (안 붙은 사진 2장)</div>
+      <div class="zh">방2</div>
+      <div class="card">
+        <div class="t">방2문+틀 <small>6.5m/개</small><span class="m">2m</span></div>
+        <div class="ph"><span></span><span></span><span class="add">카톡<br>사진</span><span class="add">시공<br>사진</span></div>
+        <div class="scope">🚪 문틀만 시공 ▾</div>
+        <div class="two"><div class="sel">1개 2m ▾</div><div class="sel f">영림207 ▾</div></div>
+      </div>
+      <div class="zh">거실</div>
+      <div class="card">
+        <div class="t">거실샤시1 <small>길이 · 1m/m</small><span class="m">3m</span></div>
+        <div class="ph"><span></span><span class="add">카톡<br>사진</span><span class="add">시공<br>사진</span></div>
+        <div class="two"><div class="sel">3m ▾</div><div class="dbl">☑ 2중창</div><div class="sel f">영림PS ▾</div></div>
+      </div>
+      <div class="card">
+        <div class="t">거실프레임 <small>2m/개</small><span class="m">3m</span></div>
+        <div class="ph"><span class="add">카톡<br>사진</span><span class="add">시공<br>사진</span><span class="warn" style="align-self:center">📷 사진 없음</span></div>
+        <div class="two"><div class="sel">1개 3m ▾</div><div class="sel f">ps170 ▾</div></div>
+      </div>
+    </div>
+    <div class="bar"><div class="p">필름 합계<b>11m</b></div><div class="btn">③ 합산 →</div></div>
+  </div>
+  <div class="cap">② 사진·옵션 (일괄)<small>①에서 고른 품목만 정산견적과 같은 줄로. 시공범위·2중창·길이·필름을 줄마다 고름. 필름은 기본 자재(영림PS·한솔…) + 이 현장 필름 번호</small></div>
+</div>
+
+<div class="col">
+  <div class="phone">
+    <div class="hdr">‹ 견적요청 작성하기
+      <div class="site">송도 풍림아이원 2단지 · 34평</div>
+      <div class="seg"><div>① 품목 5</div><div>② 사진·옵션</div><div class="on">③ 합산·메모</div></div>
+    </div>
+    <div class="scroll">
+      <div class="sum"><h4>인건비</h4>
+        <div class="two"><div class="sel">2품 ▾</div><div class="sel">270,000원/품 ▾</div></div>
+        <div class="r"><span>인건비</span><b>540,000원</b></div></div>
+      <div class="sum"><h4>필름 (자재별 합)</h4>
+        <div class="r"><span>영림207 · 4m × 9,000</span><b>36,000원</b></div>
+        <div class="r"><span>영림PS · 3m × 9,000</span><b>27,000원</b></div>
+        <div class="r"><span>ps170 · 3m × 9,000</span><b>27,000원</b></div></div>
+      <div class="sum"><h4>부가</h4>
+        <div class="r"><span>부자재비</span><b>30,000원</b></div>
+        <div class="r"><span>식대</span><b>인건비 포함</b></div></div>
+      <div class="sum"><h4>부가메모 (견적서에 나감)</h4><div class="memo">거주 중이라 가구 이동은 업체에서 부탁드립니다…</div></div>
+    </div>
+    <div class="bar"><div class="p">부가세 별도<b>660,000원</b></div><div class="btn g">저장</div><div class="btn">견적서 발행</div></div>
+  </div>
+  <div class="cap">③ 결과 합산·부가메모<small>정산견적 계산 그대로. 메모를 적고 발행하면 링크가 나오고, 발행내역이 현장관리 앱 거래처 화면에 남음</small></div>
+</div>
+
+</div>
+<div class="note">
+<h2>지금 것과 달라지는 점</h2>
+<ul>
+<li>글 탭 삭제 → ① 품목설정. 품목은 방문견적 목록이 아니라 <b>필름현장관리자 품목설정</b>(방2문+틀, 거실프레임…)</li>
+<li>계산은 방문견적(품목 단가)이 아니라 <b>정산견적 방식</b>(품수 × 품단가 + 필름 m × 단가 + 부가)</li>
+<li>사진은 ② 에서 품목 줄마다 붙임 (카톡 사진 / 시공사진 고르기)</li>
+</ul>
+</div>
+</body>
+</html>
