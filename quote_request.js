@@ -299,9 +299,11 @@ function 요청품목그리기() {
 
 /* ---------- 직접 입력 (방문견적 '직접 입력' 과 같은 칸) ---------- */
 let 요청직접편집 = null;   // 고치는 줄 (null = 새로)
+let 요청직접ID = null;     // 이 창에서 붙이는 사진의 태그 (새로 만들 때도 미리 정해 둔다)
 
 function 요청직접열기(줄) {
   요청직접편집 = 줄;
+  요청직접ID = 줄 ? 줄.id : 'rq' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   const 구역들 = 요청구역들((요청M && 요청M.시공품목) || []);
   const 기본구역 = 줄 ? 줄.구역 : (요청구역칩 !== '전체' ? 요청구역칩 : (구역들[0] || '기타'));
   const sel = $('#reqCustomZone');
@@ -314,6 +316,7 @@ function 요청직접열기(줄) {
   $('#reqCustomDesc').value = 줄 ? (줄.설명 || '') : '';
   $('#reqCustomDel').hidden = !줄;
   요청직접합계();
+  요청직접사진그리기();
   $('#reqCustomBack').hidden = false;
   $('#reqCustomSheet').hidden = false;
 }
@@ -329,6 +332,47 @@ function 요청직접닫기() {
   $('#reqCustomBack').hidden = true;
   $('#reqCustomSheet').hidden = true;
   요청직접편집 = null;
+  요청직접ID = null;
+  // 저장하지 않고 닫았으면 이 창에서 붙인 사진은 ② 의 '안 붙인 사진' 으로 남는다 (지우지 않는다)
+  요청그리기();
+}
+
+/* 직접 입력 창의 사진: 이 항목에 붙은 사진 (누르면 뗀다) */
+function 요청직접사진그리기() {
+  const box = $('#reqCustomPhotos');
+  if (!box) return;
+  box.textContent = '';
+  const 사진들 = 요청사진.filter((p) => (p.태그 || []).indexOf(요청직접ID) >= 0);
+  $('#reqCustomPhotoHint').textContent = 사진들.length ? 사진들.length + '장 · 누르면 뗍니다' : '사진이 없습니다';
+  사진들.forEach((p) => {
+    const m = document.createElement('button');
+    m.type = 'button';
+    m.className = 'req-mini';
+    m.style.backgroundImage = 'url("' + p._url + '")';
+    m.addEventListener('click', async () => {
+      if (!confirm('이 사진을 뗄까요?')) return;
+      try { await PDB.태그저장(p.id, []); await PDB.필드저장(p.id, { 구역: 요청구역 }); } catch (e) { return; }
+      await 요청사진읽기();
+      요청직접사진그리기();
+    });
+    box.appendChild(m);
+  });
+}
+
+async function 요청직접사진넣기(files) {
+  if (!files.length || !요청직접ID) return;
+  if (!사진가능) { toast('이 브라우저에서는 사진을 쓸 수 없습니다.'); return; }
+  const id = 요청직접ID;
+  const 실패 = [];
+  for (const f of files) {
+    try {
+      const p = await PDB.추가(현장ID확보(), 요청구역, f);
+      await PDB.태그저장(p.id, [id]);
+    } catch (err) { 실패.push(await 사진실패이유(err, f)); }
+  }
+  await 요청사진읽기();
+  요청직접사진그리기();
+  toast(실패.length ? 실패.length + '장 실패 · ' + 실패[0] : '사진 ' + files.length + '장 붙였습니다');
 }
 
 function 요청직접저장() {
@@ -344,10 +388,9 @@ function 요청직접저장() {
     설명: ($('#reqCustomDesc').value || '').trim(),
   };
   if (요청직접편집) Object.assign(요청직접편집, 값);
-  else 요청줄들().push(Object.assign({ id: 'rq' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }, 값));
+  else 요청줄들().push(Object.assign({ id: 요청직접ID }, 값));
   요청저장();
   요청직접닫기();
-  요청그리기();
 }
 
 function 요청직접삭제() {
@@ -356,7 +399,6 @@ function 요청직접삭제() {
   state.요청.줄 = 요청줄들().filter((x) => x !== 줄);
   요청저장();
   요청직접닫기();
-  요청그리기();
 }
 
 function 요청품목토글(p) {
@@ -857,6 +899,7 @@ async function 요청디비붙이기() {
   toast(됨 === 고른.length ? 됨 + '장 붙였습니다' : 됨 + '장 붙임 · ' + (고른.length - 됨) + '장 실패');
   await 요청사진읽기();
   요청그리기();
+  if (!$('#reqCustomSheet').hidden) 요청직접사진그리기();
 }
 
 function 요청디비닫기() {
@@ -928,6 +971,13 @@ $('#reqCustomClose').addEventListener('click', 요청직접닫기);
 $('#reqCustomBack').addEventListener('click', 요청직접닫기);
 $('#reqCustomSave').addEventListener('click', 요청직접저장);
 $('#reqCustomDel').addEventListener('click', 요청직접삭제);
+$('#reqCustomAdd').addEventListener('click', () => { $('#reqCustomFile').value = ''; $('#reqCustomFile').click(); });
+$('#reqCustomFile').addEventListener('change', () => 요청직접사진넣기(Array.from($('#reqCustomFile').files || [])));
+$('#reqCustomDb').addEventListener('click', () => {
+  // 시공사진은 적어 둔 품목명으로 찾는다 (비었으면 카테고리 이름으로)
+  const 이름 = ($('#reqCustomName').value || '').trim() || (요청직접편집 ? 요청직접편집.카테고리 : 요청묶음);
+  요청디비열기({ id: 요청직접ID, 품목명: 이름, 직접: true });
+});
 ['#reqCustomWage', '#reqCustomMat'].forEach((id) => $(id).addEventListener('input', () => {
   const el = $(id);
   const 새값 = QuoteCalc.금액포맷(el.value);
