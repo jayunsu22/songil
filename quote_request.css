@@ -8,7 +8,7 @@
   font-size: 14px;
 }
 #reqBar[hidden] { display: none; }
-#reqBarText { flex: 1; font-weight: 700; }
+#reqBarText { flex: 1; min-width: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #reqBarOpen {
   height: 36px; padding: 0 12px; border-radius: 10px;
   border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 700;
