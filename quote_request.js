@@ -15,7 +15,7 @@ const 요청단어장_LS = 'quote_req_wordbook_v1';   // 사용자가 가르친 
 let 요청탭 = '글';
 let 요청사진 = [];          // 지금 현장의 사진 (썸네일 URL 포함)
 const 요청고른사진 = new Set();
-let 요청칩구역 = null;      // ① 아래 칩에서 고른 구역
+let 요청칩묶음 = '문+틀';   // ① 아래에서 고른 품목 묶음 (관리자 앱 품목설정 탭과 같은 분류)
 let 요청고치는줄 = null;    // ② 줄 고치기 창이 다루는 줄
 let 요청디비대상 = null;    // 시공사진 고르기 창의 대상 항목
 const 요청디비고름 = new Set();
@@ -152,6 +152,8 @@ function 요청탭바꾸기(탭) {
   $('#reqPhotoBar').hidden = 탭 !== '사진';
   $('#reqItemsBar').hidden = 탭 !== '항목';
   $('#reqTextBar').hidden = 탭 !== '글';
+  // 사진 탭에서는 품목 고르는 칸을 사진 바로 아래부터 화면 끝까지 넓게 쓴다
+  $('#reqSheet').classList.toggle('photo-mode', 탭 === '사진');
   요청그리기();
 }
 
@@ -220,29 +222,32 @@ function 요청사진그리기() {
 
 function 요청칩그리기() {
   const n = 요청고른사진.size;
-  $('#reqPickInfo').textContent = n ? '고른 ' + n + '장 → 구역과 품목을 누르세요' : '사진을 눌러 고르세요 (여러 장)';
-  const zones = 요청보이는구역();
-  if (!요청칩구역 || !zones.some((z) => z.구역 === 요청칩구역)) 요청칩구역 = zones.length ? zones[0].구역 : null;
+  $('#reqPickInfo').textContent = n ? '고른 ' + n + '장 → 품목을 누르세요' : '사진을 눌러 고르세요 (여러 장)';
+  // 묶음별 품목: '방1 방문' 처럼 구역과 품목을 한 번에 누른다
+  const 묶음 = {};
+  RequestParse.카테고리목록.forEach((k) => { 묶음[k] = []; });
+  요청보이는구역().forEach((z) => z.items.forEach((it) => {
+    묶음[RequestParse.카테고리(it.표시_품목명)].push({ 구역: z.구역, item: it });
+  }));
   const zc = $('#reqZoneChips');
   zc.textContent = '';
-  zones.forEach((z) => {
+  RequestParse.카테고리목록.forEach((k) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'req-chip' + (z.구역 === 요청칩구역 ? ' on' : '');
-    b.textContent = 표시구역명(z.구역);
-    b.addEventListener('click', () => { 요청칩구역 = z.구역; 요청칩그리기(); });
+    b.className = 'req-chip' + (k === 요청칩묶음 ? ' on' : '');
+    b.textContent = k + ' (' + 묶음[k].length + ')';
+    b.addEventListener('click', () => { 요청칩묶음 = k; 요청칩그리기(); $('#reqItemChips').scrollTop = 0; });
     zc.appendChild(b);
   });
   const ic = $('#reqItemChips');
   ic.textContent = '';
-  const z = zones.find((x) => x.구역 === 요청칩구역);
-  (z ? z.items : []).forEach((it) => {
+  (묶음[요청칩묶음] || []).forEach((x) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'req-chip';
-    b.textContent = it.표시_품목명;
+    b.className = 'req-pick';
+    b.innerHTML = '<span class="req-z">' + esc(표시구역명(x.구역)) + '</span>' + esc(x.item.표시_품목명);
     b.disabled = !n;
-    b.addEventListener('click', () => 요청사진붙이기(z.구역, it));
+    b.addEventListener('click', () => 요청사진붙이기(x.구역, x.item));
     ic.appendChild(b);
   });
 }
