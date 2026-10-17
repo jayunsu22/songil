@@ -146,3 +146,17 @@
 @media (min-width: 600px) {
   #reqSheet, #reqFixSheet, #reqDbSheet { max-width: 480px; margin-left: auto; margin-right: auto; }
 }
+
+/* ① 사진 탭: 사진은 위에 필요한 만큼만, 품목 고르는 칸이 나머지를 다 쓴다 */
+#reqSheet.photo-mode .req-body { flex: 0 0 auto; max-height: 42vh; }
+#reqSheet.photo-mode #reqZoneChips { flex-wrap: wrap; overflow: visible; }
+#reqSheet.photo-mode #reqZoneChips .req-chip { padding: 0 10px; }
+#reqSheet.photo-mode #reqPhotoBar { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+#reqSheet.photo-mode #reqPhotoBar[hidden] { display: none; }
+#reqItemChips { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-content: start; padding: 2px 0 8px; }
+.req-pick {
+  display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 6px 10px; text-align: left;
+  border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 14px; font-weight: 700; color: var(--text);
+}
+.req-pick:disabled { opacity: .45; }
+.req-pick:not(:disabled):active { background: var(--accent-soft); }
