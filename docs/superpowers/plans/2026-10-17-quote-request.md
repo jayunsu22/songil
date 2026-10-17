@@ -174,7 +174,11 @@ MASTER.zones = [{ 구역: '거실', items: [{ 체크_ID, 품목명, 표시_품�
 - `pro-box-restore`(워크플로 `현장견적_저장함_백업` Sd4yefwVM3JcFwxq, 노드 `복원 합치기`): published 에 `현장관리_거래처ID` **없음** → Task 9 필요. 발행 워크플로(`현장견적_발행` fJEsn9CAylqGwt66)는 Airtable tblD4My1lpMjK1p6w 에 `현장관리_거래처ID` 를 이미 저장함
 - 작업목록: base `appV2Qy61YVhyRkZV` 표 `tblj2GWegEvPHICsb`, 필드 `현장명`·`시공품목`·`시공후사진`·`시공전사진`. 181노드 메인 워크플로는 건드리지 않고 Task 5 는 새 워크플로로
 - `pro-master` 는 사장님 열쇠(헤더) 필요 → fixture 는 마지막 성공 실행(33158) 응답에서 추출: `test/fixtures/master_sample.json`
-- CORS 확인은 Task 5 에서 실제 첨부 URL 로
+- CORS: Airtable 첨부 주소(v5.airtableusercontent.com)는 `Access-Control-Allow-Origin: *` → proxy 불필요
+- 관리자 작업목록 품목명은 '방1샤시', '방2문+틀', '거실샤시1', '냉장고장' 처럼 구역이 붙어 있음 → 시공사진은 낱말 '포함' 검색 + 같은 구역 먼저 정렬
+- 만든 워크플로: `현장견적_단어장` Kvfb9lEfcBf1WynW (GET/POST pro-wordbook, staticData), `현장견적_시공사진찾기` 7b9qHQISDn4ZyWIv (GET work-photos-by-item?q=). 둘 다 사장님 열쇠 헤더 필요 → 열쇠 없으면 403 확인함. 열쇠가 필요한 실제 응답은 앱 화면에서 확인
+- Task 9 완료: `복원 합치기` published 에 `현장관리_거래처ID`·`현장관리_현장ID` 추가
+- pro-box-restore 도 사장님 열쇠 헤더 필요 → 현장관리 앱 owner-key.js 가 이 주소에 헤더를 붙이는지 Task 10 에서 확인
 - **품목 단위 문제:** 샤시1/샤시2·신발장1/2·냉장고장·수납장·붙박이장은 단위가 `m`. 카톡의 "샤시 2" 는 개수(창 2개)라 수량으로 바로 못 넣는다. 샤시1·샤시2 는 "창 1·창 2" 슬롯
 - 마스터에 **분합창 없음** → 단어장 기본값에 넣지 않고 빨간 줄 → 사용자가 고르면 학습
 - 안방 → `방1`(화장대·드레스룸·화장실이 방1 에만 있음)
