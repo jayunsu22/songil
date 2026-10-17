@@ -46,7 +46,12 @@
   border: 1px solid var(--line); background: #fff; font-size: 13.5px; color: var(--text);
 }
 .req-chip.on { background: #1f2a44; border-color: #1f2a44; color: #fff; font-weight: 700; }
-.req-cats { position: sticky; top: -10px; background: var(--bg); padding: 4px 0 6px; z-index: 1; }
+.req-sticky { position: sticky; top: -10px; background: var(--bg); padding: 4px 0 2px; z-index: 1; margin: 0 -2px; }
+.req-view { display: flex; gap: 6px; margin-bottom: 8px; }
+.req-view button { flex: 1 1 0; height: 40px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font-size: 14px; font-weight: 800; color: var(--muted); }
+.req-view button.on { background: #1f2a44; border-color: #1f2a44; color: #fff; }
+#reqCats[hidden] { display: none; }
+.req-zones .req-chip { height: 32px; padding: 0 10px; font-size: 13px; font-weight: 700; }
 
 /* ① 품목 줄 (체크) */
 .req-item {
