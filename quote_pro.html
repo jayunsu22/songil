@@ -399,6 +399,29 @@
   </div>
 </section>
 
+<!-- ① 직접 입력 (방문견적 '직접 입력' 과 같은 칸) -->
+<div id="reqCustomBack" hidden></div>
+<section id="reqCustomSheet" hidden aria-label="직접 입력">
+  <h2 id="reqCustomTitle">직접 입력</h2>
+  <p class="hint">품목설정에 없는 건을 금액으로 바로 적습니다. 금액에 <b>−</b> 를 붙이면 빼는 항목이 됩니다.</p>
+  <label class="req-lb" for="reqCustomZone">구역</label>
+  <select id="reqCustomZone" autocomplete="off"></select>
+  <label class="req-lb" for="reqCustomName">품목명</label>
+  <input type="text" id="reqCustomName" autocomplete="off" placeholder="예: 방화문 (앞뒤면·쌍여닫이)">
+  <label class="req-lb" for="reqCustomWage">인건비 <em>부가세 별도</em></label>
+  <input type="text" id="reqCustomWage" inputmode="numeric" autocomplete="off" placeholder="예: 100,000원">
+  <label class="req-lb" for="reqCustomMat">자재비 <em>자재를 안 대면 0원</em></label>
+  <input type="text" id="reqCustomMat" inputmode="numeric" autocomplete="off" placeholder="예: 150,000원">
+  <p class="hint" id="reqCustomSum">합계 —</p>
+  <label class="req-lb" for="reqCustomDesc">설명 <em>비워두면 견적서에 설명이 안 나갑니다</em></label>
+  <textarea id="reqCustomDesc" rows="3" autocomplete="off" placeholder="예: 앞뒤면 모두 시공합니다."></textarea>
+  <div class="req-row">
+    <button type="button" id="reqCustomClose">취소</button>
+    <button type="button" id="reqCustomSave" class="primary">넣기</button>
+  </div>
+  <button type="button" id="reqCustomDel" class="req-delbig" hidden>이 항목 삭제</button>
+</section>
+
 <!-- ② 시공사진에서 고르기 -->
 <div id="reqDbBack" hidden></div>
 <section id="reqDbSheet" hidden aria-label="시공사진에서 고르기">
