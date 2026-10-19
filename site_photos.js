@@ -66,7 +66,7 @@ function 지금방문저장() {
   방문저장(방문들().map((v) => (v.현장ID === 지금방문.현장ID ? 지금방문 : v)));
 }
 
-let 지금방문 = null;     // { 현장ID, 이름, 만든때, 평형, 구역설정, 견적연결 } (예전: 추가구역)
+let 지금방문 = null;     // { 현장ID, 이름, 만든때, 평형, 유형(주택|상가), 구역설정, 견적연결 } (예전: 추가구역)
 let 사진들 = [];         // 지금 방문의 사진 (썸네일 URL 포함)
 let 보는중 = -1;         // 크게 보는 사진의 자리 (사진들 기준)
 let 보기URL = null;
@@ -83,7 +83,24 @@ function 모든구역() {
 // 지금 설정(없으면 견적서 구역 전부 + 예전에 추가한 구역)을 목록으로
 function 설정목록() {
   if (Array.isArray(지금방문.구역설정)) return 지금방문.구역설정.slice();
-  return 구역들.concat(지금방문.추가구역 || []);
+  return 유형기본().concat(지금방문.추가구역 || []);
+}
+
+/* 주택 / 상가. 주택 = 견적서 구역, 상가 = 사장실·탕비실·… (C.상가구역).
+   상가 구역은 견적서에 없어서 품목이 없다 - 집에서 견적서 구역으로 옮긴다. */
+function 유형기본() { return C.유형구역(지금방문, 구역들); }
+// 정해진 구역 이름 (견적서 구역 + 상가 구역). 이 밖의 이름이 '추가한 구역'
+function 정해진구역() { return 구역들.concat(C.상가구역.filter((z) => 구역들.indexOf(z) < 0)); }
+// 구역 줄에서 보라색(추가한 구역)으로 칠할지
+function 추가한구역인가(z) { return !!z && 정해진구역().indexOf(z) < 0; }
+
+function 유형바꾸기(유형) {
+  if ((지금방문.유형 || '주택') === 유형) return;
+  // 고른 구역은 새 유형 구역 전부로 바꾸고, 켜 둔 추가한 구역은 그대로 둔다
+  const 켜둔추가 = 설정목록().filter(추가한구역인가);
+  지금방문.유형 = 유형;
+  설정저장(유형기본().concat(켜둔추가));
+  구역설정그리기();
 }
 
 function 설정저장(목록) {
@@ -110,7 +127,7 @@ function 공용구역() {
   if (Array.isArray(저장)) return 저장;
   const 모음 = [];
   방문들().forEach((v) => (v.구역설정 || []).concat(v.추가구역 || []).forEach((z) => 모음.push(z)));
-  const 처음 = C.추가구역칸(모음, 구역들, []);
+  const 처음 = C.추가구역칸(모음, 정해진구역(), []);
   save(CUSTOM_ZONES_KEY, 처음);
   return 처음;
 }
@@ -137,11 +154,15 @@ function 구역설정그리기() {
     });
     return b;
   };
+  const 상가 = 지금방문.유형 === '상가';
+  $('#zsHouse').classList.toggle('on', !상가);
+  $('#zsShop').classList.toggle('on', 상가);
   const M = $('#zsMaster');
   M.textContent = '';
-  구역들.forEach((z) => M.appendChild(칩(z, 목록.indexOf(z) >= 0, false)));
+  유형기본().forEach((z) => M.appendChild(칩(z, 목록.indexOf(z) >= 0, false)));
+  $('#zsShopHint').hidden = !상가;
 
-  const 추가한 = C.추가구역칸(공용구역(), 구역들, 목록);
+  const 추가한 = C.추가구역칸(공용구역(), 정해진구역(), 목록);
   const T = $('#zsCustom');
   T.textContent = '';
   추가한.forEach((z) => {
@@ -170,7 +191,7 @@ function 구역설정그리기() {
 function 구역설정추가() {
   const 이름 = ($('#zsName').value || '').trim();
   if (!이름) { $('#zsName').focus(); return; }
-  if (구역들.indexOf(이름) < 0) 공용구역더하기(이름);   // 견적서 구역 이름이면 그냥 켜기만
+  if (추가한구역인가(이름)) 공용구역더하기(이름);   // 견적서·상가 구역 이름이면 그냥 켜기만
   const 목록 = 설정목록();
   if (목록.indexOf(이름) < 0) 목록.push(이름);
   설정저장(목록);
@@ -190,8 +211,9 @@ function 구역설정닫기() {
 }
 
 function 구역설정버튼글() {
-  $('#zoneBtn').textContent = Array.isArray(지금방문 && 지금방문.구역설정)
-    ? '🧩 구역설정 ' + 지금방문.구역설정.length : '🧩 구역설정';
+  const 상가 = 지금방문 && 지금방문.유형 === '상가';
+  $('#zoneBtn').textContent = (상가 ? '🏢 상가' : '🧩 구역설정') +
+    (Array.isArray(지금방문 && 지금방문.구역설정) ? ' ' + 지금방문.구역설정.length : '');
 }
 
 // 촬영·사진 보기 구역 줄 끝의 [⚙ 구역설정]
@@ -299,7 +321,7 @@ async function 사진그리기() {
   const 품목수 = 사진들.filter((p) => !C.미정인가(p) && !C.임시구역인가(p.구역, 구역들) && !(p.태그 || []).length).length;
   if (!미정 && 임시) {
     $('#todo').hidden = false;
-    $('#todo').textContent = '추가한 구역 사진이 ' + 임시 + '장 있습니다. [견적서 구역으로 옮기기] 를 누르세요.';
+    $('#todo').textContent = '견적서에 없는 구역 사진이 ' + 임시 + '장 있습니다. [견적서 구역으로 옮기기] 를 누르세요.';
   } else if (!미정 && 품목수 && 사진들.length) {
     $('#todo').hidden = false;
     $('#todo').textContent = '품목을 안 고른 사진이 ' + 품목수 + '장 있습니다. 사진을 눌러 품목을 고르세요.';
@@ -310,7 +332,7 @@ async function 사진그리기() {
     const 임시구역 = C.임시구역인가(g.구역, 구역들);
     sec.className = 'group' + (g.구역 === C.미정 ? ' unset' : '') + (임시구역 ? ' temp' : '');
     sec.innerHTML = '<h2>' + esc(g.구역 === C.미정 ? '구역 미정' : g.구역) + ' <small>' + g.사진들.length + '장</small>' +
-      (임시구역 ? '<span class="temp-tag">추가한 구역</span>' : '') + '</h2>';
+      (임시구역 ? '<span class="temp-tag">견적서에 없는 구역</span>' : '') + '</h2>';
     if (임시구역) {
       const mv = document.createElement('button');
       mv.type = 'button';
@@ -404,8 +426,8 @@ async function 옮기기(대상) {
     toast('옮기지 못했습니다.');
     return;
   }
-  // 다 옮긴 임시 구역은 목록에서도 빼고, 옮겨 간 구역은 구역설정에 넣는다
-  const 목록 = 설정목록().filter((x) => x !== z);
+  // 다 옮긴 추가한 구역은 목록에서도 빼고(상가 구역은 다음 사진을 위해 남긴다), 옮겨 간 구역은 구역설정에 넣는다
+  const 목록 = 추가한구역인가(z) ? 설정목록().filter((x) => x !== z) : 설정목록();
   if (목록.indexOf(대상) < 0) 목록.push(대상);
   설정저장(목록);
   옮기기닫기();
@@ -419,7 +441,7 @@ function 견적서로보내기() {
   const 임시 = C.임시수(사진들, 구역들);
   if ((미정 || 임시) && !confirm(
     (미정 ? '구역을 안 정한 사진 ' + 미정 + '장\n' : '') +
-    (임시 ? '추가한 구역(견적서에 없는 구역) 사진 ' + 임시 + '장\n' : '') +
+    (임시 ? '견적서에 없는 구역(상가·추가한 구역) 사진 ' + 임시 + '장\n' : '') +
     '이 사진들은 방문견적서에서 안 보입니다.\n\n그래도 보낼까요?')) return;
   // 고른 품목은 견적서가 열리면서 체크된다 (quote_pro.js 사진진입)
   location.href = '/quote_pro.html?photos=' + encodeURIComponent(지금방문.현장ID);
@@ -482,7 +504,7 @@ function 카메라구역그리기() {
   [C.미정].concat(모든구역()).forEach((z) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = (z === C.미정 ? 'unset' : '') + (C.임시구역인가(z, 구역들) ? ' temp' : '') + (z === 촬영구역 ? ' on' : '');
+    b.className = (z === C.미정 ? 'unset' : '') + (추가한구역인가(z) ? ' temp' : '') + (z === 촬영구역 ? ' on' : '');
     b.textContent = z === C.미정 ? '구역 미정' : z;
     b.addEventListener('click', () => { 촬영구역 = z; 카메라구역그리기(); });
     if (z === 촬영구역) 켜짐 = b;
@@ -575,7 +597,7 @@ function 패널그리기() {
   [C.미정].concat(모든구역()).forEach((z) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = (z === C.미정 ? 'unset' : '') + (C.임시구역인가(z, 구역들) ? ' temp' : '') + (z === 지금 ? ' on' : '');
+    b.className = (z === C.미정 ? 'unset' : '') + (추가한구역인가(z) ? ' temp' : '') + (z === 지금 ? ' on' : '');
     b.textContent = z === C.미정 ? '미정' : z;
     b.addEventListener('click', () => 구역정하기(z));
     if (z === 지금) 켜짐 = b;
@@ -593,7 +615,7 @@ function 패널그리기() {
     return;
   }
   if (C.임시구역인가(지금, 구역들)) {
-    L.innerHTML = '<p class="none">‘' + esc(지금) + '’ 은 현장에서 추가한 구역이라 품목이 없습니다. 위에서 견적서 구역으로 바꾸면 품목을 고를 수 있습니다.</p>';
+    L.innerHTML = '<p class="none">‘' + esc(지금) + '’ 은 견적서에 없는 구역이라 품목이 없습니다. 집에서 목록의 [→ 견적서 구역으로 옮기기] 로 옮기면 품목을 고를 수 있습니다.</p>';
     return;
   }
   const items = C.보이는품목(마스터, 지금, 지금방문.평형 || '확인안됨');
@@ -706,13 +728,17 @@ $('#zoneBack').addEventListener('click', 구역설정닫기);
 $('#zsAdd').addEventListener('click', 구역설정추가);
 $('#zsName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); 구역설정추가(); } });
 $('#zsAll').addEventListener('click', () => {
-  설정저장(구역들.concat(설정목록().filter((z) => 구역들.indexOf(z) < 0)));
+  const 기본 = 유형기본();
+  설정저장(기본.concat(설정목록().filter((z) => 기본.indexOf(z) < 0)));
   구역설정그리기();
 });
 $('#zsNone').addEventListener('click', () => {
-  설정저장(설정목록().filter((z) => 구역들.indexOf(z) < 0));   // 추가한 구역은 남긴다
+  const 기본 = 유형기본();
+  설정저장(설정목록().filter((z) => 기본.indexOf(z) < 0));   // 추가한 구역은 남긴다
   구역설정그리기();
 });
+$('#zsHouse').addEventListener('click', () => 유형바꾸기('주택'));
+$('#zsShop').addEventListener('click', () => 유형바꾸기('상가'));
 $('#moveClose').addEventListener('click', 옮기기닫기);
 $('#moveBack').addEventListener('click', 옮기기닫기);
 $('#sizeSelect').addEventListener('change', () => {
