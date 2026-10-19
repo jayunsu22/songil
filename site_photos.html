@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 사장님 전용 화면 — 현장견적과 같은 암호(한 번 열면 같이 열림) -->
+<script src="/pin-lock.js?v=20261006c" data-key="settleUnlocked"></script>
+<title>현장사진 - 섬세한손길</title>
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="현장사진">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="/worker/icon-180.png">
+<link rel="stylesheet" href="/site_photos.css?v=20261019a">
+</head>
+<body>
+
+<!-- ① 방문 목록 -->
+<section id="listView">
+  <header>
+    <h1>📷 현장사진</h1>
+    <a class="hd-link" href="/quote_pro.html">방문견적 →</a>
+  </header>
+  <p class="intro">현장에서는 <b>찍기만</b> 하고 나오세요.<br>집에서 사진을 한 장씩 누르며 <b>구역</b>을 고르면, 방문견적서의 그 구역에 사진이 붙습니다.</p>
+  <button id="newVisit" type="button" class="big primary">＋ 새 현장 방문</button>
+  <div id="visits"></div>
+  <p id="noVisits" class="empty" hidden>아직 방문한 현장이 없습니다.</p>
+</section>
+
+<!-- ② 현장 한 곳 -->
+<section id="visitView" hidden>
+  <header>
+    <button id="backList" type="button" class="hd-btn" aria-label="목록으로">‹</button>
+    <h1 id="visitName"></h1>
+    <button id="renameVisit" type="button" class="hd-btn" aria-label="이름 바꾸기">✎</button>
+  </header>
+  <div class="shoot-row">
+    <button id="shootBtn" type="button" class="big primary">📷 촬영</button>
+    <button id="albumBtn" type="button" class="big">🖼 앨범에서</button>
+  </div>
+  <p id="todo" class="todo" hidden></p>
+  <div id="groups"></div>
+  <p id="noPhotos" class="empty" hidden>아직 사진이 없습니다. 위의 촬영을 누르세요.</p>
+  <div class="bottom-bar">
+    <button id="toQuote" type="button" class="big primary">📄 방문견적서로 보내기</button>
+  </div>
+  <button id="delVisit" type="button" class="del-visit">이 현장 지우기</button>
+</section>
+
+<input id="pickFile" type="file" accept="image/*" multiple hidden>
+<input id="camFile" type="file" accept="image/*" capture="environment" hidden>
+
+<!-- 인앱 카메라: 셔터를 눌러도 화면이 유지돼 연달아 찍는다 -->
+<section id="camSheet" hidden aria-label="촬영">
+  <video id="camVideo" playsinline muted></video>
+  <!-- 현장에서 구역을 알면 골라 두고 찍어도 된다. 기본은 '미정' -->
+  <div id="camZones" class="chips dark"></div>
+  <div id="camBar">
+    <button id="camClose" type="button">닫기</button>
+    <button id="camShot" type="button" aria-label="촬영"></button>
+    <span id="camCount">0장</span>
+  </div>
+</section>
+
+<!-- 사진 크게 보기 + 구역 고르기 -->
+<section id="viewer" hidden aria-label="구역 고르기">
+  <div class="vw-top">
+    <button id="vwClose" type="button" class="vw-btn">닫기</button>
+    <span id="vwPos"></span>
+    <button id="vwDel" type="button" class="vw-btn danger">삭제</button>
+  </div>
+  <div class="vw-img">
+    <button id="vwPrev" type="button" class="vw-nav" aria-label="이전">‹</button>
+    <img id="vwImg" alt="현장 사진">
+    <button id="vwNext" type="button" class="vw-nav right" aria-label="다음">›</button>
+  </div>
+  <div class="vw-panel">
+    <p class="vw-q">이 사진은 어느 구역인가요?</p>
+    <div id="vwZones" class="chips"></div>
+    <p class="hint">구역을 누르면 다음 미정 사진으로 넘어갑니다.</p>
+  </div>
+</section>
+
+<div id="toast" hidden></div>
+
+<script src="/quote_photos.js"></script>
+<script src="/site_photos_core.js?v=20261019a"></script>
+<script src="/site_photos.js?v=20261019a"></script>
+</body>
+</html>

@@ -62,6 +62,7 @@ let 발행목록 = null;      // 서버에 있는 발행 견적 머리 정보 (�
 let 열며받는중 = false;
 const BOX_SEEDED_KEY = 'quote_pro_box_seeded_v1';      // 이 폰 저장함을 서버에 처음 다 올렸는지
 const PHOTO_KEEP_KEY = 'quote_pro_photo_keep_v1';      // 현장별로 서버에 '남길 사진' 을 보낸 기록
+const 사진앱방문KEY = 'site_photos_visits_v1';          // 현장사진 앱(site_photos)의 방문 목록 — 그 앱과 같은 키
 let 백업사진중 = false;
 let 사진다시 = false;     // 올리는 동안 또 불렸으면 끝나고 한 번 더
 let 사진올릴수 = 0;       // 남은 장수 (백업 줄에 보인다)
@@ -266,6 +267,10 @@ function boot() {
   // 현장관리 앱의 [견적요청 작성하기] 로 들어왔으면 입력 화면을 연다 (quote_request.js).
   // 캐시로 boot() 가 먼저 돌면 그 파일이 아직 안 읽혔으므로 그쪽 끝에서도 한 번 부른다.
   if (typeof 요청진입 === 'function') 요청진입();
+  // 현장사진 앱의 [방문견적서로 보내기] 로 들어왔으면 그 현장 사진으로 시작한다.
+  // 캐시 경로에서는 boot() 가 이 파일을 다 읽기 전에 돌아서, 아래쪽 let(toast 등)이
+  // 아직 TDZ 다. 파일 실행이 끝난 뒤로 미룬다.
+  setTimeout(사진진입, 0);
 }
 
 /* ---------- 필름 자재비 ----------
@@ -939,8 +944,9 @@ $('#roomSelect').addEventListener('change', (e) => {
 $('#resetBtn').addEventListener('click', () => { 새견적시작(); });
 
 /* 지금 견적을 비우고 새로 시작한다. 그만두면 false.
-   견적요청으로 들어올 때(quote_request.js)도 같은 확인을 거친다. */
-async function 새견적시작() {
+   견적요청으로 들어올 때(quote_request.js)도 같은 확인을 거친다.
+   조용히: 묻지 않고 비운다 — 비울 게 없을 때만 쓴다 (현장사진 앱에서 들어올 때). */
+async function 새견적시작(조용히) {
   // 사진이 있는데 저장함에 안 담았다면 그냥 시작하면 안 된다.
   // 견적은 사라지고 사진만 남아 '소속 없는 사진' 이 된다.
   const 담김 = 저장함읽기().some((x) => x.현장ID === state.현장ID);
@@ -948,7 +954,12 @@ async function 새견적시작() {
   if (사진가능 && state.현장ID) {
     try { 사진들 = await PDB.현장사진(state.현장ID); } catch (e) { 사진들 = []; }
   }
-  if (사진들.length && !담김) {
+  // 현장사진 앱(site_photos)에서 넘어온 현장이면 사진의 주인은 그 앱이다.
+  // 여기서 지우면 그 앱의 방문 기록에서도 사진이 사라지므로 손대지 않는다.
+  const 사진앱현장 = (load(사진앱방문KEY) || []).some((v) => v.현장ID === state.현장ID);
+  if (조용히 === true) {
+    // 비울 게 없을 때만 부른다
+  } else if (사진들.length && !담김 && !사진앱현장) {
     const 답 = confirm(
       '사진 ' + 사진들.length + '장이 있습니다.\n' +
       '저장함에 담지 않으면 견적은 사라지고 사진만 남습니다.\n\n' +
@@ -956,7 +967,8 @@ async function 새견적시작() {
     );
     if (!답) return false;
     await PDB.현장삭제(state.현장ID);
-  } else if (!confirm('지금 체크한 내용을 모두 지우고 새로 시작할까요?')) {
+  } else if (!confirm('지금 체크한 내용을 모두 지우고 새로 시작할까요?' +
+      (사진앱현장 && 사진들.length ? '\n(사진 ' + 사진들.length + '장은 현장사진 앱에 그대로 남습니다)' : ''))) {
     return false;
   }
   // 평형도 같이 초기화한다. 앞 현장 평형이 남아 있으면 다음 현장에서
@@ -2640,6 +2652,43 @@ async function 구역장수갱신() {
     det._cam.classList.toggle('has', n > 0);
   });
   document.querySelectorAll('.photo-btn').forEach((b) => 사진버튼칠하기(b, b.dataset.id));
+}
+
+/* ---------- 현장사진 앱에서 들어올 때 ----------
+   site_photos.html 에서 사진만 찍어 두고 집에서 구역을 정한 뒤 넘어온다.
+   quote_pro.html?photos=<현장ID>. 사진은 같은 IndexedDB 에 그 현장ID·구역으로 이미 들어 있으므로
+   옮길 것 없이 이 견적의 현장ID 만 그걸로 바꾸면 구역마다 📷 에 사진이 붙는다.
+   주소의 photos 는 바로 지운다 - 새로고침할 때마다 새 견적이 시작되면 안 된다. */
+async function 사진진입() {
+  const q = new URLSearchParams(location.search);
+  const id = q.get('photos');
+  if (!id) return;
+  try { history.replaceState(null, '', location.pathname); } catch (e) { /* 무시 */ }
+  const 방문들 = load(사진앱방문KEY) || [];
+  const 방문 = 방문들.find((v) => v.현장ID === id);
+
+  if (state.현장ID !== id) {
+    let 지금사진 = 0;
+    try { 지금사진 = (await PDB.현장사진(state.현장ID)).length; } catch (e) { /* 사진 못 쓰는 브라우저 */ }
+    const 하던것 = Object.keys(state.선택 || {}).length || (state.직접품목 || []).length ||
+      (state.현장명 || '').trim() || state.요청 || 지금사진;
+    if (!(await 새견적시작(!하던것))) return;
+    state.현장ID = id;
+    state.현장명 = (방문 && 방문.이름) || '';
+    $('#siteName').value = state.현장명;
+    persist();
+  }
+  let 사진들 = [];
+  try { 사진들 = await PDB.현장사진(id); } catch (e) { 사진못씀(e); return; }
+  await 구역장수갱신();
+  // 사진이 있는 구역을 펼쳐 둔다. 어느 구역에 사진이 있는지 바로 보이게
+  document.querySelectorAll('.zone').forEach((det) => { if (장수맵[det._zone]) det.open = true; });
+  const 미정 = 사진들.filter((p) => !p.구역).length;
+  toast('사진 ' + 사진들.length + '장을 불러왔습니다' + (미정 ? ' · 구역 미정 ' + 미정 + '장은 안 보입니다' : '') + ' · 구역의 📷 를 누르세요');
+  if (방문) {
+    방문.견적연결 = new Date().toISOString();
+    save(사진앱방문KEY, 방문들);
+  }
 }
 
 /* 품목 줄에 붙는 '사진' 버튼 */
