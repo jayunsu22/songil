@@ -64,10 +64,41 @@ function 지금방문저장() {
   방문저장(방문들().map((v) => (v.현장ID === 지금방문.현장ID ? 지금방문 : v)));
 }
 
-let 지금방문 = null;     // { 현장ID, 이름, 만든때, 평형, 견적연결 }
+let 지금방문 = null;     // { 현장ID, 이름, 만든때, 평형, 추가구역, 견적연결 }
 let 사진들 = [];         // 지금 방문의 사진 (썸네일 URL 포함)
 let 보는중 = -1;         // 크게 보는 사진의 자리 (사진들 기준)
 let 보기URL = null;
+
+/* ---------- 현장에서 추가한 구역 ----------
+   현장에 가 보면 견적서 구역에 없는 이상한 공간이 있다(보일러실, 창고방 …).
+   그 자리에서 이름만 붙여 찍고, 집에 와서 견적서 구역으로 옮긴다.
+   임시 구역 사진은 견적서 어느 구역에도 안 나온다. */
+function 모든구역() {
+  return C.현장구역목록(구역들, 지금방문 && 지금방문.추가구역, 사진들);
+}
+
+// 이름을 받아 이 현장 구역에 더한다. 고른 이름을 돌려준다 (취소면 null)
+function 구역추가() {
+  const 이름 = (prompt('추가할 구역 이름 (예: 보일러실, 창고방)\n집에 와서 견적서 구역으로 옮기면 됩니다.', '') || '').trim();
+  if (!이름) return null;
+  if (구역들.indexOf(이름) < 0) {
+    지금방문.추가구역 = 지금방문.추가구역 || [];
+    if (지금방문.추가구역.indexOf(이름) < 0) {
+      지금방문.추가구역.push(이름);
+      지금방문저장();
+    }
+  }
+  return 이름;
+}
+
+function 구역추가버튼(누르면) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'add';
+  b.textContent = '＋ 구역 추가';
+  b.addEventListener('click', () => { const z = 구역추가(); if (z) 누르면(z); });
+  return b;
+}
 
 /* objectURL 은 다 쓰면 풀어준다. 안 풀면 사진을 열 때마다 메모리가 쌓여 폰이 느려진다. */
 const 목록URL = [];
@@ -159,16 +190,30 @@ async function 사진그리기() {
   const 미정 = C.미정수(사진들);
   $('#todo').hidden = !미정;
   $('#todo').textContent = '구역을 안 정한 사진이 ' + 미정 + '장 있습니다. 사진을 눌러 구역을 고르세요.';
-  const 품목수 = 사진들.filter((p) => !C.미정인가(p) && !(p.태그 || []).length).length;
-  if (!미정 && 품목수 && 사진들.length) {
+  const 임시 = C.임시수(사진들, 구역들);
+  const 품목수 = 사진들.filter((p) => !C.미정인가(p) && !C.임시구역인가(p.구역, 구역들) && !(p.태그 || []).length).length;
+  if (!미정 && 임시) {
+    $('#todo').hidden = false;
+    $('#todo').textContent = '추가한 구역 사진이 ' + 임시 + '장 있습니다. [견적서 구역으로 옮기기] 를 누르세요.';
+  } else if (!미정 && 품목수 && 사진들.length) {
     $('#todo').hidden = false;
     $('#todo').textContent = '품목을 안 고른 사진이 ' + 품목수 + '장 있습니다. 사진을 눌러 품목을 고르세요.';
   }
 
   C.구역별묶기(사진들, 구역들).forEach((g) => {
     const sec = document.createElement('div');
-    sec.className = 'group' + (g.구역 === C.미정 ? ' unset' : '');
-    sec.innerHTML = '<h2>' + esc(g.구역 === C.미정 ? '구역 미정' : g.구역) + ' <small>' + g.사진들.length + '장</small></h2>';
+    const 임시구역 = C.임시구역인가(g.구역, 구역들);
+    sec.className = 'group' + (g.구역 === C.미정 ? ' unset' : '') + (임시구역 ? ' temp' : '');
+    sec.innerHTML = '<h2>' + esc(g.구역 === C.미정 ? '구역 미정' : g.구역) + ' <small>' + g.사진들.length + '장</small>' +
+      (임시구역 ? '<span class="temp-tag">추가한 구역</span>' : '') + '</h2>';
+    if (임시구역) {
+      const mv = document.createElement('button');
+      mv.type = 'button';
+      mv.className = 'temp-move';
+      mv.textContent = '→ 견적서 구역으로 옮기기';
+      mv.addEventListener('click', () => 옮기기열기(g.구역));
+      sec.appendChild(mv);
+    }
     // 이 구역에서 고른 품목 이름들 (사진 여러 장에 같은 품목이면 한 번만)
     const ids = [];
     g.사진들.forEach((p) => (p.태그 || []).forEach((id) => { if (ids.indexOf(id) < 0) ids.push(id); }));
@@ -218,10 +263,58 @@ async function 방문지우기() {
   목록보기();
 }
 
+/* ---------- 추가한 구역 → 견적서 구역으로 한꺼번에 옮기기 ---------- */
+let 옮길구역 = null;
+
+function 옮기기열기(z) {
+  옮길구역 = z;
+  const n = 사진들.filter((p) => p.구역 === z).length;
+  $('#moveTitle').textContent = '‘' + z + '’ 사진 ' + n + '장을 어느 구역으로 옮길까요?';
+  const w = $('#moveZones');
+  w.textContent = '';
+  구역들.forEach((t) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = t;
+    b.addEventListener('click', () => 옮기기(t));
+    w.appendChild(b);
+  });
+  $('#moveBack').hidden = false;
+  $('#moveSheet').hidden = false;
+}
+
+function 옮기기닫기() {
+  옮길구역 = null;
+  $('#moveBack').hidden = true;
+  $('#moveSheet').hidden = true;
+}
+
+async function 옮기기(대상) {
+  const z = 옮길구역;
+  if (!z) return;
+  const 옮길것 = 사진들.filter((p) => p.구역 === z);
+  try {
+    for (const p of 옮길것) await PDB.필드저장(p.id, { 구역: 대상, 태그: C.구역안태그(p.태그, 마스터, 대상) });
+  } catch (e) {
+    toast('옮기지 못했습니다.');
+    return;
+  }
+  // 다 옮긴 임시 구역은 목록에서도 뺀다 (구역 줄이 지저분해지지 않게)
+  지금방문.추가구역 = (지금방문.추가구역 || []).filter((x) => x !== z);
+  지금방문저장();
+  옮기기닫기();
+  toast('‘' + z + '’ ' + 옮길것.length + '장 → ' + 대상);
+  await 사진그리기();
+}
+
 function 견적서로보내기() {
   if (!사진들.length) { toast('사진이 없습니다.'); return; }
   const 미정 = C.미정수(사진들);
-  if (미정 && !confirm('구역을 안 정한 사진이 ' + 미정 + '장 있습니다.\n이 사진들은 방문견적서에서 안 보입니다.\n\n그래도 보낼까요?')) return;
+  const 임시 = C.임시수(사진들, 구역들);
+  if ((미정 || 임시) && !confirm(
+    (미정 ? '구역을 안 정한 사진 ' + 미정 + '장\n' : '') +
+    (임시 ? '추가한 구역(견적서에 없는 구역) 사진 ' + 임시 + '장\n' : '') +
+    '이 사진들은 방문견적서에서 안 보입니다.\n\n그래도 보낼까요?')) return;
   // 고른 품목은 견적서가 열리면서 체크된다 (quote_pro.js 사진진입)
   location.href = '/quote_pro.html?photos=' + encodeURIComponent(지금방문.현장ID);
 }
@@ -280,15 +373,16 @@ function 카메라구역그리기() {
   w.textContent = '';
   $('#camZoneNow').textContent = 촬영구역 === C.미정 ? '찍을 구역을 고르세요 ↓ (안 골라도 됩니다)' : '📍 ' + 촬영구역 + ' 찍는 중';
   let 켜짐 = null;
-  [C.미정].concat(구역들).forEach((z) => {
+  [C.미정].concat(모든구역()).forEach((z) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = (z === C.미정 ? 'unset' : '') + (z === 촬영구역 ? ' on' : '');
+    b.className = (z === C.미정 ? 'unset' : '') + (C.임시구역인가(z, 구역들) ? ' temp' : '') + (z === 촬영구역 ? ' on' : '');
     b.textContent = z === C.미정 ? '구역 미정' : z;
     b.addEventListener('click', () => { 촬영구역 = z; 카메라구역그리기(); });
     if (z === 촬영구역) 켜짐 = b;
     w.appendChild(b);
   });
+  w.appendChild(구역추가버튼((z) => { 촬영구역 = z; 카메라구역그리기(); }));
   if (켜짐) 켜짐.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
 
@@ -308,6 +402,7 @@ async function 카메라열기() {
   v.srcObject = 스트림;
   await v.play().catch(() => {});
   $('#camSheet').hidden = false;
+  document.body.classList.add('full');
 }
 
 function 카메라닫기() {
@@ -315,6 +410,7 @@ function 카메라닫기() {
   if (스트림) { 스트림.getTracks().forEach((t) => t.stop()); 스트림 = null; }
   $('#camVideo').srcObject = null;
   $('#camSheet').hidden = true;
+  document.body.classList.remove('full');
   사진그리기();
 }
 
@@ -345,6 +441,7 @@ function 보기열기(i) {
   if (i < 0 || i >= 사진들.length) return;
   보는중 = i;
   $('#viewer').hidden = false;
+  document.body.classList.add('full');
   보기그리기();
 }
 
@@ -369,18 +466,16 @@ function 패널그리기() {
   const w = $('#vwZones');
   w.textContent = '';
   let 켜짐 = null;
-  const 목록 = [C.미정].concat(구역들);
-  // 목록에 없는 구역(마스터에서 이름이 바뀐 경우)도 지금 값은 보여준다
-  if (지금 !== C.미정 && 구역들.indexOf(지금) < 0) 목록.push(지금);
-  목록.forEach((z) => {
+  [C.미정].concat(모든구역()).forEach((z) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = (z === C.미정 ? 'unset' : '') + (z === 지금 ? ' on' : '');
+    b.className = (z === C.미정 ? 'unset' : '') + (C.임시구역인가(z, 구역들) ? ' temp' : '') + (z === 지금 ? ' on' : '');
     b.textContent = z === C.미정 ? '미정' : z;
     b.addEventListener('click', () => 구역정하기(z));
     if (z === 지금) 켜짐 = b;
     w.appendChild(b);
   });
+  w.appendChild(구역추가버튼(구역정하기));
   if (켜짐) 켜짐.scrollIntoView({ block: 'nearest', inline: 'center' });
 
   const L = $('#vwItems');
@@ -389,6 +484,10 @@ function 패널그리기() {
   $('#vwItemHint').textContent = 태그.length ? '· ' + 태그.length + '개 고름' : '';
   if (지금 === C.미정) {
     L.innerHTML = '<p class="none">구역을 먼저 고르면 그 구역 품목이 나옵니다.</p>';
+    return;
+  }
+  if (C.임시구역인가(지금, 구역들)) {
+    L.innerHTML = '<p class="none">‘' + esc(지금) + '’ 은 현장에서 추가한 구역이라 품목이 없습니다. 위에서 견적서 구역으로 바꾸면 품목을 고를 수 있습니다.</p>';
     return;
   }
   const items = C.보이는품목(마스터, 지금, 지금방문.평형 || '확인안됨');
@@ -454,6 +553,7 @@ async function 보기삭제() {
 
 function 보기닫기() {
   $('#viewer').hidden = true;
+  document.body.classList.remove('full');
   if (보기URL) { URL.revokeObjectURL(보기URL); 보기URL = null; }
   $('#vwImg').removeAttribute('src');
   보는중 = -1;
@@ -494,6 +594,8 @@ $('#vwClose').addEventListener('click', 보기닫기);
 $('#vwDel').addEventListener('click', 보기삭제);
 $('#vwPrev').addEventListener('click', () => { if (보는중 > 0) { 보는중--; 보기그리기(); } });
 $('#vwNext').addEventListener('click', () => { if (보는중 < 사진들.length - 1) { 보는중++; 보기그리기(); } });
+$('#moveClose').addEventListener('click', 옮기기닫기);
+$('#moveBack').addEventListener('click', 옮기기닫기);
 $('#sizeSelect').addEventListener('change', () => {
   지금방문.평형 = $('#sizeSelect').value;
   지금방문저장();
@@ -501,6 +603,7 @@ $('#sizeSelect').addEventListener('change', () => {
 
 // 뒤로가기 버튼으로 앱이 통째로 닫히지 않게: 현장 화면에서는 목록으로
 window.addEventListener('popstate', () => {
+  if (!$('#moveSheet').hidden) { 옮기기닫기(); history.pushState(null, ''); return; }
   if (!$('#viewer').hidden) { 보기닫기(); history.pushState(null, ''); return; }
   if (!$('#camSheet').hidden) { 카메라닫기(); history.pushState(null, ''); return; }
   if (지금방문) { 목록보기(); history.pushState(null, ''); }

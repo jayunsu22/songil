@@ -63,3 +63,17 @@ test('품목이름', () => {
   assert.strictEqual(C.품목이름(M, 'k1'), '싱크대');
   assert.strictEqual(C.품목이름(M, 'zz'), '');
 });
+
+test('임시구역: 견적서 구역에 없는 이름만, 미정은 아님', () => {
+  assert.strictEqual(C.임시구역인가('보일러실', ['거실']), true);
+  assert.strictEqual(C.임시구역인가('거실', ['거실']), false);
+  assert.strictEqual(C.임시구역인가('', ['거실']), false);
+  assert.strictEqual(C.임시수([{ 구역: '보일러실' }, { 구역: '거실' }, { 구역: '' }], ['거실']), 1);
+});
+
+test('현장구역목록: 견적서 구역 → 추가한 구역 → 사진에만 있는 구역, 중복 없음', () => {
+  assert.deepStrictEqual(
+    C.현장구역목록(['거실', '주방'], ['보일러실', ' 거실 ', ''], [{ 구역: '창고' }, { 구역: '보일러실' }, { 구역: '' }]),
+    ['거실', '주방', '보일러실', '창고']);
+  assert.deepStrictEqual(C.현장구역목록(['거실'], undefined, undefined), ['거실']);
+});
