@@ -48,16 +48,33 @@
       .map(function (k) { return { 구역: k, 사진들: 맵[k] }; });
   }
 
-  /* 구역을 정한 뒤 넘어갈 사진의 자리. 지금 사진 다음의 미정 사진,
-     뒤에 없으면 앞쪽의 미정 사진. 미정이 하나도 없으면 -1.
-     (집에 와서 사진을 한 장씩 눌러 구역만 고르고 넘어가는 흐름) */
-  function 다음미정(사진들, 지금) {
-    const n = (사진들 || []).length;
-    for (let k = 1; k < n; k++) {
-      const i = (지금 + k) % n;
-      if (미정인가(사진들[i])) return i;
+  /* 사진에서 고를 품목. 방문견적서의 평형 필터와 똑같이 건다 - 여기서만 보이면
+     태그는 되는데 견적에는 안 나타나는 품목이 생긴다. 평형을 모르면(확인안됨) 공통만. */
+  function 보이는품목(마스터, 구역, 평형) {
+    const zs = (마스터 && Array.isArray(마스터.zones)) ? 마스터.zones : [];
+    const z = zs.find(function (x) { return x && x.구역 === 구역; });
+    return ((z && z.items) || []).filter(function (it) {
+      return it && it.체크_ID && (it.적용평형 === '공통' || it.적용평형 === 평형);
+    });
+  }
+
+  /* 사진의 구역을 바꾸면 앞 구역 품목 태그는 뺀다. 구역 = 사진 찍은 곳이라
+     다른 구역 품목이 남아 있으면 화면에서 안 보이는 채로 견적에 들어간다. */
+  function 구역안태그(태그, 마스터, 구역) {
+    const zs = (마스터 && Array.isArray(마스터.zones)) ? 마스터.zones : [];
+    const z = zs.find(function (x) { return x && x.구역 === 구역; });
+    const ids = ((z && z.items) || []).map(function (it) { return it.체크_ID; });
+    return (태그 || []).filter(function (id) { return ids.indexOf(id) >= 0; });
+  }
+
+  // 체크_ID -> 품목명 (구역 줄에 '거실샤시, 아트월' 처럼 보여줄 때)
+  function 품목이름(마스터, 체크_ID) {
+    const zs = (마스터 && Array.isArray(마스터.zones)) ? 마스터.zones : [];
+    for (let i = 0; i < zs.length; i++) {
+      const it = ((zs[i] && zs[i].items) || []).find(function (x) { return x.체크_ID === 체크_ID; });
+      if (it) return it.표시_품목명 || it.품목명 || 체크_ID;
     }
-    return -1;
+    return '';
   }
 
   // 새 방문의 기본 이름 "10/19 방문"
@@ -79,8 +96,10 @@
     미정인가: 미정인가,
     미정수: 미정수,
     구역별묶기: 구역별묶기,
-    다음미정: 다음미정,
     기본이름: 기본이름,
     방문넣기: 방문넣기,
+    보이는품목: 보이는품목,
+    구역안태그: 구역안태그,
+    품목이름: 품목이름,
   };
 });

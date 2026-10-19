@@ -24,15 +24,6 @@ test('구역별묶기: 목록에 없는 구역의 사진도 사라지지 않고 
   assert.deepStrictEqual(g.map((x) => x.구역), ['거실', '서재']);
 });
 
-test('다음미정: 뒤쪽 미정 → 없으면 앞쪽 미정 → 없으면 -1', () => {
-  const ps = [{ 구역: '' }, { 구역: '거실' }, { 구역: '' }, { 구역: '주방' }];
-  assert.strictEqual(C.다음미정(ps, 0), 2);
-  assert.strictEqual(C.다음미정(ps, 2), 0);
-  assert.strictEqual(C.다음미정([{ 구역: '' }, { 구역: '거실' }], 0), -1);   // 자기 자신은 빼고
-  assert.strictEqual(C.다음미정([{ 구역: '거실' }], 0), -1);
-  assert.strictEqual(C.다음미정([], 0), -1);
-});
-
 test('미정수', () => {
   assert.strictEqual(C.미정수([{ 구역: '' }, { 구역: '거실' }, {}]), 2);
 });
@@ -45,4 +36,30 @@ test('방문넣기: 새 방문은 위로, 같은 현장ID 는 하나만', () => 
   const l = [{ 현장ID: 'a', 이름: 'A' }, { 현장ID: 'b', 이름: 'B' }];
   assert.deepStrictEqual(C.방문넣기(l, { 현장ID: 'b', 이름: 'B2' }).map((v) => v.이름), ['B2', 'A']);
   assert.deepStrictEqual(C.방문넣기(l, { 현장ID: 'c', 이름: 'C' }).map((v) => v.현장ID), ['c', 'a', 'b']);
+});
+
+const M = { zones: [
+  { 구역: '거실', items: [
+    { 체크_ID: 'a1', 표시_품목명: '거실샤시', 적용평형: '공통' },
+    { 체크_ID: 'a2', 표시_품목명: '몰딩 (30평)', 적용평형: '30평' },
+    { 체크_ID: 'a3', 표시_품목명: '몰딩 (40평)', 적용평형: '40평' },
+  ] },
+  { 구역: '주방', items: [{ 체크_ID: 'k1', 표시_품목명: '싱크대', 적용평형: '공통' }] },
+] };
+
+test('보이는품목: 평형을 모르면 공통만, 고르면 그 평형까지', () => {
+  assert.deepStrictEqual(C.보이는품목(M, '거실', '확인안됨').map((i) => i.체크_ID), ['a1']);
+  assert.deepStrictEqual(C.보이는품목(M, '거실', '30평').map((i) => i.체크_ID), ['a1', 'a2']);
+  assert.deepStrictEqual(C.보이는품목(M, '없는구역', '30평'), []);
+  assert.deepStrictEqual(C.보이는품목(null, '거실', '30평'), []);
+});
+
+test('구역안태그: 구역을 바꾸면 그 구역 품목만 남는다', () => {
+  assert.deepStrictEqual(C.구역안태그(['a1', 'k1'], M, '주방'), ['k1']);
+  assert.deepStrictEqual(C.구역안태그(['a1'], M, ''), []);
+});
+
+test('품목이름', () => {
+  assert.strictEqual(C.품목이름(M, 'k1'), '싱크대');
+  assert.strictEqual(C.품목이름(M, 'zz'), '');
 });

@@ -1,6 +1,8 @@
 /* 현장사진 앱.
-   거주 중인 집에 방문하면 사진만 빨리 찍고 나와야 한다. 집에 와서 보면 어디서 찍은 건지
-   헷갈려서, 사진을 한 장씩 눌러 구역을 고르게 하고 그 사진을 방문견적서(quote_pro)로 넘긴다.
+   거주 중인 집에 방문하면 사진만 빨리 찍고 나와야 한다. 현장에서는 구역만 골라 찍고,
+   집에 와서 사진을 보면서 품목을 고른 뒤 방문견적서(quote_pro)로 넘긴다.
+   품목은 방문견적서와 같은 방식으로 사진의 태그(체크_ID 목록)에 넣는다 -
+   견적서가 열리면서 태그된 품목을 체크한다.
 
    사진은 방문견적서와 같은 IndexedDB(QuotePhotos.PhotoDB)에 { 현장ID, 구역 } 으로 넣는다.
    견적서로 보낼 때는 옮기지 않고 quote_pro.html?photos=<현장ID> 로 열기만 한다 -
@@ -40,7 +42,8 @@ function toast(msg) {
 /* ---------- 구역 이름 ----------
    방문견적서 마스터의 구역 이름을 그대로 써야 사진이 그 구역 트레이로 들어간다.
    받아 둔 게 있으면 그걸로 바로 쓰고, 뒤에서 최신을 받는다. */
-let 구역들 = C.구역목록(load(MASTER_KEY));
+let 마스터 = load(MASTER_KEY);
+let 구역들 = C.구역목록(마스터);
 
 async function 구역받기() {
   try {
@@ -49,6 +52,7 @@ async function 구역받기() {
     const fresh = await res.json();
     if (!fresh || !Array.isArray(fresh.zones) || !fresh.zones.length) return;
     save(MASTER_KEY, fresh);   // 방문견적서와 같은 캐시. 원본 그대로 넣는다
+    마스터 = fresh;
     구역들 = C.구역목록(fresh);
   } catch (e) { /* 현장에서 신호가 약하면 받아 둔 것으로 */ }
 }
@@ -56,8 +60,11 @@ async function 구역받기() {
 /* ---------- 방문 목록 ---------- */
 function 방문들() { return load(VISITS_KEY) || []; }
 function 방문저장(list) { save(VISITS_KEY, list); }
+function 지금방문저장() {
+  방문저장(방문들().map((v) => (v.현장ID === 지금방문.현장ID ? 지금방문 : v)));
+}
 
-let 지금방문 = null;     // { 현장ID, 이름, 만든때, 견적연결 }
+let 지금방문 = null;     // { 현장ID, 이름, 만든때, 평형, 견적연결 }
 let 사진들 = [];         // 지금 방문의 사진 (썸네일 URL 포함)
 let 보는중 = -1;         // 크게 보는 사진의 자리 (사진들 기준)
 let 보기URL = null;
@@ -115,6 +122,8 @@ async function 방문열기(현장ID) {
   $('#listView').hidden = true;
   $('#visitView').hidden = false;
   $('#visitName').textContent = 지금방문.이름;
+  $('#sizeSelect').value = 지금방문.평형 || '확인안됨';
+  촬영구역 = C.미정;     // 앞 현장에서 고른 구역이 남아 있으면 엉뚱한 구역으로 찍힌다
   window.scrollTo(0, 0);
   await 사진그리기();
 }
@@ -150,18 +159,29 @@ async function 사진그리기() {
   const 미정 = C.미정수(사진들);
   $('#todo').hidden = !미정;
   $('#todo').textContent = '구역을 안 정한 사진이 ' + 미정 + '장 있습니다. 사진을 눌러 구역을 고르세요.';
+  const 품목수 = 사진들.filter((p) => !C.미정인가(p) && !(p.태그 || []).length).length;
+  if (!미정 && 품목수 && 사진들.length) {
+    $('#todo').hidden = false;
+    $('#todo').textContent = '품목을 안 고른 사진이 ' + 품목수 + '장 있습니다. 사진을 눌러 품목을 고르세요.';
+  }
 
   C.구역별묶기(사진들, 구역들).forEach((g) => {
     const sec = document.createElement('div');
     sec.className = 'group' + (g.구역 === C.미정 ? ' unset' : '');
     sec.innerHTML = '<h2>' + esc(g.구역 === C.미정 ? '구역 미정' : g.구역) + ' <small>' + g.사진들.length + '장</small></h2>';
+    // 이 구역에서 고른 품목 이름들 (사진 여러 장에 같은 품목이면 한 번만)
+    const ids = [];
+    g.사진들.forEach((p) => (p.태그 || []).forEach((id) => { if (ids.indexOf(id) < 0) ids.push(id); }));
+    const 이름들 = ids.map((id) => C.품목이름(마스터, id)).filter(Boolean);
+    if (이름들.length) sec.insertAdjacentHTML('beforeend', '<p class="items-sum">✓ ' + esc(이름들.join(', ')) + '</p>');
     const grid = document.createElement('div');
     grid.className = 'grid';
     g.사진들.forEach((p) => {
       p._url = p._url || URL.createObjectURL(p.thumb);
       const b = document.createElement('button');
       b.type = 'button';
-      b.innerHTML = '<img alt="" src="' + p._url + '">';
+      const n = (p.태그 || []).length;
+      b.innerHTML = '<img alt="" src="' + p._url + '">' + (n ? '<span class="cnt">✓' + n + '</span>' : '');
       b.addEventListener('click', () => 보기열기(사진들.indexOf(p)));
       grid.appendChild(b);
     });
@@ -174,7 +194,7 @@ function 이름바꾸기() {
   const 새이름 = prompt('현장 이름', 지금방문.이름);
   if (새이름 === null || !새이름.trim()) return;
   지금방문.이름 = 새이름.trim();
-  방문저장(방문들().map((v) => (v.현장ID === 지금방문.현장ID ? 지금방문 : v)));
+  지금방문저장();
   $('#visitName').textContent = 지금방문.이름;
 }
 
@@ -202,15 +222,16 @@ function 견적서로보내기() {
   if (!사진들.length) { toast('사진이 없습니다.'); return; }
   const 미정 = C.미정수(사진들);
   if (미정 && !confirm('구역을 안 정한 사진이 ' + 미정 + '장 있습니다.\n이 사진들은 방문견적서에서 안 보입니다.\n\n그래도 보낼까요?')) return;
+  // 고른 품목은 견적서가 열리면서 체크된다 (quote_pro.js 사진진입)
   location.href = '/quote_pro.html?photos=' + encodeURIComponent(지금방문.현장ID);
 }
 
 /* ---------- 사진 넣기 ---------- */
-let 촬영구역 = C.미정;   // 카메라에서 골라 둔 구역. 기본은 미정 - 현장에서는 찍기만 한다
+let 촬영구역 = C.미정;   // 카메라에서 골라 둔 구역. 카메라를 닫았다 열어도 같은 현장에서는 그대로
 
-async function 사진넣기(file) {
+async function 사진넣기(file, 구역) {
   try {
-    await PDB.추가(지금방문.현장ID, 촬영구역, file);
+    await PDB.추가(지금방문.현장ID, 구역, file);
     return null;
   } catch (err) {
     console.warn('사진 넣기 실패', err);
@@ -228,11 +249,11 @@ $('#pickFile').addEventListener('change', async (e) => {
   const files = [...(e.target.files || [])];
   e.target.value = '';
   if (!files.length) return;
-  촬영구역 = C.미정;
   toast(files.length + '장 넣는 중…');
   const 이유들 = [];
   for (const f of files) {
-    const 이유 = await 사진넣기(f);
+    // 앨범 사진은 어디서 찍었는지 모른다. 미정으로 넣고 하나씩 고른다
+    const 이유 = await 사진넣기(f, C.미정);
     if (이유) 이유들.push(이유);
   }
   await 사진그리기();
@@ -244,7 +265,7 @@ $('#camFile').addEventListener('change', async (e) => {
   const f = e.target.files && e.target.files[0];
   e.target.value = '';
   if (!f) return;
-  const 이유 = await 사진넣기(f);
+  const 이유 = await 사진넣기(f, 촬영구역);
   await 사진그리기();
   if (이유) toast(이유);
 });
@@ -257,18 +278,21 @@ let 이번촬영 = 0;
 function 카메라구역그리기() {
   const w = $('#camZones');
   w.textContent = '';
+  $('#camZoneNow').textContent = 촬영구역 === C.미정 ? '찍을 구역을 고르세요 ↓ (안 골라도 됩니다)' : '📍 ' + 촬영구역 + ' 찍는 중';
+  let 켜짐 = null;
   [C.미정].concat(구역들).forEach((z) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = (z === C.미정 ? 'unset' : '') + (z === 촬영구역 ? ' on' : '');
     b.textContent = z === C.미정 ? '구역 미정' : z;
     b.addEventListener('click', () => { 촬영구역 = z; 카메라구역그리기(); });
+    if (z === 촬영구역) 켜짐 = b;
     w.appendChild(b);
   });
+  if (켜짐) 켜짐.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
 
 async function 카메라열기() {
-  촬영구역 = C.미정;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('#camFile').click(); return; }
   try {
     스트림 = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
@@ -307,7 +331,7 @@ $('#camShot').addEventListener('click', async () => {
     if (navigator.vibrate) navigator.vibrate(30);
     const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.92));
     if (!blob) { toast('사진을 만들지 못했습니다.'); return; }
-    const 이유 = await 사진넣기(blob);
+    const 이유 = await 사진넣기(blob, 촬영구역);
     if (이유) { toast(이유); return; }
     이번촬영 += 1;
     $('#camCount').textContent = 이번촬영 + '장';
@@ -330,55 +354,91 @@ function 보기그리기() {
   if (보기URL) URL.revokeObjectURL(보기URL);
   보기URL = URL.createObjectURL(p.blob);
   $('#vwImg').src = 보기URL;
-  $('#vwPos').textContent = (보는중 + 1) + ' / ' + 사진들.length + (C.미정인가(p) ? ' · 구역 미정' : ' · ' + p.구역);
+  $('#vwPos').textContent = (보는중 + 1) + ' / ' + 사진들.length;
   $('#vwPrev').disabled = 보는중 === 0;
   $('#vwNext').disabled = 보는중 >= 사진들.length - 1;
+  패널그리기();
+}
+
+/* 구역 줄과 품목 칩만 다시 그린다. 품목을 누를 때마다 사진까지 다시 만들면 깜빡인다. */
+function 패널그리기() {
+  const p = 사진들[보는중];
+  if (!p) return;
+  const 지금 = C.미정인가(p) ? C.미정 : p.구역;
 
   const w = $('#vwZones');
   w.textContent = '';
-  [C.미정].concat(구역들).forEach((z) => {
+  let 켜짐 = null;
+  const 목록 = [C.미정].concat(구역들);
+  // 목록에 없는 구역(마스터에서 이름이 바뀐 경우)도 지금 값은 보여준다
+  if (지금 !== C.미정 && 구역들.indexOf(지금) < 0) 목록.push(지금);
+  목록.forEach((z) => {
     const b = document.createElement('button');
     b.type = 'button';
-    const 지금 = C.미정인가(p) ? C.미정 : p.구역;
     b.className = (z === C.미정 ? 'unset' : '') + (z === 지금 ? ' on' : '');
     b.textContent = z === C.미정 ? '미정' : z;
     b.addEventListener('click', () => 구역정하기(z));
+    if (z === 지금) 켜짐 = b;
     w.appendChild(b);
   });
-  // 목록에 없는 구역(마스터에서 이름이 바뀐 경우)도 지금 값은 보여준다
-  if (!C.미정인가(p) && 구역들.indexOf(p.구역) < 0) {
+  if (켜짐) 켜짐.scrollIntoView({ block: 'nearest', inline: 'center' });
+
+  const L = $('#vwItems');
+  L.textContent = '';
+  const 태그 = p.태그 || [];
+  $('#vwItemHint').textContent = 태그.length ? '· ' + 태그.length + '개 고름' : '';
+  if (지금 === C.미정) {
+    L.innerHTML = '<p class="none">구역을 먼저 고르면 그 구역 품목이 나옵니다.</p>';
+    return;
+  }
+  const items = C.보이는품목(마스터, 지금, 지금방문.평형 || '확인안됨');
+  if (!items.length) {
+    L.innerHTML = '<p class="none">' + (마스터 ? '이 구역에 고를 품목이 없습니다.' : '품목 목록을 아직 못 받았습니다. 방문견적을 한 번 열어 주세요.') + '</p>';
+    return;
+  }
+  items.forEach((it) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'on';
-    b.textContent = p.구역;
-    w.appendChild(b);
-  }
+    b.className = 태그.indexOf(it.체크_ID) >= 0 ? 'on' : '';
+    b.textContent = it.표시_품목명 || it.품목명 || it.체크_ID;
+    b.addEventListener('click', () => 품목바꿈(it.체크_ID));
+    L.appendChild(b);
+  });
 }
 
 async function 구역정하기(z) {
   const p = 사진들[보는중];
   if (!p) return;
-  const 미정이었음 = C.미정인가(p);
+  if ((C.미정인가(p) ? C.미정 : p.구역) === z) return;
+  // 앞 구역에서 고른 품목은 뺀다 (구역 = 사진 찍은 곳)
+  const 남길태그 = C.구역안태그(p.태그, 마스터, z);
+  const 뺀수 = (p.태그 || []).length - 남길태그.length;
+  if (뺀수 && !confirm('구역을 바꾸면 고른 품목 ' + 뺀수 + '개가 빠집니다. 바꿀까요?')) return;
   try {
-    await PDB.필드저장(p.id, { 구역: z });
+    await PDB.필드저장(p.id, { 구역: z, 태그: 남길태그 });
   } catch (e) {
     toast('저장하지 못했습니다.');
     return;
   }
   p.구역 = z;
-  if (z === C.미정) { 보기그리기(); return; }
-  // 미정 사진을 정리하는 중이면 다음 미정 사진으로 넘긴다. 다 끝나면 닫는다.
-  // 이미 정해 둔 사진을 고친 거면 그 자리에 둔다.
-  if (미정이었음) {
-    const 다음 = C.다음미정(사진들, 보는중);
-    if (다음 < 0) {
-      toast('모든 사진의 구역을 정했습니다 ✓');
-      보기닫기();
-      return;
-    }
-    보는중 = 다음;
+  p.태그 = 남길태그;
+  패널그리기();
+}
+
+async function 품목바꿈(체크_ID) {
+  const p = 사진들[보는중];
+  if (!p) return;
+  const 태그 = (p.태그 || []).slice();
+  const at = 태그.indexOf(체크_ID);
+  if (at >= 0) 태그.splice(at, 1); else 태그.push(체크_ID);
+  try {
+    await PDB.태그저장(p.id, 태그);
+  } catch (e) {
+    toast('저장하지 못했습니다.');
+    return;
   }
-  보기그리기();
+  p.태그 = 태그;
+  패널그리기();
 }
 
 async function 보기삭제() {
@@ -434,6 +494,10 @@ $('#vwClose').addEventListener('click', 보기닫기);
 $('#vwDel').addEventListener('click', 보기삭제);
 $('#vwPrev').addEventListener('click', () => { if (보는중 > 0) { 보는중--; 보기그리기(); } });
 $('#vwNext').addEventListener('click', () => { if (보는중 < 사진들.length - 1) { 보는중++; 보기그리기(); } });
+$('#sizeSelect').addEventListener('change', () => {
+  지금방문.평형 = $('#sizeSelect').value;
+  지금방문저장();
+});
 
 // 뒤로가기 버튼으로 앱이 통째로 닫히지 않게: 현장 화면에서는 목록으로
 window.addEventListener('popstate', () => {

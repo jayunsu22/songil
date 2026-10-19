@@ -2676,15 +2676,33 @@ async function 사진진입() {
     state.현장ID = id;
     state.현장명 = (방문 && 방문.이름) || '';
     $('#siteName').value = state.현장명;
+    if (방문 && 방문.평형) {
+      state.평형 = 방문.평형;
+      $('#sizeSelect').value = state.평형;
+      buildAll();      // 평형별 품목 줄이 있어야 아래에서 체크할 수 있다
+    }
     persist();
   }
   let 사진들 = [];
   try { 사진들 = await PDB.현장사진(id); } catch (e) { 사진못씀(e); return; }
+  // 현장사진 앱에서 고른 품목을 체크한다. 이미 체크한 건 수량 등을 그대로 둔다.
+  // 빼는 일은 하지 않는다 - 견적서에서 직접 체크한 품목까지 빠지면 안 된다.
+  let 체크수 = 0;
+  사진들.forEach((p) => (p.태그 || []).forEach((tid) => {
+    const row = ROWS.get(tid);
+    if (!row || state.선택[tid]) return;
+    state.선택[tid] = 태그기본선택(row.item);
+    syncRow(row);
+    체크수++;
+  }));
+  refresh();
+  persist();
   await 구역장수갱신();
   // 사진이 있는 구역을 펼쳐 둔다. 어느 구역에 사진이 있는지 바로 보이게
   document.querySelectorAll('.zone').forEach((det) => { if (장수맵[det._zone]) det.open = true; });
   const 미정 = 사진들.filter((p) => !p.구역).length;
-  toast('사진 ' + 사진들.length + '장을 불러왔습니다' + (미정 ? ' · 구역 미정 ' + 미정 + '장은 안 보입니다' : '') + ' · 구역의 📷 를 누르세요');
+  toast('사진 ' + 사진들.length + '장' + (체크수 ? ' · 품목 ' + 체크수 + '개 체크' : '') + '를 불러왔습니다' +
+    (미정 ? ' · 구역 미정 ' + 미정 + '장은 안 보입니다' : ''));
   if (방문) {
     방문.견적연결 = new Date().toISOString();
     save(사진앱방문KEY, 방문들);
@@ -3221,6 +3239,16 @@ function 탭숫자갱신() {
    - 태그를 풀면, 그 현장의 어느 사진에도 그 품목이 안 남았을 때만 체크가 풀린다.
    - 태그는 "그 순간에만" 견적에 쓴다. 화면을 다시 그릴 때마다 반영하지 않는다.
      그래야 견적 화면에서 뺀 품목이 자꾸 되살아나지 않는다. */
+/* 사진에 태그해서 견적에 넣을 때의 기본값 (태그 화면, 현장사진 앱에서 들어올 때) */
+function 태그기본선택(item) {
+  const 평형별 = item.적용평형 !== '공통';
+  return {
+    수량: 평형별 ? (item.평형별_설정길이 || 1) : item.기본수량,
+    난이도: 1,
+    옵션: 0,   // 종류(샤시 단창/2중창/시스템)는 견적 화면에서 고른다
+  };
+}
+
 async function 태그바꿈(체크_ID, 켜짐) {
   const p = 트레이사진[태그index];
   if (!p) return;
@@ -3249,14 +3277,7 @@ async function 태그바꿈(체크_ID, 켜짐) {
   if (!row) return;      // 마스터에 없는 품목. 견적에는 넣지 않는다.
 
   if (켜짐) {
-    if (!state.선택[체크_ID]) {
-      const 평형별 = row.item.적용평형 !== '공통';
-      state.선택[체크_ID] = {
-        수량: 평형별 ? (row.item.평형별_설정길이 || 1) : row.item.기본수량,
-        난이도: 1,
-        옵션: 0,   // 종류(샤시 단창/2중창/시스템)는 견적 화면에서 고른다
-      };
-    }
+    if (!state.선택[체크_ID]) state.선택[체크_ID] = 태그기본선택(row.item);
   } else {
     // 현장 전체를 다시 읽는다. 다른 구역 사진이 같은 품목을 태그했을 수 있다.
     let 전체 = [];
