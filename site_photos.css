@@ -306,3 +306,12 @@ body.full .aswBtn { display: none !important; }
   flex: 0 0 auto; min-height: 46px; padding: 0 16px;
   border: 0; border-radius: 12px; background: #7c3aed; color: #fff; font-size: 15px; font-weight: 800;
 }
+
+/* 추가한 구역: [이름] 은 이 현장에서 켜고 끄기, [✕] 는 모든 현장 목록에서 지우기 */
+.cz { display: inline-flex; align-items: stretch; }
+.cz > button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.chips .cz .cz-x {
+  min-width: 38px; padding: 0 10px; margin-left: -1px;
+  border: 1px solid #a78bfa; border-radius: 0 99px 99px 0;
+  background: #fff; color: #6d28d9; font-size: 14px;
+}
