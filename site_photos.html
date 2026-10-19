@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="현장사진">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="/worker/icon-180.png">
-<link rel="stylesheet" href="/site_photos.css?v=20261020a">
+<link rel="stylesheet" href="/site_photos.css?v=20261020b">
 </head>
 <body>
 
@@ -95,11 +95,19 @@
   </div>
 </section>
 
+<!-- 추가한 구역 → 견적서 구역으로 옮기기 -->
+<div id="moveBack" hidden></div>
+<section id="moveSheet" hidden aria-label="구역 옮기기">
+  <p id="moveTitle" class="vw-q"></p>
+  <div id="moveZones" class="chips"></div>
+  <button id="moveClose" type="button" class="big">취소</button>
+</section>
+
 <div id="toast" hidden></div>
 
 <script src="/quote_photos.js"></script>
-<script src="/site_photos_core.js?v=20261020a"></script>
-<script src="/site_photos.js?v=20261020a"></script>
+<script src="/site_photos_core.js?v=20261020b"></script>
+<script src="/site_photos.js?v=20261020b"></script>
 <script src="/app-switcher.js?v=20261020a" data-app-id="sitephotos"></script>
 </body>
 </html>

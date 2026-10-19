@@ -2700,9 +2700,10 @@ async function 사진진입() {
   await 구역장수갱신();
   // 사진이 있는 구역을 펼쳐 둔다. 어느 구역에 사진이 있는지 바로 보이게
   document.querySelectorAll('.zone').forEach((det) => { if (장수맵[det._zone]) det.open = true; });
-  const 미정 = 사진들.filter((p) => !p.구역).length;
+  // 구역 미정이거나 현장사진 앱에서 임의로 추가한 구역(마스터에 없음)은 어느 구역에도 안 나온다
+  const 안보임 = 사진들.filter((p) => !p.구역 || !MASTER.zones.some((z) => z.구역 === p.구역)).length;
   toast('사진 ' + 사진들.length + '장' + (체크수 ? ' · 품목 ' + 체크수 + '개 체크' : '') + '를 불러왔습니다' +
-    (미정 ? ' · 구역 미정 ' + 미정 + '장은 안 보입니다' : ''));
+    (안보임 ? ' · 구역을 안 정한 ' + 안보임 + '장은 안 보입니다' : ''));
   if (방문) {
     방문.견적연결 = new Date().toISOString();
     save(사진앱방문KEY, 방문들);
