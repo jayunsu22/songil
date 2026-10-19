@@ -16,6 +16,8 @@ const MASTER_KEY = 'quote_pro_master_v1';      // 방문견적서가 받아 둔 
 const MASTER_URL = 'https://primary-production-a6fa.up.railway.app/webhook/pro-master';
 const QUOTE_STATE_KEY = 'quote_pro_state_v1';
 const QUOTE_BOX_KEY = 'quote_pro_box_v1';
+// 현장에서 추가한 구역 이름 (모든 현장 공용). 한 번 만든 '보일러실' 을 다음 현장에서도 누르기만 하면 되게
+const CUSTOM_ZONES_KEY = 'site_photos_custom_zones_v1';
 
 const $ = (s) => document.querySelector(s);
 
@@ -101,21 +103,34 @@ function 구역설정열기(닫으면) {
   구역설정그리기();
 }
 
+/* 모든 현장 공용 '추가한 구역' 목록. 처음 한 번은 지금까지 각 현장에서 추가한 이름으로 채운다
+   (이 기능 전에 만든 것들). 그 뒤로는 지운 이름이 되살아나지 않게 저장된 목록만 쓴다. */
+function 공용구역() {
+  const 저장 = load(CUSTOM_ZONES_KEY);
+  if (Array.isArray(저장)) return 저장;
+  const 모음 = [];
+  방문들().forEach((v) => (v.구역설정 || []).concat(v.추가구역 || []).forEach((z) => 모음.push(z)));
+  const 처음 = C.추가구역칸(모음, 구역들, []);
+  save(CUSTOM_ZONES_KEY, 처음);
+  return 처음;
+}
+
+function 공용구역더하기(이름) {
+  const list = 공용구역();
+  if (list.indexOf(이름) < 0) { list.push(이름); save(CUSTOM_ZONES_KEY, list); }
+}
+
 function 구역설정그리기() {
   const 목록 = 설정목록();
+  // 누르면 이 현장에서 켜고 끈다. 추가한 구역도 끄기만 하면 다른 현장용으로 목록에 남는다
   const 칩 = (z, 켜짐, 추가한것) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = (추가한것 ? 'temp' : '') + (켜짐 ? ' on' : '');
-    b.textContent = z + (추가한것 ? '  ✕' : '');
+    b.textContent = z;
     b.addEventListener('click', () => {
       const 지금 = 설정목록();
       const i = 지금.indexOf(z);
-      if (추가한것) {
-        // 추가한 구역은 끄는 게 곧 지우는 것. 사진이 남아 있으면 구역 줄에는 계속 나온다
-        const n = 사진들.filter((p) => p.구역 === z).length;
-        if (n && !confirm('‘' + z + '’ 을(를) 목록에서 뺄까요?\n사진 ' + n + '장은 그대로 남습니다.')) return;
-      }
       if (i >= 0) 지금.splice(i, 1); else 지금.push(z);
       설정저장(지금);
       구역설정그리기();
@@ -125,10 +140,29 @@ function 구역설정그리기() {
   const M = $('#zsMaster');
   M.textContent = '';
   구역들.forEach((z) => M.appendChild(칩(z, 목록.indexOf(z) >= 0, false)));
-  const 추가한 = 목록.filter((z) => 구역들.indexOf(z) < 0);
+
+  const 추가한 = C.추가구역칸(공용구역(), 구역들, 목록);
   const T = $('#zsCustom');
   T.textContent = '';
-  추가한.forEach((z) => T.appendChild(칩(z, true, true)));
+  추가한.forEach((z) => {
+    const 묶음 = document.createElement('span');
+    묶음.className = 'cz';
+    묶음.appendChild(칩(z, 목록.indexOf(z) >= 0, true));
+    // ✕ = 모든 현장의 목록에서 지우기 (찍어 둔 사진의 구역은 그대로)
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'cz-x';
+    x.setAttribute('aria-label', z + ' 목록에서 지우기');
+    x.textContent = '✕';
+    x.addEventListener('click', () => {
+      if (!confirm('‘' + z + '’ 을(를) 추가한 구역 목록에서 지울까요?\n다른 현장에도 안 나옵니다. 찍어 둔 사진은 그대로 남습니다.')) return;
+      save(CUSTOM_ZONES_KEY, 공용구역().filter((n) => n !== z));
+      설정저장(설정목록().filter((n) => n !== z));
+      구역설정그리기();
+    });
+    묶음.appendChild(x);
+    T.appendChild(묶음);
+  });
   if (!추가한.length) T.innerHTML = '<p class="none">없음 — 견적서에 없는 공간이면 아래에 이름을 적어 추가하세요.</p>';
   $('#zsCount').textContent = 목록.length + '개 고름';
 }
@@ -136,6 +170,7 @@ function 구역설정그리기() {
 function 구역설정추가() {
   const 이름 = ($('#zsName').value || '').trim();
   if (!이름) { $('#zsName').focus(); return; }
+  if (구역들.indexOf(이름) < 0) 공용구역더하기(이름);   // 견적서 구역 이름이면 그냥 켜기만
   const 목록 = 설정목록();
   if (목록.indexOf(이름) < 0) 목록.push(이름);
   설정저장(목록);
