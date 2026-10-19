@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="현장사진">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="/worker/icon-180.png">
-<link rel="stylesheet" href="/site_photos.css?v=20261020b">
+<link rel="stylesheet" href="/site_photos.css?v=20261020c">
 </head>
 <body>
 
@@ -21,7 +21,7 @@
     <h1>📷 현장사진</h1>
     <a class="hd-link" href="/quote_pro.html">방문견적 →</a>
   </header>
-  <p class="intro">현장에서는 <b>구역만 골라 찍고</b> 나오세요.<br>집에서 사진을 보면서 <b>품목</b>을 고르면, 방문견적서에 그 구역 사진과 품목 체크가 같이 넘어갑니다.</p>
+  <p class="intro"><b>구역설정</b>에서 이 집의 구역을 고르고, 현장에서는 <b>구역만 골라 찍고</b> 나오세요.<br>집에서 사진을 보면서 <b>품목</b>을 고르면, 방문견적서에 그 구역 사진과 품목 체크가 같이 넘어갑니다.</p>
   <button id="newVisit" type="button" class="big primary">＋ 새 현장 방문</button>
   <div id="visits"></div>
   <p id="noVisits" class="empty" hidden>아직 방문한 현장이 없습니다.</p>
@@ -36,7 +36,8 @@
   </header>
   <div class="shoot-row">
     <button id="shootBtn" type="button" class="big primary">📷 촬영</button>
-    <button id="albumBtn" type="button" class="big">🖼 앨범에서</button>
+    <button id="albumBtn" type="button" class="big">🖼 앨범</button>
+    <button id="zoneBtn" type="button" class="big">🧩 구역설정</button>
   </div>
   <label class="size-row">평형
     <select id="sizeSelect" autocomplete="off">
@@ -95,6 +96,25 @@
   </div>
 </section>
 
+<!-- 구역설정: 이 현장에 있는 구역만 고르고, 견적서에 없는 구역은 추가한다 -->
+<div id="zoneBack" hidden></div>
+<section id="zoneSheet" hidden aria-label="구역설정">
+  <p class="vw-q">이 현장의 구역 <small id="zsCount"></small></p>
+  <p class="hint zs-hint">고른 구역만 촬영할 때 구역 줄에 나옵니다.</p>
+  <div class="zs-tools">
+    <button id="zsAll" type="button">전체 고르기</button>
+    <button id="zsNone" type="button">전체 해제</button>
+  </div>
+  <div id="zsMaster" class="chips"></div>
+  <p class="vw-q zs-sub">추가한 구역 <small>견적서에 없는 공간 · 집에서 견적서 구역으로 옮깁니다</small></p>
+  <div id="zsCustom" class="chips"></div>
+  <div class="zs-add">
+    <input id="zsName" type="text" placeholder="예: 보일러실, 창고방" autocomplete="off">
+    <button id="zsAdd" type="button">＋ 추가</button>
+  </div>
+  <button id="zsDone" type="button" class="big primary">완료</button>
+</section>
+
 <!-- 추가한 구역 → 견적서 구역으로 옮기기 -->
 <div id="moveBack" hidden></div>
 <section id="moveSheet" hidden aria-label="구역 옮기기">
@@ -106,8 +126,8 @@
 <div id="toast" hidden></div>
 
 <script src="/quote_photos.js"></script>
-<script src="/site_photos_core.js?v=20261020b"></script>
-<script src="/site_photos.js?v=20261020b"></script>
+<script src="/site_photos_core.js?v=20261020c"></script>
+<script src="/site_photos.js?v=20261020c"></script>
 <script src="/app-switcher.js?v=20261020a" data-app-id="sitephotos"></script>
 </body>
 </html>

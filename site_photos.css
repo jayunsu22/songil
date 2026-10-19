@@ -91,7 +91,7 @@ button.big:active { filter: brightness(.95); }
 
 /* ---------- 현장 화면 ---------- */
 .shoot-row { display: flex; gap: 8px; }
-.shoot-row .big { flex: 1 1 0; }
+.shoot-row .big { flex: 1 1 0; min-width: 0; padding: 0 4px; font-size: 15px; }
 
 .todo {
   margin: 12px 0 0; padding: 10px 12px;
@@ -278,3 +278,31 @@ button.big:active { filter: brightness(.95); }
 
 /* 카메라·사진 보기 중에는 '내 앱' 버튼을 감춘다. 셔터·구역 칩 옆에 떠 있어서 잘못 눌린다 */
 body.full .aswBtn { display: none !important; }
+
+/* ---------- 구역설정 시트 ---------- */
+#zoneBack { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.35); }
+#zoneSheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 95;
+  max-height: 86vh; overflow-y: auto;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  background: var(--card); border-radius: 18px 18px 0 0;
+  box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+}
+#zoneSheet .zs-hint { margin: -4px 0 10px; }
+#zoneSheet .zs-sub { margin-top: 18px; }
+#zoneSheet .chips .none { color: var(--muted); font-size: 13px; margin: 0; }
+.zs-tools { display: flex; gap: 8px; margin-bottom: 10px; }
+.zs-tools button {
+  min-height: 36px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  color: var(--muted); font-size: 13px; font-weight: 700;
+}
+.zs-add { display: flex; gap: 8px; margin: 12px 0 16px; }
+.zs-add input {
+  flex: 1 1 auto; min-width: 0; min-height: 46px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 12px; font-size: 16px;
+}
+.zs-add button {
+  flex: 0 0 auto; min-height: 46px; padding: 0 16px;
+  border: 0; border-radius: 12px; background: #7c3aed; color: #fff; font-size: 15px; font-weight: 800;
+}
