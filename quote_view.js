@@ -209,9 +209,30 @@ function 현재총액() {
   return DATA.라인들.reduce((s, l, i) => 해제.has(i) ? s : s + 줄금액(l), 0);
 }
 
+/* 합계 절삭 (2026-10-20, quote_calc.js 의 절삭과 같은 규칙): 만원 아래를 버린다.
+   그 전에 발행한 견적서는 저장된 총액이 품목 합과 같다 - 그런 견적서는 절삭하지 않는다
+   (이미 보낸 견적서 금액이 바뀌면 안 된다). 절삭해서 발행한 견적서는 저장된 총액이
+   만원 단위이고 품목 합보다 만원 미만으로 작다. 발행 때 절삭단위를 같이 보내지만
+   서버가 안 남길 수도 있어서 금액으로도 알아본다. */
+function 절삭견적() {
+  if (Number(DATA.절삭단위) > 0) return true;
+  const 전체 = DATA.라인들.reduce((s, l) => s + l.표시금액, 0);
+  const 총 = Number(DATA.총액);
+  return 총 % 10000 === 0 && 전체 - 총 > 0 && 전체 - 총 < 10000;
+}
+function 절삭(n) {
+  return n >= 0 ? Math.floor(n / 10000) * 10000 : -Math.floor(-n / 10000) * 10000;
+}
+// 화면에 보일 합계 (절삭 반영)
+function 표시총액() {
+  const n = 현재총액();
+  return 절삭견적() ? 절삭(n) : n;
+}
+
 function renderSum() {
   const d = DATA;
-  const 총 = 현재총액();
+  const 품목합 = 현재총액();
+  const 총 = 표시총액();
   const 조정됨 = 해제.size > 0;
   const R = [];
 
@@ -234,6 +255,10 @@ function renderSum() {
       R.push('<div class="v-row"><span>조정</span><span>' +
         퍼센트(d.조정_합계율) + '</span></div>');
     }
+  }
+  // 품목을 더한 값과 합계가 왜 다른지 보이게 버린 금액을 적는다
+  if (품목합 !== 총) {
+    R.push('<div class="v-row"><span>만원 미만 절삭</span><span>-' + won(품목합 - 총) + '</span></div>');
   }
   R.push('<div class="v-row total"><span>' + (인건비만 ? '인건비 합계' : '합계') +
     '</span><span>' + won(총) +
@@ -278,7 +303,7 @@ function renderInquiry(조정됨) {
   box.className = 'v-adjbox';
   box.id = 'vAdj';
   box.innerHTML =
-    '<p>선택하신 품목만으로 <b>' + won(현재총액()) + '</b> 입니다.<br>' +
+    '<p>선택하신 품목만으로 <b>' + won(표시총액()) + '</b> 입니다.<br>' +
     '이 내용으로 문의하시면 담당자가 연락드립니다.</p>' +
     '<input type="tel" id="vPhone" placeholder="연락처 (예: 010-1234-5678)" inputmode="tel">' +
     '<button type="button" id="vSend">이 내용으로 문의하기</button>';
@@ -308,7 +333,7 @@ async function 문의보내기() {
         남은품목: DATA.라인들.filter((l, i) => !해제.has(i))
           .map((l) => ({ 구역: l.구역, 품목명: l.품목명, 수량: l.수량, 단위: l.단위, 금액: l.표시금액 })),
         원래_총액: DATA.총액,
-        조정후_총액: 현재총액(),
+        조정후_총액: 표시총액(),
       }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);

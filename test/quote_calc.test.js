@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { lineAmount, calcQuote } = require('../quote_calc.js');
+const QC = require('../quote_calc.js');
 
 /* 기대값은 전부 에어테이블 시공품목정보의 [예상_총금액] 열에 실제로 찍혀 있는
    숫자를 가져온 것이다. 내가 생각한 공식이 아니라 운영 중인 수식을 기준으로 잡는다.
@@ -67,7 +68,8 @@ test('calcQuote: 조정이 없으면 총액은 라인금액의 합이다', () =>
   const r = calcQuote(items, []);
   assert.strictEqual(r.소계, 170000 + 39000);
   assert.strictEqual(r.조정_합계율, 0);
-  assert.strictEqual(r.총액, r.소계);
+  assert.strictEqual(r.절삭전총액, r.소계);
+  assert.strictEqual(r.총액, Math.floor(r.소계 / 10000) * 10000);
 });
 
 test('calcQuote: 조정 비율은 곱이 아니라 합으로 적용된다', () => {
@@ -77,7 +79,8 @@ test('calcQuote: 조정 비율은 곱이 아니라 합으로 적용된다', () =
   // +10% 와 -10% 는 상쇄되어 0% 가 되어야 한다 (곱이면 0.99가 된다)
   const r = calcQuote(items, [{ 항목명: '거주중', 비율: 0.1 }, { 항목명: '업자단가', 비율: -0.1 }]);
   assert.strictEqual(r.조정_합계율, 0);
-  assert.strictEqual(r.총액, 39000);
+  assert.strictEqual(r.절삭전총액, 39000);
+  assert.strictEqual(r.총액, 30000);   // 만원 아래 절삭
 });
 
 test('calcQuote: 총액은 표시금액의 합과 정확히 일치한다', () => {
@@ -89,7 +92,8 @@ test('calcQuote: 총액은 표시금액의 합과 정확히 일치한다', () =>
   ];
   const r = calcQuote(items, [{ 항목명: '거주중', 비율: 0.15 }]);
   const sum = r.라인들.reduce((s, l) => s + l.표시금액, 0);
-  assert.strictEqual(r.총액, sum);
+  assert.strictEqual(r.절삭전총액, sum);
+  assert.strictEqual(r.총액 + r.절삭액, sum);
 });
 
 test('calcQuote: 빈 목록이면 0을 돌려준다', () => {
@@ -148,7 +152,8 @@ test('calcQuote: 계산 품목과 직접 입력 품목이 섞여도 합계가 �
     { 직접금액: -30000 },
   ], []);
   assert.strictEqual(r.소계, 322000);
-  assert.strictEqual(r.총액, 322000);
+  assert.strictEqual(r.절삭전총액, 322000);
+  assert.strictEqual(r.총액, 320000);
 });
 
 /* ---------- 금액 칸 표시/읽기 ----------
@@ -264,4 +269,28 @@ test('calcQuote: 인건비만 총액은 자재비를 뺀 금액이다', () => {
   assert.strictEqual(r.총액, 2190000);
   assert.strictEqual(r.인건비총액, 300000 + 160000 + 100000 + 400000);
   assert.strictEqual(r.인건비총액, 960000);
+});
+
+/* ---------- 합계 절삭 (2026-10-20): 만원 아래는 버린다 ---------- */
+test('절삭: 만원 아래를 버린다', () => {
+  assert.strictEqual(QC.절삭(3111000), 3110000);
+  assert.strictEqual(QC.절삭(3119999), 3110000);
+  assert.strictEqual(QC.절삭(3110000), 3110000);
+  assert.strictEqual(QC.절삭(9999), 0);
+  assert.strictEqual(QC.절삭(0), 0);
+  assert.strictEqual(QC.절삭(-15000), -10000);   // 절삭으로 금액이 커지면 안 된다(0 쪽으로)
+});
+
+test('calcQuote: 총액·인건비총액은 절삭, 품목 금액은 그대로, 절삭액으로 맞춰진다', () => {
+  const r = QC.calcQuote([
+    { 직접금액: 2111000, 인건비: 1555000, 자재비: 556000 },
+    { 직접금액: 1000000, 인건비: 700000, 자재비: 300000 },
+  ], []);
+  assert.deepStrictEqual(r.라인들.map((l) => l.표시금액), [2111000, 1000000]);
+  assert.strictEqual(r.절삭전총액, 3111000);
+  assert.strictEqual(r.총액, 3110000);
+  assert.strictEqual(r.절삭액, 1000);
+  assert.strictEqual(r.인건비절삭전총액, 2255000);
+  assert.strictEqual(r.인건비총액, 2250000);
+  assert.strictEqual(r.인건비절삭액, 5000);
 });

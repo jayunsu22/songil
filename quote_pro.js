@@ -423,6 +423,7 @@ function buildItem(item, 구역) {
   head.innerHTML =
     '<input type="checkbox" autocomplete="off">' +
     '<span class="i-name">' + esc(item.표시_품목명) + '</span>' +
+    '<span class="i-req" hidden>견적요청</span>' +
     '<span class="i-amt"></span>';
   box.appendChild(head);
 
@@ -495,8 +496,12 @@ function buildItem(item, 구역) {
 
   const row = { item: item, box: box, head: head, body: body, diff: diff, kind: 종류,
                 cb: head.querySelector('input'), amt: head.querySelector('.i-amt'),
-                num: body.querySelector('.qnum'), descBtn: 설명버튼, photoHead: 머리사진버튼 };
+                num: body.querySelector('.qnum'), descBtn: 설명버튼, photoHead: 머리사진버튼,
+                req: head.querySelector('.i-req') };
   ROWS.set(item.체크_ID, row);
+
+  // 견적요청 금액으로 고정된 품목을 여기서 고치면 그때부터 방문견적 단가로 다시 계산한다
+  const 고정풀기 = (s) => { if (s && s.고정) { delete s.고정; syncRow(row); } };
 
   /* 이벤트 */
   row.cb.addEventListener('change', () => {
@@ -518,6 +523,7 @@ function buildItem(item, 구역) {
   diff.addEventListener('change', () => {
     const s = state.선택[item.체크_ID];
     if (!s) return;
+    고정풀기(s);
     s.난이도 = parseFloat(diff.value) || 1;
     refresh();
     persist();
@@ -527,6 +533,7 @@ function buildItem(item, 구역) {
     종류.addEventListener('change', () => {
       const s = state.선택[item.체크_ID];
       if (!s) return;
+      고정풀기(s);
       s.옵션 = parseInt(종류.value, 10) || 0;
       refresh();
       persist();
@@ -537,6 +544,7 @@ function buildItem(item, 구역) {
     const 바꾸기 = (v) => {
       const s = state.선택[item.체크_ID];
       if (!s) return;
+      고정풀기(s);
       // 1 미만이나 최대수량 초과로 못 가게 막는다
       s.수량 = Math.max(1, Math.min(item.최대수량, Math.round(v) || 1));
       row.num.value = s.수량;
@@ -569,6 +577,7 @@ function syncRow(row) {
     row.diff.value = String(s.난이도 || 1);
     if (row.kind) row.kind.value = String(s.옵션 || 0);
   }
+  if (row.req) row.req.hidden = !(s && s.고정);
   // 체크하면 몸통 줄의 사진 버튼이 보이므로 제목 줄 것은 감춘다. 둘 다 있으면 헷갈린다.
   if (row.photoHead) row.photoHead.hidden = !!s || !사진가능;
   if (row.descBtn) {
@@ -648,14 +657,18 @@ function 선택품목들() {
       if (!s || !보이는가(item)) return;
       // 종류를 고르는 품목이면 고른 종류의 단가·설명을 쓴다
       const o = 고른옵션(item, s);
-      out.push({
+      // 견적요청에서 넘어온 품목(quote_request.js 요청넣기)은 견적요청에서 계산한 금액을 그대로 쓴다.
+      // 품목·설명은 이 품목 것이고 금액만 고정이다. 수량·난이도·종류를 여기서 고치면 고정이 풀린다.
+      const 고정 = s.고정;
+      const 덧 = [];
+      // 종류가 여럿이면 견적서에 '샤시1 (시스템샤시)' 처럼 어느 종류인지 남긴다
+      if ((item.옵션들 || []).length > 1) 덧.push(o.품목명);
+      if (고정 && 고정.범위) 덧.push(고정.범위);     // '문틀만 시공' 처럼 기본과 다른 시공범위
+      out.push(Object.assign({
         체크_ID: item.체크_ID,
         // 바꾼 이름으로 내보낸다. 발행 스냅샷·견적서·카톡 텍스트가 전부 이걸 쓴다.
         구역: 표시구역명(z.구역),
-        // 종류가 여럿이면 견적서에 '샤시1 (시스템샤시)' 처럼 어느 종류인지 남긴다
-        품목명: (item.옵션들 || []).length > 1
-          ? item.표시_품목명 + ' (' + o.품목명 + ')'
-          : item.표시_품목명,
+        품목명: item.표시_품목명 + (덧.length ? ' (' + 덧.join(' · ') + ')' : ''),
         단위: o.단위,
         수량: s.수량,
         난이도: s.난이도 || 1,
@@ -667,7 +680,7 @@ function 선택품목들() {
         품목설명: (state.설명 && state.설명[item.체크_ID]) || o.품목설명,
         견적기준: o.견적기준,
         공통설명: o.공통설명,
-      });
+      }, 고정 ? { 직접금액: 고정.금액, 인건비: 고정.인건비, 자재비: 고정.자재비 } : {}));
     });
 
     // 이 구역에 직접 적어 넣은 품목. 구역 순서대로 그 구역 맨 아래에 붙는다.
@@ -752,7 +765,8 @@ function refresh() {
     : '';
 
   $('#totalAmount').innerHTML = won(r.총액) +
-    (율 !== 0 ? ' <small>조정 전 ' + won(r.소계) + '</small>' : '');
+    (율 !== 0 ? ' <small>조정 전 ' + won(r.소계) + '</small>' : '') +
+    (r.절삭액 ? ' <small>절삭 -' + won(r.절삭액) + '</small>' : '');
   $('#publishBtn').disabled = items.length === 0;
 
   window.__quote = { items: items, result: r };   // Task 6(발행)에서 읽는다
@@ -1124,6 +1138,9 @@ function buildText() {
     if (내역.length) 내역.forEach((a) => L.push('조정 (' + a.항목명 + ') ' + 퍼(a.비율)));
     else L.push('조정 ' + 퍼(q.result.조정_합계율));
   }
+  // 만원 미만 절삭 (견적서 화면과 같은 줄). 품목을 더한 값과 합계가 왜 다른지 보이게
+  const 절삭액 = 인건비만 ? q.result.인건비절삭액 : q.result.절삭액;
+  if (절삭액) L.push('만원 미만 절삭 -' + 절삭액.toLocaleString('ko-KR') + '원');
   if (인건비만) {
     L.push('인건비 합계 ' + q.result.인건비총액.toLocaleString('ko-KR') + '원' +
       (부가세 ? ' (부가세 별도)' : ''));
@@ -1205,7 +1222,8 @@ $('#doPublish').addEventListener('click', async () => {
         라인들: q.result.라인들,
         소계: q.result.소계,
         조정_합계율: q.result.조정_합계율,
-        총액: q.result.총액,
+        총액: q.result.총액,         // 만원 미만 절삭한 합계 (quote_calc 절삭)
+        절삭단위: QuoteCalc.절삭단위,
         조정_내역: 조정목록(),
         조정내역_표시: $('#optAdj').checked,
         부가세_별도표기: $('#optVat').checked,
