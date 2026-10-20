@@ -583,8 +583,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // 가이드라인 체크리스트 파싱 (이 현장에서 제외 처리된 지침은 숨김)
-        const excludedLines = (fields.제외된지침 || '').split('\n').map(s => s.trim()).filter(Boolean);
-        const importantLines = (fields.중요지침 || '').split('\n').map(s => s.trim()).filter(Boolean);
+        // 제외·중요는 단계별로 따로다: '[밑작업] 문장' / '[시공] 문장'. 앞머리 없는 예전 줄은 두 단계 모두.
+        // 관리자 앱(autoblog admin.js 단계지침)과 같은 규칙 - 바꿀 때는 둘 다 바꾼다 (2026-10-21)
+        const 단계몫 = (텍스트) => (텍스트 || '').split('\n').map(s => s.trim()).filter(Boolean).map(line => {
+            const m = line.match(/^\[(밑작업|시공)\]\s*(.*)$/);
+            if (!m) return line;
+            return m[1] === stage ? m[2].trim() : null;
+        }).filter(Boolean);
+        const excludedLines = 단계몫(fields.제외된지침);
+        const importantLines = 단계몫(fields.중요지침);
         const lines = (guidelinesText || "").split('\n').filter(l => l.trim() !== "" && !excludedLines.includes(l.trim()));
         const siteNote = (fields.현장특이사항 || "").trim();
         let checklistHtml = "";
