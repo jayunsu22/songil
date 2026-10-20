@@ -112,16 +112,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => { toast.className = 'toast'; }, 3000);
     }
 
+    /* 펼치기 버튼 글자 (2026-10-21). 예전엔 작은 ▼ 하나라 기사님들이 눌러서 내용을 여는 줄 몰랐다 -
+       '내용 확인' 이라고 써 둔 버튼으로 바꿨다. 품목 카드와 현장 공지가 같이 쓴다 */
+    const 펼침글 = { 열기: '내용 확인 ▼', 닫기: '닫기 ▲' };
+
     // 아코디언 토글 (전역 범위로 제공하기 위해 window객체에 바인딩)
     window.toggleAccordion = function(bodyId) {
         const body = document.getElementById(bodyId);
         const card = body.closest('.accordion-card');
+        const icon = card.querySelector('.accordion-icon');
         if (body.style.display === 'none') {
             body.style.display = 'block';
             card.classList.add('open');
+            if (icon) icon.textContent = 펼침글.닫기;
         } else {
             body.style.display = 'none';
             card.classList.remove('open');
+            if (icon) icon.textContent = 펼침글.열기;
         }
     };
 
@@ -560,7 +567,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <span class="task-status-badge ${isCompleted ? 'completed' : ''}">
                         ${매일 ? (isCompleted ? '✅ 오늘 완료' : '오늘 할 일') : (isCompleted ? '✅ 완료됨' : '진행중')}
                     </span>
-                    <span class="task-accordion-icon">${isExpanded ? '▲' : '▼'}</span>
+                    <span class="task-accordion-icon${isExpanded ? ' open' : ''}">${isExpanded ? 펼침글.닫기 : 펼침글.열기}</span>
                 </div>
             </div>
         `;
@@ -881,11 +888,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
                 bodyEl.style.display = 'none';
-                iconEl.textContent = '▼';
+                iconEl.textContent = 펼침글.열기;
+                iconEl.classList.remove('open');
                 expandedCardIds.delete(cardKey);
             } else {
                 bodyEl.style.display = 'block';
-                iconEl.textContent = '▲';
+                iconEl.textContent = 펼침글.닫기;
+                iconEl.classList.add('open');
                 expandedCardIds.add(cardKey);
             }
         });
@@ -1308,7 +1317,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         bodyEl.style.display = 'none';
-        if (iconEl) iconEl.textContent = '▼';
+        if (iconEl) { iconEl.textContent = 펼침글.열기; iconEl.classList.remove('open'); }
         
         const cardKey = `${recordId}-${stage}`;
         expandedCardIds.delete(cardKey);
