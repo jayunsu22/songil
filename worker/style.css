@@ -200,6 +200,34 @@ body {
     border-top: 1px solid #f8fafc;
 }
 
+/* 현장 공지/주의사항 카드 - 아래 작업 카드와 똑같이 흰색이라 구분이 안 됐다 (2026-10-21) */
+.notice-card {
+    background: #fffbeb;
+    border: 2px solid #f59e0b;
+    border-left-width: 6px;
+    box-shadow: 0 4px 10px rgba(245, 158, 11, .18);
+}
+.notice-card .accordion-header {
+    background: #fef3c7;
+    padding: 18px 20px;
+}
+.notice-card .header-title {
+    font-size: 17px;
+    color: #92400e;
+}
+.notice-card .accordion-icon {
+    background: #d97706;
+    box-shadow: 0 1px 3px rgba(217, 119, 6, .35);
+}
+.notice-card.open .accordion-icon {
+    background: #fde68a;
+    color: #92400e;
+}
+.notice-card .accordion-body {
+    border-top: 1px solid #fcd34d;
+    padding-top: 14px;
+}
+
 /* 공지사항 목록 */
 .notice-list-container {
     display: flex;
