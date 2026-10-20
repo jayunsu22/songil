@@ -28,6 +28,25 @@ function 자재섞임(l) {
 
 let DATA = null;
 const 해제 = new Set();   // 소비자가 체크 해제한 품목 (?d=1 에서만 쓴다)
+/* 고객이 바꾼 종류 { 줄 순번: 종류 순번 } (2026-10-20). 발행할 때 종류가 여럿인 줄(샤시 단창/2중창/시스템)에는
+   종류들: [{ 품목명, 표시금액, 인건비표시금액, 품목설명 }] 과 고른 순번(종류)이 같이 실려 온다.
+   그 전에 발행한 견적서에는 없다 - 그때는 종류 고르기 칸을 안 띄운다. */
+const 종류선택 = {};
+
+// 고객이 종류를 바꿨으면 그 종류의 이름·금액·설명을 덮어쓴 줄
+function 실제줄(i) {
+  const l = DATA.라인들[i];
+  const k = 종류선택[i];
+  if (k == null || !Array.isArray(l.종류들) || !l.종류들[k]) return l;
+  return Object.assign({}, l, l.종류들[k]);
+}
+
+// '샤시1 (샤시(2중창))' → '샤시(2중창)'. 종류 고르기 칸에 짧게 보여준다
+function 종류이름(품목명) {
+  const t = String(품목명 || '');
+  const i = t.indexOf(' (');
+  return i >= 0 && /\)$/.test(t) ? t.slice(i + 2, -1) : t;
+}
 
 const $v = (s) => document.querySelector(s);
 const won = (n) => Math.round(n).toLocaleString('ko-KR') + '원';
@@ -134,8 +153,15 @@ function render() {
       '<span class="v-amt">' + won(줄금액(l)) +
         (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '') + '</span>' +
       '</div>');
-    if (설명포함 && l.품목설명) {
-      H.push('<div class="v-desc">' + esc(l.품목설명) + '</div>');
+    // 종류를 고를 수 있는 줄(샤시 단창/2중창/시스템). 고르면 금액·설명·합계가 바로 바뀐다
+    if (Array.isArray(l.종류들) && l.종류들.length > 1) {
+      H.push('<div class="v-kind"><span>종류</span><select class="v-kindsel" data-i="' + i + '">' +
+        l.종류들.map((k, ki) => '<option value="' + ki + '"' + (ki === (l.종류 || 0) ? ' selected' : '') + '>' +
+          esc(종류이름(k.품목명)) + ' · ' + won(줄금액(Object.assign({}, l, k))) + '</option>').join('') +
+        '</select></div>');
+    }
+    if (설명포함 && (l.품목설명 || l.종류들)) {
+      H.push('<div class="v-desc" data-i="' + i + '"' + (l.품목설명 ? '' : ' hidden') + '>' + esc(l.품목설명) + '</div>');
     }
     // 이 품목을 짚어주는 사진. 네모를 쳤으면 이미 사진에 박혀 있다.
     // 파일명이 체크_ID.jpg 라서 라인과 이어진다. 같은 품목 사진이 여럿이면
@@ -192,6 +218,21 @@ function render() {
 
   // 체크박스를 그리는 곳과 이벤트를 다는 곳이 따로 있다. 한쪽만 풀면
   // 네모는 보이는데 눌러도 금액이 안 바뀐다.
+  document.querySelectorAll('.v-kindsel').forEach((sel) => {
+    sel.addEventListener('change', () => {
+      const i = +sel.dataset.i;
+      const k = +sel.value;
+      if (k === (DATA.라인들[i].종류 || 0)) delete 종류선택[i]; else 종류선택[i] = k;
+      const l = 실제줄(i);
+      const 줄 = document.querySelector('.v-line[data-i="' + i + '"]');
+      줄.querySelector('.v-nm').textContent = l.품목명;
+      줄.querySelector('.v-amt').innerHTML = won(줄금액(l)) + (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '');
+      줄.classList.toggle('kind-changed', 종류선택[i] != null);
+      const 설명 = document.querySelector('.v-desc[data-i="' + i + '"]');
+      if (설명) { 설명.textContent = l.품목설명 || ''; 설명.hidden = !l.품목설명; }
+      renderSum();
+    });
+  });
   document.querySelectorAll('.v-chk').forEach((cb) => {
     cb.addEventListener('change', () => {
       const i = +cb.dataset.i;
@@ -206,7 +247,7 @@ function render() {
    QuoteCalc 로 다시 계산하지 않는다 — 스냅샷 금액을 그대로 써야
    발행 시점 금액과 어긋나지 않는다. */
 function 현재총액() {
-  return DATA.라인들.reduce((s, l, i) => 해제.has(i) ? s : s + 줄금액(l), 0);
+  return DATA.라인들.reduce((s, l, i) => 해제.has(i) ? s : s + 줄금액(실제줄(i)), 0);
 }
 
 /* 합계 절삭 (2026-10-20, quote_calc.js 의 절삭과 같은 규칙): 만원 아래를 버린다.
@@ -233,7 +274,7 @@ function renderSum() {
   const d = DATA;
   const 품목합 = 현재총액();
   const 총 = 표시총액();
-  const 조정됨 = 해제.size > 0;
+  const 조정됨 = 해제.size > 0 || Object.keys(종류선택).length > 0;
   const R = [];
 
   // 인건비 견적서에서는 소계·조정 줄을 안 쓴다. 그 소계는 자재비까지 든
@@ -284,9 +325,11 @@ function renderBar(총, 조정됨) {
     document.body.appendChild(bar);
   }
   const 뺀수 = 해제.size;
+  const 바꾼수 = Object.keys(종류선택).length;
   bar.innerHTML =
     '<span class="v-bar-label">' + (인건비만 ? '인건비 합계' : '합계') +
-      (뺀수 ? ' <small>' + 뺀수 + '개 뺌</small>' : '') + '</span>' +
+      (뺀수 ? ' <small>' + 뺀수 + '개 뺌</small>' : '') +
+      (바꾼수 ? ' <small>종류 ' + 바꾼수 + '개 바꿈</small>' : '') + '</span>' +
     '<span class="v-bar-amt">' + won(총) +
       (DATA.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span>';
   bar.classList.toggle('changed', 조정됨);
@@ -330,8 +373,14 @@ async function 문의보내기() {
         견적코드: DATA.견적코드,
         연락처: tel,
         해제품목: [...해제].map((i) => DATA.라인들[i].구역 + ' ' + DATA.라인들[i].품목명),
-        남은품목: DATA.라인들.filter((l, i) => !해제.has(i))
-          .map((l) => ({ 구역: l.구역, 품목명: l.품목명, 수량: l.수량, 단위: l.단위, 금액: l.표시금액 })),
+        // 고객이 바꾼 종류 '거실 샤시1: 샤시(단창) → 샤시(2중창)'
+        종류변경: Object.keys(종류선택).filter((i) => !해제.has(+i)).map((i) => {
+          const l = DATA.라인들[i];
+          return l.구역 + ' ' + String(l.품목명).split(' (')[0] + ': ' +
+            종류이름(l.품목명) + ' → ' + 종류이름(실제줄(+i).품목명);
+        }),
+        남은품목: DATA.라인들.map((l, i) => ({ l: 실제줄(i), i: i })).filter((x) => !해제.has(x.i))
+          .map(({ l }) => ({ 구역: l.구역, 품목명: l.품목명, 수량: l.수량, 단위: l.단위, 금액: l.표시금액 })),
         원래_총액: DATA.총액,
         조정후_총액: 표시총액(),
       }),

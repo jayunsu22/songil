@@ -298,3 +298,12 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 #vBar.changed .v-bar-amt { color: #b45309; }
 /* PC 에서는 본문(#vDoc)과 같은 폭으로 가운데 선다 */
 #vBar { max-width: 720px; margin-left: auto; margin-right: auto; }
+
+/* 고객이 고르는 종류 (샤시 단창/2중창/시스템) */
+.v-kind { display: flex; align-items: center; gap: 8px; padding: 0 18px 10px 50px; border-bottom: 1px solid #f0f1f3; }
+.v-kind span { color: var(--muted); font-size: 14px; font-weight: 700; }
+.v-kindsel {
+  flex: 1 1 auto; min-width: 0; min-height: 40px; padding: 0 10px;
+  border: 1px solid var(--line, #e3e5e9); border-radius: 10px; background: #fff; font-size: 15px;
+}
+.v-line.kind-changed .v-amt { color: var(--accent); }
