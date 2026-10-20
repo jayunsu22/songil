@@ -175,14 +175,24 @@ body {
     color: var(--text-main);
 }
 
-.accordion-icon {
-    font-size: 12px;
-    color: var(--text-muted);
-    transition: transform 0.2s ease;
+/* 펼치기 버튼 - '내용 확인 ▼' / '닫기 ▲' (2026-10-21). 작은 ▼ 하나일 땐 눌러야 열리는 줄 몰랐다 */
+.accordion-icon,
+.task-accordion-icon {
+    flex-shrink: 0;
+    padding: 7px 13px;
+    border-radius: 999px;
+    background: var(--primary-blue, #2563eb);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, .3);
 }
-
-.accordion-card.open .accordion-icon {
-    transform: rotate(180deg);
+.accordion-card.open .accordion-icon,
+.task-accordion-icon.open {
+    background: #e2e8f0;
+    color: var(--text-muted);
+    box-shadow: none;
 }
 
 .accordion-body {
@@ -349,8 +359,10 @@ body {
 
 .task-badge-container {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     align-items: center;
+    min-width: 0;
 }
 
 .task-title {
@@ -961,12 +973,7 @@ body {
     border-radius: 12px;
 }
 
-.task-accordion-icon {
-    font-size: 12px;
-    color: var(--text-muted);
-    transition: transform 0.2s ease;
-    flex-shrink: 0;
-}
+
 
 
 /* 원본사진 모아보기 팝업 (확대보기 lightbox 보다 아래에 깔림) */
