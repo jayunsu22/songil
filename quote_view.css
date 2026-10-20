@@ -2,7 +2,7 @@
    고정폭 정렬에 의존하지 않는다 — 폰 글꼴이 제각각이라 공백으로 맞추면 깨진다. */
 
 /* 아래 고정 합계 막대 높이만큼 비워둔다. 안 비우면 명함 끝이 막대에 가린다. */
-body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); background: #f5efe6; }
 
 #vStatus { padding: 60px 20px; text-align: center; color: var(--muted); }
 #vStatus.err { color: #b91c1c; }
@@ -71,54 +71,75 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ---------- 구역 표 ---------- */
-.v-zone { background: var(--card); margin-top: 10px; }
-/* 구역 머리글. 품목 줄과 확실히 구분되어야 눈으로 훑을 때 구역이 잡힌다.
-   옅은 회색만으로는 흰 품목 줄과 잘 안 갈라져서, 갈색 톤 + 왼쪽 강조선을 넣었다. */
+/* 구역과 품목 (2026-10-20 시안 A): 베이지 바탕 위에 품목마다 흰 카드 한 장.
+   예전엔 줄을 가는 선으로만 나눠서 설명이 긴 품목은 어디까지가 한 품목인지 안 보였다. */
+.v-zone { margin: 0 12px; }
 .v-zone h3 {
-  margin: 0;
-  padding: 12px 18px 12px 15px;
+  display: flex; align-items: center; gap: 8px;
+  margin: 20px 4px 10px;
   font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.2px;
-  color: #4a3416;
-  background: #ecdfc9;
-  border-top: 1px solid #d6c2a1;
-  border-bottom: 1px solid #d6c2a1;
-  border-left: 4px solid #9c6f2e;
+  color: #6b4a1d;
+}
+.v-zone h3::before { content: ''; width: 4px; height: 16px; border-radius: 2px; background: #9c6f2e; }
+.v-item {
+  background: var(--card);
+  border: 1px solid #eee3d3;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(60, 40, 15, .06), 0 4px 14px rgba(60, 40, 15, .06);
+  transition: opacity .15s;
 }
 .v-line {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
-  padding: 12px 18px;
-  border-bottom: 1px solid #f0f1f3;
 }
-.v-line.off { opacity: .45; }
-.v-line.off .v-amt, .v-line.off .v-nm { text-decoration: line-through; }
-.v-chk { flex: 0 0 auto; width: 22px; height: 22px; margin: 0; accent-color: var(--accent); }
+.v-item.off { opacity: .45; }
+.v-item.off .v-amt, .v-item.off .v-nm { text-decoration: line-through; }
+.v-chk { flex: 0 0 auto; width: 22px; height: 22px; margin: 0; accent-color: #9c6f2e; }
 /* 품목명은 견적서에서 제일 먼저 읽는 글자다. 금액과 비슷한 무게로 키웠다. */
-.v-nm { flex: 1 1 auto; font-size: 16px; font-weight: 700; }
-.v-qty { color: var(--muted); font-size: 14px; white-space: nowrap; }
+.v-nm { flex: 1 1 auto; min-width: 0; font-size: 16.5px; font-weight: 800; letter-spacing: -0.2px; }
+.v-qty { color: #9a8f80; font-size: 13px; white-space: nowrap; }
 .v-amt {
   flex: 0 0 auto;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  transition: color .15s;
 }
-/* 품목설명. 13px 은 폰에서 너무 작아 안 읽힌다.
-   '현관문은 안쪽면만' 같은 문구를 못 읽으면 나중에 분쟁이 난다. */
+/* 품목설명. 카드 안 연한 칸에 품목명보다 작게 (예전 16px 은 품목명과 크기가 같아 덩어리로 보였다).
+   14px 아래로는 안 줄인다 - '현관문은 안쪽면만' 같은 문구를 못 읽으면 나중에 분쟁이 난다. */
 .v-desc {
-  padding: 0 18px 13px 18px;
-  font-size: 16px;
-  color: #5b6270;
-  line-height: 1.6;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #faf7f2;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #6f6558;
+  line-height: 1.65;
   white-space: pre-line;
-  border-bottom: 1px solid #f0f1f3;
 }
 
+/* 종류 탭 (샤시 단창/2중창/시스템). 누르면 그 품목 금액과 합계가 바로 바뀐다 */
+.v-seg { display: flex; gap: 4px; margin-top: 14px; padding: 4px; background: #f3ece1; border-radius: 12px; }
+.v-segb {
+  flex: 1 1 0; min-width: 0;
+  padding: 9px 4px 7px;
+  border: 0; border-radius: 9px; background: transparent;
+  color: #7a6a55; font-size: 14px; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: background .15s, box-shadow .15s;
+}
+.v-segb small { display: block; margin-top: 2px; font-size: 11.5px; font-weight: 600; color: #a3937c; font-variant-numeric: tabular-nums; }
+.v-segb.on { background: #fff; color: #4a3416; box-shadow: 0 1px 3px rgba(60, 40, 15, .15); }
+.v-segb.on small { color: #9c6f2e; }
+.v-line.kind-changed .v-amt { color: #b45309; }
+
 /* ---------- 합계 ---------- */
-.v-sum { background: var(--card); margin-top: 10px; padding: 6px 18px 18px; }
+.v-sum { background: var(--card); margin: 8px 12px 0; padding: 6px 18px 18px; border: 1px solid #eee3d3; border-radius: 16px; }
 .v-row {
   display: flex; justify-content: space-between;
   padding: 8px 0;
@@ -138,7 +159,9 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 /* ---------- 안내 ---------- */
 .v-note {
   background: var(--card);
-  margin-top: 10px;
+  margin: 12px 12px 0;
+  border-radius: 16px;
+  border: 1px solid #eee3d3;
   padding: 16px 18px;
   font-size: 15px;
   color: #5b6270;
@@ -160,7 +183,7 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 .v-adjbox button {
   width: 100%; height: 48px;
   border: none; border-radius: 12px;
-  background: var(--accent); color: #fff;
+  background: #9c6f2e; color: #fff;
   font-size: 15px; font-weight: 700;
 }
 .v-adjbox input[type=tel] {
@@ -179,7 +202,8 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 .v-memo {
   background: #fffbe9;
   border-left: 4px solid #e0b500;
-  margin-top: 10px;
+  border-radius: 12px;
+  margin: 12px 12px 0;
   padding: 14px 18px;
   font-size: 14px;
   line-height: 1.6;
@@ -232,10 +256,7 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 
 /* 품목을 짚어주는 사진. 사진에 빨간 네모가 이미 박혀 있다.
    업자가 보낸 사진에 문이 여럿 나올 때 어느 것인지 알려주는 용도다. */
-.v-shot {
-  padding: 0 18px 14px;
-  border-bottom: 1px solid #f0f1f3;
-}
+.v-shot { margin-top: 12px; }
 .v-shot img {
   display: block;
   width: 100%;
@@ -280,30 +301,21 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   justify-content: space-between;
   gap: 12px;
   padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px));
-  background: var(--card);
-  border-top: 2px solid var(--text);
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, .10);
+  background: #2b2116;
+  color: #fff;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, .18);
 }
 .v-bar-label { font-size: 15px; font-weight: 700; }
-.v-bar-label small { font-size: 12px; font-weight: 600; color: #b45309; margin-left: 4px; }
+.v-bar-label small { font-size: 12px; font-weight: 600; color: #f3c27a; margin-left: 4px; }
 .v-bar-amt {
   font-size: 22px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.v-bar-amt small { font-size: 12px; font-weight: 500; color: var(--muted); }
-/* 품목을 뺀 상태. 원래 합계와 다르다는 것이 눈에 띄어야 한다. */
-#vBar.changed { border-top-color: #b45309; background: #fff8ee; }
-#vBar.changed .v-bar-amt { color: #b45309; }
+.v-bar-amt small { font-size: 12px; font-weight: 500; color: #d9c6a5; margin-left: 4px; }
+/* 품목을 빼거나 종류를 바꾼 상태. 원래 합계와 다르다는 것이 눈에 띄어야 한다. */
+#vBar.changed { background: #7c3f0e; }
+#vBar.changed .v-bar-amt { color: #ffd9a3; }
 /* PC 에서는 본문(#vDoc)과 같은 폭으로 가운데 선다 */
 #vBar { max-width: 720px; margin-left: auto; margin-right: auto; }
-
-/* 고객이 고르는 종류 (샤시 단창/2중창/시스템) */
-.v-kind { display: flex; align-items: center; gap: 8px; padding: 0 18px 10px 50px; border-bottom: 1px solid #f0f1f3; }
-.v-kind span { color: var(--muted); font-size: 14px; font-weight: 700; }
-.v-kindsel {
-  flex: 1 1 auto; min-width: 0; min-height: 40px; padding: 0 10px;
-  border: 1px solid var(--line, #e3e5e9); border-radius: 10px; background: #fff; font-size: 15px;
-}
-.v-line.kind-changed .v-amt { color: var(--accent); }
