@@ -41,11 +41,23 @@ function 실제줄(i) {
   return Object.assign({}, l, l.종류들[k]);
 }
 
-// '샤시1 (샤시(2중창))' → '샤시(2중창)'. 종류 고르기 칸에 짧게 보여준다
+// '샤시1 (샤시(2중창))' → '샤시(2중창)'. 문의 알림에 쓴다
 function 종류이름(품목명) {
   const t = String(품목명 || '');
   const i = t.indexOf(' (');
   return i >= 0 && /\)$/.test(t) ? t.slice(i + 2, -1) : t;
+}
+// 종류 탭이 있는 줄은 이름에 종류를 또 붙이지 않는다 ('샤시1 (샤시(2중창))' → '샤시1') - 탭이 보여준다
+function 줄이름(l) {
+  return Array.isArray(l.종류들) && l.종류들.length > 1 ? String(l.품목명 || '').split(' (')[0] : l.품목명;
+}
+// 종류 탭에 쓰는 더 짧은 이름: '샤시(2중창)' → '2중창', '시스템샤시' → '시스템'
+function 탭이름(품목명) {
+  const t = 종류이름(품목명);
+  const m = t.match(/^[^(]*\((.+)\)$/);
+  if (m) return m[1];
+  const 뺀 = t.replace(/샤시$/, '');
+  return 뺀 || t;
 }
 
 const $v = (s) => document.querySelector(s);
@@ -146,19 +158,22 @@ function render() {
     // 체크박스는 업자용·소비자용 모두 나온다. 업자도 견적을 낼 때
     // 품목을 빼고 넣어가며 금액을 맞춰봐야 하기 때문이다.
     // (품목설명 표시 여부와는 별개다 - 예전에는 둘이 묶여 있었다)
+    // 품목 하나 = 카드 하나 (줄 + 종류 탭 + 설명 + 사진). 품목끼리 확실히 갈라 보이게 (2026-10-20 시안 A)
+    H.push('<div class="v-item" data-i="' + i + '">');
     H.push('<div class="v-line" data-i="' + i + '">' +
       '<input type="checkbox" class="v-chk" checked data-i="' + i + '">' +
-      '<span class="v-nm">' + esc(l.품목명) + '</span>' +
+      '<span class="v-nm">' + esc(줄이름(l)) + '</span>' +
       '<span class="v-qty">' + esc(l.수량) + esc(l.단위) + '</span>' +
       '<span class="v-amt">' + won(줄금액(l)) +
         (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '') + '</span>' +
       '</div>');
-    // 종류를 고를 수 있는 줄(샤시 단창/2중창/시스템). 고르면 금액·설명·합계가 바로 바뀐다
+    // 종류를 고를 수 있는 줄(샤시 단창/2중창/시스템). 탭을 누르면 금액·설명·합계가 바로 바뀐다
     if (Array.isArray(l.종류들) && l.종류들.length > 1) {
-      H.push('<div class="v-kind"><span>종류</span><select class="v-kindsel" data-i="' + i + '">' +
-        l.종류들.map((k, ki) => '<option value="' + ki + '"' + (ki === (l.종류 || 0) ? ' selected' : '') + '>' +
-          esc(종류이름(k.품목명)) + ' · ' + won(줄금액(Object.assign({}, l, k))) + '</option>').join('') +
-        '</select></div>');
+      H.push('<div class="v-seg" data-i="' + i + '">' +
+        l.종류들.map((k, ki) => '<button type="button" class="v-segb' + (ki === (l.종류 || 0) ? ' on' : '') +
+          '" data-i="' + i + '" data-k="' + ki + '">' + esc(탭이름(k.품목명)) +
+          '<small>' + won(줄금액(Object.assign({}, l, k))) + '</small></button>').join('') +
+        '</div>');
     }
     if (설명포함 && (l.품목설명 || l.종류들)) {
       H.push('<div class="v-desc" data-i="' + i + '"' + (l.품목설명 ? '' : ' hidden') + '>' + esc(l.품목설명) + '</div>');
@@ -172,6 +187,7 @@ function render() {
       H.push('<div class="v-shot"><img src="' + esc(사진.url) +
         '" alt="' + esc(l.품목명) + ' 위치" loading="lazy"></div>');
     });
+    H.push('</div>');   // .v-item
   });
   if (현재구역 !== null) H.push('</div>');
 
@@ -218,14 +234,15 @@ function render() {
 
   // 체크박스를 그리는 곳과 이벤트를 다는 곳이 따로 있다. 한쪽만 풀면
   // 네모는 보이는데 눌러도 금액이 안 바뀐다.
-  document.querySelectorAll('.v-kindsel').forEach((sel) => {
-    sel.addEventListener('change', () => {
-      const i = +sel.dataset.i;
-      const k = +sel.value;
+  document.querySelectorAll('.v-segb').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const i = +btn.dataset.i;
+      const k = +btn.dataset.k;
       if (k === (DATA.라인들[i].종류 || 0)) delete 종류선택[i]; else 종류선택[i] = k;
+      document.querySelectorAll('.v-segb[data-i="' + i + '"]').forEach((b) => b.classList.toggle('on', b === btn));
       const l = 실제줄(i);
       const 줄 = document.querySelector('.v-line[data-i="' + i + '"]');
-      줄.querySelector('.v-nm').textContent = l.품목명;
+      줄.querySelector('.v-nm').textContent = 줄이름(l);
       줄.querySelector('.v-amt').innerHTML = won(줄금액(l)) + (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '');
       줄.classList.toggle('kind-changed', 종류선택[i] != null);
       const 설명 = document.querySelector('.v-desc[data-i="' + i + '"]');
@@ -237,7 +254,7 @@ function render() {
     cb.addEventListener('change', () => {
       const i = +cb.dataset.i;
       if (cb.checked) 해제.delete(i); else 해제.add(i);
-      document.querySelector('.v-line[data-i="' + i + '"]').classList.toggle('off', !cb.checked);
+      document.querySelector('.v-item[data-i="' + i + '"]').classList.toggle('off', !cb.checked);
       renderSum();
     });
   });
