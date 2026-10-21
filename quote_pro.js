@@ -271,6 +271,7 @@ function boot() {
   // 캐시 경로에서는 boot() 가 이 파일을 다 읽기 전에 돌아서, 아래쪽 let(toast 등)이
   // 아직 TDZ 다. 파일 실행이 끝난 뒤로 미룬다.
   setTimeout(사진진입, 0);
+  setTimeout(수정진입, 0);   // 현장관리 앱 [이 견적 수정하기] (같은 이유로 미룬다)
 }
 
 /* ---------- 필름 자재비 ----------
@@ -1285,13 +1286,22 @@ $('#doPublish').addEventListener('click', async () => {
     // 저장함에서 '내역보기' 로 실제 발행된 견적서를 열려면 코드가 남아 있어야 한다.
     // 저장함에 이미 담긴 현장이면 그쪽 코드도 같이 갱신한다 - 담아둔 뒤에 발행하거나
     // 고쳐서 다시 발행하는 순서가 다 가능하기 때문이다.
+    // 고쳐서 다시 발행했으면 앞 견적코드를 남긴다 (2026-10-21). 현장관리 앱 '견적요청 내역' 이
+    // 이걸 보고 앞 견적서를 목록에서 뺀다 - 고칠 때마다 옛 견적이 줄줄이 쌓이지 않게. 링크는 그대로 열린다.
+    if (state.현장코드 && state.현장코드 !== j.견적코드) {
+      state.이전견적코드 = (state.이전견적코드 || []).filter((c) => c !== state.현장코드).concat(state.현장코드);
+    }
     state.현장코드 = j.견적코드;
     save(STORAGE_KEY, state);
     const 목록 = 저장함읽기();
     const k = 목록.findIndex((x) => x.현장ID && x.현장ID === state.현장ID);
     if (k >= 0) {
       목록[k].현장코드 = j.견적코드;
-      if (목록[k].상태) 목록[k].상태.현장코드 = j.견적코드;
+      if (state.이전견적코드) 목록[k].이전견적코드 = state.이전견적코드.slice();
+      if (목록[k].상태) {
+        목록[k].상태.현장코드 = j.견적코드;
+        if (state.이전견적코드) 목록[k].상태.이전견적코드 = state.이전견적코드.slice();
+      }
       저장함쓰기(목록);
     }
     링크표시();
@@ -1807,8 +1817,9 @@ async function 발행목록열기() {
     '</div>');
 }
 
-async function 발행견적가져오기(코드, 버튼) {
-  if (!MASTER) { toast('단가를 아직 못 받았습니다. 잠시 뒤 다시 해 주세요.'); return; }
+// 조용히: 현장관리 앱 '수정하기' 로 들어올 때(수정진입) - 저장함 창을 안 열고 담은 항목을 돌려준다
+async function 발행견적가져오기(코드, 버튼, 조용히) {
+  if (!MASTER) { toast('단가를 아직 못 받았습니다. 잠시 뒤 다시 해 주세요.'); return null; }
   if (버튼) { 버튼.disabled = true; 버튼.textContent = '가져오는 중…'; }
   try {
     const res = await fetch(CONFIG.quoteUrl + '?id=' + encodeURIComponent(코드));
@@ -1818,8 +1829,9 @@ async function 발행견적가져오기(코드, 버튼) {
     const r = QuoteBox.발행을상태로(d, MASTER, 기본자재비());
     const st = r.상태;
     st.현장ID = QuotePhotos.새현장ID();
-    const list = 저장함읽기();
-    list.unshift({
+    // 거래처는 견적서에 id·이름만 남아 있다. 업체 목록에서 찾아 되붙인다 - 다시 발행해도 같은 거래처에 묶이게
+    if (d.현장관리_거래처ID) st.업체 = 업체캐시().목록.find((c) => c.id === d.현장관리_거래처ID) || null;
+    const 항목 = {
       id: Date.now(),
       이름: st.현장명 || 코드,
       저장일시: new Date().toISOString(),
@@ -1828,14 +1840,20 @@ async function 발행견적가져오기(코드, 버튼) {
       현장ID: st.현장ID,
       현장코드: 코드,
       상태: st,
-    });
+    };
+    const list = 저장함읽기();
+    list.unshift(항목);
     저장함쓰기(list);
-    toast('‘' + (st.현장명 || 코드) + '’ 저장함에 담았습니다' +
-      (r.직접으로 ? ' · 지금 단가표에 없는 ' + r.직접으로 + '개는 직접 입력으로 넣었습니다' : ''));
-    openBox();
+    if (!조용히) {
+      toast('‘' + (st.현장명 || 코드) + '’ 저장함에 담았습니다' +
+        (r.직접으로 ? ' · 지금 단가표에 없는 ' + r.직접으로 + '개는 직접 입력으로 넣었습니다' : ''));
+      openBox();
+    }
+    return 항목;
   } catch (err) {
     if (버튼) { 버튼.disabled = false; 버튼.textContent = '가져오기'; }
     toast('견적을 못 가져왔습니다. 통신 상태를 확인해 주세요.');
+    return null;
   }
 }
 
@@ -1948,32 +1966,37 @@ $('#boxList').addEventListener('click', async (e) => {
 
   if (e.target.classList.contains('box-load')) {
     if (!confirm('‘' + 항목.이름 + '’ 을(를) 불러옵니다.\n지금 작성 중인 내용은 사라집니다.')) return;
-    state = Object.assign(
-      { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3, 업체: null, 현장연결: null },
-      항목.상태
-    );
-    if (!state.현장ID) state.현장ID = 항목.현장ID || '';
-    if (!state.현장코드) state.현장코드 = 항목.현장코드 || '';
-    현장ID확보();     // 예전에 저장한 건은 현장ID 가 없다. 새로 발급해도 사진이 없어 문제없다.
-    $('#siteName').value = state.현장명 || '';
-    $('#sizeSelect').value = state.평형 || '확인안됨';
-    $('#roomSelect').value = String(방개수());
-    파생품목붙이기();
-    $('#memoText').value = state.메모 || '';
-    $('#relayText').value = state.전달사항 || '';
-    $('#noteText').value = state.안내문구 || '';
-    $('#privText').value = state.내부메모 || '';
-    필름칸그리기();
-    업체줄그리기();
-    syncAdjust();
-    buildAll();
-    구역장수갱신();
-    refresh();
-    save(STORAGE_KEY, state);
+    저장함불러오기(항목);
     closeBox();
     toast('‘' + 항목.이름 + '’ 불러왔습니다');
   }
 });
+
+// 저장함 한 건을 작성 화면으로. 저장함 [불러오기] 와 현장관리 앱의 '수정하기'(수정진입) 가 같이 쓴다
+function 저장함불러오기(항목) {
+  state = Object.assign(
+    { 현장ID: '', 현장코드: '', 현장명: '', 평형: '확인안됨', 자재비: null, 선택: {}, 직접품목: [], 설명: {}, 조정: [null, null, null], 구역명: {}, 메모: '', 전달사항: '', 안내문구: '', 내부메모: '', 방수: 3, 업체: null, 현장연결: null },
+    항목.상태
+  );
+  if (!state.현장ID) state.현장ID = 항목.현장ID || '';
+  if (!state.현장코드) state.현장코드 = 항목.현장코드 || '';
+  현장ID확보();     // 예전에 저장한 건은 현장ID 가 없다. 새로 발급해도 사진이 없어 문제없다.
+  $('#siteName').value = state.현장명 || '';
+  $('#sizeSelect').value = state.평형 || '확인안됨';
+  $('#roomSelect').value = String(방개수());
+  파생품목붙이기();
+  $('#memoText').value = state.메모 || '';
+  $('#relayText').value = state.전달사항 || '';
+  $('#noteText').value = state.안내문구 || '';
+  $('#privText').value = state.내부메모 || '';
+  필름칸그리기();
+  업체줄그리기();
+  syncAdjust();
+  buildAll();
+  구역장수갱신();
+  refresh();
+  save(STORAGE_KEY, state);
+}
 
 /* ---------- 오래된 현장 사진 정리 (2026-10-05) ----------
    저장함에 담아 둔 지 오래된(마지막으로 담거나 고친 때 기준) 현장의 사진을 지운다.
@@ -2764,6 +2787,42 @@ async function 사진진입() {
     방문.견적연결 = new Date().toISOString();
     save(사진앱방문KEY, 방문들);
   }
+}
+
+/* ---------- 현장관리 앱의 [이 견적 수정하기] 로 들어올 때 (2026-10-21) ----------
+   quote_pro.html?edit=<견적코드 | box:<저장함 id>>&client=<거래처ID>.
+   폰 저장함 → 서버 저장함 → 발행된 견적서(가져오기) 순으로 찾아 작성 화면에 불러온다.
+   고친 뒤 발행하면 새 견적코드가 나오고, 앞 코드는 이전견적코드로 남는다(발행 쪽).
+   주소의 edit 는 바로 지운다 - 새로고침할 때마다 다시 불러오면 고친 게 날아간다. */
+async function 수정진입() {
+  const q = new URLSearchParams(location.search);
+  const 키 = (q.get('edit') || '').trim();
+  if (!키) return;
+  const 거래처ID = q.get('client') || '';
+  try { history.replaceState(null, '', location.pathname); } catch (e) { /* 무시 */ }
+
+  const 상자 = 키.indexOf('box:') === 0 ? 키.slice(4) : '';
+  const 찾기 = () => 저장함읽기().find((x) => 상자 ? String(x.id) === 상자 : x.현장코드 === 키);
+  let 항목 = 찾기();
+  if (!항목) {
+    toast('견적을 찾는 중…');
+    try { await 저장함받기(); } catch (e) { /* 아래에서 견적서로 가져온다 */ }
+    항목 = 찾기();
+  }
+  if (!항목 && !상자) 항목 = await 발행견적가져오기(키, null, true);
+  if (!항목) { toast('이 견적을 찾지 못했습니다. 저장함을 확인해 주세요.'); return; }
+
+  // 이미 그 견적을 쓰고 있으면 그대로 둔다 - 저장함 것보다 지금 화면이 더 새것일 수 있다
+  if (!(state.현장ID && state.현장ID === 항목.현장ID)) {
+    const 하던것 = Object.keys(state.선택 || {}).length || (state.직접품목 || []).length || (state.현장명 || '').trim() || state.요청;
+    if (하던것 && !confirm('‘' + 항목.이름 + '’ 을(를) 고치려고 불러옵니다.\n지금 작성 중인 내용은 사라집니다.\n(저장함에 담아 둔 견적은 남아 있습니다)')) return;
+    저장함불러오기(항목);
+  }
+  if (!state.업체 && 거래처ID) {
+    const 찾음 = 업체캐시().목록.find((c) => c.id === 거래처ID);
+    if (찾음) { state.업체 = 찾음; persist(); 업체줄그리기(); }
+  }
+  toast('‘' + 항목.이름 + '’ 불러왔습니다 · 고친 뒤 발행하면 새 견적서 링크가 나옵니다');
 }
 
 /* 품목 줄에 붙는 '사진' 버튼 */
