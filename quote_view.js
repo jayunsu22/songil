@@ -4,6 +4,9 @@
 const VIEW = {
   quoteUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-quote',
   inquiryUrl: 'https://primary-production-a6fa.up.railway.app/webhook/pro-inquiry',
+  // [＋ 추가 견적 받기] (2026-10-21, n8n 현장견적_추가견적)
+  addonUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-addon',
+  priceUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-addon-price',
 };
 
 // /q/CODE 또는 /quote_view.html?id=CODE (개발용) 둘 다 받는다
@@ -72,20 +75,31 @@ function status(msg, isErr) {
   el.className = isErr ? 'err' : '';
 }
 
+// 견적서를 받아 DATA 에 둔다. 고객이 추가한 품목(고객추가)은 맨 위로 - 방금 넣은 게 바로 보이게
+async function 받기() {
+  const res = await fetch(VIEW.quoteUrl + '?id=' + encodeURIComponent(코드));
+  const j = await res.json().catch(() => null);
+  if (!res.ok || !j || j.error) return false;
+  const 줄들 = j.라인들 || [];
+  j.라인들 = 줄들.filter((l) => l.고객추가).concat(줄들.filter((l) => !l.고객추가));
+  DATA = j;
+  // 줄 순번이 바뀌므로 고객이 빼거나 바꾼 표시는 새로 시작한다
+  해제.clear();
+  Object.keys(종류선택).forEach((k) => delete 종류선택[k]);
+  return true;
+}
+
 async function load() {
   if (!코드) {
     status('견적서 주소가 올바르지 않습니다.', true);
     return;
   }
   try {
-    const res = await fetch(VIEW.quoteUrl + '?id=' + encodeURIComponent(코드));
-    const j = await res.json().catch(() => null);
-    if (!res.ok || !j || j.error) {
+    if (!(await 받기())) {
       // 빈 화면이나 JS 에러를 그대로 두면 받은 사람이 사장님한테 전화한다
       status('견적서를 찾을 수 없습니다. 링크를 다시 확인해 주세요.', true);
       return;
     }
-    DATA = j;
     render();
     status('');
     $v('#vDoc').hidden = false;
@@ -147,22 +161,29 @@ function render() {
     '</div>' +
     '</div>');
 
+  // [＋ 추가 견적 받기] 상담 카드 (추가화면그리기 가 채운다)
+  H.push('<div id="vAddon"></div>');
+
   // 구역별로 묶어서 표로 그린다. 고정폭 정렬을 쓰지 않으므로 폰마다 안 깨진다.
   let 현재구역 = null;
   d.라인들.forEach((l, i) => {
     if (l.구역 !== 현재구역) {
       if (현재구역 !== null) H.push('</div>');
-      H.push('<div class="v-zone"><h3>' + esc(l.구역) + '</h3>');
+      H.push('<div class="v-zone' + (l.고객추가 ? ' added' : '') + '"><h3>' + esc(l.구역) + '</h3>');
+      if (l.고객추가) {
+        H.push('<div class="v-addnote">⚠️ <span>고객님이 직접 추가한 품목입니다. ' +
+          '실제 품목 상태에 따라 견적이 달라질 수 있습니다.</span></div>');
+      }
       현재구역 = l.구역;
     }
     // 체크박스는 업자용·소비자용 모두 나온다. 업자도 견적을 낼 때
     // 품목을 빼고 넣어가며 금액을 맞춰봐야 하기 때문이다.
     // (품목설명 표시 여부와는 별개다 - 예전에는 둘이 묶여 있었다)
     // 품목 하나 = 카드 하나 (줄 + 종류 탭 + 설명 + 사진). 품목끼리 확실히 갈라 보이게 (2026-10-20 시안 A)
-    H.push('<div class="v-item" data-i="' + i + '">');
+    H.push('<div class="v-item' + (l.고객추가 ? ' added' : '') + '" data-i="' + i + '">');
     H.push('<div class="v-line" data-i="' + i + '">' +
       '<input type="checkbox" class="v-chk" checked data-i="' + i + '">' +
-      '<span class="v-nm">' + esc(줄이름(l)) + '</span>' +
+      '<span class="v-nm">' + esc(줄이름(l)) + (l.고객추가 ? '<span class="v-addbadge">추가</span>' : '') + '</span>' +
       '<span class="v-qty">' + esc(l.수량) + esc(l.단위) + '</span>' +
       '<span class="v-amt">' + won(줄금액(l)) +
         (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '') + '</span>' +
@@ -187,6 +208,10 @@ function render() {
       H.push('<div class="v-shot"><img src="' + esc(사진.url) +
         '" alt="' + esc(l.품목명) + ' 위치" loading="lazy"></div>');
     });
+    // 고객이 추가한 품목은 고객이 직접 뺄 수 있다
+    if (l.고객추가) {
+      H.push('<button type="button" class="v-adddel" data-id="' + esc(l.체크_ID) + '" data-nm="' + esc(l.품목명) + '">이 추가 품목 빼기</button>');
+    }
     H.push('</div>');   // .v-item
   });
   if (현재구역 !== null) H.push('</div>');
@@ -231,6 +256,8 @@ function render() {
 
   $v('#vDoc').innerHTML = H.join('');
   renderSum();
+  추가화면그리기();
+  document.querySelectorAll('.v-adddel').forEach((b) => b.addEventListener('click', () => 추가빼기(b.dataset.id, b.dataset.nm)));
 
   // 체크박스를 그리는 곳과 이벤트를 다는 곳이 따로 있다. 한쪽만 풀면
   // 네모는 보이는데 눌러도 금액이 안 바뀐다.
@@ -410,6 +437,192 @@ async function 문의보내기() {
     btn.disabled = false;
     btn.textContent = '이 내용으로 문의하기';
     alert('전송에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+}
+
+/* ---------- [＋ 추가 견적 받기] (2026-10-21) ----------
+   상담원이 한 단계씩 묻고(품목 → 종류 → 한쪽/양쪽 → 길이) 금액을 보여준다. [견적서에 추가하기] 를 누르면
+   서버가 같은 식으로 다시 계산해 견적서에 바로 넣는다(사장님 확인 없이 - 사장님 결정). 묻는 순서와 금액
+   계산은 quote_addon.js. 단가는 처음 열 때 한 번 받는다. */
+const 추가 = { 열림: false, 표: null, 받는중: false, 오류: '', 품목: null, 고른: {}, 직접: false, 보내는중: false, 완료: null };
+
+function 추가처음() {
+  추가.품목 = null; 추가.고른 = {}; 추가.직접 = false; 추가.완료 = null; 추가.오류 = '';
+}
+
+async function 단가받기() {
+  if (추가.표 || 추가.받는중) return;
+  추가.받는중 = true; 추가.오류 = '';
+  추가화면그리기();
+  try {
+    const res = await fetch(VIEW.priceUrl);
+    const j = await res.json();
+    if (!res.ok || !j || !Array.isArray(j.품목정보) || !j.품목정보.length) throw new Error('단가 없음');
+    추가.표 = QuoteAddon.표맵(j.품목정보);
+  } catch (e) {
+    추가.오류 = '단가를 불러오지 못했습니다. 잠시 뒤 다시 눌러 주세요.';
+  }
+  추가.받는중 = false;
+  추가화면그리기();
+}
+
+// 고른 대로의 금액 (아직 다 안 골랐으면 양쪽·1m 로 쳐서 'm당' 으로)
+function 추가금액(p, 고른) {
+  const 표 = 추가.표;
+  const g = Object.assign({}, 고른);
+  let q = QuoteAddon.다음질문(p, g, 표);
+  if (q && q.키 === '면') { g.면 = '양쪽'; q = QuoteAddon.다음질문(p, g, 표); }
+  let m당 = false;
+  if (q && q.키 === '길이') { g.길이 = 1; m당 = true; }
+  const s = QuoteAddon.선택(p, g, 표);
+  if (!s) return null;
+  const l = QuoteAddon.줄만들기(표[s.표이름], s, DATA.조정_합계율 || 0, QuoteAddon.자재비찾기(DATA.라인들));
+  return l ? { 금액: 줄금액(l), m당: m당, 줄: l } : null;
+}
+function 금액글(r) {
+  if (!r) return '';
+  return (r.m당 ? 'm당 약 ' : '약 ') + won(r.금액);
+}
+
+function 추가화면그리기() {
+  const box = $v('#vAddon');
+  if (!box) return;
+  const 아바타 = '<img class="va-av" src="/addon_agent.jpg" alt="" width="40" height="40">';
+  if (!추가.열림) {
+    box.innerHTML = '<button type="button" class="va-open">' + 아바타 +
+      '<span><b>＋ 추가 견적 받기</b><small>더 하고 싶은 품목을 고르면 바로 금액이 나와요</small></span></button>';
+    box.querySelector('.va-open').onclick = () => { 추가.열림 = true; 추가처음(); 단가받기(); 추가화면그리기(); };
+    return;
+  }
+  const H = [];
+  const 머리 = (질문, 작은) => '<div class="va-head">' + 아바타 + '<div class="va-q">' + esc(질문) +
+    '<small>' + esc(작은) + '</small></div><button type="button" class="va-x" aria-label="닫기">✕</button></div>';
+  const 표 = 추가.표;
+  const p = 추가.품목;
+
+  if (추가.완료) {
+    H.push(머리('견적서에 추가했어요 ✅', '추가 견적 상담'));
+    H.push('<div class="va-result"><div class="va-rname">' + esc(추가.완료.이름) + '</div>' +
+      '<div class="va-ramt">' + won(추가.완료.금액) + '</div>' +
+      '<p class="va-rsub">합계가 <b>' + won(표시총액()) + '</b>으로 바뀌었어요.</p>' +
+      '<div class="va-warn">⚠️ 실제 품목 상태에 따라 견적이 달라질 수 있습니다.</div></div>');
+    H.push('<div class="va-acts"><button type="button" class="va-go" data-act="again">＋ 다른 품목 추가</button>' +
+      '<button type="button" class="va-sub" data-act="close">닫기</button></div>');
+  } else if (!표) {
+    H.push(머리('잠시만요', '추가 견적 상담'));
+    H.push('<p class="va-help">' + esc(추가.오류 || '단가를 불러오는 중…') + '</p>');
+    if (추가.오류) H.push('<div class="va-acts"><button type="button" class="va-go" data-act="retry">다시 불러오기</button></div>');
+  } else if (!p) {
+    H.push(머리('어떤 품목을 추가하고 싶으세요?', '추가 견적 상담 · 1단계'));
+    H.push('<div class="va-opts items">' + QuoteAddon.쓸품목(표).map((x, i) =>
+      '<button type="button" class="va-o" data-p="' + i + '"><span class="va-ico">' + x.아이콘 + '</span>' + esc(x.이름) + '</button>').join('') + '</div>');
+  } else {
+    const q = QuoteAddon.다음질문(p, 추가.고른, 표);
+    const 단계 = 2 + Object.keys(추가.고른).length;
+    const 고른글 = [p.이름].concat(QuoteAddon.고른글(p, 추가.고른, 표));
+    if (q) {
+      H.push(머리(q.질문, '추가 견적 상담 · ' + 단계 + '단계'));
+      H.push('<div class="va-crumb">' + 고른글.map((t) => '<span>' + esc(t) + ' ✓</span>').join('') + '</div>');
+      if (q.도움) H.push('<p class="va-help">' + esc(q.도움) + '</p>');
+      H.push('<div class="va-opts">' + q.보기.map((b, i) => {
+        const g = Object.assign({}, 추가.고른); g[q.키] = b.값;
+        const 힌트 = b.면표 ? '한쪽 / 양쪽' : 금액글(추가금액(p, g));
+        return '<button type="button" class="va-o" data-q="' + i + '">' + esc(b.글) + (힌트 ? '<small>' + 힌트 + '</small>' : '') + '</button>';
+      }).join('') + (q.키 === '길이' ? '<button type="button" class="va-o' + (추가.직접 ? ' on' : '') + '" data-act="direct">직접 입력<small>m 숫자</small></button>' : '') + '</div>');
+      if (q.키 === '길이' && 추가.직접) {
+        H.push('<div class="va-direct"><input type="number" id="vaLen" inputmode="decimal" step="0.1" min="0.5" max="30" placeholder="예: 3.5">' +
+          '<span>m</span><button type="button" class="va-go" data-act="len">확인</button></div>');
+      }
+    } else {
+      // 다 골랐다 - 금액 보여주고 추가할지 묻는다
+      const s = QuoteAddon.선택(p, 추가.고른, 표);
+      const r = 추가금액(p, 추가.고른);
+      H.push(머리('이렇게 추가할까요?', '추가 견적 상담 · 마지막 단계'));
+      H.push('<div class="va-crumb">' + 고른글.map((t) => '<span>' + esc(t) + ' ✓</span>').join('') + '</div>');
+      H.push('<div class="va-result"><div class="va-rname">' + esc(s.이름) +
+        (r && r.줄.단위 === 'm' ? ' · ' + r.줄.수량 + 'm' : '') + '</div>' +
+        '<div class="va-ramt">' + (r ? won(r.금액) : '') + '</div>' +
+        '<div class="va-warn">⚠️ 실제 품목 상태에 따라 견적이 달라질 수 있습니다.</div></div>');
+      if (추가.오류) H.push('<p class="va-help err">' + esc(추가.오류) + '</p>');
+      H.push('<div class="va-acts"><button type="button" class="va-go" data-act="add"' + (추가.보내는중 ? ' disabled' : '') + '>' +
+        (추가.보내는중 ? '추가하는 중…' : '견적서에 추가하기') + '</button>' +
+        '<button type="button" class="va-sub" data-act="restart">처음부터</button></div>');
+    }
+    H.push('<div class="va-foot"><button type="button" class="va-back" data-act="back">‹ 이전</button></div>');
+  }
+  box.innerHTML = '<div class="va-card">' + H.join('') + '</div>';
+
+  box.onclick = (e) => {
+    const t = e.target.closest('button');
+    if (!t) return;
+    if (t.classList.contains('va-x')) { 추가.열림 = false; 추가화면그리기(); return; }
+    const act = t.dataset.act;
+    if (act === 'close') { 추가.열림 = false; 추가처음(); 추가화면그리기(); return; }
+    if (act === 'again' || act === 'restart') { 추가처음(); 추가화면그리기(); return; }
+    if (act === 'retry') { 단가받기(); return; }
+    if (act === 'add') { 추가보내기(); return; }
+    if (act === 'direct') { 추가.직접 = !추가.직접; 추가화면그리기(); const i = $v('#vaLen'); if (i) i.focus(); return; }
+    if (act === 'len') {
+      const n = QuoteAddon.길이다듬기(($v('#vaLen') || {}).value);
+      if (n == null) { alert('0.5m ~ 30m 사이로 적어 주세요.'); return; }
+      추가.고른.길이 = n; 추가.직접 = false; 추가화면그리기(); return;
+    }
+    if (act === 'back') {
+      추가.오류 = '';
+      const 키들 = ['길이', '면', '종류'].filter((k) => 추가.고른[k] != null);
+      if (키들.length) delete 추가.고른[키들[0]]; else 추가.품목 = null;
+      추가화면그리기(); return;
+    }
+    if (t.dataset.p != null) { 추가.품목 = QuoteAddon.쓸품목(표)[+t.dataset.p]; 추가.고른 = {}; 추가화면그리기(); return; }
+    if (t.dataset.q != null) {
+      const q = QuoteAddon.다음질문(추가.품목, 추가.고른, 표);
+      if (q) { 추가.고른[q.키] = q.보기[+t.dataset.q].값; 추가.직접 = false; 추가화면그리기(); }
+    }
+  };
+  // 단계가 바뀌어도 카드가 화면 안에 있게
+  const card = box.querySelector('.va-card');
+  if (card && card.scrollIntoView && 추가.열림) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+async function 추가보내기() {
+  const s = QuoteAddon.선택(추가.품목, 추가.고른, 추가.표);
+  if (!s || 추가.보내는중) return;
+  const r = 추가금액(추가.품목, 추가.고른);
+  추가.보내는중 = true; 추가.오류 = '';
+  추가화면그리기();
+  try {
+    const res = await fetch(VIEW.addonUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 견적코드: DATA.견적코드, 추가: s }),
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok || !j || !j.ok) throw new Error((j && j.error) || 'HTTP ' + res.status);
+    if (!(await 받기())) throw new Error('다시 받기 실패');
+    추가.완료 = { 이름: s.이름 + (r && r.줄.단위 === 'm' ? ' ' + r.줄.수량 + 'm' : ''), 금액: r ? r.금액 : 0 };
+    추가.보내는중 = false;
+    render();
+  } catch (e) {
+    추가.보내는중 = false;
+    추가.오류 = String(e.message) === 'too_many' ? '추가 품목은 20개까지 넣을 수 있습니다.' : '추가하지 못했습니다. 통신 상태를 확인하고 다시 눌러 주세요.';
+    추가화면그리기();
+  }
+}
+
+async function 추가빼기(id, 이름) {
+  if (!confirm('‘' + 이름 + '’ 을(를) 견적서에서 뺄까요?')) return;
+  try {
+    const res = await fetch(VIEW.addonUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 견적코드: DATA.견적코드, 삭제: id }),
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok || !j || !j.ok) throw new Error('fail');
+    await 받기();
+    render();
+  } catch (e) {
+    alert('빼지 못했습니다. 잠시 후 다시 시도해 주세요.');
   }
 }
 

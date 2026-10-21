@@ -319,3 +319,55 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); backg
 #vBar.changed .v-bar-amt { color: #ffd9a3; }
 /* PC 에서는 본문(#vDoc)과 같은 폭으로 가운데 선다 */
 #vBar { max-width: 720px; margin-left: auto; margin-right: auto; }
+
+/* ---------- [＋ 추가 견적 받기] (2026-10-21, quote_view.js 추가화면그리기) ----------
+   견적서 안에 질문 카드가 하나씩 뜬다 (시안 C). 상담원 사진은 1분견적 상담원(ai_consultant.png)을 줄인 것 */
+#vAddon { margin: 12px 12px 0; }
+.va-open {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 16px;
+  border: 0; border-radius: 14px; background: #9c6f2e; color: #fff; text-align: left; cursor: pointer;
+  font-family: inherit; box-shadow: 0 3px 10px rgba(156, 111, 46, .35);
+}
+.va-open b { display: block; font-size: 16.5px; }
+.va-open small { display: block; font-size: 12.5px; color: #f3e2c4; margin-top: 2px; font-weight: 600; }
+.va-av { width: 40px; height: 40px; border-radius: 50%; flex: 0 0 auto; object-fit: cover; border: 2px solid #fff; background: #f3ece1; }
+.va-card { background: #fff; border: 2px solid #9c6f2e; border-radius: 18px; overflow: hidden; box-shadow: 0 6px 18px rgba(156, 111, 46, .18); }
+.va-head { display: flex; align-items: center; gap: 10px; padding: 14px 12px 14px 16px; background: #fbf5ea; }
+.va-q { flex: 1; font-size: 15.5px; font-weight: 800; line-height: 1.4; color: #2b2116; }
+.va-q small { display: block; font-size: 12.5px; font-weight: 600; color: #8a7d6c; }
+.va-x { border: 0; background: transparent; color: #9a8f80; font-size: 20px; padding: 4px 8px; cursor: pointer; }
+.va-crumb { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px 0; }
+.va-crumb span { font-size: 12.5px; font-weight: 700; color: #6b4a1d; background: #f3ece1; padding: 4px 9px; border-radius: 99px; }
+.va-help { margin: 10px 16px 0; font-size: 13px; color: #8a7d6c; line-height: 1.5; }
+.va-help.err { color: #b91c1c; }
+.va-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 16px 14px; }
+.va-opts.items { grid-template-columns: 1fr 1fr 1fr; }
+.va-o {
+  border: 1.5px solid #e6dccc; border-radius: 12px; background: #fff; padding: 12px 10px; text-align: left;
+  font-family: inherit; font-size: 15px; font-weight: 800; color: #2b2116; cursor: pointer;
+}
+.va-opts.items .va-o { text-align: center; padding: 12px 4px; font-size: 14px; }
+.va-ico { display: block; font-size: 22px; margin-bottom: 3px; }
+.va-o small { display: block; color: #9c6f2e; font-size: 12.5px; font-weight: 700; margin-top: 3px; }
+.va-o:active, .va-o.on { border-color: #9c6f2e; background: #fbf5ea; box-shadow: inset 0 0 0 1px #9c6f2e; }
+.va-direct { display: flex; align-items: center; gap: 8px; padding: 0 16px 14px; }
+.va-direct input { flex: 1; min-width: 0; padding: 11px 12px; border: 1.5px solid #d9c6a5; border-radius: 10px; font-size: 16px; font-family: inherit; }
+.va-direct span { font-weight: 700; color: #6b4a1d; }
+.va-result { margin: 12px 16px 0; padding: 14px; border-radius: 14px; background: #fbf5ea; }
+.va-rname { font-size: 15px; font-weight: 800; color: #4a3416; }
+.va-ramt { font-size: 24px; font-weight: 800; color: #6b4a1d; margin: 2px 0 6px; font-variant-numeric: tabular-nums; }
+.va-rsub { margin: 0 0 8px; font-size: 13.5px; color: #6f6558; }
+.va-warn { padding: 9px 11px; border-radius: 10px; background: #fff7e6; border: 1px solid #f3c27a; color: #7a4b00; font-size: 13px; line-height: 1.5; }
+.va-acts { display: flex; gap: 8px; padding: 12px 16px 14px; }
+.va-go, .va-sub { flex: 1; padding: 12px 10px; border-radius: 11px; font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.va-go { border: 0; background: #9c6f2e; color: #fff; }
+.va-go[disabled] { opacity: .6; }
+.va-sub { border: 1.5px solid #d9c6a5; background: #fff; color: #5a4220; }
+.va-foot { display: flex; padding: 10px 16px; border-top: 1px dashed #e6dccc; }
+.va-back { border: 0; background: transparent; color: #6b4a1d; font-family: inherit; font-size: 14px; font-weight: 700; padding: 4px 0; cursor: pointer; }
+
+/* 고객이 추가한 품목 */
+.v-addnote { display: flex; gap: 6px; margin: 0 0 10px; padding: 11px 13px; border-radius: 12px; background: #fff7e6; border: 1px solid #f3c27a; color: #7a4b00; font-size: 13.5px; line-height: 1.55; }
+.v-item.added { border: 2px solid #9c6f2e; }
+.v-addbadge { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 99px; background: #d97706; color: #fff; font-size: 11px; font-weight: 800; vertical-align: 2px; }
+.v-adddel { display: block; margin: 10px 0 0 auto; padding: 6px 10px; border: 1px solid #e6dccc; border-radius: 8px; background: #fff; color: #8a7d6c; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
