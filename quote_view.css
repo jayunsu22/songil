@@ -371,3 +371,32 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); backg
 .v-item.added { border: 2px solid #9c6f2e; }
 .v-addbadge { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 99px; background: #d97706; color: #fff; font-size: 11px; font-weight: 800; vertical-align: 2px; }
 .v-adddel { display: block; margin: 10px 0 0 auto; padding: 6px 10px; border: 1px solid #e6dccc; border-radius: 8px; background: #fff; color: #8a7d6c; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+
+/* ---------- 가견적 ↔ 실제견적 (2026-10-21, quote_view.js · quote_diff.js, 시안 C) ---------- */
+.v-next { display: flex; gap: 10px; align-items: center; margin: 12px 12px 0; padding: 13px 14px; border-radius: 14px; background: #1e3a5f; color: #fff; }
+.v-next > div { flex: 1; }
+.v-next b { display: block; font-size: 14.5px; }
+.v-next small { font-size: 12.5px; color: #cbd5e1; }
+.v-next a { flex: 0 0 auto; background: #fff; color: #1e3a5f; font-weight: 800; font-size: 13.5px; padding: 9px 12px; border-radius: 10px; text-decoration: none; }
+.v-head.stale { opacity: .6; }
+.v-kind { display: inline-block; margin-bottom: 6px; padding: 3px 9px; border-radius: 99px; background: #2f7a55; color: #fff; font-size: 12px; font-weight: 800; }
+.v-from { display: block; margin-top: 10px; padding: 7px 10px; border-radius: 8px; background: #f3ece1; color: #6b4a1d; font-size: 12.5px; line-height: 1.5; text-decoration: none; }
+.v-cmp { margin: 12px 12px 0; background: #fff; border: 2px solid #9c6f2e; border-radius: 16px; overflow: hidden; }
+.v-cmp h3 { margin: 0; padding: 12px 14px; background: #fbf5ea; font-size: 15px; }
+.v-cmp h3 small { display: block; margin-top: 2px; font-size: 12.5px; font-weight: 600; color: #8a7d6c; }
+.v-cmp table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.v-cmp td { padding: 9px 10px; border-top: 1px solid #f1e7d6; vertical-align: top; }
+.v-cmp td.n { font-weight: 800; }
+.v-cmp td.n small { display: block; font-weight: 600; color: #8a7d6c; font-size: 12px; }
+.v-cmp td.r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.v-cmp td.r s { display: block; color: #a8a29e; font-size: 12px; }
+.v-cmp tr.tot td { background: #faf7f2; font-weight: 800; }
+.v-cmp .up, .v-row .up { color: #c2410c; }
+.v-cmp .down, .v-row .down, .v-gone .down { color: #15803d; }
+.v-chgtag { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 99px; background: #ffedd5; color: #c2410c; font-size: 11px; font-weight: 800; vertical-align: 2px; }
+.v-chgtag.new { background: #dcfce7; color: #15803d; }
+.v-gone .v-item { background: #f7f3ee; border-style: dashed; }
+.v-gone s { color: #8a7d6c; }
+.v-row.cmp { color: #6f6558; }
+.v-row.cmp.diff { font-weight: 800; }
+.v-bar-base { display: block; font-size: 11.5px; color: #d9c6a5; text-align: right; font-weight: 600; }

@@ -132,6 +132,16 @@
   <label class="opt"><input type="checkbox" id="optWage">
     <span>인건비만 보내기 <em>자재는 업자가 대는 건. 자재비를 뺀 금액이 나갑니다</em></span></label>
 
+  <!-- 가견적 / 실제견적 (2026-10-21). 실제견적은 가견적과 품목별로 달라진 금액이 견적서 맨 위 표로 나간다 -->
+  <div id="kindRow">
+    <span class="kind-label">견적 종류</span>
+    <div class="kind-seg">
+      <button type="button" data-kind="가견적">가견적</button>
+      <button type="button" data-kind="실제견적">실제견적</button>
+    </div>
+    <p class="hint" id="kindHint"></p>
+  </div>
+
   <div id="pubBefore">
     <p class="hint">발행하면 견적서 링크가 만들어집니다. 발행 시점의 금액이 그대로 저장되어,
       나중에 단가를 바꿔도 이미 보낸 견적서는 변하지 않습니다.</p>

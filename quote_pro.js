@@ -1088,6 +1088,9 @@ function openPublish() {
   $('#pubAfter').hidden = true;
   $('#doPublish').disabled = false;
   $('#doPublish').textContent = '발행하기';
+  // 이미 발행한 견적을 고쳐 내는 거면 실제견적이 기본 (현장을 보고 고치는 경우가 대부분)
+  견적종류 = 비교할가견적() ? '실제견적' : '가견적';
+  종류칸그리기();
   $('#pubBack').hidden = false;
   $('#pubSheet').hidden = false;
 }
@@ -1239,9 +1242,34 @@ function toast(msg) {
   toastTimer = setTimeout(() => { t.hidden = true; }, 시간);
 }
 
+/* ---------- 가견적 / 실제견적 (2026-10-21) ----------
+   현장을 보기 전 낸 견적이 가견적, 현장을 보고 고쳐 낸 견적이 실제견적이다. 실제견적은 비교할 가견적의
+   견적코드(비교견적코드)를 같이 싣고, 견적서가 그 가견적과 품목별로 달라진 금액을 맨 위 표로 보여준다.
+   비교할 가견적: 처음 가견적으로 발행한 코드(가견적코드). 실제견적을 고쳐 다시 내도 처음 가견적과 비교한다.
+   예전 건은 가견적코드가 없다 - 그때는 지금 발행돼 있는 견적(현장코드)을 가견적으로 본다. */
+let 견적종류 = '가견적';
+function 비교할가견적() { return state.가견적코드 || state.현장코드 || ''; }
+function 종류칸그리기() {
+  const 코드 = 비교할가견적();
+  if (!코드) 견적종류 = '가견적';
+  document.querySelectorAll('#kindRow [data-kind]').forEach((b) => {
+    b.classList.toggle('on', b.dataset.kind === 견적종류);
+    b.disabled = b.dataset.kind === '실제견적' && !코드;
+  });
+  $('#kindHint').textContent = 견적종류 === '실제견적'
+    ? '가견적(/q/' + 코드 + ')과 품목별로 달라진 금액이 견적서 맨 위 표로 나갑니다.'
+    : (코드 ? '새 가견적으로 냅니다. 가견적과 비교하는 표는 안 나갑니다.' : '처음 내는 견적입니다. 현장을 본 뒤 고쳐서 실제견적으로 다시 낼 수 있습니다.');
+}
+document.querySelectorAll('#kindRow [data-kind]').forEach((b) => b.addEventListener('click', () => {
+  견적종류 = b.dataset.kind;
+  종류칸그리기();
+}));
+
 $('#doPublish').addEventListener('click', async () => {
   const q = window.__quote;
   if (!q || !q.items.length) { toast('선택한 품목이 없습니다.'); return; }
+  const 종류 = 견적종류;
+  const 비교코드 = 종류 === '실제견적' ? 비교할가견적() : '';
 
   const btn = $('#doPublish');
   btn.disabled = true;
@@ -1276,6 +1304,8 @@ $('#doPublish').addEventListener('click', async () => {
         // '업체명' 이 아니라 '거래처명' 이다 - 이 표의 업체명은 조회 때
         // 가맹점(섬세한손길)을 뜻해서 같은 이름을 쓰면 반드시 헷갈린다
         현장관리_거래처명: (state.업체 && state.업체.이름) || '',
+        견적종류: 종류,
+        비교견적코드: 비교코드,
       }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1292,6 +1322,8 @@ $('#doPublish').addEventListener('click', async () => {
       state.이전견적코드 = (state.이전견적코드 || []).filter((c) => c !== state.현장코드).concat(state.현장코드);
     }
     state.현장코드 = j.견적코드;
+    // 가견적으로 냈으면 이것이 앞으로 비교할 가견적, 실제견적이면 비교한 가견적을 그대로 둔다
+    state.가견적코드 = 종류 === '실제견적' ? 비교코드 : j.견적코드;
     save(STORAGE_KEY, state);
     const 목록 = 저장함읽기();
     const k = 목록.findIndex((x) => x.현장ID && x.현장ID === state.현장ID);
@@ -1300,6 +1332,7 @@ $('#doPublish').addEventListener('click', async () => {
       if (state.이전견적코드) 목록[k].이전견적코드 = state.이전견적코드.slice();
       if (목록[k].상태) {
         목록[k].상태.현장코드 = j.견적코드;
+        목록[k].상태.가견적코드 = state.가견적코드;
         if (state.이전견적코드) 목록[k].상태.이전견적코드 = state.이전견적코드.slice();
       }
       저장함쓰기(목록);
@@ -2822,7 +2855,22 @@ async function 수정진입() {
     const 찾음 = 업체캐시().목록.find((c) => c.id === 거래처ID);
     if (찾음) { state.업체 = 찾음; persist(); 업체줄그리기(); }
   }
-  toast('‘' + 항목.이름 + '’ 불러왔습니다 · 고친 뒤 발행하면 새 견적서 링크가 나옵니다');
+  // 고객이 견적서에서 추가한 품목은 서버에만 있다 - 저장함 것으로 고치면 빠지므로 붙여 둔다 (2026-10-21)
+  let 붙인 = 0;
+  if (state.현장코드) {
+    try {
+      const res = await fetch(CONFIG.quoteUrl + '?id=' + encodeURIComponent(state.현장코드));
+      const d = res.ok ? await res.json() : null;
+      if (d && Array.isArray(d.라인들)) {
+        붙인 = QuoteBox.고객추가합치기(state, d.라인들, MASTER.zones.map((z) => z.구역));
+        if (!state.가견적코드) state.가견적코드 = (d.견적종류 === '실제견적' && d.비교견적코드) || d.견적코드 || '';
+        if (붙인) { buildAll(); refresh(); }
+        persist();
+      }
+    } catch (e) { /* 통신이 안 되면 저장함 것만으로 */ }
+  }
+  toast('‘' + 항목.이름 + '’ 불러왔습니다' + (붙인 ? ' · 고객이 추가한 품목 ' + 붙인 + '개를 직접 입력으로 넣었습니다' : '') +
+    ' · 고친 뒤 실제견적으로 발행하세요');
 }
 
 /* 품목 줄에 붙는 '사진' 버튼 */

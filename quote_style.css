@@ -302,6 +302,13 @@ header {
 }
 #pubSheet button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 #pubSheet button:disabled { opacity: .6; }
+/* 견적 종류 (가견적 / 실제견적) */
+#kindRow { margin: 16px 0 4px; padding-top: 14px; border-top: 1px solid var(--line); }
+#kindRow .kind-label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+#kindRow .kind-seg { display: flex; gap: 6px; }
+#pubSheet #kindRow .kind-seg button { flex: 1; margin: 0; padding: 11px 6px; font-weight: 800; }
+#pubSheet #kindRow .kind-seg button.on { background: #2f7a55; border-color: #2f7a55; color: #fff; }
+#kindRow .hint { margin: 8px 0 0; }
 
 #pubLink {
   margin-top: 6px;

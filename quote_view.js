@@ -30,6 +30,10 @@ function 자재섞임(l) {
 }
 
 let DATA = null;
+/* 실제견적서가 비교하는 가견적 (2026-10-21, 시안 C). DATA.비교견적코드 가 있으면 받아 둔다.
+   못 받으면 null - 비교 표만 안 나오고 견적서는 그대로 보인다. 비교 = QuoteDiff.비교 결과 */
+let BASE = null;
+let 비교 = null;
 const 해제 = new Set();   // 소비자가 체크 해제한 품목 (?d=1 에서만 쓴다)
 /* 고객이 바꾼 종류 { 줄 순번: 종류 순번 } (2026-10-20). 발행할 때 종류가 여럿인 줄(샤시 단창/2중창/시스템)에는
    종류들: [{ 품목명, 표시금액, 인건비표시금액, 품목설명 }] 과 고른 순번(종류)이 같이 실려 온다.
@@ -89,6 +93,33 @@ async function 받기() {
   return true;
 }
 
+// 실제견적이면 비교할 가견적을 받는다. 실패해도 견적서는 보여준다
+async function 가견적받기() {
+  BASE = null;
+  if (!DATA.비교견적코드 || DATA.비교견적코드 === DATA.견적코드) return;
+  try {
+    const res = await fetch(VIEW.quoteUrl + '?id=' + encodeURIComponent(DATA.비교견적코드));
+    const j = await res.json().catch(() => null);
+    if (res.ok && j && !j.error && Array.isArray(j.라인들)) BASE = j;
+  } catch (e) { /* 비교 없이 */ }
+}
+
+// 견적서 합계 (인건비 견적서면 인건비 몫의 합을 절삭) - 가견적·실제견적 비교 표에 쓴다
+function 견적총액(d) {
+  if (!인건비만) return Number(d.총액) || 0;
+  const n = (d.라인들 || []).reduce((s, l) => s + 줄금액(l), 0);
+  return Number(d.총액) % 10000 === 0 ? 절삭(n) : n;
+}
+const 부호 = (n) => (n > 0 ? '+' : n < 0 ? '-' : '') + Math.abs(Math.round(n)).toLocaleString('ko-KR');
+
+// 다른 견적서 주소. 품목설명(d=1)·인건비(w=1) 표시는 그대로 넘긴다
+function 견적주소(code) {
+  const p = new URLSearchParams(location.search);
+  p.delete('id');
+  const q = p.toString();
+  return '/q/' + encodeURIComponent(code) + (q ? '?' + q : '');
+}
+
 async function load() {
   if (!코드) {
     status('견적서 주소가 올바르지 않습니다.', true);
@@ -100,6 +131,7 @@ async function load() {
       status('견적서를 찾을 수 없습니다. 링크를 다시 확인해 주세요.', true);
       return;
     }
+    await 가견적받기();
     render();
     status('');
     $v('#vDoc').hidden = false;
@@ -151,18 +183,44 @@ function render() {
       '<span class="v-ico">1분견적</span><span>' + esc(짧게(d.홍보주소)) + '</span></a>');
   }
 
-  H.push('<div class="v-head">' +
+  // 이 가견적을 대신하는 실제견적이 나왔으면 맨 위에 알린다 - 옛 금액을 믿지 않게
+  if (d.다음견적코드) {
+    H.push('<div class="v-next"><div><b>현장 확인 후 실제견적으로 바뀌었어요</b>' +
+      '<small>이 견적서 금액은 더 이상 유효하지 않습니다</small></div>' +
+      '<a href="' + esc(견적주소(d.다음견적코드)) + '">실제견적 보기 ›</a></div>');
+  }
+  const 실제 = d.견적종류 === '실제견적';
+  H.push('<div class="v-head' + (d.다음견적코드 ? ' stale' : '') + '">' +
     '<div class="v-shop">' + esc(d.업체명) + '</div>' +
     (연락.length ? '<div class="v-contact">' + 연락.join('') + '</div>' : '') +
     '<div class="v-headfoot">' +
+      (실제 ? '<span class="v-kind">실제 견적서</span>' : '') +
       (d.현장명 ? '<div class="v-site">' + esc(d.현장명) + '</div>' : '') +
       '<div class="v-meta">인테리어필름 시공 견적서 · ' + 날짜(d.발행일시) +
         (d.평형 ? ' · ' + esc(d.평형) : '') + '</div>' +
+      (실제 && d.비교견적코드 ? '<a class="v-from" href="' + esc(견적주소(d.비교견적코드)) + '">📋 ' +
+        (BASE ? 날짜(BASE.발행일시).slice(5).replace('.', '/') + ' ' : '') + '가견적(/q/' + esc(d.비교견적코드) +
+        ')을 현장 확인 후 고친 견적입니다</a>' : '') +
     '</div>' +
     '</div>');
 
-  // [＋ 추가 견적 받기] 상담 카드 (추가화면그리기 가 채운다)
-  H.push('<div id="vAddon"></div>');
+  // 가견적과 달라진 품목 표 (실제견적서, 2026-10-21 시안 C)
+  비교 = BASE ? QuoteDiff.비교(BASE.라인들, d.라인들, 줄금액) : null;
+  if (비교) {
+    const 바뀐 = 비교.바뀐;
+    const 가총 = 견적총액(BASE), 실총 = 견적총액(d);
+    const 줄 = (r) => '<tr><td class="n">' + esc(r.이름) + '<small>' + esc(r.이유.join(' · ')) + '</small></td>' +
+      '<td class="r">' + (r.종류 !== '신규' ? '<s>' + won(r.전).replace('원', '') + '</s>' : '') + won(r.후).replace('원', '') + '</td>' +
+      '<td class="r ' + (r.차이 > 0 ? 'up' : 'down') + '">' + 부호(r.차이) + '</td></tr>';
+    H.push('<div class="v-cmp"><h3>' + (바뀐.length ? '가견적과 달라진 품목 ' + 바뀐.length + '개' : '가견적과 달라진 품목이 없습니다') +
+      '<small>현장 확인 후 바뀐 내용입니다</small></h3>' +
+      '<table>' + 바뀐.map(줄).join('') +
+      '<tr class="tot"><td>합계</td><td class="r"><s>' + won(가총).replace('원', '') + '</s>' + won(실총).replace('원', '') + '</td>' +
+      '<td class="r ' + (실총 - 가총 > 0 ? 'up' : 'down') + '">' + 부호(실총 - 가총) + '</td></tr></table></div>');
+  }
+
+  // [＋ 추가 견적 받기] 상담 카드 (추가화면그리기 가 채운다). 실제견적으로 바뀐 옛 견적서에는 안 띄운다
+  if (!d.다음견적코드) H.push('<div id="vAddon"></div>');
 
   // 구역별로 묶어서 표로 그린다. 고정폭 정렬을 쓰지 않으므로 폰마다 안 깨진다.
   let 현재구역 = null;
@@ -183,7 +241,9 @@ function render() {
     H.push('<div class="v-item' + (l.고객추가 ? ' added' : '') + '" data-i="' + i + '">');
     H.push('<div class="v-line" data-i="' + i + '">' +
       '<input type="checkbox" class="v-chk" checked data-i="' + i + '">' +
-      '<span class="v-nm">' + esc(줄이름(l)) + (l.고객추가 ? '<span class="v-addbadge">추가</span>' : '') + '</span>' +
+      '<span class="v-nm">' + esc(줄이름(l)) + (l.고객추가 ? '<span class="v-addbadge">추가</span>' : '') +
+        (비교 && 비교.키별[QuoteDiff.키(l)] ? '<span class="v-chgtag' + (비교.키별[QuoteDiff.키(l)].종류 === '신규' ? ' new' : '') + '">' +
+          비교.키별[QuoteDiff.키(l)].종류 + '</span>' : '') + '</span>' +
       '<span class="v-qty">' + esc(l.수량) + esc(l.단위) + '</span>' +
       '<span class="v-amt">' + won(줄금액(l)) +
         (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '') + '</span>' +
@@ -215,6 +275,15 @@ function render() {
     H.push('</div>');   // .v-item
   });
   if (현재구역 !== null) H.push('</div>');
+
+  // 가견적에는 있었는데 실제견적에서 빠진 품목
+  const 빠진 = 비교 ? 비교.바뀐.filter((r) => r.종류 === '빠짐') : [];
+  if (빠진.length) {
+    H.push('<div class="v-zone v-gone"><h3>가견적에서 빠진 품목</h3>' + 빠진.map((r) =>
+      '<div class="v-item"><div class="v-line"><span class="v-nm"><s>' + esc((r.구역 ? r.구역 + ' ' : '') + r.이름) +
+      (r.수량 ? ' ' + esc(r.수량) : '') + '</s></span><span class="v-amt"><s>' + won(r.전) + '</s> <b class="down">' + 부호(r.차이) +
+      '</b></span></div></div>').join('') + '</div>');
+  }
 
   H.push('<div class="v-sum" id="vSum"></div>');
 
@@ -345,9 +414,15 @@ function renderSum() {
   if (품목합 !== 총) {
     R.push('<div class="v-row"><span>만원 미만 절삭</span><span>-' + won(품목합 - 총) + '</span></div>');
   }
-  R.push('<div class="v-row total"><span>' + (인건비만 ? '인건비 합계' : '합계') +
+  // 실제견적서: 가견적 합계 / 실제견적 합계 / 차이
+  if (BASE) R.push('<div class="v-row cmp"><span>가견적 합계</span><span>' + won(견적총액(BASE)) + '</span></div>');
+  R.push('<div class="v-row total"><span>' + (BASE ? '실제견적 합계' : 인건비만 ? '인건비 합계' : '합계') +
     '</span><span>' + won(총) +
     (d.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span></div>');
+  if (BASE) {
+    const 차 = 총 - 견적총액(BASE);
+    R.push('<div class="v-row cmp diff"><span>차이</span><span class="' + (차 > 0 ? 'up' : 'down') + '">' + 부호(차) + '원</span></div>');
+  }
   if (인건비만) {
     R.push('<div class="v-wagenote">자재는 시공주가 지급하는 조건입니다. ' +
       '자재비가 빠진 인건비만의 금액입니다.</div>');
@@ -374,7 +449,9 @@ function renderBar(총, 조정됨) {
     '<span class="v-bar-label">' + (인건비만 ? '인건비 합계' : '합계') +
       (뺀수 ? ' <small>' + 뺀수 + '개 뺌</small>' : '') +
       (바꾼수 ? ' <small>종류 ' + 바꾼수 + '개 바꿈</small>' : '') + '</span>' +
-    '<span class="v-bar-amt">' + won(총) +
+    '<span class="v-bar-amt">' +
+      (BASE ? '<small class="v-bar-base">가견적 ' + won(견적총액(BASE)) + ' · ' + 부호(총 - 견적총액(BASE)) + '원</small>' : '') +
+      won(총) +
       (DATA.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span>';
   bar.classList.toggle('changed', 조정됨);
 }
