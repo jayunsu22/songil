@@ -12,6 +12,7 @@ const 계산부 = new Function(코드.slice(0, 코드.indexOf('const F = ')) + '
 
 test('서버 계산 함수 = quote_addon.js', () => {
   assert.deepStrictEqual([...계산부.허용표].sort(), [...M.허용표].sort());
+  assert.deepStrictEqual([...계산부.한쪽표].sort(), [...M.한쪽표].sort());
   const rows = [{ 시공_품목명: 'x', 인건비단가: 56000, 자재비단가: 9000, 자재소모량: 1.7, 견적단위: 'm' },
                 { 시공_품목명: 'y', 인건비단가: 25000, 자재소모량: 3, 견적단위: '세트' }];
   for (const r of rows) for (const 길이 of [0.2, 1, 2.55, 30, 31, 'a']) for (const 한쪽 of [true, false])
@@ -39,6 +40,13 @@ test('추가: 서버가 금액을 다시 계산하고 총액을 절삭한다, �
   assert.strictEqual(meta.절삭, true);
   assert.strictEqual(meta.줄들[0].표시금액, 331500);
   assert.strictEqual(meta.줄들[0].품목명, '샤시b');
+});
+
+test('가구에 한쪽을 보내도 서버는 절반으로 치지 않는다', () => {
+  const 가구표 = [{ fields: { 시공_품목명: '붙박이장', 인건비단가: 16000, 자재비단가: 9000, 자재소모량: 2.5, 견적단위: 'm' } }];
+  const r = 실행({ 'pro-addon': [{ body: { 추가: { 표이름: '붙박이장', 길이: 2, 한쪽: true, 이름: '붙박이장' } } }],
+    견적_조회: [견적()], '시공품목정보 조회': 가구표, 가맹점_조회: [{}] })[0].json;
+  assert.strictEqual(JSON.parse(r.고객_추가품목).줄들[0].표시금액, 125000);
 });
 
 test('삭제: 원래 총액으로 돌아간다', () => {

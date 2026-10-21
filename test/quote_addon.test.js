@@ -71,12 +71,14 @@ test('방문: 아무것도 안 묻고 바로 금액', () => {
   assert.strictEqual(A.줄만들기(표.방문, A.선택(p, {}, 표), 0, null).표시금액, Math.round(34000 * 6.5));
 });
 
-test('신발장: 한쪽/양쪽 → 길이', () => {
+test('가구(신발장): 한쪽/양쪽은 안 묻고 길이만 - 표 금액(문짝 앞면 기준) 그대로 m당 62,500원', () => {
   const p = 품목('신발장');
-  assert.strictEqual(A.다음질문(p, {}, 표).키, '면');
-  assert.strictEqual(A.다음질문(p, { 면: '양쪽' }, 표).키, '길이');
-  const s = A.선택(p, { 면: '한쪽', 길이: 3 }, 표);
-  assert.strictEqual(A.줄만들기(표.신발장, s, 0, null).표시금액, Math.round(25000 * 1.25 * 3));
+  assert.strictEqual(A.다음질문(p, {}, 표).키, '길이');
+  const s = A.선택(p, { 길이: 3 }, 표);
+  assert.deepStrictEqual(s, { 표이름: '신발장', 길이: 3, 한쪽: false, 이름: '신발장' });
+  assert.strictEqual(A.줄만들기(표.신발장, s, 0, null).표시금액, 62500 * 3);
+  ['신발장', '수납장', '냉장고장', '붙박이장'].forEach((n) => assert.ok(!품목(n).면, n));
+  assert.deepStrictEqual(A.한쪽표, ['터닝도어', '현관문', '중문', '세탁실문', '실외기실문']);
 });
 
 test('조정(할인·할증)과 견적서의 필름 단가를 따른다', () => {
