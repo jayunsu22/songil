@@ -324,6 +324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /* 작업시간 기록 (2026-10-24 사장님): 공지 확인 보고를 누른 시각이 그날 작업 시작, 품목 완료 보고 시각이 끝.
        서버(n8n)가 현장목록.작업시작기록 에 'YYYY-MM-DD HH:MM 이름' 줄로 쌓는다. 여기서는 보여주기만 */
+    var SHOW_START_CLOCK = false;
     var 방금시작시각 = '';   // 보고 직후 다시 받기 전까지 쓸 값 (var: 이 줄보다 먼저 도는 첫 화면 그리기에서도 쓴다)
     function 오늘시작시각() {
         if (!currentWorker) return '';
@@ -342,7 +343,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             el.className = 'notice-start-clock';
             btn.insertAdjacentElement('afterend', el);
         }
-        const hm = 오늘시작시각();
+        // 2026-10-24 사장님: 시간은 사장님이 고른 사람만 본다 — 기사 화면에는 '시작 기록됨' 을 띄우지 않는다
+        // (시각은 서버에 조용히 쌓인다. 다시 보이게 하려면 SHOW_START_CLOCK 을 true 로)
+        const hm = SHOW_START_CLOCK ? 오늘시작시각() : '';
         el.textContent = hm ? `⏱ ${hm} 작업 시작 기록됨` : '';
         el.style.display = hm ? 'block' : 'none';
     }
