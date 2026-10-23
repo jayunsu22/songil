@@ -1133,3 +1133,6 @@ body {
     grid-column: 1 / -1;
     align-self: center;
 }
+
+/* 작업 시작 시각 (2026-10-24) — 공지 확인 보고를 누른 시각 */
+.notice-start-clock { margin-top: 8px; text-align: center; font-size: 13px; font-weight: 800; color: #15803d; }

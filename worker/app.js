@@ -322,8 +322,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
 
+    /* 작업시간 기록 (2026-10-24 사장님): 공지 확인 보고를 누른 시각이 그날 작업 시작, 품목 완료 보고 시각이 끝.
+       서버(n8n)가 현장목록.작업시작기록 에 'YYYY-MM-DD HH:MM 이름' 줄로 쌓는다. 여기서는 보여주기만 */
+    var 방금시작시각 = '';   // 보고 직후 다시 받기 전까지 쓸 값 (var: 이 줄보다 먼저 도는 첫 화면 그리기에서도 쓴다)
+    function 오늘시작시각() {
+        if (!currentWorker) return '';
+        const 오늘 = 오늘날짜();
+        const 줄 = String((projectData && projectData.project && projectData.project.작업시작기록) || '').split('\n')
+            .map(l => l.trim()).find(l => l.startsWith(오늘 + ' ') && l.slice(17).trim() === currentWorker);
+        return 줄 ? 줄.slice(11, 16) : 방금시작시각;
+    }
+    function paintStartClock() {
+        const btn = document.getElementById('noticeReportBtn');
+        if (!btn) return;
+        let el = document.getElementById('noticeStartClock');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'noticeStartClock';
+            el.className = 'notice-start-clock';
+            btn.insertAdjacentElement('afterend', el);
+        }
+        const hm = 오늘시작시각();
+        el.textContent = hm ? `⏱ ${hm} 작업 시작 기록됨` : '';
+        el.style.display = hm ? 'block' : 'none';
+    }
+    // 완료 보고 시각 → 'HH:MM' (오늘이 아니면 'M/D HH:MM')
+    function 완료시각글(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d)) return '';
+        const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        const 같은날 = d.toDateString() === new Date().toDateString();
+        return 같은날 ? hm : `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
+    }
+
     function renderAnnouncements() {
         noticeList.innerHTML = "";
+        방금시작시각 = '';
         const p = projectData.project;
         const noticeText = p.공지사항 || "";
         const btn = document.getElementById('noticeReportBtn');
@@ -376,6 +411,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 초기 로딩 시 버튼 상태 갱신
         updateNoticeReportButtonState(lines.length);
+        paintStartClock();
     }
 
     // [알잘딱깔센] 공지사항 전송 버튼의 활성/비활성화 상태 실시간 제어 함수
@@ -440,6 +476,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    projectCode: projectRecordId,   // 작업 시작 시각을 이 현장에 남긴다 (2026-10-24)
                     projectName: projectData.project.현장명 || "알 수 없는 현장",
                     workerName: currentWorker,
                     checkedLines: checkedLines
@@ -460,6 +497,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 btn.textContent = "📢 오늘 공지 확인 완료 (보고됨)";
             }
 
+            if (!오늘시작시각()) { const n = new Date(); 방금시작시각 = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
+            paintStartClock();
             showToast("오늘 공지 확인 완료 알림을 텔레그램으로 보냈습니다!", "success");
         } catch (error) {
             console.error(error);
@@ -565,7 +604,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span class="task-status-badge ${isCompleted ? 'completed' : ''}">
-                        ${매일 ? (isCompleted ? '✅ 오늘 완료' : '오늘 할 일') : (isCompleted ? '✅ 완료됨' : '진행중')}
+                        ${매일 ? (isCompleted ? '✅ 오늘 완료' : '오늘 할 일') : (isCompleted ? '✅ 완료됨' + (완료시각글(fields[stage + '완료시각']) ? ' · ' + 완료시각글(fields[stage + '완료시각']) : '') : '진행중')}
                     </span>
                     <span class="task-accordion-icon${isExpanded ? ' open' : ''}">${isExpanded ? 펼침글.닫기 : 펼침글.열기}</span>
                 </div>
