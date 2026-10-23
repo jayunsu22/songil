@@ -599,13 +599,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cardBodyId = `task-body-${recordId}-${stage}`;
         let headerHtml = `
             <div class="task-card-header task-card-toggle" data-target="${cardBodyId}">
-                <div class="task-badge-container">
-                    <span class="task-title">${fields.시공품목}</span>
+                <span class="task-title">${fields.시공품목}</span>
+                <div class="task-head-row">
                     ${뒷정리
                         ? `<span class="task-badge cleanup">🧹 현장정리${매일 ? ' · 매일' : ''}</span>`
                         : `<span class="task-badge ${stage === '밑작업' ? 'prep' : 'wrap'}">${stage}</span>`}
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
                     <span class="task-status-badge ${isCompleted ? 'completed' : ''}">
                         ${매일 ? (isCompleted ? '✅ 오늘 완료' : '오늘 할 일') : (isCompleted ? '✅ 완료됨' + (완료시각글(fields[stage + '완료시각']) ? ' · ' + 완료시각글(fields[stage + '완료시각']) : '') : '진행중')}
                     </span>

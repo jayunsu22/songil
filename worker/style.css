@@ -1136,3 +1136,11 @@ body {
 
 /* 작업 시작 시각 (2026-10-24) — 공지 확인 보고를 누른 시각 */
 .notice-start-clock { margin-top: 8px; text-align: center; font-size: 13px; font-weight: 800; color: #15803d; }
+
+/* 품목 카드 머리줄 (2026-10-24 사장님): 이름이 길든 짧든 같은 모양 —
+   첫 줄 품목 이름(길면 두 줄로), 둘째 줄 [밑작업] [진행중] ……… [내용 확인 ▼] */
+.task-card-header { flex-direction: column; align-items: stretch; gap: 8px; }
+.task-card-header .task-title { word-break: keep-all; overflow-wrap: anywhere; line-height: 1.3; }
+.task-head-row { display: flex; align-items: center; gap: 8px; }
+.task-head-row .task-badge, .task-head-row .task-status-badge { white-space: nowrap; flex-shrink: 0; }
+.task-head-row .task-accordion-icon { margin-left: auto; }
