@@ -222,7 +222,7 @@ const CONFIG = {
             try { localStorage.setItem(quickCardStorageKey(), JSON.stringify(st)); } catch (e) { console.warn('카드 저장 실패', e); }
         }
         // 카드는 늘 하나 — 새 견적이 오면 예전 카드를 지우고 맨 아래에 다시 그린다
-        function showQuickCardBubble(save) {
+        function showQuickCardBubble(save, hot) {
             const st = readQuickCardState();
             if (!st.cart.items.length) return null;
             document.querySelectorAll('.chat-bubble.qk-bubble').forEach(el => el.remove());
@@ -230,6 +230,7 @@ const CONFIG = {
             bubble.classList.add('chat-bubble', 'bot', 'qk-bubble');
             const card = QuickCard.view({
                 cart: st.cart,
+                hot: hot || [],
                 partner: st.partner || (currentPartner ? { phone: currentPartner.phone, manager: currentPartner.ceo_name || currentPartner.partner_name } : null),
                 onChange: (cart) => { const s = readQuickCardState(); s.cart = cart; writeQuickCardState(s); },
                 getTable: getQuickPriceTable,
@@ -1264,9 +1265,15 @@ const CONFIG = {
                 if (useQuickCard() && !finalImage && Array.isArray(qkData.lines) && qkData.lines.some(l => l && Number(l.subtotal) > 0)) {
                     const st = readQuickCardState();
                     st.cart = QuickCard.붙이기(st.cart, qkData.lines, { quoteId: qkData.quoteId, message: msg });
+                    const hot = st.cart.새로 || [], changed = st.cart.바뀐 || [];
+                    delete st.cart.새로; delete st.cart.바뀐;
                     if (qkData.partner) st.partner = qkData.partner;
                     writeQuickCardState(st);
-                    botBubble = showQuickCardBubble(true);
+                    botBubble = showQuickCardBubble(true, hot);
+                    // 카드가 길면 방금 들어온 줄이 안 보이므로 그 줄로 내려 준다
+                    const first = botBubble && botBubble.querySelector('.qk-it.qk-hot');
+                    if (first) setTimeout(() => first.scrollIntoView({ block: 'center', behavior: 'smooth' }), 150);
+                    if (changed.length) showToast('🔄 ' + changed.map(x => x.이름 + ' ' + x.전 + ' → ' + x.후).join(', ') + ' 로 바꿨어요');
                 } else if (Array.isArray(data) && data.length > 0 && data[0].output) {
                     botBubble = addBubble(data[0].output, 'bot', true);
                 } else if (data.output) {
