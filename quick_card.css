@@ -1,0 +1,52 @@
+/* 1분견적 결과 카드 (2026-10-24, quick_card.js) — 방문견적서(quote_view) 모양을 따른다 */
+.chat-bubble.bot.qk-bubble { width: calc(100% - 10px) !important; max-width: 95% !important; margin-left: 5px !important; padding: 0; overflow: hidden; border-radius: 20px; border: 1px solid #efe6da; box-sizing: border-box; }
+.qk-card { font-size: 15px; color: #2b211b; }
+.qk-head { padding: 14px 16px 10px; border-bottom: 1px solid #f1e8dc; }
+.qk-t { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 900; }
+.qk-t em { margin-left: auto; font-style: normal; font-size: 12.5px; font-weight: 800; color: #3f6aa6; background: #eaf1fb; padding: 4px 10px; border-radius: 99px; }
+.qk-warn { margin-top: 6px; font-size: 12.5px; color: #b45309; background: #fff7ed; padding: 6px 10px; border-radius: 10px; line-height: 1.45; }
+.qk-add { display: flex; align-items: center; gap: 12px; width: calc(100% - 28px); margin: 12px 14px 6px; padding: 11px 14px; border: 0; border-radius: 16px; background: #97713a; color: #fff; text-align: left; cursor: pointer; font-family: inherit; }
+.qk-add-ic { flex: none; width: 40px; height: 40px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.qk-add b { display: block; font-size: 15.5px; }
+.qk-add small { font-size: 12px; opacity: .92; line-height: 1.4; }
+.qk-it { margin: 8px 14px; padding: 12px 14px; border: 1.5px solid #efe6da; border-radius: 16px; background: #fff; }
+.qk-it.bundle { border-color: #e9d5b5; background: #fffbf3; }
+.qk-it.off { opacity: .5; }
+.qk-r { display: flex; align-items: center; gap: 10px; }
+.qk-ck, .qk-ck2 { flex: none; width: 26px; height: 26px; border-radius: 7px; border: 2px solid #cbbfb3; background: #fff; color: transparent; font-weight: 900; font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.qk-ck.on, .qk-ck2.on { background: #97713a; border-color: #97713a; color: #fff; }
+.qk-ck2 { width: 22px; height: 22px; font-size: 12px; border-radius: 6px; }
+.qk-nm { flex: 1; min-width: 0; font-weight: 900; font-size: 16px; word-break: keep-all; overflow-wrap: anywhere; }
+.qk-nm small { margin-left: 5px; font-weight: 600; font-size: 12.5px; color: #9a8a7a; }
+.qk-pr { flex: none; font-weight: 900; font-size: 16px; white-space: nowrap; }
+.qk-rooms { display: flex; align-items: center; gap: 5px; margin: 10px 0 4px; font-size: 13px; font-weight: 800; color: #7a6a5a; flex-wrap: wrap; }
+.qk-rooms button { width: 32px; height: 30px; border: 1.5px solid #e4d8c8; border-radius: 8px; background: #fff; font-weight: 800; color: #6b5b4b; cursor: pointer; padding: 0; }
+.qk-rooms button.on { border-color: #97713a; background: #97713a; color: #fff; }
+.qk-rooms small { margin-left: 4px; font-weight: 700; color: #a89888; }
+.qk-sub { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px dashed #eadfcf; font-size: 14.5px; font-weight: 700; }
+.qk-sub span { flex: 1; }
+.qk-sub b { white-space: nowrap; }
+.qk-sub.off { color: #b8aa9a; }
+.qk-sub small { font-weight: 600; }
+.qk-note { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: #faf6f0; font-size: 12.5px; color: #6b5b4b; line-height: 1.55; }
+.qk-mini { margin-top: 6px; font-size: 12px; color: #9a8a7a; }
+.qk-sum { display: flex; align-items: baseline; gap: 8px; margin: 12px 14px 0; padding: 14px 16px; border-radius: 16px; background: #2e231c; color: #fff; }
+.qk-sum span { font-size: 14px; font-weight: 800; }
+.qk-sum b { margin-left: auto; font-size: 24px; white-space: nowrap; }
+.qk-sum small { font-size: 11.5px; color: #cbbfb3; white-space: nowrap; }
+.qk-consult-wrap { margin: 10px 14px 4px; }
+.qk-consult { width: 100%; padding: 14px; border: 0; border-radius: 14px; background: #3b82f6; color: #fff; font-size: 16px; font-weight: 900; cursor: pointer; font-family: inherit; }
+.qk-consult:disabled { background: #cbd5e1; }
+.qk-form { padding: 14px; border: 1.5px solid #e4d8c8; border-radius: 16px; background: #fffdf9; }
+.qk-form-t { font-weight: 900; font-size: 16px; margin-bottom: 8px; }
+.qk-form-list { font-size: 13.5px; line-height: 1.7; color: #4b3b2f; margin-bottom: 10px; }
+.qk-phone { width: 100%; box-sizing: border-box; padding: 12px 14px; border: 1.5px solid #e4d8c8; border-radius: 12px; font-size: 16px; margin-bottom: 10px; font-family: inherit; }
+.qk-form-bt { display: flex; gap: 8px; }
+.qk-form-bt button { flex: 1; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 15px; cursor: pointer; font-family: inherit; }
+.qk-cancel { border: 1.5px solid #e4d8c8; background: #fff; color: #6b5b4b; }
+.qk-send { border: 0; background: #3b82f6; color: #fff; }
+.qk-done { text-align: center; padding: 14px; border-radius: 14px; background: #ecfdf5; color: #059669; font-weight: 800; }
+.qk-notice { margin: 12px 16px 0; font-size: 12.5px; color: #6b5b4b; line-height: 1.6; }
+.qk-notice b { color: #c0392b; }
+.qk-tel { display: block; margin: 12px 14px 14px; padding: 12px; border: 2px solid #B2612F; border-radius: 12px; text-align: center; color: #B2612F; font-weight: 900; font-size: 18px; text-decoration: none; }
+.qk-tel small { font-size: 12.5px; font-weight: 700; color: #9a6a4a; }

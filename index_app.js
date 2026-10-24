@@ -165,6 +165,7 @@ const CONFIG = {
                     if (!Array.isArray(chatHistory)) chatHistory = [];
 
                     chatHistory.forEach(item => {
+                        if (item.qkCard) { showQuickCardBubble(false); return; }   // 1분견적 결과 카드 (2026-10-24)
                         addBubble(item.message, item.sender, item.isQuote, false); // false = 저장 안 함 (이미 했으니)
                     });
                     // 마지막으로 스크롤 이동
@@ -179,7 +180,64 @@ const CONFIG = {
         function resetChat() {
             if (!confirm("모든 대화 내용을 삭제하고 새로 시작하시겠습니까?")) return;
             localStorage.removeItem(getChatHistoryStorageKey());
+            localStorage.removeItem(quickCardStorageKey());
             location.reload();
+        }
+
+        /* ---------- 1분견적 결과 카드 (2026-10-24, 1단계 — 섬세한손길 먼저) ----------
+           채팅으로 받은 견적을 카드 하나에 모은다 (quick_card.js). 카트는 가맹점별로 폰에 기억하고,
+           채팅 기록에는 { qkCard: true } 한 줄만 남겨 다시 열면 같은 자리에 카드를 그린다 */
+        const QUICK_CARD_PARTNERS = ['p_001'];   // 섬세한손길. 다른 가맹점은 나중에
+        function useQuickCard() {
+            if (typeof QuickCard === 'undefined') return false;
+            if (new URLSearchParams(location.search).get('qk') === '1') return true;   // 시험용
+            return QUICK_CARD_PARTNERS.indexOf(currentPartnerCode) >= 0;
+        }
+        function quickCardStorageKey() { return 'v2_quick_card_' + (currentPartnerCode || 'default'); }
+        function readQuickCardState() {
+            let raw = null;
+            try { raw = JSON.parse(localStorage.getItem(quickCardStorageKey()) || 'null'); } catch (e) { raw = null; }
+            return { cart: QuickCard.카트읽기(raw && raw.cart), partner: (raw && raw.partner) || null };
+        }
+        function writeQuickCardState(st) {
+            try { localStorage.setItem(quickCardStorageKey(), JSON.stringify(st)); } catch (e) { console.warn('카드 저장 실패', e); }
+        }
+        // 카드는 늘 하나 — 새 견적이 오면 예전 카드를 지우고 맨 아래에 다시 그린다
+        function showQuickCardBubble(save) {
+            const st = readQuickCardState();
+            if (!st.cart.items.length) return null;
+            document.querySelectorAll('.chat-bubble.qk-bubble').forEach(el => el.remove());
+            const bubble = document.createElement('div');
+            bubble.classList.add('chat-bubble', 'bot', 'qk-bubble');
+            const card = QuickCard.view({
+                cart: st.cart,
+                partner: st.partner || (currentPartner ? { phone: currentPartner.phone, manager: currentPartner.ceo_name || currentPartner.partner_name } : null),
+                onChange: (cart) => { const s = readQuickCardState(); s.cart = cart; writeQuickCardState(s); },
+                onAddMore: () => {
+                    userInput.focus();
+                    userInput.placeholder = '더 할 품목을 적어 주세요 (예: 방문 3개)';
+                    showToast('아래 칸에 더 할 품목을 적고 전송하면 이 견적에 합쳐져요');
+                },
+                onConsult: async (cart, phone, done) => {
+                    try {
+                        const res = await fetch(CONFIG.estimateUrl.replace('image-test', 'consult-request'), {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-secret-token': CONFIG.secretToken },
+                            body: JSON.stringify({ phone: phone, quote_id: cart.quoteId || '', total_estimate: QuickCard.합계(cart),
+                                partner_code: currentPartnerCode || '', items_text: QuickCard.고른글(cart) })
+                        });
+                        done(res.ok);
+                    } catch (e) { done(false); }
+                }
+            });
+            bubble.appendChild(card);
+            chatContainer.appendChild(bubble);
+            if (save) {
+                chatHistory = chatHistory.filter(h => !h.qkCard);
+                chatHistory.push({ qkCard: true, sender: 'bot' });
+                try { localStorage.setItem(getChatHistoryStorageKey(), JSON.stringify(chatHistory)); } catch (e) { console.warn('로컬스토리지 용량 초과:', e); }
+            }
+            return bubble;
         }
 
         function getUUID() {
@@ -1180,7 +1238,15 @@ const CONFIG = {
                 }
 
                 let botBubble = null;
-                if (Array.isArray(data) && data.length > 0 && data[0].output) {
+                // [2026-10-24] 섬세한손길: 글로 친 견적은 방문견적 모양 카드로 (사진 견적은 AI 인식 표시 때문에 예전 그대로)
+                const qkData = Array.isArray(data) ? (data[0] || {}) : data;
+                if (useQuickCard() && !finalImage && Array.isArray(qkData.lines) && qkData.lines.some(l => l && Number(l.subtotal) > 0)) {
+                    const st = readQuickCardState();
+                    st.cart = QuickCard.붙이기(st.cart, qkData.lines, { quoteId: qkData.quoteId, message: msg });
+                    if (qkData.partner) st.partner = qkData.partner;
+                    writeQuickCardState(st);
+                    botBubble = showQuickCardBubble(true);
+                } else if (Array.isArray(data) && data.length > 0 && data[0].output) {
                     botBubble = addBubble(data[0].output, 'bot', true);
                 } else if (data.output) {
                     botBubble = addBubble(data.output, 'bot', true);
