@@ -85,3 +85,8 @@
 /* 방금 들어오거나 바뀐 줄 */
 .qk-it.qk-hot { border-color: #b8742a; animation: qkHot 2.4s ease-out 1; }
 @keyframes qkHot { 0%, 35% { background: #fff1d6; box-shadow: 0 0 0 3px rgba(184,116,42,.25); } 100% { background: #fff; box-shadow: none; } }
+/* 새로 물어서 접힌 이전 카드 — 한 줄 요약 */
+.qk-old { display: flex; flex-direction: column; gap: 3px; font-size: .9em; color: #6b5a48; }
+.qk-old b { color: #4a3b2c; }
+.qk-old span { color: #8a7a68; line-height: 1.45; }
+.qk-old strong { color: #3a2c1f; }

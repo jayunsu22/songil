@@ -221,6 +221,26 @@ const CONFIG = {
         function writeQuickCardState(st) {
             try { localStorage.setItem(quickCardStorageKey(), JSON.stringify(st)); } catch (e) { console.warn('카드 저장 실패', e); }
         }
+        /* [2026-10-25] 채팅으로 새로 물으면 새 카드. 예전 카드에 합치는 건 카드의 [＋ 추가 견적 받기]에서 시작했을 때만.
+           예전 카드는 한 줄 요약으로 바꿔 그 자리에 남긴다 (채팅 기록에도 요약 글로 저장) */
+        let quickMergeNext = false;
+        function archiveQuickCard() {
+            const st = readQuickCardState();
+            const old = document.querySelector('.chat-bubble.qk-bubble');
+            if (!st.cart.items.length) return;
+            const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+            const on = st.cart.items.filter(it => it.on);
+            const names = on.map(it => QuickCard.보이는이름(it) + (it.label ? ' ' + it.label : '')).join(', ');
+            // '견적'·'금액' 낱말을 넣으면 addBubble 이 다시 열 때 명함을 붙이므로 피한다
+            const html = '<div class="qk-old"><b>🗂 이전 계산' + (st.cart.quoteId ? ' · ' + esc(st.cart.quoteId) : '') + '</b>' +
+                '<span>' + esc(names || '고른 품목 없음') + '</span><strong>합계 ' + QuickCard.합계(st.cart).toLocaleString('ko-KR') + '원</strong></div>';
+            if (old) { old.classList.remove('qk-bubble'); old.innerHTML = html; }
+            const i = chatHistory.findIndex(h => h.qkCard);
+            if (i >= 0) chatHistory[i] = { message: html, sender: 'bot', isQuote: false };
+            try { localStorage.setItem(getChatHistoryStorageKey(), JSON.stringify(chatHistory)); } catch (e) { console.warn('로컬스토리지 용량 초과:', e); }
+            st.cart = QuickCard.새카트();
+            writeQuickCardState(st);
+        }
         // 카드는 늘 하나 — 새 견적이 오면 예전 카드를 지우고 맨 아래에 다시 그린다
         function showQuickCardBubble(save, hot) {
             const st = readQuickCardState();
@@ -236,6 +256,7 @@ const CONFIG = {
                 getTable: getQuickPriceTable,
                 onAdded: (name) => showToast('➕ ' + name + ' 을(를) 견적에 넣었어요'),
                 onAddMore: () => {
+                    quickMergeNext = true;
                     userInput.focus();
                     userInput.placeholder = '더 할 품목을 적어 주세요 (예: 방문 3개)';
                     showToast('아래 칸에 더 할 품목을 적고 전송하면 이 견적에 합쳐져요');
@@ -275,6 +296,7 @@ const CONFIG = {
 
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
+        const defaultInputPlaceholder = userInput ? userInput.placeholder : '';
         const sendButton = document.getElementById('sendButton');
         const previewContainer = document.getElementById('preview-container');
 
@@ -1263,6 +1285,9 @@ const CONFIG = {
                 // [2026-10-24] 섬세한손길: 글로 친 견적은 방문견적 모양 카드로 (사진 견적은 AI 인식 표시 때문에 예전 그대로)
                 const qkData = Array.isArray(data) ? (data[0] || {}) : data;
                 if (useQuickCard() && !finalImage && Array.isArray(qkData.lines) && qkData.lines.some(l => l && Number(l.subtotal) > 0)) {
+                    if (!quickMergeNext) archiveQuickCard();
+                    quickMergeNext = false;
+                    userInput.placeholder = defaultInputPlaceholder;
                     const st = readQuickCardState();
                     st.cart = QuickCard.붙이기(st.cart, qkData.lines, { quoteId: qkData.quoteId, message: msg });
                     const hot = st.cart.새로 || [], changed = st.cart.바뀐 || [];
