@@ -227,3 +227,6 @@ button.addrow { display: block; width: 100%; text-align: left; padding: 10px 14p
 .matsum div.add span:first-child { color: #1d4ed8; font-weight: 800; }
 /* 직접 추가 필름 줄 안내 - 칸 사이에 끼면 세로로 깨져서 아래 한 줄로 뺀다 */
 .row .hint { flex: 1 0 100%; padding-left: 30px; font-size: 12px; color: var(--muted); }
+/* 기본 필름 (2026-10-24) — 누르면 모든 항목이 이 필름으로 */
+.filmbox .fdef { flex: none; height: 34px; padding: 0 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff; color: #94a3b8; font-size: 13px; font-weight: 800; white-space: nowrap; }
+.filmbox .fdef.on { border-color: #facc15; background: #fef9c3; color: #854d0e; }

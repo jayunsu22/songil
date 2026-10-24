@@ -365,10 +365,19 @@ function renderFilms() {
   box.innerHTML =
     (줄.length ? `<div class="ftitle">이 현장 필름 <em>일정 앱 · 단가는 이 견적에만 적용</em></div>` +
       줄.map((r) => `<div class="frow"><span class="fcode">${esc(r.항목명)}</span>` +
+        `<button type="button" class="fdef${r.id === state.전체자재ID ? ' on' : ''}" data-id="${esc(r.id)}">${r.id === state.전체자재ID ? '⭐ 기본' : '☆ 기본'}</button>` +
         `<input class="fprice" type="number" inputmode="numeric" min="0" step="500" data-code="${esc(r.항목명)}" value="${esc(r.단가)}" autocomplete="off">` +
         `<span class="unit">원/m</span></div>`).join('') : '') +
     (필름안내 ? `<div class="fnote">${esc(필름안내)}</div>` : '');
   box.hidden = false;
+  // ☆ 기본 (2026-10-24 사장님): 누르면 이 필름이 기본 필름 — 모든 항목이 이 필름으로 바뀐다 (위 '전체 자재' 와 같다)
+  box.querySelectorAll('.fdef').forEach((b) => {
+    b.addEventListener('click', () => {
+      전체자재로(b.dataset.id);
+      const 이름 = (자재표[b.dataset.id] || {}).항목명 || '';
+      if (typeof toast === 'function') toast(`기본 필름 ${이름} — 모든 항목을 바꿨습니다`);
+    });
+  });
   box.querySelectorAll('.fprice').forEach((inp) => {
     inp.addEventListener('input', () => {
       const code = inp.dataset.code;
@@ -672,11 +681,14 @@ $('#wageSelect').addEventListener('change', (ev) => {
 });
 $('#wageCustom').addEventListener('input', (ev) => { state.품단가직접 = ev.target.value; save(); renderTotals(); });
 const 금액줄들 = () => state.줄들.filter((l) => l.체크 && is금액줄(l));
-$('#allMat').addEventListener('change', (ev) => {
-  state.전체자재ID = ev.target.value;
+// 전체 자재(= 기본 필름)를 바꾸면 모든 항목의 자재가 따라 바뀐다. 줄마다 따로 고친 것도 덮는다
+function 전체자재로(id) {
+  if (!id) return;
+  state.전체자재ID = id;
   state.줄들.forEach((l) => { l.자재ID = state.전체자재ID; });
-  save(); renderLines(); renderTotals();
-});
+  save(); renderLines(); renderFilms(); renderTotals();
+}
+$('#allMat').addEventListener('change', (ev) => 전체자재로(ev.target.value));
 $('#addLineBtn').addEventListener('click', () => {
   // 직접 추가는 대개 실리콘 시공처럼 금액으로 치는 일이라 '금액' 이 기본. 필름이면 줄에서 바꾼다.
   state.줄들.push({ key: 'k' + (keySeq++), 품목명: '', 구역: '직접 추가', 우선순위: 999, 출처: '추가', 종류: '금액', 금액: '', 체크: true,
