@@ -832,10 +832,10 @@ const CONFIG = {
                     ${adBadgeHtml}
                     ${adImageHtml}
                     <span class="ad-text">${firstAd.text}</span>
-                    ${firstAd.sub !== undefined ? `<span class="ad-sub">${firstAd.sub}</span>` : ''}
                 </div>
             ` : '';
 
+            if (adSource.house) overlay.classList.add('house-mode');
             overlay.innerHTML = `
                 <div style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px; box-sizing: border-box; width: 100%; max-width: 380px;">
                     <div class="loading-calc-eyebrow">
@@ -851,11 +851,20 @@ const CONFIG = {
                         꼼꼼하게 견적서를 작성하고 있어요, 곧 전송됩니다!
                     </p>
                 </div>
-                ${adBlockHtml}
+                ${adSource.house ? houseAdHtml(adSource.house) : adBlockHtml}
             `;
 
             document.body.appendChild(overlay);
 
+            if (adSource.house) {
+                let at = 0;
+                const slides = overlay.querySelectorAll('.hs-slide'), dots = overlay.querySelectorAll('.hs-dots i');
+                overlay._adRotateTimer = setInterval(() => {
+                    at = (at + 1) % slides.length;
+                    slides.forEach((el, i) => el.classList.toggle('on', i === at));
+                    dots.forEach((el, i) => el.classList.toggle('on', i === at));
+                }, HOUSE_ROTATE_MS);
+            }
             // 광고가 2개 이상이면 주기적으로 교체
             if (showAd && ads.length > 1) {
                 let adIndex = 0;
@@ -866,8 +875,6 @@ const CONFIG = {
                     if (!adEl) return;
                     const textEl = adEl.querySelector('.ad-text');
                     if (textEl) textEl.textContent = nextAd.text;
-                    const subEl = adEl.querySelector('.ad-sub');
-                    if (subEl) subEl.textContent = nextAd.sub || '';
                 }, AD_ROTATE_MS);
             }
 
@@ -1636,27 +1643,54 @@ const CONFIG = {
 
         // [수정] 광고(관리자광고=무료회원 / 본인광고=플러스회원)는 견적산출 로딩화면에서만 노출.
         // 견적 결과 화면 하단에 계속 붙어있는 고정 배너 기능은 회원등급 무관하게 폐지함.
-        /* [2026-10-25] 섬세한손길(p_001) 로딩화면은 자기 홍보 문구를 돌려 보여준다.
-           달은 20일부터 다음 달로 (10월 20일 이후면 11월 예약중) */
+        /* [2026-10-25] 섬세한손길(p_001) 로딩화면: 홍보 슬라이드(전화·블로그 버튼) + 아래에 실제 시공사진이 흘러가는 띠.
+           사진은 블로그 현장일지의 '시공사진' 중 잘 나온 것 (ads/shine/). 달은 20일부터 다음 달 */
         const HOUSE_ADS = {
             p_001: () => {
                 const d = new Date();
                 const m = (d.getMonth() + (d.getDate() >= 20 ? 1 : 0)) % 12 + 1;
-                return [
-                    { text: '꼼꼼한 시공,\n정확한 견적', sub: '섬세한손길 ' + m + '월 예약중\n지금 상담신청해 주세요' },
-                    { text: '시공 사례가\n궁금하다면?', sub: '네이버 블로그 「섬세한손길」에서\n비포 & 애프터를 확인하세요' },
-                    { text: '철거 없이\n새집처럼', sub: '문 · 샤시 · 싱크대 필름 리폼\n섬세한손길이 해드려요' },
-                    { text: '실제 시공 후기\n블로그에 다 있어요', sub: '네이버에서 「섬세한손길」을\n검색해 보세요' },
-                ];
+                const p = currentPartner || {};
+                const phone = p.phone || '010-6657-1222';
+                const blog = p.blog_url || 'https://blog.naver.com/shine22';
+                const tel = { kind: 'tel', href: 'tel:' + phone.replace(/[^0-9]/g, ''), label: '📞 ' + phone, small: '바로 전화 상담' };
+                const bl = { kind: 'blog', href: blog, label: '📗 ' + blog.replace(/^https?:\/\//, ''), small: '시공 사례 보러가기' };
+                return {
+                    slides: [
+                        { text: '꼼꼼한 시공,\n정확한 견적', sub: '섬세한손길 ' + m + '월 예약중\n지금 상담신청해 주세요', btn: tel },
+                        { text: '시공 사례가\n궁금하다면?', sub: '네이버 블로그 「섬세한손길」에서\n비포 & 애프터를 확인하세요', btn: bl },
+                        { text: '철거 없이\n새집처럼', sub: '문 · 샤시 · 싱크대 필름 리폼\n섬세한손길이 해드려요', btn: tel },
+                        { text: '실제 시공 후기\n블로그에 다 있어요', sub: '현장일지를 매일 올리고 있어요', btn: bl },
+                    ],
+                    photos: [['w01', '거실 샤시'], ['w05', '아트월'], ['w03', '베란다 샤시'], ['w06', '방문+문틀'], ['w11', '드레스룸 수납장'],
+                        ['w13', '현관문'], ['w07', '안방 샤시'], ['w14', '수납장'], ['w04', '주방 베란다 샤시'], ['w15', '실외기실 문'], ['w09', '방 샤시'],
+                        ['w02', '방 샤시'], ['w08', '거실 샤시'], ['w10', '주방 샤시']].map(([f, label]) => ({ src: 'ads/shine/' + f + '.webp', label }))
+                };
             }
         };
+        const HOUSE_ROTATE_MS = 5000;   // 20초 로딩 동안 4장이 다 돌도록
+        function houseAdHtml(h) {
+            const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+            const br = (t) => esc(t).replace(/\n/g, '<br>');
+            const slides = h.slides.map((x, i) => `
+                <div class="hs-slide${i === 0 ? ' on' : ''}">
+                    <div class="hs-t">${br(x.text)}</div>
+                    <div class="hs-s">${br(x.sub)}</div>
+                    <a class="hs-btn ${x.btn.kind}" href="${esc(x.btn.href)}"${x.btn.kind === 'blog' ? ' target="_blank" rel="noopener"' : ''}>
+                        <b>${esc(x.btn.label)}</b><small>${esc(x.btn.small)}</small></a>
+                </div>`).join('');
+            const tiles = h.photos.map(x => `<figure><img src="${esc(x.src)}" alt="${esc(x.label)}" decoding="async"><figcaption>${esc(x.label)}</figcaption></figure>`).join('');
+            return `
+                <div class="house-ad">
+                    <div class="hs-slides">${slides}</div>
+                    <div class="hs-dots">${h.slides.map((_, i) => `<i${i === 0 ? ' class="on"' : ''}></i>`).join('')}</div>
+                </div>
+                <div class="hs-gallery">
+                    <div class="hs-gal-h">📸 섬세한손길 실제 시공 현장</div>
+                    <div class="hs-track"><div class="hs-row">${tiles}${tiles}</div></div>
+                </div>`;
+        }
         function resolveAdSource(data) {
-            if (HOUSE_ADS[currentPartnerCode]) {
-                const list = HOUSE_ADS[currentPartnerCode]();
-                // 첫 장은 늘 예약 문구, 나머지는 매번 다른 순서로
-                const rest = list.slice(1), start = Math.floor(Math.random() * rest.length);
-                return { mode: 'own', ads: [list[0]].concat(rest.slice(start), rest.slice(0, start)) };
-            }
+            if (HOUSE_ADS[currentPartnerCode]) return { mode: 'house', ads: [], house: HOUSE_ADS[currentPartnerCode]() };
             if (!data) return { mode: 'none', ads: [] };
             const isPlus = data.subscription_status !== '무료회원';
             if (isPlus && (data.own_ad_text || data.own_ad_image)) {
