@@ -3,6 +3,9 @@
    고른 그대로 상담신청. 채팅으로 더 치면 같은 카드에 합쳐진다.
    몰딩·걸레받이는 방마다 풀어 보여준다 — 거실·주방·현관 합쳐 50%, 나머지 50% 를 방 수로 똑같이 (사장님 기준).
    방 수는 평수로 정한다(20평대 2 · 30평대 3 · 40평 이상 4) — 고객이 바꿀 수 있다.
+   2단계: 샤시(단창/2중창/시스템)·싱크대(상하부장 전체/상부장만/하부장만)는 종류를 눌러 금액 비교 — 단가표
+   (pro-addon-price, 1분견적과 같은 '시공품목정보')의 1단위 금액 비율로 바꾼다. [＋ 추가 견적 받기] 는 방문견적과
+   같은 상담원 질문(quote_addon.js)으로 품목을 더한다.
    앞부분은 화면과 상관없는 계산(node 테스트: test/quick_card.test.js), 뒷부분 view 는 브라우저 전용. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -19,6 +22,45 @@
   }
   function 방수(평) { return !평 ? 3 : 평 < 30 ? 2 : 평 < 40 ? 3 : 4; }
   const 묶음품목 = (name) => /몰딩|걸레받이/.test(String(name || ''));
+
+  // 종류를 눌러 바꿀 수 있는 품목 (2단계). 표 = 단가표의 시공_품목명
+  const 종류들 = {
+    샤시: [{ 글: '단창', 표: '샤시(단창)' }, { 글: '2중창', 표: '샤시(2중창)' }, { 글: '시스템', 표: '시스템샤시' }],
+    싱크대: [{ 글: '상하부장 전체', 표: '싱크대' }, { 글: '상부장만', 표: '싱크대 상부장' }, { 글: '하부장만', 표: '싱크대 하부장' }],
+  };
+  /* 이름으로 어느 종류인지 → { group, idx } 또는 null. 상가샤시는 따로라 뺀다.
+     그냥 '샤시' 는 1분견적 기본(2중창)으로 본다 */
+  function 종류찾기(name) {
+    const n = String(name || '').replace(/\s+/g, '');
+    if (/샤시|샷시/.test(n) && !/상가/.test(n)) return { group: '샤시', idx: /시스템/.test(n) ? 2 : /단창/.test(n) ? 0 : 1 };
+    if (/싱크대/.test(n)) return { group: '싱크대', idx: /상하부장|전체/.test(n) ? 0 : /상부장/.test(n) ? 1 : /하부장/.test(n) ? 2 : 0 };
+    return null;
+  }
+  // 단가표 한 줄의 1단위 금액 = (인건비 + 자재비) × 소모량
+  function 단위금액(row) { return row ? (수(row.인건비단가) + 수(row.자재비단가 || 9000)) * 수(row.자재소모량) : 0; }
+  /* 종류를 바꿨을 때 금액: 처음 받은 금액 × (고른 종류 1단위 ÷ 처음 종류 1단위). 길이·평수는 그대로 따라간다.
+     표 = { 시공_품목명: 줄 }. 못 구하면 null */
+  function 종류금액(item, idx, 표) {
+    if (!item || !item.kind || !표) return null;
+    const opts = 종류들[item.kind.group] || [];
+    const 처음 = 단위금액(표[(opts[item.kind.base] || {}).표]), 고른 = 단위금액(표[(opts[idx] || {}).표]);
+    if (!(처음 > 0) || !(고른 > 0)) return null;
+    return Math.round(item.baseSubtotal * 고른 / 처음);
+  }
+  // 화면·상담 글에 쓸 이름 — 종류를 바꾸면 '30평 싱크대 상부장만', '샤시 단창' 처럼
+  function 보이는이름(item) {
+    if (!item || !item.kind || item.kind.cur === item.kind.base) return item ? item.name : '';
+    const o = (종류들[item.kind.group] || [])[item.kind.cur];
+    const 평 = 평수(item.name);
+    return (평 ? 평 + '평 ' : '') + item.kind.group + ' ' + (o ? o.글 : '');
+  }
+  function 종류고르기(item, idx, 표) {
+    const v = 종류금액(item, idx, 표);
+    if (v == null) return false;
+    item.kind.cur = idx;
+    item.subtotal = v;
+    return true;
+  }
 
   /* 전체 금액 → 거실·주방·현관 50%, 방1~방n 이 나머지를 똑같이. 100원 단위, 남는 몇십 원은 마지막 방에 */
   function 나누기(total, rooms) {
@@ -44,6 +86,9 @@
       bundle: x.bundle && typeof x.bundle === 'object'
         ? { 평: 수(x.bundle.평) || null, rooms: Math.max(1, 수(x.bundle.rooms) || 3), off: Array.isArray(x.bundle.off) ? x.bundle.off.map(String) : [] }
         : null,
+      kind: x.kind && 종류들[x.kind.group] ? { group: x.kind.group, base: 수(x.kind.base), cur: 수(x.kind.cur) } : null,
+      baseSubtotal: 수(x.baseSubtotal) || 수(x.subtotal),
+      added: !!x.added,
     }));
     return out;
   }
@@ -58,6 +103,10 @@
       const item = { id: 'q' + c.seq, name: String(l.name).trim(), label: String(l.label || '').trim(), subtotal: Math.round(수(l.subtotal)),
         material: Math.round(수(l.material)), labor: Math.round(수(l.labor)), on: true, bundle: null,
         text: String(l.text || '').split('\n').map((s) => s.trim()).filter((s) => s && !/^[-─=~·.\s]+$/.test(s)).join('\n') };   // '-----' 구분 줄은 뺀다
+      item.baseSubtotal = item.subtotal;
+      item.added = !!l.added;   // [＋ 추가 견적 받기] 로 더한 줄
+      const k = 종류찾기(item.name);
+      item.kind = k ? { group: k.group, base: k.idx, cur: k.idx } : null;
       if (묶음품목(item.name)) {
         const 평 = 평수(item.name + ' ' + item.label) || 평수(m.message);
         if (평) item.bundle = { 평: 평, rooms: 방수(평), off: [] };
@@ -77,7 +126,7 @@
   function 고른글(cart) {
     const out = [];
     (cart.items || []).forEach((it) => {
-      const 이름 = it.name + (it.label ? ' ' + it.label : '');
+      const 이름 = 보이는이름(it) + (it.label ? ' ' + it.label : '') + (it.added ? ' [추가]' : '');
       if (!it.on) { out.push('- ' + 이름 + ' (뺌)'); return; }
       if (it.bundle) {
         const parts = 묶음줄(it);
@@ -98,21 +147,31 @@
   function view(opts) {
     const o = opts || {};
     let cart = 카트읽기(o.cart);
+    let 표 = null;                 // 단가표 { 시공_품목명: 줄 } — 종류 탭·추가 견적에 쓴다
+    const 추가 = { 열림: false, 품목: null, 고른: {}, 오류: '' };
     const box = document.createElement('div');
     box.className = 'qk-card';
+    if (o.getTable) o.getTable().then((m) => { 표 = m || null; paint(); }).catch(() => { 표 = null; });
     const 바뀜 = () => { if (o.onChange) o.onChange(cart); paint(); };
     function paint() {
       const total = 합계(cart);
       const H = [];
       H.push('<div class="qk-head"><div class="qk-t">✅ 1분 가견적' + (cart.quoteId ? '<em>' + esc(cart.quoteId) + '</em>' : '') + '</div>' +
         '<div class="qk-warn">📌 기본 솔리드필름 기준 · 현장을 보면 금액이 달라질 수 있어요</div></div>');
-      H.push('<button type="button" class="qk-add" data-act="more"><span class="qk-add-ic">👩‍💼</span><span><b>＋ 추가 견적 받기</b><small>더 할 품목을 아래 채팅칸에 적으면 이 견적에 합쳐져요</small></span></button>');
+      if (추가.열림) H.push(추가HTML());
+      else H.push('<button type="button" class="qk-add" data-act="more"><span class="qk-add-ic">👩‍💼</span><span><b>＋ 추가 견적 받기</b><small>더 하고 싶은 품목을 고르면 바로 금액이 나와요</small></span></button>');
       cart.items.forEach((it) => {
         const off = !it.on;
         H.push('<div class="qk-it' + (off ? ' off' : '') + (it.bundle ? ' bundle' : '') + '" data-id="' + esc(it.id) + '">');
         H.push('<div class="qk-r"><button type="button" class="qk-ck' + (off ? '' : ' on') + '" data-act="toggle" aria-label="' + esc(it.name) + ' 넣기/빼기">✓</button>' +
-          '<span class="qk-nm">' + esc(it.name) + (it.label ? '<small>' + esc(it.label) + '</small>' : '') + '</span>' +
+          '<span class="qk-nm">' + esc(보이는이름(it)) + (it.label ? '<small>' + esc(it.label) + '</small>' : '') + (it.added ? '<em class="qk-new">추가</em>' : '') + '</span>' +
           '<span class="qk-pr">' + 원(off ? (it.bundle ? 줄금액(Object.assign({}, it, { on: true })) : it.subtotal) : 줄금액(it)) + '</span></div>');
+        // 종류 탭 (샤시·싱크대) — 단가표를 받은 뒤에만, 탭마다 그 종류 금액
+        if (it.kind && !off && 표) {
+          const 탭 = (종류들[it.kind.group] || []).map((k, i) => ({ k, i, v: 종류금액(it, i, 표) })).filter((x) => x.v != null);
+          if (탭.length > 1) H.push('<div class="qk-tabs">' + 탭.map((x) => '<button type="button" class="' + (x.i === it.kind.cur ? 'on' : '') +
+            '" data-act="kind" data-i="' + x.i + '">' + esc(x.k.글) + '<small>' + 원(x.v) + '</small></button>').join('') + '</div>');
+        }
         if (it.bundle && !off) {
           H.push('<div class="qk-rooms">방 개수 ' + [1, 2, 3, 4, 5].map((n) =>
             '<button type="button" class="' + (it.bundle.rooms === n ? 'on' : '') + '" data-act="rooms" data-n="' + n + '">' + n + '</button>').join('') +
@@ -137,12 +196,15 @@
       const b = e.target.closest('[data-act]');
       if (!b) return;
       const act = b.dataset.act;
-      if (act === 'more') { if (o.onAddMore) o.onAddMore(); return; }
+      if (act === 'more') { 추가열기(); return; }
+      if (act === 'chat') { 추가.열림 = false; paint(); if (o.onAddMore) o.onAddMore(); return; }
+      if (act.indexOf('ad-') === 0) { 추가누름(act, b); return; }
       if (act === 'consult') { openConsult(); return; }
       const row = b.closest('.qk-it');
       const it = row && cart.items.find((x) => x.id === row.dataset.id);
       if (!it) return;
       if (act === 'toggle') it.on = !it.on;
+      else if (act === 'kind') { if (!종류고르기(it, Number(b.dataset.i), 표)) return; }
       else if (act === 'rooms') { it.bundle.rooms = Number(b.dataset.n) || 3; it.bundle.off = it.bundle.off.filter((k) => k === '공용' || Number(k.slice(1)) <= it.bundle.rooms); }
       else if (act === 'part') {
         const k = b.dataset.key, i = it.bundle.off.indexOf(k);
@@ -150,6 +212,72 @@
       }
       바뀜();
     });
+    /* ---- [＋ 추가 견적 받기] 상담원 질문 (방문견적과 같은 quote_addon.js) ---- */
+    const QA = () => (typeof QuoteAddon !== 'undefined' ? QuoteAddon : null);
+    function 추가열기() {
+      추가.열림 = true; 추가.품목 = null; 추가.고른 = {}; 추가.오류 = '';
+      if (!표 && o.getTable) {
+        o.getTable().then((m) => { 표 = m || null; if (!표) 추가.오류 = '단가를 불러오지 못했어요. 아래 채팅칸에 적어 주셔도 돼요.'; paint(); })
+          .catch(() => { 추가.오류 = '단가를 불러오지 못했어요. 아래 채팅칸에 적어 주셔도 돼요.'; paint(); });
+      }
+      paint();
+      const el = box.querySelector('.qk-wiz'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    // 지금 고른 대로의 줄 (다 골랐을 때만)
+    function 추가줄() {
+      const A = QA(); if (!A || !표 || !추가.품목) return null;
+      const s = A.선택(추가.품목, 추가.고른, 표); if (!s) return null;
+      const l = A.줄만들기(표[s.표이름], s, 0, null); if (!l) return null;
+      return { s, l };
+    }
+    function 추가HTML() {
+      const A = QA();
+      const 머리 = (q, sub) => '<div class="qk-wiz-h"><span class="qk-wiz-av">👩‍💼</span><div class="qk-wiz-q">' + q + (sub ? '<small>' + sub + '</small>' : '') +
+        '</div><button type="button" class="qk-wiz-x" data-act="ad-close" aria-label="닫기">✕</button></div>';
+      const 채팅 = '<button type="button" class="qk-wiz-chat" data-act="chat">✏️ 찾는 품목이 없으면 아래 채팅칸에 적어 주세요</button>';
+      if (!A || !표) return '<div class="qk-wiz">' + 머리(추가.오류 ? '앗, 잠시만요' : '단가를 불러오는 중이에요…', 추가.오류 ? esc(추가.오류) : '') + 채팅 + '</div>';
+      if (!추가.품목) {
+        return '<div class="qk-wiz">' + 머리('어떤 품목을 더 할까요?', '고르면 하나씩 여쭤볼게요') +
+          '<div class="qk-wiz-opts items">' + A.쓸품목(표).map((p, i) => '<button type="button" data-act="ad-item" data-i="' + i + '"><span>' + p.아이콘 + '</span>' + esc(p.이름) + '</button>').join('') + '</div>' + 채팅 + '</div>';
+      }
+      const 고른글 = [추가.품목.이름].concat(A.고른글(추가.품목, 추가.고른, 표));
+      const crumb = '<div class="qk-wiz-crumb">' + 고른글.map((g) => '<span>' + esc(g) + '</span>').join('') + '</div>';
+      const q = A.다음질문(추가.품목, 추가.고른, 표);
+      if (q) {
+        const 길이칸 = q.키 === '길이' ? '<div class="qk-wiz-len"><input type="number" inputmode="decimal" step="0.5" min="0.5" placeholder="직접 (m)"><button type="button" data-act="ad-len">확인</button></div>' : '';
+        return '<div class="qk-wiz">' + 머리(esc(q.질문), esc(q.도움 || '')) + crumb +
+          '<div class="qk-wiz-opts">' + q.보기.map((x, i) => '<button type="button" data-act="ad-pick" data-i="' + i + '">' + esc(x.글) + '</button>').join('') + '</div>' + 길이칸 +
+          '<button type="button" class="qk-wiz-back" data-act="ad-back">← 처음으로</button></div>';
+      }
+      const r = 추가줄();
+      if (!r) return '<div class="qk-wiz">' + 머리('금액을 계산하지 못했어요', '채팅칸에 적어 주시면 바로 알려드릴게요') + 채팅 + '</div>';
+      return '<div class="qk-wiz">' + 머리('이렇게 더할까요?', '현장을 보면 금액이 달라질 수 있어요') + crumb +
+        '<div class="qk-wiz-sum"><b>' + esc(r.s.이름) + '</b><span>' + (r.l.단위 === 'm' ? r.l.수량 + 'm' : '1' + esc(r.l.단위 || '개')) + '</span><strong>' + 원(r.l.표시금액) + '</strong></div>' +
+        '<div class="qk-wiz-bt"><button type="button" data-act="ad-back">다시 고르기</button><button type="button" class="go" data-act="ad-add">이 견적에 넣기</button></div></div>';
+    }
+    function 추가누름(act, b) {
+      const A = QA();
+      if (act === 'ad-close') { 추가.열림 = false; paint(); return; }
+      if (act === 'ad-back') { 추가.품목 = null; 추가.고른 = {}; paint(); return; }
+      if (!A || !표) return;
+      if (act === 'ad-item') { 추가.품목 = A.쓸품목(표)[Number(b.dataset.i)] || null; 추가.고른 = {}; paint(); return; }
+      const q = 추가.품목 && A.다음질문(추가.품목, 추가.고른, 표);
+      if (act === 'ad-pick' && q) { 추가.고른[q.키] = q.보기[Number(b.dataset.i)].값; paint(); return; }
+      if (act === 'ad-len' && q) {
+        const n = A.길이다듬기((box.querySelector('.qk-wiz-len input') || {}).value);
+        if (n == null) { alert('0.5 ~ 30m 사이로 적어 주세요'); return; }
+        추가.고른.길이 = n; paint(); return;
+      }
+      if (act === 'ad-add') {
+        const r = 추가줄(); if (!r) return;
+        cart = 붙이기(cart, [{ name: r.s.이름, label: r.l.단위 === 'm' ? r.l.수량 + 'm' : '1' + (r.l.단위 || '개'), subtotal: r.l.표시금액,
+          labor: r.l.인건비표시금액, material: r.l.표시금액 - r.l.인건비표시금액, text: '', added: true }], {});
+        추가.열림 = false;
+        바뀜();
+        if (o.onAdded) o.onAdded(r.s.이름);
+      }
+    }
+
     // 상담신청: 고른 품목 요약 + 연락처 → onConsult
     function openConsult() {
       const wrap = box.querySelector('.qk-consult-wrap');
@@ -183,5 +311,5 @@
     return box;
   }
 
-  return { 평수, 방수, 나누기, 새카트, 카트읽기, 붙이기, 묶음줄, 줄금액, 합계, 고른글, view };
+  return { 평수, 방수, 나누기, 새카트, 카트읽기, 붙이기, 묶음줄, 줄금액, 합계, 고른글, 종류들, 종류찾기, 단위금액, 종류금액, 종류고르기, 보이는이름, view };
 });

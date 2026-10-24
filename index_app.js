@@ -193,6 +193,25 @@ const CONFIG = {
             if (new URLSearchParams(location.search).get('qk') === '1') return true;   // 시험용
             return QUICK_CARD_PARTNERS.indexOf(currentPartnerCode) >= 0;
         }
+        // 단가표 (2단계: 종류 탭·추가 견적) — 방문견적 추가견적과 같은 공개 단가(pro-addon-price). 한 번 받아 둔다
+        let quickPriceTable = null, quickPricePending = null;
+        function getQuickPriceTable() {
+            if (quickPriceTable) return Promise.resolve(quickPriceTable);
+            if (quickPricePending) return quickPricePending;
+            quickPricePending = fetch(CONFIG.estimateUrl.replace('image-test', 'pro-addon-price'))
+                .then(res => res.ok ? res.json() : null)
+                .then(j => {
+                    const d = Array.isArray(j) ? j[0] : j;
+                    const rows = d && Array.isArray(d.품목정보) ? d.품목정보 : [];
+                    if (!rows.length) throw new Error('단가 없음');
+                    quickPriceTable = (typeof QuoteAddon !== 'undefined') ? QuoteAddon.표맵(rows)
+                        : rows.reduce((m, r) => { if (r && r.시공_품목명) m[r.시공_품목명] = r; return m; }, {});
+                    return quickPriceTable;
+                })
+                .catch(() => null)
+                .finally(() => { quickPricePending = null; });
+            return quickPricePending;
+        }
         function quickCardStorageKey() { return 'v2_quick_card_' + (currentPartnerCode || 'default'); }
         function readQuickCardState() {
             let raw = null;
@@ -213,6 +232,8 @@ const CONFIG = {
                 cart: st.cart,
                 partner: st.partner || (currentPartner ? { phone: currentPartner.phone, manager: currentPartner.ceo_name || currentPartner.partner_name } : null),
                 onChange: (cart) => { const s = readQuickCardState(); s.cart = cart; writeQuickCardState(s); },
+                getTable: getQuickPriceTable,
+                onAdded: (name) => showToast('➕ ' + name + ' 을(를) 견적에 넣었어요'),
                 onAddMore: () => {
                     userInput.focus();
                     userInput.placeholder = '더 할 품목을 적어 주세요 (예: 방문 3개)';
