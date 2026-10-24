@@ -84,3 +84,20 @@ test('종류 바꾸기: 3m 2중창 331,500 → 단창 201,000 · 시스템 297,0
   const t = Q.고른글(Q.카트읽기(c));
   assert.ok(t.includes('- 샤시 시스템 3m: 297,000원') && t.includes('- 30평 싱크대 상부장만 1세트: 490,000원'), t);
 });
+
+test('앞 견적에 있던 품목을 다시 물으면 덧붙이지 않고 그 자리에서 바꾼다 (20평 전체 → 화장실문 2세트)', () => {
+  let c = Q.붙이기(null, [
+    { name: '방문', label: '3세트', subtotal: 663000 },
+    { name: '화장실문', label: '1세트', subtotal: 221000 },
+    { name: '샤시(2중창)', label: '3m', subtotal: 331500 },
+  ], { message: '20평 아파트 전체' });
+  c = Q.붙이기(c, [{ name: '화장실문', label: '2세트', subtotal: 442000 }], { message: '화장실문 문+틀 2세트' });
+  assert.deepStrictEqual(c.items.map((x) => x.name + ' ' + x.label), ['방문 3세트', '화장실문 2세트', '샤시(2중창) 3m']);
+  assert.strictEqual(Q.합계(c), 663000 + 442000 + 331500);
+  assert.deepStrictEqual(c.바뀐, [{ 이름: '화장실문', 전: '1세트 221,000원', 후: '2세트 442,000원' }]);
+  assert.deepStrictEqual(c.새로, [c.items[1].id]);
+  // 새 품목은 뒤에 붙는다
+  c = Q.붙이기(c, [{ name: '중문', label: '1세트', subtotal: 318500 }]);
+  assert.strictEqual(c.items.length, 4);
+  assert.deepStrictEqual(c.바뀐, []);
+});

@@ -97,6 +97,11 @@
     const c = 카트읽기(cart);
     const m = meta || {};
     if (m.quoteId) c.quoteId = String(m.quoteId);
+    /* 앞 견적에 이미 있는 품목을 다시 물으면 (예: 20평 전체 → '화장실문 2세트') 새 줄로 덧붙이지 않고 그 자리에서 바꾼다.
+       c.새로 = 이번에 들어오거나 바뀐 줄 id, c.바뀐 = [{ 이름, 전, 후 }] (저장하지 않는 표시용) */
+    const 키 = (n) => String(n || '').replace(/\s+/g, '');
+    const 전있던 = c.items.length;
+    c.새로 = []; c.바뀐 = [];
     (Array.isArray(lines) ? lines : []).forEach((l) => {
       if (!l || !l.name || !(수(l.subtotal) > 0)) return;
       c.seq += 1;
@@ -110,6 +115,14 @@
       if (묶음품목(item.name)) {
         const 평 = 평수(item.name + ' ' + item.label) || 평수(m.message);
         if (평) item.bundle = { 평: 평, rooms: 방수(평), off: [] };
+      }
+      c.새로.push(item.id);
+      const 같은 = item.added ? -1 : c.items.findIndex((x, i) => i < 전있던 && !x.added && 키(x.name) === 키(item.name));
+      if (같은 >= 0) {
+        const 전 = c.items[같은];
+        c.바뀐.push({ 이름: item.name, 전: (전.label ? 전.label + ' ' : '') + 원(줄금액(전)), 후: (item.label ? item.label + ' ' : '') + 원(item.subtotal) });
+        c.items[같은] = item;
+        return;
       }
       c.items.push(item);
     });
@@ -147,12 +160,13 @@
   function view(opts) {
     const o = opts || {};
     let cart = 카트읽기(o.cart);
+    const 새로 = Array.isArray(o.hot) ? o.hot : [];   // 방금 들어오거나 바뀐 줄 — 잠깐 빛나게
     let 표 = null;                 // 단가표 { 시공_품목명: 줄 } — 종류 탭·추가 견적에 쓴다
     const 추가 = { 열림: false, 품목: null, 고른: {}, 오류: '' };
     const box = document.createElement('div');
     box.className = 'qk-card';
     if (o.getTable) o.getTable().then((m) => { 표 = m || null; paint(); }).catch(() => { 표 = null; });
-    const 바뀜 = () => { if (o.onChange) o.onChange(cart); paint(); };
+    const 바뀜 = () => { 새로.length = 0; if (o.onChange) o.onChange(cart); paint(); };
     function paint() {
       const total = 합계(cart);
       const H = [];
@@ -162,7 +176,7 @@
       else H.push('<button type="button" class="qk-add" data-act="more"><span class="qk-add-ic">👩‍💼</span><span><b>＋ 추가 견적 받기</b><small>더 하고 싶은 품목을 고르면 바로 금액이 나와요</small></span></button>');
       cart.items.forEach((it) => {
         const off = !it.on;
-        H.push('<div class="qk-it' + (off ? ' off' : '') + (it.bundle ? ' bundle' : '') + '" data-id="' + esc(it.id) + '">');
+        H.push('<div class="qk-it' + (off ? ' off' : '') + (it.bundle ? ' bundle' : '') + (새로.indexOf(it.id) >= 0 ? ' qk-hot' : '') + '" data-id="' + esc(it.id) + '">');
         H.push('<div class="qk-r"><button type="button" class="qk-ck' + (off ? '' : ' on') + '" data-act="toggle" aria-label="' + esc(it.name) + ' 넣기/빼기">✓</button>' +
           '<span class="qk-nm">' + esc(보이는이름(it)) + (it.label ? '<small>' + esc(it.label) + '</small>' : '') + (it.added ? '<em class="qk-new">추가</em>' : '') + '</span>' +
           '<span class="qk-pr">' + 원(off ? (it.bundle ? 줄금액(Object.assign({}, it, { on: true })) : it.subtotal) : 줄금액(it)) + '</span></div>');

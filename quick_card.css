@@ -82,3 +82,6 @@
 .qk-wiz-bt { display: flex; gap: 8px; padding: 12px 14px 14px; }
 .qk-wiz-bt button { flex: 1; padding: 12px; border: 1.5px solid #e6dccd; border-radius: 12px; background: #fff; font-weight: 800; font-size: 14.5px; cursor: pointer; font-family: inherit; color: #6b5b4b; }
 .qk-wiz-bt button.go { border: 0; background: #9c6f2e; color: #fff; }
+/* 방금 들어오거나 바뀐 줄 */
+.qk-it.qk-hot { border-color: #b8742a; animation: qkHot 2.4s ease-out 1; }
+@keyframes qkHot { 0%, 35% { background: #fff1d6; box-shadow: 0 0 0 3px rgba(184,116,42,.25); } 100% { background: #fff; box-shadow: none; } }
