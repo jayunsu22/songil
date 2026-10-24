@@ -619,6 +619,18 @@ body {
             justify-content: center;
         }
 
+        /* 섬세한손길 자기 홍보 광고의 작은 둘째 줄 (2026-10-25) */
+        .loading-screen-ad .ad-sub {
+            margin-top: -6px;
+            font-size: 1.05em;
+            font-weight: 600;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.88);
+            min-height: 3em;
+            word-break: keep-all;
+        }
+        .loading-screen-ad .ad-text, .loading-screen-ad .ad-sub { word-break: keep-all; white-space: pre-line; }
+
         /* [New] 축소된 원형 카운트다운을 대체한, 크게 키운 가로 카운트다운 바 (2026-08-28) */
         .loading-calc-eyebrow {
             font-size: 0.95em;

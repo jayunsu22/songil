@@ -832,6 +832,7 @@ const CONFIG = {
                     ${adBadgeHtml}
                     ${adImageHtml}
                     <span class="ad-text">${firstAd.text}</span>
+                    ${firstAd.sub !== undefined ? `<span class="ad-sub">${firstAd.sub}</span>` : ''}
                 </div>
             ` : '';
 
@@ -865,6 +866,8 @@ const CONFIG = {
                     if (!adEl) return;
                     const textEl = adEl.querySelector('.ad-text');
                     if (textEl) textEl.textContent = nextAd.text;
+                    const subEl = adEl.querySelector('.ad-sub');
+                    if (subEl) subEl.textContent = nextAd.sub || '';
                 }, AD_ROTATE_MS);
             }
 
@@ -1633,7 +1636,27 @@ const CONFIG = {
 
         // [수정] 광고(관리자광고=무료회원 / 본인광고=플러스회원)는 견적산출 로딩화면에서만 노출.
         // 견적 결과 화면 하단에 계속 붙어있는 고정 배너 기능은 회원등급 무관하게 폐지함.
+        /* [2026-10-25] 섬세한손길(p_001) 로딩화면은 자기 홍보 문구를 돌려 보여준다.
+           달은 20일부터 다음 달로 (10월 20일 이후면 11월 예약중) */
+        const HOUSE_ADS = {
+            p_001: () => {
+                const d = new Date();
+                const m = (d.getMonth() + (d.getDate() >= 20 ? 1 : 0)) % 12 + 1;
+                return [
+                    { text: '꼼꼼한 시공,\n정확한 견적', sub: '섬세한손길 ' + m + '월 예약중\n지금 상담신청해 주세요' },
+                    { text: '시공 사례가\n궁금하다면?', sub: '네이버 블로그 「섬세한손길」에서\n비포 & 애프터를 확인하세요' },
+                    { text: '철거 없이\n새집처럼', sub: '문 · 샤시 · 싱크대 필름 리폼\n섬세한손길이 해드려요' },
+                    { text: '실제 시공 후기\n블로그에 다 있어요', sub: '네이버에서 「섬세한손길」을\n검색해 보세요' },
+                ];
+            }
+        };
         function resolveAdSource(data) {
+            if (HOUSE_ADS[currentPartnerCode]) {
+                const list = HOUSE_ADS[currentPartnerCode]();
+                // 첫 장은 늘 예약 문구, 나머지는 매번 다른 순서로
+                const rest = list.slice(1), start = Math.floor(Math.random() * rest.length);
+                return { mode: 'own', ads: [list[0]].concat(rest.slice(start), rest.slice(0, start)) };
+            }
             if (!data) return { mode: 'none', ads: [] };
             const isPlus = data.subscription_status !== '무료회원';
             if (isPlus && (data.own_ad_text || data.own_ad_image)) {
