@@ -101,3 +101,10 @@ test('앞 견적에 있던 품목을 다시 물으면 덧붙이지 않고 그 �
   assert.strictEqual(c.items.length, 4);
   assert.deepStrictEqual(c.바뀐, []);
 });
+
+test('예전에 덧붙어 같은 품목이 여러 줄이면 새 견적 하나로 정리한다', () => {
+  let c = Q.붙이기(null, [{ name: '방문', label: '3세트', subtotal: 663000 }, { name: '화장실문', label: '1세트', subtotal: 221000 }]);
+  c.items.push(Object.assign({}, c.items[0], { id: 'old', label: '4세트', subtotal: 884000, baseSubtotal: 884000 }));
+  c = Q.붙이기(c, [{ name: '방문', label: '5세트', subtotal: 1105000 }]);
+  assert.deepStrictEqual(c.items.map((x) => x.name + ' ' + x.label), ['방문 5세트', '화장실문 1세트']);
+});

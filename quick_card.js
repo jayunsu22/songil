@@ -100,7 +100,7 @@
     /* 앞 견적에 이미 있는 품목을 다시 물으면 (예: 20평 전체 → '화장실문 2세트') 새 줄로 덧붙이지 않고 그 자리에서 바꾼다.
        c.새로 = 이번에 들어오거나 바뀐 줄 id, c.바뀐 = [{ 이름, 전, 후 }] (저장하지 않는 표시용) */
     const 키 = (n) => String(n || '').replace(/\s+/g, '');
-    const 전있던 = c.items.length;
+    let 전있던 = c.items.length;
     c.새로 = []; c.바뀐 = [];
     (Array.isArray(lines) ? lines : []).forEach((l) => {
       if (!l || !l.name || !(수(l.subtotal) > 0)) return;
@@ -122,6 +122,8 @@
         const 전 = c.items[같은];
         c.바뀐.push({ 이름: item.name, 전: (전.label ? 전.label + ' ' : '') + 원(줄금액(전)), 후: (item.label ? item.label + ' ' : '') + 원(item.subtotal) });
         c.items[같은] = item;
+        // 예전 버전이 덧붙여 둔 같은 품목 줄이 더 있으면 함께 정리한다
+        for (let i = 전있던 - 1; i > 같은; i--) if (!c.items[i].added && 키(c.items[i].name) === 키(item.name)) { c.items.splice(i, 1); 전있던 -= 1; }
         return;
       }
       c.items.push(item);
