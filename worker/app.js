@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const API_UPLOAD_URL = `${n8nBase}/webhook/film-image-upload`;
     const API_DRIVE_BACKUP_URL = `${n8nBase}/webhook/film-image-drive-backup`; // 구글드라이브 백업은 응답을 기다리지 않고 별도로 발사 (업로드 체감속도 개선용)
 
+    const OWNER_VIEW = '__owner__';   // 기사 고르는 칸의 '📸 사장님 · 완료사진 찍기'
     let projectData = null;
     let currentWorker = "";
     let pendingUploadCount = 0; // 백그라운드에서 병렬로 진행 중인 사진 업로드 개수 (제출 버튼 가드용)
@@ -264,7 +265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderWorkerSelect();
             renderAnnouncements();
 
-            if (!projectData.workers || projectData.workers.length === 0) {
+            if ((!projectData.workers || projectData.workers.length === 0) && currentWorker !== OWNER_VIEW) {
                 taskListContainer.innerHTML = '<div class="empty-state">배정된 시공기사가 없습니다.</div>';
             }
 
@@ -294,13 +295,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         workerTabs.innerHTML = "";
         const workers = projectData.workers || [];
 
-        if (workers.length === 0) {
+        if (workers.length === 0 && !사장님기기()) {
             workerTabs.innerHTML = `<option value="">지정된 기사 없음</option>`;
             workerTabs.disabled = true;
             return;
         }
         workerTabs.disabled = false;
 
+        if (사장님기기()) {
+            const option = document.createElement('option');
+            option.value = OWNER_VIEW;
+            option.textContent = '📸 사장님 · 완료사진 찍기';
+            workerTabs.appendChild(option);
+        }
         workers.forEach(worker => {
             const option = document.createElement('option');
             option.value = worker;
@@ -316,7 +323,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 이 현장에서 마지막으로 선택했던 기사님을 복원 (없거나 더 이상 유효하지 않으면 첫 번째 기사님)
         const savedWorkerKey = `selected_worker_${projectRecordId}`;
         const savedWorker = localStorage.getItem(savedWorkerKey);
-        const initialWorker = (savedWorker && workers.includes(savedWorker)) ? savedWorker : workers[0];
+        const 사장님으로 = new URLSearchParams(location.search).get('owner') === '1';
+        const initialWorker = 사장님으로 ? OWNER_VIEW
+            : (savedWorker && (workers.includes(savedWorker) || (savedWorker === OWNER_VIEW && 사장님기기()))) ? savedWorker : workers[0];
         workerTabs.value = initialWorker;
         selectWorker(initialWorker);
     }
@@ -515,12 +524,98 @@ document.addEventListener('DOMContentLoaded', async () => {
     function selectWorker(workerName) {
         currentWorker = workerName;
         localStorage.setItem(`selected_worker_${projectRecordId}`, workerName);
-        renderAnnouncements();
+        const 공지칸 = document.querySelector('.notice-card');
+        if (공지칸) 공지칸.style.display = workerName === OWNER_VIEW ? 'none' : '';
+        if (workerName !== OWNER_VIEW) renderAnnouncements();
         renderTasks();
+    }
+
+    /* ---------- 📸 사장님 완료사진 (2026-10-25) ----------
+       사장님이 기사 이름을 골라 품목을 찾아 들어가지 않아도, 현장의 모든 품목을 한 화면에 놓고 📷 한 번에 찍는다.
+       - 현장관리 앱의 📸 버튼이 이 주소에 ?owner=1 을 붙여 연다. 한 번 열면 이 휴대폰을 사장님 기기로 기억
+       - 사진은 그 품목의 시공후사진 '추가사진' 칸(지정 칸 뒤)에 붙는다 — 기사님이 찍을 칸은 그대로 비워 둔다
+       - 찍고 나면 아직 사진 없는 다음 품목을 아래 막대에 띄워 연속으로 찍게 한다 */
+    function 사장님기기() {
+        try {
+            if (new URLSearchParams(location.search).get('owner') === '1') localStorage.setItem('worker_owner_device', '1');
+            return localStorage.getItem('worker_owner_device') === '1';
+        } catch (e) { return false; }
+    }
+    // 첫 화면 그리기가 이 줄보다 먼저 돌아서 (await loadProjectData 가 위에 있음) 값은 쓸 때 만든다
+    function 사장님상태() { return 사장님상태.v || (사장님상태.v = { 안찍은것만: false, 마지막: '' }); }
+    function 유효사진(p) { return !!p && p.url && !p.url.includes('1x1.png') && !(p.filename && p.filename.includes('1x1.png')); }
+    function 사장님품목들() {
+        const 순서 = (f) => f.시공우선순위 !== undefined ? f.시공우선순위 : (f.작업우선순위 !== undefined ? f.작업우선순위 : 999);
+        return (projectData.tasks || []).filter(t => t.fields.시공품목 && !is뒷정리(t.fields.시공품목))
+            .slice().sort((a, b) => 순서(a.fields) - 순서(b.fields));
+    }
+    function 완료사진들(task) { return (task.fields.시공후사진 || []).filter(p => 유효사진(p) || (p && p.isUploading)); }
+    function 다음찍을품목(list) {
+        const 없음 = (t) => 완료사진들(t).length === 0;
+        const at = list.findIndex(t => t.id === 사장님상태().마지막);
+        return list.slice(at + 1).find(없음) || list.find(없음) || null;
+    }
+    function 사장님찍기(task, useCamera) {
+        const item = projectData.items[task.fields.시공품목] || {};
+        const 지정칸 = (item.필수사진슬롯 || '시공 완료사진').split(',').map(x => x.trim()).filter(Boolean).length;
+        const slot = document.createElement('div');
+        slot.dataset.recordId = task.id;
+        slot.dataset.fieldName = '시공후사진';
+        slot.dataset.slotIndex = String(Math.max(지정칸, (task.fields.시공후사진 || []).length));
+        slot.dataset.slotName = '사장님 완료사진';
+        사장님상태().마지막 = task.id;
+        openFileInputForSlot(slot, useCamera);
+    }
+    function renderOwnerPhotos() {
+        const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const list = 사장님품목들();
+        const 찍은수 = list.filter(t => 완료사진들(t).length > 0).length;
+        const 다음 = 다음찍을품목(list);
+        const 보일것 = 사장님상태().안찍은것만 ? list.filter(t => 완료사진들(t).length === 0) : list;
+        const rows = 보일것.map(t => {
+            const f = t.fields, ps = 완료사진들(t);
+            const 기사 = f.시공기사 || f.밑작업기사 || '';
+            const thumbs = ps.slice(-4).map(p => `<span class="own-th${p.isUploading ? ' up' : ''}" style="background-image:url('${esc(p.url)}')"></span>`).join('');
+            return `<div class="own-row${ps.length ? ' has' : ''}${다음 && 다음.id === t.id ? ' next' : ''}" data-id="${esc(t.id)}">
+                <div class="own-info">
+                    <b>${esc(f.시공품목)}</b>
+                    <small>${기사 ? esc(기사) + ' · ' : ''}${f.시공완료 ? '✅ 시공완료' : '진행중'}${ps.length ? ' · 사진 ' + ps.length + '장' : ''}</small>
+                    ${thumbs ? `<div class="own-ths">${thumbs}</div>` : ''}
+                </div>
+                <div class="own-bts">
+                    <button type="button" class="own-cam" data-act="cam" aria-label="${esc(f.시공품목)} 촬영">📷</button>
+                    <button type="button" class="own-gal" data-act="gal">앨범</button>
+                </div>
+            </div>`;
+        }).join('');
+        taskListContainer.innerHTML = `
+            <div class="own-head">
+                <div class="own-title">📸 완료사진 <b>${찍은수}</b> / ${list.length} 품목</div>
+                <div class="own-bar"><i style="width:${list.length ? Math.round(찍은수 / list.length * 100) : 0}%"></i></div>
+                <div class="own-chips">
+                    <button type="button" data-act="all" class="${사장님상태().안찍은것만 ? '' : 'on'}">전체</button>
+                    <button type="button" data-act="todo" class="${사장님상태().안찍은것만 ? 'on' : ''}">안 찍은 것 ${list.length - 찍은수}</button>
+                </div>
+            </div>
+            <div class="own-list">${rows || '<div class="empty-state">모든 품목을 찍었어요 👍</div>'}</div>
+            <div class="own-next">${다음
+                ? `<button type="button" data-act="next" data-id="${esc(다음.id)}">📷 다음 찍기<b>${esc(다음.fields.시공품목)}</b></button>`
+                : `<div class="own-alldone">✅ 모든 품목에 완료사진이 있어요</div>`}</div>`;
+        taskListContainer.onclick = (e) => {
+            const b = e.target.closest('[data-act]');
+            if (!b || currentWorker !== OWNER_VIEW) return;
+            const act = b.dataset.act;
+            if (act === 'all' || act === 'todo') { 사장님상태().안찍은것만 = act === 'todo'; renderOwnerPhotos(); return; }
+            const id = act === 'next' ? b.dataset.id : (b.closest('.own-row') || {}).dataset && b.closest('.own-row').dataset.id;
+            const task = (projectData.tasks || []).find(t => t.id === id);
+            if (task) 사장님찍기(task, act !== 'gal');
+        };
     }
 
 
     function renderTasks() {
+        if (currentWorker === OWNER_VIEW) { renderOwnerPhotos(); return; }
+        taskListContainer.onclick = null;
         taskListContainer.innerHTML = "";
         const tasks = projectData.tasks || [];
         
