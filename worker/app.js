@@ -556,7 +556,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return list.slice(at + 1).find(없음) || list.find(없음) || null;
     }
     function 사장님찍기(task, useCamera) {
-        const item = projectData.items[task.fields.시공품목] || {};
+        const item = projectData.items[task.fields.시공품목] || projectData.items[task.fields.원품목] || {};
         const 지정칸 = (item.필수사진슬롯 || '시공 완료사진').split(',').map(x => x.trim()).filter(Boolean).length;
         const slot = document.createElement('div');
         slot.dataset.recordId = task.id;
@@ -576,10 +576,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const f = t.fields, ps = 완료사진들(t);
             const 기사 = f.시공기사 || f.밑작업기사 || '';
             const thumbs = ps.slice(-4).map(p => `<span class="own-th${p.isUploading ? ' up' : ''}" style="background-image:url('${esc(p.url)}')"></span>`).join('');
-            return `<div class="own-row${ps.length ? ' has' : ''}${다음 && 다음.id === t.id ? ' next' : ''}" data-id="${esc(t.id)}">
-                <div class="own-info">
-                    <b>${esc(f.시공품목)}</b>
-                    <small>${기사 ? esc(기사) + ' · ' : ''}${f.시공완료 ? '✅ 시공완료' : '진행중'}${ps.length ? ' · 사진 ' + ps.length + '장' : ''}</small>
+            const 추가 = ExtraWork.is추가(t);
+            return `<div class="own-row${ps.length ? ' has' : ''}${추가 ? ' extra' : ''}${다음 && 다음.id === t.id ? ' next' : ''}" data-id="${esc(t.id)}">
+                <div class="own-info"${추가 ? ' data-act="edit"' : ''}>
+                    <b>${추가표시(f)}${esc(f.시공품목)}</b>
+                    ${추가 ? `<small class="ex-sub">${esc(f.청구처 || '')}${f.청구처 ? ' · ' : ''}${esc(청구글(f))} ✏️</small>` : ''}
+                    <small>${기사 ? esc(기사) + ' · ' : (추가 ? '기사 미배정 · ' : '')}${f.시공완료 ? '✅ 시공완료' : '진행중'}${ps.length ? ' · 사진 ' + ps.length + '장' : ''}</small>
                     ${thumbs ? `<div class="own-ths">${thumbs}</div>` : ''}
                 </div>
                 <div class="own-bts">
@@ -588,7 +590,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             </div>`;
         }).join('');
+        const 약속 = ExtraWork.남은약속(약속목록());
+        const 합 = ExtraWork.요약(projectData.tasks || []);
+        const 원 = (n) => Math.round(n).toLocaleString('ko-KR');
         taskListContainer.innerHTML = `
+            <div class="own-tools">
+                <button type="button" class="own-tool blue" data-act="extra">＋ 추가작업</button>
+                <button type="button" class="own-tool" data-act="promise">📝 약속 메모${약속.length ? ` <em>${약속.length}</em>` : ''}</button>
+            </div>
+            ${약속.length ? `<div class="own-promise" data-act="promise"><b>📝 견적에 안 넣은 약속 ${약속.length}개</b>${약속.slice(0, 3).map(p =>
+                `<div>· ${esc(p.글)}${p.누가 ? ' — ' + esc(p.누가) : ''}${p.때 ? ' <span>(' + esc(p.때) + ')</span>' : ''}</div>`).join('')}${약속.length > 3 ? `<div>… 외 ${약속.length - 3}개</div>` : ''}</div>` : ''}
+            ${합.건수 ? `<div class="own-exsum">➕ 추가작업 ${합.건수}건 · 고객 청구 <b>+${원(합.고객)}원</b>${합.업체 ? ` · 업체 청구 ${원(합.업체)}원` : ''}${합.무상건수 ? ` · 무상 ${합.무상건수}건` : ''}</div>` : ''}
             <div class="own-head">
                 <div class="own-title">📸 완료사진 <b>${찍은수}</b> / ${list.length} 품목</div>
                 <div class="own-bar"><i style="width:${list.length ? Math.round(찍은수 / list.length * 100) : 0}%"></i></div>
@@ -606,12 +618,251 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!b || currentWorker !== OWNER_VIEW) return;
             const act = b.dataset.act;
             if (act === 'all' || act === 'todo') { 사장님상태().안찍은것만 = act === 'todo'; renderOwnerPhotos(); return; }
+            if (act === 'extra') { 추가시트열기({}); return; }
+            if (act === 'promise') { 약속시트열기(); return; }
+            if (act === 'edit') {
+                const t = (projectData.tasks || []).find(x => x.id === b.closest('.own-row').dataset.id);
+                if (t) 추가시트열기({ task: t });
+                return;
+            }
             const id = act === 'next' ? b.dataset.id : (b.closest('.own-row') || {}).dataset && b.closest('.own-row').dataset.id;
             const task = (projectData.tasks || []).find(t => t.id === id);
             if (task) 사장님찍기(task, act !== 'gal');
         };
     }
 
+
+    /* ---------- ➕ 추가작업 · 📝 약속 메모 (2026-10-26) ----------
+       계산·이름짓기는 extra_work.js (ExtraWork). 여기는 화면과 서버 보내기만.
+       저장하면 작업목록에 한 줄이 생겨(toggle_item_create + extra) 기사앱·정산견적이 같이 본다 */
+    function 추가표시(f) {
+        const g = f && ExtraWork.구분정보(f.추가구분);
+        return g ? `<span class="ex-tag ex-${g.값 === 'AS' ? 'as' : g.값 === '재시공' ? 're' : 'add'}">${g.짧게}</span> ` : '';
+    }
+    function 청구글(f) {
+        const 금 = Math.round(Number(f.추가금액) || 0).toLocaleString('ko-KR') + '원';
+        if (f.청구 === '무상') return '무상 AS 0원';
+        if (f.청구 === '업체청구') return '업체 청구 ' + 금;
+        return '고객 청구 ' + 금;
+    }
+    function 사장님메모HTML(f) {
+        if (!f || !f.추가메모) return '';
+        const esc = (t) => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        return `<div class="ex-memo">📌 사장님 메모<b>${esc(f.추가메모).replace(/\n/g, '<br>')}</b></div>`;
+    }
+    function 약속목록() { return ExtraWork.약속읽기(projectData && projectData.project && projectData.project.약속메모); }
+    async function 약속저장(list) {
+        const text = ExtraWork.약속쓰기(list);
+        const res = await fetchWithTimeout(API_SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'update_notice', projectCode: projectRecordId, promisesText: text }) });
+        if (!res.ok) throw new Error('약속 메모 저장 실패');
+        projectData.project.약속메모 = text;
+    }
+    // 1분견적과 같은 단가표 (인건비·자재비·소모량). 한 번만 받는다
+    function 단가표받기() {
+        if (단가표받기.v) return Promise.resolve(단가표받기.v);
+        return fetchWithTimeout(`${n8nBase}/webhook/pro-addon-price`, {}, 15000).then(r => r.ok ? r.json() : null).then(j => {
+            const d = Array.isArray(j) ? j[0] : j;
+            const m = {};
+            ((d && d.품목정보) || []).forEach(r => { if (r && r.시공_품목명) m[r.시공_품목명] = r; });
+            단가표받기.v = m;
+            return m;
+        }).catch(() => ({}));
+    }
+    function 지금때() { const d = new Date(); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+
+    function 추가시트열기(opt) {
+        const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const 편집 = opt.task || null, ef = 편집 ? 편집.fields : {};
+        const 원래들 = 사장님품목들().filter(t => !ExtraWork.is추가(t)).map(t => t.fields.시공품목);
+        const st = {
+            구분: ef.추가구분 || opt.구분 || '',
+            원품목: 편집 ? (ef.원품목 || '') : (opt.원품목 || ''),
+            직접: '',
+            수량: ef.추가수량 != null ? String(ef.추가수량) : '1',
+            금액: ef.추가금액 != null ? String(ef.추가금액) : '', 금액직접: !!편집,
+            누가: opt.누가 || (ef.청구 === '무상' ? '우리' : ef.청구 === '업체청구' ? '업체' : '고객'),
+            청구처: ef.청구처 || opt.청구처 || '',
+            청구: ef.청구 || opt.청구 || '', 메모: ef.추가메모 || opt.메모 || '',
+            사진: null, 사진url: '', 저장중: false,
+            기사: 편집 ? (ef.시공기사 || ef.밑작업기사 || '') : null,   // null = 원래 품목 담당을 그대로
+        };
+        if (!st.청구) st.청구 = ExtraWork.청구기본(st.누가);
+        let 표 = {};
+        단가표받기().then(m => { 표 = m || {}; 금액자동(); 그리기(); });
+        const meta = () => 품목정보(st.원품목);
+        const 원담당 = () => { const t = (projectData.tasks || []).find(x => x.fields.시공품목 === st.원품목); return t ? (t.fields.시공기사 || t.fields.밑작업기사 || '') : ''; };
+        const 단위 = () => meta().길이입력 ? 'm' : '개';
+        function 금액자동() {
+            if (st.금액직접) return;
+            const u = ExtraWork.단가(meta(), 표);
+            st.금액 = u ? String(ExtraWork.금액(u, st.수량)) : '';
+        }
+        const back = document.createElement('div'); back.className = 'ex-back';
+        const sheet = document.createElement('div'); sheet.className = 'ex-sheet';
+        document.body.appendChild(back); document.body.appendChild(sheet);
+        const 닫기 = () => { back.remove(); sheet.remove(); };
+        back.onclick = 닫기;
+        function 그리기() {
+            const chip = (act, val, label, on, cls) => `<button type="button" class="ex-chip${on ? ' on' : ''}${cls ? ' ' + cls : ''}" data-act="${act}" data-v="${esc(val)}">${label}</button>`;
+            const u = ExtraWork.단가(meta(), 표);
+            sheet.innerHTML = `
+                <div class="ex-h"><b>${편집 ? '✏️ 추가작업 고치기' : '➕ 추가작업'}</b><button type="button" class="ex-x" data-act="close">✕</button></div>
+                ${편집 ? `<div class="ex-name">${esc(ef.시공품목)}</div>` : ''}
+                <div class="ex-lb">무슨 일인가요?</div>
+                <div class="ex-chips">${ExtraWork.구분들.map(g => chip('kind', g.값, g.글, st.구분 === g.값, 'k-' + (g.값 === 'AS' ? 'as' : g.값 === '재시공' ? 're' : 'add'))).join('')}</div>
+                ${편집 ? '' : `<div class="ex-lb">어느 품목?</div>
+                <select class="ex-in" data-f="원품목"><option value="">— 품목 고르기 —</option>${원래들.map(n => `<option${n === st.원품목 ? ' selected' : ''}>${esc(n)}</option>`).join('')}<option value="__직접"${st.원품목 === '__직접' ? ' selected' : ''}>✏️ 목록에 없음 (직접 적기)</option></select>
+                ${st.원품목 === '__직접' ? `<input class="ex-in" data-f="직접" placeholder="예: 현관 중문 틀" value="${esc(st.직접)}">` : ''}`}
+                <div class="ex-row2">
+                    <div><div class="ex-lb">수량</div><div class="ex-qty"><input class="ex-in" data-f="수량" type="number" inputmode="decimal" step="0.5" min="0" value="${esc(st.수량)}"><span>${단위()}</span></div></div>
+                    <div><div class="ex-lb">금액 ${u ? `<small>단가표 ${Math.round(u).toLocaleString('ko-KR')}원/${단위()}</small>` : '<small>직접 적기</small>'}</div><div class="ex-qty"><input class="ex-in" data-f="금액" type="number" inputmode="numeric" step="1000" min="0" value="${esc(st.금액)}" placeholder="0"><span>원</span></div></div>
+                </div>
+                <div class="ex-lb">누가 · 돈은?</div>
+                <div class="ex-chips">${chip('who', '고객', '고객', st.누가 === '고객')}${chip('who', '업체', '다른 업체', st.누가 === '업체')}${chip('who', '우리', '우리 실수', st.누가 === '우리')}</div>
+                ${st.누가 !== '우리' ? `<input class="ex-in" data-f="청구처" placeholder="${st.누가 === '업체' ? '예: 타일업체, 김실장' : '예: 고객, 101동 사모님'}" value="${esc(st.청구처)}">` : ''}
+                <div class="ex-chips">${ExtraWork.청구들.map(c => chip('bill', c.값, c.값 === '무상' ? '무상 (0원 표시)' : c.글, st.청구 === c.값)).join('')}</div>
+                <div class="ex-lb">누가 할까요? <small>${st.기사 === null ? (원담당() ? '원래 품목 담당: ' + esc(원담당()) : '') : ''}</small></div>
+                <div class="ex-chips">${(projectData.workers || []).map(w => chip('worker', w, esc(w), (st.기사 === null ? 원담당() : st.기사) === w)).join('')}${chip('worker', '', '나중에', (st.기사 === null ? 원담당() : st.기사) === '')}</div>
+                <div class="ex-lb">사진 · 메모 <small>메모는 기사님 화면에 '사장님 메모'로 보여요</small></div>
+                <div class="ex-ph">
+                    ${편집 ? '' : `<button type="button" class="ex-photo${st.사진url ? ' has' : ''}" data-act="photo"${st.사진url ? ` style="background-image:url('${st.사진url}')"` : ''}>${st.사진url ? '' : '📷<small>사진</small>'}</button>`}
+                    <textarea class="ex-in" data-f="메모" rows="2" placeholder="🎤 자판의 마이크로 말해도 돼요. 예: 타일 작업하다 문틀 모서리 찍힘">${esc(st.메모)}</textarea>
+                </div>
+                <button type="button" class="ex-save" data-act="save"${st.저장중 ? ' disabled' : ''}>${st.저장중 ? '저장 중…' : (편집 ? '저장' : '저장 — 작업목록 · 정산견적에 넣기')}</button>
+                ${편집 ? `<button type="button" class="ex-del" data-act="del">이 추가작업 지우기</button>` : ''}`;
+        }
+        sheet.addEventListener('input', (e) => {
+            const f = e.target.dataset && e.target.dataset.f;
+            if (!f) return;
+            st[f] = e.target.value;
+            if (f === '금액') st.금액직접 = true;
+            if (f === '수량') { 금액자동(); const 금 = sheet.querySelector('[data-f="금액"]'); if (금 && !st.금액직접) 금.value = st.금액; }
+        });
+        sheet.addEventListener('change', (e) => {
+            if (e.target.dataset && e.target.dataset.f === '원품목') { st.원품목 = e.target.value; st.금액직접 = false; 금액자동(); 그리기(); }
+        });
+        sheet.addEventListener('click', async (e) => {
+            const b = e.target.closest('[data-act]');
+            if (!b) return;
+            const act = b.dataset.act, v = b.dataset.v;
+            if (act === 'close') return 닫기();
+            if (act === 'kind') { st.구분 = v; return 그리기(); }
+            if (act === 'who') { st.누가 = v; st.청구 = ExtraWork.청구기본(v); if (v === '우리') st.청구처 = '우리 실수'; else if (st.청구처 === '우리 실수') st.청구처 = ''; return 그리기(); }
+            if (act === 'bill') { st.청구 = v; return 그리기(); }
+            if (act === 'worker') { st.기사 = v; return 그리기(); }
+            if (act === 'photo') {
+                const input = document.createElement('input');
+                input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+                input.onchange = () => { const f = input.files && input.files[0]; if (!f) return; st.사진 = f; st.사진url = URL.createObjectURL(f); 그리기(); };
+                input.click();
+                return;
+            }
+            if (act === 'del') {
+                if (!confirm(`'${ef.시공품목}' 추가작업을 지울까요? 기사앱·정산견적에서도 빠집니다.`)) return;
+                try {
+                    showLoading('지우는 중...');
+                    const res = await fetchWithTimeout(API_SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'toggle_item_delete', projectCode: projectRecordId, itemName: ef.시공품목 }) });
+                    if (!res.ok) throw new Error('삭제 실패');
+                    닫기(); hideLoading(); showToast('추가작업을 지웠습니다');
+                    await loadProjectData(projectRecordId);
+                } catch (err) { hideLoading(); showToast(err.message, 'danger'); }
+                return;
+            }
+            if (act === 'save') {
+                if (!st.구분) { showToast('무슨 일인지 먼저 골라 주세요', 'danger'); return; }
+                const 원품목 = st.원품목 === '__직접' ? '' : st.원품목;
+                const 이름바탕 = st.원품목 === '__직접' ? st.직접.trim() : 원품목;
+                if (!편집 && !이름바탕) { showToast('어느 품목인지 골라 주세요', 'danger'); return; }
+                const 청구처 = st.누가 === '우리' ? '우리 실수' : st.청구처.trim();
+                st.저장중 = true; 그리기();
+                try {
+                    if (편집) {
+                        const res = await fetchWithTimeout(API_SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type: 'update_extra', projectCode: projectRecordId, recordId: 편집.id, 추가구분: st.구분, 청구: st.청구, 청구처,
+                                추가메모: st.메모.trim(), 추가금액: st.금액, 추가수량: st.수량 }) });
+                        if (!res.ok) throw new Error('저장 실패');
+                        const 전기사 = ef.시공기사 || ef.밑작업기사 || '';
+                        if (st.기사 !== null && st.기사 !== 전기사) {
+                            for (const stage of ['밑작업', '시공']) {
+                                await fetchWithTimeout(API_SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(st.기사 ? { type: 'assign_worker', projectCode: projectRecordId, recordId: 편집.id, workerName: st.기사, stage }
+                                        : { type: 'unassign_worker', projectCode: projectRecordId, recordId: 편집.id, stage }) });
+                                ef[stage + '기사'] = st.기사;
+                            }
+                        }
+                        Object.assign(ef, { 추가구분: st.구분, 청구: st.청구, 청구처, 추가메모: st.메모.trim(), 추가금액: Number(st.금액) || 0, 추가수량: Number(st.수량) || 0 });
+                        닫기(); showToast('✅ 고쳤습니다'); renderTasks();
+                        return;
+                    }
+                    const 원 = (projectData.tasks || []).find(t => t.fields.시공품목 === 원품목);
+                    const of = 원 ? 원.fields : {};
+                    const 이름 = ExtraWork.새이름(이름바탕, st.구분, (projectData.tasks || []).map(t => t.fields.시공품목));
+                    const 다음순서 = (n) => (typeof n === 'number' ? n + 0.5 : undefined);
+                    const extra = { 추가구분: st.구분, 원품목, 청구: st.청구, 청구처, 추가메모: st.메모.trim(), 추가금액: st.금액, 추가수량: st.수량, 추가일자: 오늘날짜(),
+                        밑작업기사: st.기사 === null ? (of.밑작업기사 || '') : st.기사, 시공기사: st.기사 === null ? (of.시공기사 || '') : st.기사, 작업우선순위: 다음순서(of.작업우선순위), 시공우선순위: 다음순서(of.시공우선순위) };
+                    const res = await fetchWithTimeout(API_SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'toggle_item_create', projectCode: projectRecordId, itemName: 이름, extra }) });
+                    if (!res.ok) throw new Error('저장 실패');
+                    const data = await res.json().catch(() => null);
+                    const rec = Array.isArray(data) ? data[0] : data;
+                    if (opt.약속id) { try { await 약속저장(ExtraWork.약속상태(약속목록(), opt.약속id, '반영', 이름)); } catch (err) { console.warn(err); } }
+                    닫기();
+                    showToast(`✅ '${이름}' 저장 — 기사앱 작업목록 · 정산견적에 들어갔어요`);
+                    await loadProjectData(projectRecordId);
+                    if (st.사진 && rec && rec.id) {
+                        const slot = document.createElement('div');
+                        Object.assign(slot.dataset, { recordId: rec.id, fieldName: '시공전사진', slotIndex: '0', slotName: '추가작업 사진' });
+                        uploadImageToServer(st.사진, slot);
+                    }
+                } catch (err) { st.저장중 = false; 그리기(); showToast(err.message || '저장 실패', 'danger'); }
+            }
+        });
+        그리기();
+    }
+
+    function 약속시트열기() {
+        const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const back = document.createElement('div'); back.className = 'ex-back';
+        const sheet = document.createElement('div'); sheet.className = 'ex-sheet';
+        document.body.appendChild(back); document.body.appendChild(sheet);
+        const 닫기 = () => { back.remove(); sheet.remove(); renderTasks(); };
+        back.onclick = 닫기;
+        let 글값 = '', 누가 = '';
+        function 그리기() {
+            const all = 약속목록(), 남은 = ExtraWork.남은약속(all), 끝 = all.filter(p => p.상태 !== '대기');
+            sheet.innerHTML = `
+                <div class="ex-h"><b>📝 약속 메모</b><button type="button" class="ex-x" data-act="close">✕</button></div>
+                <div class="ex-lb">업자·고객과 말로 정한 걸 바로 적어 두세요 <small>견적에 넣거나 '안 함'으로 닫을 때까지 빨갛게 남아요</small></div>
+                <textarea class="ex-in" data-f="글" rows="2" placeholder="🎤 예: 현관 중문 틀도 같이 해달라">${esc(글값)}</textarea>
+                <div class="ex-row2 tight"><input class="ex-in" data-f="누가" placeholder="누가 (예: 김실장)" value="${esc(누가)}"><button type="button" class="ex-save sm" data-act="add">저장</button></div>
+                ${남은.map(p => `<div class="ex-pm" data-id="${esc(p.id)}"><b>${esc(p.글)}</b><small>${esc(p.누가 || '')}${p.누가 && p.때 ? ' · ' : ''}${esc(p.때 || '')}</small>
+                    <div class="ex-pm-bt"><button type="button" data-act="toquote">➕ 견적에 넣기</button><button type="button" class="ghost" data-act="skip">무상 / 안 함</button></div></div>`).join('')}
+                ${끝.length ? `<div class="ex-lb">지난 약속</div>${끝.map(p => `<div class="ex-pm done"><b>${p.상태 === '반영' ? '✓' : '—'} ${esc(p.글)}</b><small>${p.상태 === '반영' ? '견적 반영' + (p.작업 ? ' · ' + esc(p.작업) : '') : '안 함'}${p.때 ? ' · ' + esc(p.때) : ''}</small></div>`).join('')}` : ''}`;
+        }
+        sheet.addEventListener('input', (e) => { const f = e.target.dataset && e.target.dataset.f; if (f === '글') 글값 = e.target.value; if (f === '누가') 누가 = e.target.value; });
+        sheet.addEventListener('click', async (e) => {
+            const b = e.target.closest('[data-act]');
+            if (!b) return;
+            const act = b.dataset.act, id = (b.closest('.ex-pm') || { dataset: {} }).dataset.id;
+            if (act === 'close') return 닫기();
+            try {
+                if (act === 'add') {
+                    if (!글값.trim()) { showToast('약속 내용을 적어 주세요', 'danger'); return; }
+                    await 약속저장(ExtraWork.약속더하기(약속목록(), 글값, 누가, 지금때()));
+                    글값 = ''; 누가 = ''; showToast('📝 약속 메모 저장'); 그리기();
+                }
+                if (act === 'skip') { await 약속저장(ExtraWork.약속상태(약속목록(), id, '안함')); 그리기(); }
+                if (act === 'toquote') {
+                    const p = 약속목록().find(x => x.id === id);
+                    back.remove(); sheet.remove();
+                    추가시트열기({ 구분: '추가요청', 메모: p ? p.글 : '', 누가: '고객', 청구처: p ? p.누가 : '', 청구: '고객청구', 약속id: id });
+                }
+            } catch (err) { showToast(err.message || '저장 실패', 'danger'); }
+        });
+        그리기();
+    }
 
     function renderTasks() {
         if (currentWorker === OWNER_VIEW) { renderOwnerPhotos(); return; }
@@ -658,7 +909,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         cardEntries.forEach(({ task, stage, 뒷정리 }) => {
             const fields = task.fields;
-            const item = projectData.items[fields.시공품목] || { 밑작업지침: "", 시공후점검지침: "", 필수사진슬롯: "" };
+            // 추가작업(재시공·AS·추가요청)은 원래 품목의 지침·사진칸을 그대로 쓴다
+            const item = projectData.items[fields.시공품목] || projectData.items[fields.원품목] || { 밑작업지침: "", 시공후점검지침: "", 필수사진슬롯: "" };
 
             if (stage === '밑작업') {
                 renderTaskCard(task, '밑작업', item.밑작업지침, "시공전사진");
@@ -694,7 +946,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cardBodyId = `task-body-${recordId}-${stage}`;
         let headerHtml = `
             <div class="task-card-header task-card-toggle" data-target="${cardBodyId}">
-                <span class="task-title">${fields.시공품목}</span>
+                <span class="task-title">${추가표시(fields)}${fields.시공품목}</span>
                 <div class="task-head-row">
                     ${뒷정리
                         ? `<span class="task-badge cleanup">🧹 현장정리${매일 ? ' · 매일' : ''}</span>`
@@ -1001,7 +1253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         card.innerHTML = `
             ${headerHtml}
             <div class="task-card-body" id="${cardBodyId}" style="display: ${isExpanded ? 'block' : 'none'};">
-                ${rawPhotoPreviewHtml}${checklistHtml}${photoHtml}${damageHtml}${buttonHtml}
+                ${사장님메모HTML(fields)}${rawPhotoPreviewHtml}${checklistHtml}${photoHtml}${damageHtml}${buttonHtml}
             </div>
         `;
         taskListContainer.appendChild(card);

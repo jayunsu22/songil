@@ -84,3 +84,7 @@
 .v-tbl.addwork .v-nm { font-size: 16px; font-weight: 800; color: #1d4ed8; }
 .v-tbl.addwork .v-amt { font-size: 16px; font-weight: 800; color: #1d4ed8; }
 .v-sum .v-row.add span { color: #1d4ed8; font-weight: 800; }
+
+/* 추가 작업 (2026-10-26) */
+.v-tbl.extra .v-ext { color: #9a6b2a; font-size: .9em; }
+.v-tbl.extra .v-note { margin-top: 8px; color: #8a7a68; font-size: 12.5px; }

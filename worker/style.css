@@ -1174,3 +1174,62 @@ body {
     background: #2b62d9; color: #fff; padding: 15px 16px; font-size: 15px; font-weight: 700; box-shadow: 0 8px 20px rgba(43, 98, 217, .35); }
 .own-next button b { font-size: 17px; font-weight: 800; }
 .own-alldone { max-width: 560px; margin: 0 auto; text-align: center; background: #dcfce7; color: #166534; border-radius: 14px; padding: 13px; font-weight: 800; }
+
+/* ---------- ➕ 추가작업 · 📝 약속 메모 (2026-10-26) ---------- */
+.ex-tag { display: inline-block; border-radius: 7px; padding: 1px 7px; font-size: 11.5px; font-weight: 800; vertical-align: 2px; margin-right: 2px; white-space: nowrap; }
+.ex-tag.ex-re { background: #ede9fe; color: #6d28d9; }
+.ex-tag.ex-as { background: #fee2e2; color: #b91c1c; }
+.ex-tag.ex-add { background: #dbeafe; color: #1d4ed8; }
+.ex-memo { margin: 0 0 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 10px 12px; font-size: 12.5px; color: #92400e; font-weight: 700; }
+.ex-memo b { display: block; margin-top: 3px; font-size: 14.5px; color: #1e2633; font-weight: 700; line-height: 1.5; }
+.own-tools { display: flex; gap: 8px; margin-bottom: 10px; }
+.own-tool { flex: 1; border: 1.5px dashed #2b62d9; background: #fff; color: #2b62d9; border-radius: 14px; padding: 12px 8px; font-size: 15px; font-weight: 800; }
+.own-tool.blue { background: #2b62d9; color: #fff; border-style: solid; }
+.own-tool em { font-style: normal; background: #e11d48; color: #fff; border-radius: 9px; padding: 0 6px; font-size: 12px; margin-left: 2px; }
+.own-promise { background: #fff1f2; border: 1.5px solid #fda4af; border-radius: 14px; padding: 10px 12px; margin-bottom: 10px; font-size: 13px; color: #4b5563; line-height: 1.5; }
+.own-promise b { color: #be123c; font-size: 14px; display: block; margin-bottom: 3px; }
+.own-promise span { color: #9ca3af; font-size: 11.5px; }
+.own-exsum { background: #f5f3ff; border-radius: 12px; padding: 9px 12px; margin-bottom: 10px; font-size: 13px; color: #4c1d95; font-weight: 600; }
+.own-exsum b { color: #1e2633; }
+.own-row.extra { border-color: #c4b5fd; background: #faf8ff; }
+.own-row.extra.has { background: #f6fef9; }
+.own-info small.ex-sub { color: #6d28d9; font-weight: 700; }
+.ex-back { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.4); }
+.ex-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 101; max-height: 92vh; overflow-y: auto; background: #fff; border-radius: 22px 22px 0 0;
+    padding: 14px 16px calc(18px + env(safe-area-inset-bottom)); box-sizing: border-box; max-width: 640px; margin: 0 auto; box-shadow: 0 -10px 30px rgba(0,0,0,.18); }
+.ex-h { display: flex; align-items: center; justify-content: space-between; }
+.ex-h b { font-size: 18px; }
+.ex-x { border: none; background: #f1f3f7; border-radius: 50%; width: 34px; height: 34px; font-size: 15px; }
+.ex-name { margin-top: 4px; color: #667; font-size: 13px; font-weight: 700; }
+.ex-lb { font-size: 12.5px; font-weight: 800; color: #556; margin: 13px 0 6px; }
+.ex-lb small { font-weight: 500; color: #99a; margin-left: 4px; }
+.ex-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.ex-chip { border: 1.5px solid #d5dbe6; background: #fff; border-radius: 12px; padding: 9px 11px; font-size: 13.5px; font-weight: 700; color: #334; }
+.ex-chip.on { border-color: #1e2633; background: #1e2633; color: #fff; }
+.ex-chip.k-re.on { border-color: #6d28d9; background: #ede9fe; color: #6d28d9; }
+.ex-chip.k-as.on { border-color: #b91c1c; background: #fee2e2; color: #b91c1c; }
+.ex-chip.k-add.on { border-color: #1d4ed8; background: #dbeafe; color: #1d4ed8; }
+.ex-in { width: 100%; box-sizing: border-box; border: 1.5px solid #d5dbe6; border-radius: 12px; padding: 11px 12px; font-size: 15px; font-family: inherit; background: #fff; margin-bottom: 6px; }
+select.ex-in { appearance: auto; }
+.ex-row2 { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.ex-row2.tight { grid-template-columns: 1fr auto; align-items: start; }
+.ex-qty { position: relative; }
+.ex-qty span { position: absolute; right: 12px; top: 12px; color: #889; font-weight: 700; }
+.ex-qty .ex-in { padding-right: 34px; }
+.ex-ph { display: flex; gap: 8px; align-items: stretch; }
+.ex-photo { flex: none; width: 74px; border: 1.5px dashed #b6c0d4; border-radius: 12px; background: #f7f9fc center / cover no-repeat; font-size: 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 6px; }
+.ex-photo small { font-size: 11px; color: #778; }
+.ex-photo.has { border-style: solid; border-color: #2b62d9; }
+.ex-ph textarea { flex: 1; resize: vertical; }
+.ex-save { width: 100%; margin-top: 12px; border: none; border-radius: 14px; background: #2b62d9; color: #fff; padding: 15px; font-size: 16px; font-weight: 800; }
+.ex-save:disabled { opacity: .6; }
+.ex-save.sm { width: auto; margin: 0; padding: 11px 16px; font-size: 14.5px; }
+.ex-del { width: 100%; margin-top: 8px; border: none; background: none; color: #b91c1c; font-size: 13.5px; text-decoration: underline; padding: 8px; }
+.ex-pm { background: #fff1f2; border: 1.5px solid #fda4af; border-radius: 14px; padding: 10px 12px; margin-top: 8px; }
+.ex-pm b { display: block; color: #be123c; font-size: 14.5px; }
+.ex-pm small { color: #778; font-size: 12px; }
+.ex-pm-bt { display: flex; gap: 6px; margin-top: 8px; }
+.ex-pm-bt button { flex: 1; border: none; border-radius: 10px; padding: 9px; font-weight: 800; font-size: 13px; background: #2b62d9; color: #fff; }
+.ex-pm-bt button.ghost { background: #fff; color: #2b62d9; border: 1.5px dashed #2b62d9; }
+.ex-pm.done { background: #f7f8fa; border-color: #e5e7eb; }
+.ex-pm.done b { color: #556; font-size: 13.5px; }
