@@ -170,6 +170,22 @@ function render(d) {
     H.push('</div>');
   }
 
+  // 추가 작업 (2026-10-26): 계획에 없던 재시공·AS·추가요청. 사유를 같이 적어 "왜 늘었냐"에 바로 답한다.
+  // 무상 AS 는 0원으로 남겨 서비스로 해 드린 것도 보이게, 업체 청구는 합계와 별도라고 적는다
+  const 추가작업 = s.추가작업 || [];
+  const 구분글 = { 재시공: '설계변경 재시공', AS: 'AS', 추가요청: '추가 요청' };
+  if (추가작업.length) {
+    H.push('<div class="v-tbl addwork extra"><h3>추가 작업</h3>');
+    추가작업.forEach((a) => {
+      const 금 = a.청구 === '무상' ? (a.구분 === 'AS' ? '무상 AS 0원' : '무상 0원')
+        : a.청구 === '업체청구' ? '<span class="v-ext">업체 청구 ' + won(a.금액) + '</span>' : won(a.금액);
+      const 설명 = [구분글[a.구분] || a.구분, a.청구처, a.일자 ? 날짜(a.일자) : '', a.메모].filter(Boolean).map(esc).join(' · ');
+      H.push('<div class="v-line"><span class="v-nm">' + esc(a.품목명) + '<small>' + 설명 + '</small></span><span class="v-amt">' + 금 + '</span></div>');
+    });
+    if (합계.업체청구) H.push('<div class="v-note">※ 업체 청구 ' + won(합계.업체청구) + '은 아래 합계에 들어 있지 않습니다</div>');
+    H.push('</div>');
+  }
+
   // 부가 항목 (금액 있는 줄만 발행 시 담겨 온다)
   const 부가 = s.부가 || [];
   const 미수금 = s.미수금 || [];
@@ -203,6 +219,7 @@ function render(d) {
     '<div class="v-row"><span>인건비</span><span>' + won(합계.인건비) + '</span></div>' +
     '<div class="v-row"><span>자재비</span><span>' + won(합계.자재비) + '</span></div>' +
     추가금액.map((p) => '<div class="v-row add"><span>' + esc(p.품목명) + '</span><span>' + won(p.금액) + '</span></div>').join('') +
+    (합계.추가 ? '<div class="v-row add"><span>추가 작업</span><span>' + won(합계.추가) + '</span></div>' : '') +
     // 부가 항목은 합계에서도 한 줄로 뭉치지 않고 항목별로 적는다 (부자재비 6만 / 식대 인건비 포함 / 퀵비 없으면 안 나옴)
     부가.map((e) => '<div class="v-row"><span>' + esc(e.항목명) + '</span><span>' + (e.비고 ? esc(e.비고) : won(e.금액)) + '</span></div>').join('') +
     (미수금합 ? '<div class="v-row sub"><span>시공대금</span><span>' + won(시공대금) + '</span></div>' +

@@ -220,7 +220,14 @@ function mergeSaved() {
   (MASTER.시공품목 || []).forEach((m) => { 마스터맵[m.품목명] = m; });
   const 기본자재 = (마스터자재()[0] || {}).id || '';   // 필름 번호는 선택지일 뿐 기본값이 아니다
 
-  const fresh = (MASTER.작업목록 || []).map((t) => {
+  // 추가작업(재시공·AS·추가요청)은 필름 소모량 줄이 아니라 금액이 정해진 '추가 작업' 칸으로 따로 간다 (2026-10-26)
+  const 포함저장 = (saved && saved.추가포함) || {};
+  const 추가작업 = (MASTER.작업목록 || []).filter((t) => t.추가구분).map((t) => ({
+    id: t.id, 품목명: t.시공품목, 구분: t.추가구분, 원품목: t.원품목 || '', 청구: t.청구 || '고객청구', 청구처: t.청구처 || '',
+    메모: t.추가메모 || '', 금액: Math.round(Number(t.추가금액) || 0), 수량: t.추가수량, 일자: t.추가일자 || '',
+    포함: 포함저장[t.id] !== false,
+  }));
+  const fresh = (MASTER.작업목록 || []).filter((t) => !t.추가구분).map((t) => {
     const m = 마스터맵[t.시공품목] || {};
     return {
       key: 'k' + (keySeq++),
@@ -283,7 +290,8 @@ function mergeSaved() {
     saved.부가.filter((e) => e.출처 === '추가').forEach((e) => 부가.push(Object.assign({}, e, { key: 'e' + (keySeq++) })));
   }
 
-  state = Object.assign(빈상태(), saved || {}, { 줄들: fresh, 부가 });
+  state = Object.assign(빈상태(), saved || {}, { 줄들: fresh, 부가, 추가작업 });
+  state.추가포함 = Object.assign({}, 포함저장);
   // 미수금은 마스터와 무관한 손입력이라 저장분을 그대로 쓴다. key 는 화면 전용이라 다시 매긴다.
   state.미수금 = (Array.isArray(state.미수금) ? state.미수금 : [])
     .map((d) => ({ key: 'd' + (keySeq++), 현장명: d.현장명 || '', 금액: d.금액 == null ? '' : d.금액 }));
@@ -305,7 +313,7 @@ function 품단가값() {
   return SettleCalc.수(state.품단가ID);
 }
 function 계산() {
-  const r = SettleCalc.합계({ 품수: state.품수, 품단가: 품단가값(), 줄들: state.줄들, 부가: state.부가, 미수금: state.미수금 }, 자재표);
+  const r = SettleCalc.합계({ 품수: state.품수, 품단가: 품단가값(), 줄들: state.줄들, 부가: state.부가, 미수금: state.미수금, 추가작업: state.추가작업 || [] }, 자재표);
   // "만원 단위 절사" 옵션 켜면 시공대금만 만원 단위로 내림한다(예: 351,300원 → 350,000원).
   // 미수금은 지난번에 못 받은 금액 그대로여야 하므로 절사하지 않는다 - 깎으면 받을 돈이 줄어든다.
   if (state.만원절사 && r.시공대금 > 0) {
@@ -333,6 +341,7 @@ function renderAll() {
   renderLabor();
   renderLines();
   renderFilms();
+  renderAddWork();
   renderExtras();
   renderDues();
   $('#memoText').value = state.메모 || '';
@@ -625,6 +634,30 @@ function renderExtras() {
   });
 }
 
+const 추가구분글 = { 재시공: '🔁 재시공', AS: '🛠 AS', 추가요청: '➕ 추가' };
+function 추가금액글(a) {
+  if (a.청구 === '무상') return (a.구분 === 'AS' ? '무상 AS ' : '무상 ') + '0원';
+  if (a.청구 === '업체청구') return '업체 청구 ' + won(a.금액);
+  return won(a.금액);
+}
+function renderAddWork() {
+  const list = state.추가작업 || [];
+  $('#addWorkCard').hidden = !list.length;
+  if (!list.length) return;
+  $('#addWorkList').innerHTML = list.map((a) => `<label class="aw${a.포함 ? '' : ' off'}${a.청구 === '고객청구' ? '' : ' sub'}" data-id="${esc(a.id)}">
+    <input type="checkbox" ${a.포함 ? 'checked' : ''}>
+    <span class="aw-nm"><b><span class="aw-tag aw-${a.구분 === 'AS' ? 'as' : a.구분 === '재시공' ? 're' : 'add'}">${추가구분글[a.구분] || a.구분}</span> ${esc(a.품목명)}</b>
+      <small>${[a.청구처, a.일자 ? 짧은날짜(a.일자) : '', a.메모].filter(Boolean).map(esc).join(' · ')}</small></span>
+    <span class="aw-amt">${추가금액글(a)}</span></label>`).join('') +
+    '<p class="aw-hint">기사앱 사장님 보기의 ＋ 추가작업에서 적은 일. 금액·청구는 거기서 고칩니다. 체크를 풀면 이 견적서에서만 빠져요</p>';
+  $('#addWorkList').querySelectorAll('.aw input').forEach((cb) => cb.addEventListener('change', () => {
+    const id = cb.closest('.aw').dataset.id;
+    const a = list.find((x) => x.id === id);
+    a.포함 = cb.checked; state.추가포함[id] = cb.checked;
+    save(); renderAddWork(); renderTotals();
+  }));
+}
+
 function renderDues() {
   const box = $('#dues');
   if (!state.미수금.length) {
@@ -662,6 +695,7 @@ function renderTotals() {
   // 부가항목을 하나도 안 골랐으면 금액 대신 '부가항목 없음' 이라고 적는다 (번호 ③④ 는 그대로 둔다)
   $('#extraSum').textContent = r.부가 > 0 || state.부가.some((e) => e.인건비포함) ? won(r.부가) : '부가항목 없음';
   $('#dueSum').textContent = r.미수금 > 0 ? won(r.미수금) : '없음';
+  $('#addWorkSum').textContent = '+' + won(r.추가) + (r.업체청구 ? ' · 업체 ' + won(r.업체청구) : '');
   $('#matSubtotals').innerHTML = r.자재소계.map((s) =>
     `<div><span>${esc(s.자재명)} · ${won(s.단가)}/m × ${s.소모량합}m</span><b>${won(s.금액)}</b></div>`).join('') +
     금액줄들().map((l) => `<div class="add"><span>➕ ${esc(l.품목명 || '이름 없는 품목')}</span><b>${won(금액값(l))}</b></div>`).join('');
@@ -755,7 +789,8 @@ function 스냅샷만들기() {
       .map((e) => Object.assign({ 항목명: e.항목명 || '기타', 금액: e.인건비포함 ? 0 : Math.round(SettleCalc.수(e.금액)) }, e.인건비포함 ? { 비고: '인건비 포함' } : {})),
     미수금: state.미수금.filter((d) => Math.round(SettleCalc.수(d.금액)) !== 0)
       .map((d) => ({ 현장명: String(d.현장명 || '').trim() || '현장 미기재', 금액: Math.round(SettleCalc.수(d.금액)) })),
-    합계: { 인건비: r.인건비, 자재비: r.자재비, 직접비: r.직접비, 부가: r.부가, 미수금: r.미수금, 시공대금: r.시공대금, 총액: r.총액 },
+    추가작업: (state.추가작업 || []).filter((a) => a.포함).map((a) => ({ 품목명: a.품목명, 구분: a.구분, 청구: a.청구, 청구처: a.청구처, 메모: a.메모, 금액: a.금액, 일자: a.일자 })),
+    합계: { 인건비: r.인건비, 자재비: r.자재비, 직접비: r.직접비, 부가: r.부가, 추가: r.추가, 업체청구: r.업체청구, 미수금: r.미수금, 시공대금: r.시공대금, 총액: r.총액 },
   };
 }
 

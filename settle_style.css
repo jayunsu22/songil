@@ -230,3 +230,19 @@ button.addrow { display: block; width: 100%; text-align: left; padding: 10px 14p
 /* 기본 필름 (2026-10-24) — 누르면 모든 항목이 이 필름으로 */
 .filmbox .fdef { flex: none; height: 34px; padding: 0 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff; color: #94a3b8; font-size: 13px; font-weight: 800; white-space: nowrap; }
 .filmbox .fdef.on { border-color: #facc15; background: #fef9c3; color: #854d0e; }
+
+/* ➕ 추가 작업 (2026-10-26) — 기사앱 사장님 보기에서 적은 재시공·AS·추가요청 */
+.card.addwork { border: 1.5px solid #c4b5fd; }
+#addWorkList { padding: 0 14px 12px; }
+.aw { display: flex; align-items: flex-start; gap: 9px; padding: 10px 2px; border-top: 1px dashed #e5e7eb; cursor: pointer; }
+.aw:first-child { border-top: none; }
+.aw input { margin-top: 3px; width: 18px; height: 18px; flex: none; }
+.aw-nm { flex: 1; min-width: 0; }
+.aw-nm b { display: block; font-size: 14.5px; }
+.aw-nm small { display: block; color: #889; font-size: 12px; margin-top: 2px; line-height: 1.4; }
+.aw-amt { font-weight: 800; white-space: nowrap; font-size: 14.5px; }
+.aw.sub .aw-amt { color: #889; font-weight: 700; font-size: 13px; }
+.aw.off { opacity: .45; }
+.aw-tag { display: inline-block; border-radius: 6px; padding: 0 6px; font-size: 11px; font-weight: 800; vertical-align: 1px; }
+.aw-re { background: #ede9fe; color: #6d28d9; } .aw-as { background: #fee2e2; color: #b91c1c; } .aw-add { background: #dbeafe; color: #1d4ed8; }
+.aw-hint { margin: 8px 0 0; color: #99a; font-size: 11.5px; line-height: 1.45; }
