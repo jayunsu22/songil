@@ -235,11 +235,76 @@ const CONFIG = {
             const html = '<div class="qk-old"><b>🗂 이전 계산' + (st.cart.quoteId ? ' · ' + esc(st.cart.quoteId) : '') + '</b>' +
                 '<span>' + esc(names || '고른 품목 없음') + '</span><strong>합계 ' + QuickCard.합계(st.cart).toLocaleString('ko-KR') + '원</strong></div>';
             if (old) { old.classList.remove('qk-bubble'); old.innerHTML = html; }
+            paintQuickTotalBar({ items: [] });
             const i = chatHistory.findIndex(h => h.qkCard);
             if (i >= 0) chatHistory[i] = { message: html, sender: 'bot', isQuote: false };
             try { localStorage.setItem(getChatHistoryStorageKey(), JSON.stringify(chatHistory)); } catch (e) { console.warn('로컬스토리지 용량 초과:', e); }
             st.cart = QuickCard.새카트();
             writeQuickCardState(st);
+        }
+        /* [2026-10-26] 아래 고정 합계 막대 (방문견적처럼). 채팅칸 바로 위에 붙어서, 빼고 더할 때마다 합계가 바로 바뀐다.
+           - 카드 안의 합계 줄이 화면에 보일 때는 겹치니 숨긴다 (IntersectionObserver)
+           - 채팅칸을 눌러 자판이 올라오면 화면이 좁아지니 숨긴다
+           - [＋ 추가] 는 카드의 추가 견적 받기를, [☎ 상담] 은 카드의 상담신청을 연다 */
+        let qkBarObserver = null, qkSumVisible = false, qkTyping = false;
+        function quickTotalBar() {
+            let bar = document.getElementById('qkTotalBar');
+            if (bar) return bar;
+            bar = document.createElement('div');
+            bar.id = 'qkTotalBar';
+            bar.className = 'qk-total-bar';
+            bar.hidden = true;
+            const area = document.querySelector('.chat-input-area');
+            if (area) area.insertBefore(bar, area.firstChild);
+            bar.addEventListener('click', (e) => {
+                const card = document.querySelector('.qk-bubble .qk-card');
+                if (!card) return;
+                const act = (e.target.closest('[data-bar]') || {}).dataset;
+                const go = (el) => el && el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                if (act && act.bar === 'add') { const b = card.querySelector('[data-act="more"]'); if (b) b.click(); go(card.querySelector('.qk-wiz') || card); return; }
+                if (act && act.bar === 'consult') { const b = card.querySelector('.qk-consult'); if (b && !b.disabled) { b.click(); setTimeout(() => go(card.querySelector('.qk-consult-wrap')), 60); } return; }
+                go(card.querySelector('.qk-sum'));
+            });
+            if (userInput) {
+                userInput.addEventListener('focus', () => { qkTyping = true; paintQuickTotalBar(); });
+                userInput.addEventListener('blur', () => { qkTyping = false; setTimeout(paintQuickTotalBar, 150); });
+            }
+            return bar;
+        }
+        function paintQuickTotalBar(cart) {
+            const bar = quickTotalBar();
+            if (cart) bar._cart = cart;
+            const c = bar._cart;
+            const card = document.querySelector('.qk-bubble .qk-card');
+            const items = c && c.items ? c.items : [];
+            if (!card || !items.length) { bar.hidden = true; return; }
+            const on = items.filter(it => it.on).length;
+            bar.innerHTML = '<button type="button" class="qk-tb-sum" data-bar="sum"><span>합계 <small>' + on + '개 · VAT 별도</small></span><b>' +
+                QuickCard.합계(c).toLocaleString('ko-KR') + '원</b></button>' +
+                '<button type="button" class="qk-tb-add" data-bar="add">＋ 추가</button>' +
+                '<button type="button" class="qk-tb-call" data-bar="consult"' + (QuickCard.합계(c) > 0 ? '' : ' disabled') + '>☎ 상담</button>';
+            bar.hidden = qkSumVisible || qkTyping;
+            const t = QuickCard.합계(c);
+            if (bar._last !== undefined && bar._last !== t) { const b = bar.querySelector('.qk-tb-sum b'); if (b) b.classList.add('bump'); }
+            bar._last = t;
+        }
+        // 카드 안 합계 줄이 채팅 화면에 보이는지 — 카드가 다시 그려지면 줄이 바뀌므로 그때그때 찾는다
+        function checkQuickSum() {
+            const sum = document.querySelector('.qk-bubble .qk-sum');
+            let vis = false;
+            if (sum && chatContainer) {
+                const r = sum.getBoundingClientRect(), c = chatContainer.getBoundingClientRect();
+                vis = r.bottom > c.top && r.top + r.height * 0.6 < c.bottom;
+            }
+            if (vis !== qkSumVisible) { qkSumVisible = vis; paintQuickTotalBar(); }
+        }
+        function watchQuickSum() {
+            if (!qkBarObserver && chatContainer) {
+                qkBarObserver = true;
+                chatContainer.addEventListener('scroll', () => requestAnimationFrame(checkQuickSum), { passive: true });
+                window.addEventListener('resize', () => requestAnimationFrame(checkQuickSum));
+            }
+            requestAnimationFrame(checkQuickSum);
         }
         // 카드는 늘 하나 — 새 견적이 오면 예전 카드를 지우고 맨 아래에 다시 그린다
         function showQuickCardBubble(save, hot) {
@@ -252,7 +317,7 @@ const CONFIG = {
                 cart: st.cart,
                 hot: hot || [],
                 partner: st.partner || (currentPartner ? { phone: currentPartner.phone, manager: currentPartner.ceo_name || currentPartner.partner_name } : null),
-                onChange: (cart) => { const s = readQuickCardState(); s.cart = cart; writeQuickCardState(s); },
+                onChange: (cart) => { const s = readQuickCardState(); s.cart = cart; writeQuickCardState(s); paintQuickTotalBar(cart); watchQuickSum(); },
                 getTable: getQuickPriceTable,
                 onAdded: (name) => showToast('➕ ' + name + ' 을(를) 견적에 넣었어요'),
                 onAddMore: () => {
@@ -275,6 +340,9 @@ const CONFIG = {
             });
             bubble.appendChild(card);
             chatContainer.appendChild(bubble);
+            paintQuickTotalBar(st.cart);
+            watchQuickSum();
+            card.addEventListener('click', () => setTimeout(watchQuickSum, 50));   // 추가 견적 칸이 열리고 닫혀 길이가 바뀔 때
             if (save) {
                 chatHistory = chatHistory.filter(h => !h.qkCard);
                 chatHistory.push({ qkCard: true, sender: 'bot' });

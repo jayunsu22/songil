@@ -90,3 +90,17 @@
 .qk-old b { color: #4a3b2c; }
 .qk-old span { color: #8a7a68; line-height: 1.45; }
 .qk-old strong { color: #3a2c1f; }
+/* 아래 고정 합계 막대 — 채팅칸 바로 위 (2026-10-26) */
+.qk-total-bar { display: flex; align-items: stretch; gap: 6px; margin: -6px 0 10px; }
+.qk-total-bar[hidden] { display: none; }
+.qk-tb-sum { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; border: none; border-radius: 14px;
+  background: #2C2118; color: #fff; padding: 9px 13px; text-align: left; font-family: inherit; }
+.qk-tb-sum span { font-size: 13px; font-weight: 700; line-height: 1.25; }
+.qk-tb-sum small { display: block; white-space: nowrap; font-size: 10.5px; font-weight: 500; opacity: .7; }
+.qk-tb-sum b { font-size: 19px; font-weight: 800; white-space: nowrap; transition: color .2s; }
+.qk-tb-add, .qk-tb-call { flex: none; border: none; border-radius: 14px; padding: 0 11px; font-size: 13px; font-weight: 800; font-family: inherit; }
+.qk-tb-add { background: #F4ECE1; color: #8F5A2A; }
+.qk-tb-call { background: #3B82F6; color: #fff; }
+.qk-tb-call:disabled { opacity: .45; }
+.qk-tb-sum b.bump { animation: qkBump .6s ease-out 1; }
+@keyframes qkBump { 0% { color: #FFD48A; transform: scale(1.12); } 100% { color: #fff; transform: none; } }
