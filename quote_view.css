@@ -57,6 +57,19 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); backg
   border-top: 1px solid #efe7db;
 }
 .v-site { font-size: 17px; font-weight: 700; }
+/* 제목 앞 가견적 표시 - 현장관리 앱의 '밑작업' 표와 같은 색 */
+.v-badge {
+  display: inline-block;
+  margin-right: 7px;
+  padding: 2px 9px;
+  border-radius: 7px;
+  background: #fdefc6;
+  color: #b4610f;
+  font-size: 14px;
+  font-weight: 800;
+  vertical-align: 2px;
+}
+.v-site2 { font-size: 15px; font-weight: 600; color: #4a4037; margin-top: 3px; }
 .v-meta { font-size: 13px; color: var(--muted); margin-top: 4px; }
 
 /* ---------- 맨 끝 명함 ---------- */
