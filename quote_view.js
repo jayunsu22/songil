@@ -22,6 +22,16 @@ let 인건비만 = false;   // 실제로 인건비 견적서로 그릴지. rende
 
 /* 그 줄에 보여줄 금액. 인건비 견적서에서 나뉘어 있지 않은 줄은
    전액(자재비 포함)을 그대로 쓴다. */
+/* 견적요청 제목 '부평 삼산동 미래타운 3단지 가견적 10월29일 오후8시(김정헌)' 은 (사장님 2026-10-29)
+   첫 줄: [가견적] 표시 + 위치,  둘째 줄: 날짜 시 (업체).  이 모양이 아니면 예전처럼 한 줄로 쓴다.
+   보여 줄 때만 나누므로 이미 발행한 견적서도 다시 발행하지 않고 바로 바뀐다. */
+function 현장명그리기(이름) {
+  const m = /^(.*?)\s*(가견적|실제견적)\s+(\d{1,2}월\s?\d{1,2}일\s*(?:오전|오후)\s?\d{1,2}시)\s*\((.+)\)\s*$/.exec(String(이름));
+  if (!m) return '<div class="v-site">' + esc(이름) + '</div>';
+  return '<div class="v-site"><span class="v-badge">' + esc(m[2]) + '</span>' + esc(m[1]) + '</div>' +
+    '<div class="v-site2">' + esc(m[3]) + ' (' + esc(m[4]) + ')</div>';
+}
+
 function 줄금액(l) {
   return (인건비만 && l.인건비표시금액 != null) ? l.인건비표시금액 : l.표시금액;
 }
@@ -195,7 +205,7 @@ function render() {
     (연락.length ? '<div class="v-contact">' + 연락.join('') + '</div>' : '') +
     '<div class="v-headfoot">' +
       (실제 ? '<span class="v-kind">실제 견적서</span>' : '') +
-      (d.현장명 ? '<div class="v-site">' + esc(d.현장명) + '</div>' : '') +
+      (d.현장명 ? 현장명그리기(d.현장명) : '') +
       '<div class="v-meta">인테리어필름 시공 견적서 · ' + 날짜(d.발행일시) +
         (d.평형 ? ' · ' + esc(d.평형) : '') + '</div>' +
       (실제 && d.비교견적코드 ? '<a class="v-from" href="' + esc(견적주소(d.비교견적코드)) + '">📋 ' +
