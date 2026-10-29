@@ -116,3 +116,43 @@ def copy_room_text(room, wait=0.6):
     u.PostMessageW(lst, 0x201, 1, lp)  # WM_LBUTTONDOWN
     u.PostMessageW(lst, 0x202, 0, lp)  # WM_LBUTTONUP
     return text
+
+
+PLACEHOLDER = "메시지 입력"  # 비어 있을 때 입력칸이 돌려주는 안내 글
+
+
+def _input_text(edit):
+    """입력칸 글 (비어 있으면 '')."""
+    n = u.SendMessageW(edit, 0x000E, 0, 0)  # WM_GETTEXTLENGTH
+    buf = ctypes.create_unicode_buffer(n + 1)
+    u.SendMessageW(edit, 0x000D, n + 1, buf)  # WM_GETTEXT
+    return "" if buf.value == PLACEHOLDER else buf.value
+
+
+def send_text(room, text):
+    """방 채팅창 입력칸에 text 를 넣고 Enter 로 전송 (AI 없음). 창 제목이 room 과 같을 때만.
+    입력칸에 쓰던 글이 있으면 덮어쓰지 않고 그만둔다. 전송되면(입력칸이 비면) True."""
+    h, _ = find_room(room)
+    if not h:
+        return False
+    n = u.GetWindowTextLengthW(h)
+    title = ctypes.create_unicode_buffer(n + 1)
+    u.GetWindowTextW(h, title, n + 1)
+    if title.value != room:
+        return False
+    edit = u.FindWindowExW(h, 0, "RICHEDIT50W", None)
+    if not edit or _input_text(edit).strip():
+        return False
+    # 빈 입력칸에 WM_SETTEXT 만 하면 카톡은 여전히 '빈칸' 으로 여겨 Enter 를 무시한다 (10/29 확인).
+    # 한 글자를 먼저 '친' 것처럼(WM_CHAR) 해 두면 그다음 넣은 글을 Enter 로 보낸다. 창을 앞으로 띄울 필요 없음.
+    u.SendMessageW(edit, 0x0102, 0x20, 1)  # WM_CHAR ' '
+    u.SendMessageW(edit, 0x000C, 0, ctypes.c_wchar_p(text))  # WM_SETTEXT
+    time.sleep(0.3)
+    u.PostMessageW(edit, WM_KEYDOWN, 0x0D, 0x001C0001)
+    time.sleep(0.05)
+    u.PostMessageW(edit, WM_KEYUP, 0x0D, 0xC01C0001)
+    for _ in range(20):
+        time.sleep(0.2)
+        if not _input_text(edit).strip():
+            return True
+    return False

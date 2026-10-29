@@ -14,7 +14,7 @@ import socket
 import sys
 import time
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timezone
 
 import kakao_photo
 import kakao_text
@@ -34,7 +34,18 @@ DEFAULTS = {
     "mask_secrets": True,
     "photo_dir": "",
     "auto_save_photos": True,
+    "quote_rooms": ["김정헌"],   # 견적 문의면 가견적을 바로 발행할 방
+    "send_rooms": ["김정헌"],    # 발행 링크를 카톡으로 보낼 방 (사장님 규칙: 김정헌 방만)
+    "quiet_seconds": 120,         # 마지막 글 뒤 이만큼 새 글이 없으면 한 건으로 묶어 견적
 }
+
+# 방마다 견적 대기 중인 글·사진 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다)
+PENDING = {}
+
+
+def is_ours(text):
+    """프로그램이 보낸 링크 글은 견적 문의로 다시 읽지 않는다."""
+    return "/q/" in text or text.startswith(("[가견적]", "[자동]"))
 
 
 def log(msg):
@@ -60,7 +71,10 @@ def check_room(cfg, state, room, dry):
     """방 하나 확인. 돌려주는 값: 보낼 메시지 목록(새 것) 과 새 지문 목록."""
     text = kakao_window.copy_room_text(room)
     if text is None:
-        log("[%s] 채팅창이 열려 있지 않음 — 카톡에서 그 방 창을 열어 두세요" % room)
+        if kakao_window.find_room(room)[0]:
+            log("[%s] 글 복사 실패 — 다음 확인 때 다시" % room)
+        else:
+            log("[%s] 채팅창이 열려 있지 않음 — 카톡에서 그 방 창을 열어 두세요" % room)
         return None
     msgs = kakao_text.with_keys(kakao_text.parse(text))
     rs = state["rooms"].setdefault(room, {"keys": [], "at": None})
@@ -113,8 +127,43 @@ def run_once(cfg, state, dry=False):
         rs["keys"] = (rs["keys"] + [m["key"] for m in fresh])[-KEEP_KEYS:]
         rs["at"] = datetime.now().isoformat(timespec="seconds")
         state["photos"] = (state["photos"] + [kakao_photo.file_id(p) for p in photos])[-KEEP_KEYS:]
+        if room in cfg["quote_rooms"]:
+            pend = PENDING.setdefault(room, {"texts": [], "photos": [], "last": 0, "first": None})
+            for m in payload["messages"]:
+                if not kakao_text.photo_count(m["text"]) and not is_ours(m["text"]):
+                    pend["texts"].append(m["text"])
+            pend["photos"] += photos
+            pend["last"] = time.time()
+            pend["first"] = pend["first"] or datetime.now(timezone.utc).isoformat()
+    if not dry:
+        for room in list(PENDING):
+            quote_if_quiet(cfg, room)
     if not dry:
         save_state(state)
+
+
+def quote_if_quiet(cfg, room):
+    pend = PENDING[room]
+    quiet = time.time() - pend["last"]
+    if quiet < cfg["quiet_seconds"]:
+        return
+    if not pend["texts"]:
+        if quiet > 1800:  # 글 없이 사진만 30분 → 버림
+            PENDING.pop(room)
+        return
+    PENDING.pop(room)
+    import quote_bot
+    text = "\n".join(pend["texts"])
+    log("[%s] 견적 문의인지 확인·가견적 발행 시작 (글 %d개, 사진 %d장)" % (room, len(pend["texts"]), len(pend["photos"])))
+    try:
+        r = quote_bot.publish(text, pend["photos"], client=room, received_at=pend["first"])
+    except Exception as e:
+        log("[%s] 견적 안 함: %s" % (room, str(e)[:200]))
+        return
+    log("[%s] 가견적 발행 %s (품목 %d개, 빠진 정보 %d개)" % (room, r["link"], len(r["items"]), len(r["missing"])))
+    if room in cfg["send_rooms"]:
+        ok = kakao_window.send_text(room, "[가견적] " + (r["title"] or "견적서") + " " + r["link"])
+        log("[%s] 카톡 전송 %s" % (room, "완료" if ok else "실패"))
 
 
 def main():

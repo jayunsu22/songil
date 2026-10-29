@@ -11,3 +11,4 @@ kakao_reader/config.json
 kakao_reader/state.json
 kakao_reader/state.json.tmp
 kakao_reader/__pycache__/
+kakao_reader/browser_profile/
