@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- 사장님 전용 화면 — 관리자 암호(정산견적과 같은 암호, 한 번 열면 같이 열림) -->
 <script src="/pin-lock.js?v=20261006c" data-key="settleUnlocked"></script>
-<script src="/owner-key.js?v=20261018a"></script>
+<script src="/owner-key.js?v=20261029a"></script>
 <title>현장견적 - 섬세한손길</title>
 <link rel="stylesheet" href="quote_style.css">
 <link rel="stylesheet" href="quote_photos.css">
@@ -52,6 +52,25 @@
 <section id="reqBar" hidden>
   <span id="reqBarText"></span>
   <button id="reqBarOpen" type="button">입력 화면</button>
+</section>
+
+<!-- 견적초안 ①②: 카톡·문자·통화로 받은 요청 글을 붙여넣으면 방문견적에 체크 (quote_draft_view.js) -->
+<section id="draftBar">
+  <button id="draftToggle" type="button">📋 요청 붙여넣기</button>
+  <div id="draftBody" hidden>
+    <div class="draft-chips" data-k="출처">
+      <button type="button" data-v="카톡" class="on">카톡</button>
+      <button type="button" data-v="문자">문자</button>
+      <button type="button" data-v="통화">통화</button>
+    </div>
+    <div class="draft-chips" data-k="보낸이">
+      <button type="button" data-v="고객" class="on">고객 직접</button>
+      <button type="button" data-v="업체">업체</button>
+    </div>
+    <textarea id="draftText" rows="4" placeholder="받은 견적 요청을 붙여넣으세요 (예: 방문3세트, 화장실문2세트 견적내주세요)"></textarea>
+    <button id="draftGo" type="button">초안 만들기</button>
+    <div id="draftResult" hidden></div>
+  </div>
 </section>
 
 <!-- 고른 업체의 견적시 주의사항. 머리줄 바로 밑에 둔다 -
@@ -462,6 +481,8 @@
 <script src="request_price.js"></script>
 <script src="quote_pro.js"></script>
 <script src="quote_request.js"></script>
+<script src="request_draft.js?v=20261029a"></script>
+<script src="quote_draft_view.js?v=20261029a"></script>
 <script src="/app-switcher.js?v=20261020a" data-app-id="quotepro"></script>
 </body>
 </html>

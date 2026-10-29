@@ -2,6 +2,8 @@
    금액 계산은 quote_calc.js(QuoteCalc)가 하고, 이 파일은 화면과 상태만 다룬다. */
 
 const CONFIG = {
+  // 견적초안: 받은 요청 글 → 품목 (n8n 견적초안_읽기, 1분견적 프롬프트 복사, 사장님 열쇠)
+  draftReadUrl: 'https://primary-production-a6fa.up.railway.app/webhook/quote-draft-read',
   masterUrl:  'https://primary-production-a6fa.up.railway.app/webhook/pro-master',
   publishUrl: 'https://primary-production-a6fa.up.railway.app/webhook/pro-publish',
   photoUrl:   'https://primary-production-a6fa.up.railway.app/webhook/pro-photo',
