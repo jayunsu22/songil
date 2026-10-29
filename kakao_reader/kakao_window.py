@@ -83,6 +83,13 @@ def copy_room_text(room, wait=0.6):
     h, lst = find_room(room)
     if not lst:
         return None
+    if u.GetForegroundWindow() == h:
+        # 채팅창이 맨 앞이면 키가 입력칸으로 가서 복사가 안 된다 (사진 저장 뒤에 이렇게 남음)
+        # → 바탕화면을 앞으로 해 두고 복사한다.
+        u.keybd_event(0x12, 0, 0, 0)  # Alt: 윈도우가 앞으로 가져오기를 허락하게
+        u.keybd_event(0x12, 0, 2, 0)
+        u.SetForegroundWindow(u.GetShellWindow())
+        time.sleep(0.3)
     before = get_clipboard_text()
     marker = "⁣kakao-reader⁣"
     set_clipboard_text(marker)
@@ -104,4 +111,8 @@ def copy_room_text(room, wait=0.6):
             break
         time.sleep(0.2)
     set_clipboard_text(before)
+    # Ctrl+A 로 전체 선택된 채로 두면 사진을 눌러도 뷰어가 안 열린다 → 목록 왼쪽 위 빈 곳을 한 번 눌러 선택을 푼다
+    lp = (3 << 16) | 3
+    u.PostMessageW(lst, 0x201, 1, lp)  # WM_LBUTTONDOWN
+    u.PostMessageW(lst, 0x202, 0, lp)  # WM_LBUTTONUP
     return text

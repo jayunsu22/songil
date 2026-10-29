@@ -84,8 +84,8 @@ def run_once(cfg, state, dry=False):
         n_photo = sum(kakao_text.photo_count(m["text"]) for m in fresh)
         if n_photo and cfg["auto_save_photos"] and not dry:
             h, lst = kakao_window.find_room(room)
-            got = kakao_photo.save_latest_photos(h, lst, n_photo, photo_dir)
-            log("[%s] 사진 %d장 중 %d장 저장" % (room, n_photo, got))
+            got, why = kakao_photo.save_latest_photos(h, lst, n_photo, photo_dir)
+            log("[%s] 사진 %d장 중 %d장 저장%s" % (room, n_photo, got, (" — " + why + " → 손으로 받은 파일에 저장해 주세요") if why else ""))
         photos = [] if first_photos else kakao_photo.new_photos(photo_dir, set(state["photos"]))
         if not fresh and not photos:
             continue

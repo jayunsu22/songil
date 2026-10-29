@@ -30,7 +30,7 @@ def list_photos(folder):
         p = os.path.join(folder, name)
         if os.path.splitext(name)[1].lower() in PHOTO_EXT and os.path.isfile(p):
             out.append(p)
-    out.sort(key=os.path.getmtime)
+    out.sort(key=lambda q: (os.path.basename(q), os.path.getmtime(q)))  # 카톡 파일 이름 = 받은 시각 → 보낸 순서대로
     return out
 
 
@@ -104,11 +104,14 @@ def find_bottom_photo(img):
 
 
 def _double_click(x, y):
-    u.SetCursorPos(x, y)
+    """마우스를 옮겨 두 번 누른다. 윈도우가 마우스 옮기기를 막으면(다른 프로그램이 마우스를 쓰는 중 등) False."""
+    if not u.SetCursorPos(x, y):
+        return False
     for _ in range(2):
         u.mouse_event(0x0002, 0, 0, 0, 0)
         u.mouse_event(0x0004, 0, 0, 0, 0)
         time.sleep(0.08)
+    return True
 
 
 def _key(vk, ctrl=False):
@@ -168,19 +171,26 @@ def _finish_save_dialog(folder):
 
 
 def save_latest_photos(room_hwnd, list_hwnd, count, folder):
-    """맨 아래 사진을 열어 거기서부터 앞으로 count 장을 folder 에 저장. 저장된(또는 이미 있던) 파일 수를 돌려준다."""
+    """맨 아래 사진을 열어 거기서부터 앞으로 count 장을 folder 에 저장.
+    돌려주는 값: (저장된·이미 있던 파일 수, 못 했으면 이유)"""
     from PIL import ImageGrab
     u.ShowWindow(room_hwnd, 9)  # SW_RESTORE
+    # 다른 창(메모장 등)이 앞에 있으면 윈도우가 창 앞으로 가져오기를 막는다 → Alt 를 한 번 눌렀다 떼고 가져온다
+    u.keybd_event(0x12, 0, 0, 0)
+    u.keybd_event(0x12, 0, 2, 0)
     u.SetForegroundWindow(room_hwnd)
     time.sleep(0.5)
+    if u.GetForegroundWindow() != room_hwnd:
+        return 0, "채팅창을 앞으로 못 가져옴"
     left, top, right, bottom = _rect(list_hwnd)
     spot = find_bottom_photo(ImageGrab.grab((left, top, right, bottom), all_screens=True))
     if not spot:
-        return 0
-    _double_click(left + spot[0], top + spot[1])
+        return 0, "사진 말풍선을 못 찾음 (창이 가려졌나 확인)"
+    if not _double_click(left + spot[0], top + spot[1]):
+        return 0, "윈도우가 마우스 움직임을 막음"
     time.sleep(1.5)
     if _foreground_class() != "EVA_Window_Dblclk" or u.GetForegroundWindow() == room_hwnd:
-        return 0  # 사진 뷰어가 안 열림
+        return 0, "사진 뷰어가 안 열림"
     saved = set()
     for i in range(max(1, count)):
         _key(ord("S"), ctrl=True)
@@ -192,4 +202,4 @@ def save_latest_photos(room_hwnd, list_hwnd, count, folder):
             _key(0x25)  # ← 한 장 앞 사진
             time.sleep(0.8)
     _key(0x1B)  # Esc 로 뷰어 닫기
-    return len(saved)
+    return len(saved), ""
