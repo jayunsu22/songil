@@ -1629,6 +1629,12 @@ function 백업줄그리기() {
 /* 작성 중인 견적을 저장함에 담는다. 머리줄 '저장' 과 발행 창 '저장함에 담기' 가
    같이 쓴다. 작성 내용은 자동으로도 저장되지만(STORAGE_KEY) 그건 한 건뿐이라
    '새 견적' 을 누르면 덮인다. 저장함에 담아야 이름이 붙은 사본이 남는다. */
+// 견적요청 제목: '위치 가견적 10월29일 오후8시(거래처)'. 견적초안이 읽은 위치를 쓴다. 견적초안 화면도 부른다.
+function 요청제목만들기() {
+  const 위치 = (state.요청초안 && state.요청초안.공통 && state.요청초안.공통.위치) || '';
+  return RequestDraft.요청제목(state.요청, (state.업체 && state.업체.이름) || 요청거래처명(state.요청), 위치);
+}
+
 // 업체를 고르지 않았어도 현장관리에서 거래처ID 를 넘겨 왔으면 업체 목록에서 이름을 찾는다
 function 요청거래처명(요청) {
   if (요청.거래처명) return 요청.거래처명;
@@ -1650,9 +1656,9 @@ function 저장함에담기() {
   const 오늘 = new Date();
   const 현장주소 = (state.현장명 || '').trim();
   const 기본이름 = [state.업체 && state.업체.이름, (오늘.getMonth() + 1) + '/' + 오늘.getDate(), 현장주소].filter(Boolean).join(' ');
-  // 견적요청으로 시작한 견적은 '김정헌업체 견적문의 10월29일 오후8시' (사장님 2026-10-29).
+  // 견적요청으로 시작한 견적은 '부평 삼산동 미래타운 3단지 가견적 10월29일 오후8시(김정헌)' (사장님 2026-10-29).
   // 접수일시로 만들어 담을 때마다 같은 제목이라, 이미 담긴 것도 이 제목으로 맞춘다.
-  const 요청제목 = state.요청 ? RequestDraft.요청제목(state.요청, (state.업체 && state.업체.이름) || 요청거래처명(state.요청)) : '';
+  const 요청제목 = state.요청 ? 요청제목만들기() : '';
   const 이름 = 요청제목 || (있던 ? 있던.이름 : (현장주소 ? 기본이름 : (prompt('저장할 이름을 적어주세요.', 기본이름) || '')));
   if (!이름.trim()) { toast('이름이 없어 저장하지 않았습니다.'); return false; }
 
@@ -3132,6 +3138,20 @@ $('#trayAlbum').addEventListener('click', () => { $('#trayPick').click(); });
 $('#trayPick').addEventListener('change', async (e) => {
   const files = [...(e.target.files || [])];
   e.target.value = '';
+  await 사진들넣기(files);
+});
+
+/* 사진 트레이가 열려 있을 때 붙여넣기(Ctrl+V)로도 넣는다 (2026-10-29).
+   PC 카톡 사진을 '복사' 해서 바로 붙일 수 있게 - 파일로 저장했다가 고르는 단계를 없앤다. */
+document.addEventListener('paste', async (e) => {
+  if ($('#trayBack').hidden) return;
+  const files = [...((e.clipboardData && e.clipboardData.files) || [])].filter((f) => /^image\//.test(f.type));
+  if (!files.length) return;
+  e.preventDefault();
+  await 사진들넣기(files);
+});
+
+async function 사진들넣기(files) {
   if (!files.length) return;
   const 이유들 = [];
   for (const f of files) {
@@ -3146,7 +3166,7 @@ $('#trayPick').addEventListener('change', async (e) => {
   const 첫이유 = 이유들[0];
   const 성공 = files.length - 이유들.length;
   toast((성공 ? 성공 + '장 넣음 · ' : '') + 이유들.length + '장 실패 — ' + 첫이유);
-});
+}
 
 $('#trayFile').addEventListener('change', async (e) => {
   const f = e.target.files && e.target.files[0];

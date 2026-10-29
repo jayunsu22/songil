@@ -105,6 +105,10 @@
       공통: 공통합치기(앞.공통, j.공통),
     };
 
+    // 견적서 제목(현장명)이 비어 있으면 '위치 가견적 10월29일 오후8시(거래처)' 로 채운다 (사장님 2026-10-29)
+    const 제목 = typeof 요청제목만들기 === 'function' ? 요청제목만들기() : '';
+    if (제목 && !$('#siteName').value.trim()) $('#siteName').value = 제목;
+
     buildAll();
     refresh();
     persist();
