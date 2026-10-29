@@ -6,6 +6,7 @@
 
     python quote_bot.py --setup      # 처음 한 번: 크롬 창이 뜨면 관리자 암호를 사장님이 직접 넣는다
     python quote_bot.py --try "방문3개 부평 삼산동" [사진...]   # 시험 발행 (김정헌 이름으로)
+    python quote_bot.py --revise XFXUPBRJ 샤시=2중창            # 발행한 견적 고쳐 다시 발행
 """
 import json
 import os
@@ -57,6 +58,73 @@ def setup():
 
 def _wait_master(page):
     page.wait_for_function("() => typeof MASTER !== 'undefined' && MASTER && MASTER.zones && MASTER.zones.length", timeout=60_000)
+
+
+def _publish_and_wait(page):
+    """발행 창에서 [발행하기] → 링크. 앱은 링크를 먼저 주고 사진을 뒤에서 올리므로 다 올라갈 때까지 기다린다."""
+    page.check("#optDesc")  # 품목설명 포함 (링크에 d=1)
+    page.click('#kindRow button[data-kind="가견적"]')
+    page.click("#doPublish")
+    page.wait_for_selector("#pubAfter:not([hidden])", timeout=90_000)
+    page.wait_for_timeout(1500)
+    page.wait_for_function("() => !사진올리는중", timeout=180_000)
+    if page.evaluate("() => !document.getElementById('photoRetry').hidden"):
+        raise RuntimeError("발행은 됐지만 사진 일부가 안 올라감: " + page.inner_text("#photoUp")[:100])
+    return page.evaluate("() => 링크()")
+
+
+def _row_name(page, cid):
+    return page.evaluate("(id) => { for (const z of MASTER.zones) for (const it of z.items) if (it.체크_ID === id) return z.구역 + ' ' + it.표시_품목명; return id; }", cid)
+
+
+def revise(code, options=None, memo=None, headless=True):
+    """발행한 견적(code)을 불러와 고쳐서 가견적으로 다시 발행. 새 링크를 돌려준다 (앞 견적은 '이전 견적코드' 로 남는다).
+    options: {'샤시': '2중창'} — 이름이 '샤시' 로 시작하는 품목의 종류를 '2중창' 이 들어간 옵션으로.
+    memo: 메모를 이걸로 바꾼다 (None 이면 그대로)."""
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        ctx, page = _open(p, headless)
+        try:
+            _wait_master(page)
+            # 이 크롬의 저장함에 있으면 그걸(사진까지) 열고, 없으면 발행된 견적서에서 가져온다
+            found = page.evaluate("""async (code) => {
+                let 항목 = 저장함읽기().find((x) => x.현장코드 === code || (x.상태 && x.상태.현장코드 === code));
+                if (!항목) 항목 = await 발행견적가져오기(code, null, true);
+                if (!항목) return false;
+                저장함불러오기(항목);
+                return true;
+            }""", code)
+            if not found:
+                raise RuntimeError("견적을 못 찾음: " + code)
+            changed = []
+            for name, opt in (options or {}).items():
+                r = page.evaluate("""([name, opt]) => {
+                    const out = [];
+                    for (const z of MASTER.zones) for (const it of z.items) {
+                        const s = state.선택[it.체크_ID];
+                        if (!s || !String(it.표시_품목명).startsWith(name)) continue;
+                        const i = (it.옵션들 || []).findIndex((o) => String(o.품목명 || o.옵션명 || '').includes(opt));
+                        if (i >= 0) { s.옵션 = i; out.push(z.구역 + ' ' + it.표시_품목명 + ' → ' + opt); }
+                    }
+                    buildAll(); refresh(); persist();
+                    return out;
+                }""", [name, opt])
+                if not r:
+                    raise RuntimeError("바꿀 품목·종류를 못 찾음: %s %s" % (name, opt))
+                changed += r
+            page.click("#saveBtn")
+            page.wait_for_timeout(800)
+            page.click("#publishBtn")
+            page.wait_for_selector("#pubSheet:not([hidden])")
+            if memo is not None:
+                page.fill("#memoText", memo)
+                page.dispatch_event("#memoText", "input")
+            link = _publish_and_wait(page)
+            page.evaluate("() => 저장함에담기()")  # 고친 내용(메모 포함)을 저장함에도
+            total = page.evaluate("() => (window.__quote && window.__quote.result.총액) || 0")
+            return {"link": link, "title": page.evaluate("() => state.현장명"), "changed": changed, "total": total}
+        finally:
+            ctx.close()
 
 
 def publish(text, photos, client="김정헌", received_at=None, headless=True):
@@ -111,9 +179,6 @@ def publish(text, photos, client="김정헌", received_at=None, headless=True):
             title = page.evaluate("() => 요청제목만들기()") or ""
             if title:
                 page.evaluate("t => { state.현장명 = t; const el = document.getElementById('siteName'); if (el) el.value = t; persist(); }", title)
-            page.click("#saveBtn")
-            page.wait_for_timeout(800)
-
             memo = []
             if info["missing"]:
                 memo.append("확인 필요: " + ", ".join(info["missing"]) + " — 알려주시면 반영해 드립니다.")
@@ -124,9 +189,7 @@ def publish(text, photos, client="김정헌", received_at=None, headless=True):
             if memo:
                 page.fill("#memoText", "\n".join(memo))
                 page.dispatch_event("#memoText", "input")
-            page.click("#doPublish")
-            page.wait_for_selector("#pubAfter:not([hidden])", timeout=90_000)
-            link = page.evaluate("() => { const a = document.querySelector('#pubLink a'); return a ? a.href : document.getElementById('pubLink').innerText.trim(); }")
+            link = _publish_and_wait(page)
             return {"link": link, "title": title, "items": info["items"], "missing": info["missing"], "unmatched": info["unmatched"]}
         finally:
             ctx.close()
@@ -138,6 +201,11 @@ if __name__ == "__main__":
     elif "--try" in sys.argv:
         i = sys.argv.index("--try")
         r = publish(sys.argv[i + 1], sys.argv[i + 2:], headless="--show" not in sys.argv)
+        print(json.dumps(r, ensure_ascii=False, indent=1))
+    elif "--revise" in sys.argv:
+        i = sys.argv.index("--revise")
+        opts = dict(a.split("=", 1) for a in sys.argv[i + 2:] if "=" in a)
+        r = revise(sys.argv[i + 1], options=opts, headless="--show" not in sys.argv)
         print(json.dumps(r, ensure_ascii=False, indent=1))
     else:
         print(__doc__)
