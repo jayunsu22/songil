@@ -1,0 +1,211 @@
+{
+  "name": "견적초안_읽기",
+  "nodes": [
+    {
+      "id": "w",
+      "name": "받은요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "b7d2e4a1-3c58-4f9e-a6b0-2d1c9e8f7a43",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quote-draft-read",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "headerAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "a",
+      "name": "동의어_조회",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        220,
+        0
+      ],
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appAMNZv9V41mNjsY",
+          "mode": "list",
+          "cachedResultName": "자동견적_MVP2"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblq06KeU2IK9HmSg",
+          "mode": "list",
+          "cachedResultName": "시공품목정보"
+        },
+        "returnAll": true,
+        "options": {
+          "fields": [
+            "시공_품목명",
+            "동의어"
+          ]
+        }
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "J5wefJCMalpjjm3Q",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      }
+    },
+    {
+      "id": "p",
+      "name": "프롬프트",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// n8n 견적초안_읽기 › 프롬프트 (Code, runOnceForAllItems) — 2026-10-29 업무자동화 1단계 ①②\n// 1분견적(견적모드_V1 › GPT_Prompt(텍스트용)1, 2025-12-24 판)의 시스템 프롬프트를 그대로 옮기고\n// 끝에 구역·근거·공통 정보(꼭 알아야 할 것)만 더 부탁한다. 1분견적 규칙을 바꾸면 여기도 같이 고친다.\n// 사장님 앱(현장견적 방문견적 › 📋 요청 붙여넣기)이 보낸다: { 출처, 보낸이, 글, 오늘 }\nconst J = $('받은요청').first().json;\nconst b = (J.body && typeof J.body === 'object') ? J.body : J;\nconst clip = (v, n) => String(v == null ? '' : v).slice(0, n);\nconst userRequest = clip(b.글, 4000);\n\nconst systemPrompt = `\n당신은 '인테리어 필름 시공 자동 견적 챗봇'입니다.\n사용자의 요청을 분석하여 아래 규칙에 맞춰 정확한 JSON 데이터를 생성하세요.\n\n### [1. 품목명 매칭 규칙] (⭐ Airtable 이름과 100% 일치 필수)\n\n* **문/도어:**\n    * \"방문,방믄,사무실문\" -> **\"방문\"**\n    * \"화장실문\" -> **\"화장실문\"**\n    * \"현관문\"-> **\"현관문\"**\n    * \"문짝\" ->**\"문짝\"**\n    * \"문틀\" ->**\"문틀\"**\n    * \"아치문틀,아치문들,아치\" ->**\"아치\"**\n\n* **중문 (시스템):**\n    * \"중문\", \"3연동\" -> **\"중문\"** (전체 세트)\n    * \"중문틀\" -> **\"중문틀\"**\n    * \"중문짝\" -> **\"중문짝\"**\n\n* **가구/수납 (시스템 - 단품/세트 명확화):**\n    * \"붙박이장\", \"장농\" -> **\"붙박이장\"** (전체 세트)\n    * \"붙박이장틀\" -> **\"붙박이장틀\"**\n    * \"붙박이장문짝\" -> **\"붙박이장문짝\"**\n\n    * \"신발장\", \"현관장\" -> **\"신발장\"** (전체 세트)\n    * \"신발장틀\" -> **\"신발장틀\"**\n    * \"신발장문짝\" -> **\"신발장문짝\"**\n\n    * \"수납장\" -> **\"수납장\"** (전체 세트)\n    * \"수납장틀\" -> **\"수납장틀\"**\n    * \"수납장문짝\" -> **\"수납장문짝\"**\n\n    * \"냉장고장\", \"키친핏\" -> **\"냉장고장\"** (전체 세트)\n    * \"냉장고장틀\" -> **\"냉장고장틀\"**\n    * \"냉장고장문짝\" -> **\"냉장고장문짝\"**\n\n    * \"화장대\" -> **\"화장대\"** (전체 세트)\n    * \"화장대틀\" -> **\"화장대틀\"**\n    * \"화장대문짝\" -> **\"화장대문짝\"**\n\n* **샤시 (구체적인 이름 먼저 매칭):**\n    * \"샤시\",\"샷시\",\"샤씨\" -> **\"샤시(단창)\"**\n    * \"샤시2중창\", \"샤시이중창\" -> **\"샤시(2중창)\"**\n    * \"시스템샤시\", \"시스템창\" -> **\"시스템샤시\"**\n    * \"상가샤시(양쪽)\", \"양쪽시공\" -> **\"상가샤시(양쪽시공)\"**\n    * \"상가샤시\", \"갈바\" -> **\"상가샤시(한쪽시공)\"**\n\n* **주방/싱크대:**\n    * \"상부장\" -> \"싱크대 상부장\"\n    * \"하부장\" -> \"싱크대 하부장\"\n    * \"싱크대\" -> \"싱크대\"\n\n* **몰딩/걸레받이:**\n    * \"몰딩\" -> **\"몰딩\"**\n    * \"크라운몰딩\", \"갈매기몰딩\" -> **\"크라운몰딩\"**\n    * \"걸레받이\", \"걸래받이\" -> **\"걸레받이\"**\n    * \"크라운걸레받이\", \"갈매기걸레받이\", \"곡선걸레받이\" -> **\"크라운걸레받이\"**\n\n* **평형별 패키지 품목 (띄어쓰기 및 명칭 100% 일치 필수):**\n    * \"{평형} 몰딩\" -> **\"{평형} 몰딩\"** (예: **\"20평 몰딩\"**, **\"30평 몰딩\"**)\n    * \"{평형} 걸레받이\" -> **\"{평형} 걸레받이\"** (예: **\"20평 걸레받이\"**, **\"30평 걸레받이\"**)\n    * \"{평형} 싱크대 전체\" 또는 \"{평형} 싱크대\" -> **\"{평형} 싱크대 전체\"** (예: **\"20평 싱크대 전체\"**, **\"30평 싱크대 전체\"**)\n    * \"{평형} 싱크대 상부장\" -> **\"{평형} 싱크대 상부장\"** (예: **\"20평 싱크대 상부장\"**)\n    * \"{평형} 싱크대 하부장\" -> **\"{평형} 싱크대 하부장\"** (예: **\"20평 싱크대 하부장\"**)\n    * \"{평형} 크라운몰딩\" -> **\"{평형} 크라운몰딩\"** (예: **\"20평 크라운몰딩\"**)\n\n* **기타:**\n    * \"등박스\", \"우물천장\" -> **\"등박스\"**\n    * \"가벽\" -> **\"가벽\"**\n    * \"알판\" -> **\"알판\"**\n    * \"허리알판\", \"중간알판\" -> **\"중간알판\"**\n    * \"아트월\" -> **\"아트월\"**\n\n### [2. 수량 및 단위 계산 규칙]\n\n**A. 방문/화장실문/현관문/아치/화장대 (개수 단위 = 세트)**\n* \"방문 2\" -> {\"품목명\": \"방문\", \"수량\": 2, \"표시수량\": \"2개\"}\n* \"화장대 1\" -> {\"품목명\": \"화장대\", \"수량\": 1, \"표시수량\": \"1세트\"}\n\n**B. 가구류 (개수 vs 길이 구분) ⭐⭐⭐**\n* **[규칙 1] 숫자만 있는 경우 (개수):** 1세트당 **2m**로 환산. (표시: N세트)\n    * \"수납장 1\" -> {\"품목명\": \"수납장\", \"수량\": 2, \"표시수량\": \"1세트\"}\n    * \"신발장 2\" -> {\"품목명\": \"신발장\", \"수량\": 4, \"표시수량\": \"2세트\"}\n    * \"붙박이장 1\" -> {\"품목명\": \"붙박이장\", \"수량\": 2, \"표시수량\": \"1세트\"}\n    * \"냉장고장 1\" -> {\"품목명\": \"냉장고장\", \"수량\": 2, \"표시수량\": \"1세트\"}\n\n* **[규칙 2] 'm'나 '미터'가 붙은 경우 (길이):** 입력된 길이 그대로 적용. (표시: Nm)\n    * \"수납장 2.5m\" -> {\"품목명\": \"수납장\", \"수량\": 2.5, \"표시수량\": \"2.5m\"}\n    * \"신발장 4m\" -> {\"품목명\": \"신발장\", \"수량\": 4, \"표시수량\": \"4m\"}\n\n* **[적용 대상 품목]:** 수납장, 신발장, 붙박이장, 냉장고장\n* **[제외 품목]:** 화장대 (크기 고정, 세트 단위로 처리)\n\n**⚠️ 숫자+\"중창\"/\"이중창\" 충돌 주의**: 품목명 뒤에 바로 붙은 숫자가 \"중창\" 또는 \"이중창\"이라는 글자로 이어지면(예: \"샤시2중창\"), 그 숫자는 수량이 아니라 타입의 일부입니다. 먼저 \"2중창\"/\"이중창\" 여부로 타입을 확정한 뒤, 그 문자열을 제외한 나머지에 별도 숫자가 있을 때만 수량으로 처리하세요. (예: \"샤시2\" → 샤시(단창) 2세트, \"샤시2중창\" → 샤시(2중창) 1세트, \"샤시2중창3개\" → 샤시(2중창) 3세트)\n\n**C. 샤시 (개수 vs 길이 구분)**\n* **[규칙 1] 숫자만 있는 경우 (개수):** 1개당 **3m**로 환산. (표시: N세트)\n    * \"시스템샤시 2\" -> {\"품목명\": \"시스템샤시\", \"수량\": 6, \"표시수량\": \"2세트\"}\n    * \"샤시(단창) 3\" -> {\"품목명\": \"샤시(단창)\", \"수량\": 9, \"표시수량\": \"3세트\"}\n\n* **[규칙 2] 'm'나 '미터'가 붙은 경우 (길이):** 입력된 길이 그대로 적용. (표시: Nm)\n    * \"시스템샤시 5m\" -> {\"품목명\": \"시스템샤시\", \"수량\": 5, \"표시수량\": \"5m\"}\n    * \"샤시(단창) 7.5m\" -> {\"품목명\": \"샤시(단창)\", \"수량\": 7.5, \"표시수량\": \"7.5m\"}\n\n* **[규칙 3] 상가샤시:** 위와 동일하게 적용.\n\n**D. 등박스/가벽/알판/중간알판/싱크대 (m 길이 단위)**\n* 수량 = m 길이. (단위 없이 숫자만 오면 'm'로 간주)\n* **[⚠️중요 예외]: 숫자 뒤에 '평'이라는 글자가 붙으면 절대 이 규칙을 적용하지 말고, 아래 [E. 평수 환산] 규칙을 따르세요.**\n    * \"등박스 10\" -> {\"품목명\": \"등박스\", \"수량\": 10, \"표시수량\": \"10m\"}\n    * \"싱크대 5.5\" -> {\"품목명\": \"싱크대\", \"수량\": 5.5, \"표시수량\": \"5.5m\"}\n    * \"싱크대 30평\" -> (이 규칙 적용 금지! 아래 E 규칙 적용)\n\n**E. 평형별 패키지 품목 변환 규칙 (중요)**\n* 사용자가 \"30평 몰딩\", \"30평 싱크대 전체\", \"20평 걸레받이\", \"20평대 싱크대 상부장\" 처럼 **[평수]**와 **[몰딩/걸레받이/싱크대류]**를 개별 혹은 함께 요청하면, 에어테이블의 평형별 신규 품목명으로 정확히 변환하고 **수량은 무조건 1**로 출력합니다.\n* **적용 품목 매핑:**\n    * \"20평 몰딩\" -> {\"품목명\": \"20평 몰딩\", \"수량\": 1, \"표시수량\": \"1세트\"}\n    * \"30평 크라운몰딩\" -> {\"품목명\": \"30평 크라운몰딩\", \"수량\": 1, \"표시수량\": \"1세트\"}\n    * \"20평 걸레받이\" -> {\"품목명\": \"20평 걸레받이\", \"수량\": 1, \"표시수량\": \"1세트\"}\n    * \"20평 싱크대 전체\" (또는 \"20평 싱크대\") -> {\"품목명\": \"20평 싱크대 전체\", \"수량\": 1, \"표시수량\": \"1세트\"}\n    * \"20평 싱크대 상부장\" -> {\"품목명\": \"20평 싱크대 상부장\", \"수량\": 1, \"표시수량\": \"1세트\"}\n    * \"20평 싱크대 하부장\" -> {\"품목명\": \"20평 싱크대 하부장\", \"수량\": 1, \"표시수량\": \"1세트\"}\n* **주의**: 20평, 30평, 40평, 50평 외의 평수가 들어오는 경우, 가장 가까운 평형(20, 30, 40, 50)으로 반올림 및 매핑하여 처리합니다. (예: \"32평 몰딩\" -> \"30평 몰딩\")\n\n### [3. 아파트 평형별 전체 패키지 규칙 (검색 기능)]\n\n사용자가 **\"20평 아파트\", \"30평 견적\", \"40평 아파트 전체\"** 등과 같이 평형대별 전체 견적을 요청하면, 해당 평형에 정의된 **[모든 포함 품목]을 한꺼번에 JSON 배열로 출력**하세요.\n* **주의**: 평형대별 전체 패키지 요청 시, 포함 품목 중 몰딩, 걸레받이, 싱크대 전체는 반드시 **수량이 1이며, 해당 평형명이 붙은 패키지 품목**으로 매핑되어야 합니다.\n\n* **\"20평 아파트\"** (20평, 20평형, 20평대 포함)\n    * 방문: 3개 -> **수량: 3**, 표시수량: \"3개\"\n    * 화장실문: 1개 -> **수량: 1**, 표시수량: \"1개\"\n    * 현관문: 1개 -> **수량: 1**, 표시수량: \"1개\"\n    * 샤시(단창): 8세트 -> **수량: 24**, 표시수량: \"8세트\"\n    * 20평 몰딩 -> **수량: 1**, 표시수량: \"1세트\"\n    * 20평 걸레받이 -> **수량: 1**, 표시수량: \"1세트\"\n    * 20평 싱크대 전체 -> **수량: 1**, 표시수량: \"1세트\"\n\n* **\"30평 아파트\"** (30평, 30평형, 30평대 포함)\n    * 방문: 3개 -> **수량: 3**, 표시수량: \"3개\"\n    * 화장실문: 2개 -> **수량: 2**, 표시수량: \"2개\"\n    * 현관문: 1개 -> **수량: 1**, 표시수량: \"1개\"\n    * 샤시(단창): 10세트 -> **수량: 30**, 표시수량: \"10세트\"\n    * 30평 몰딩 -> **수량: 1**, 표시수량: \"1세트\"\n    * 30평 걸레받이 -> **수량: 1**, 표시수량: \"1세트\"\n    * 신발장: 1세트 -> **수량: 2**, 표시수량: \"1세트\"\n    * 붙박이장: 1세트 -> **수량: 2**, 표시수량: \"1세트\"\n    * 30평 싱크대 전체 -> **수량: 1**, 표시수량: \"1세트\"\n\n* **\"40평 아파트\"** (40평, 40평형, 40평대 포함)\n    * 방문: 4개 -> **수량: 4**, 표시수량: \"4개\"\n    * 화장실문: 2개 -> **수량: 2**, 표시수량: \"2개\"\n    * 현관문: 1개 -> **수량: 1**, 표시수량: \"1개\"\n    * 샤시(단창): 12세트 -> **수량: 36**, 표시수량: \"12세트\"\n    * 40평 몰딩 -> **수량: 1**, 표시수량: \"1세트\"\n    * 40평 걸레받이 -> **수량: 1**, 표시수량: \"1세트\"\n    * 신발장: 1세트 -> **수량: 2**, 표시수량: \"1세트\"\n    * 붙박이장: 1세트 -> **수량: 2**, 표시수량: \"1세트\"\n    * 40평 싱크대 전체 -> **수량: 1**, 표시수량: \"1세트\"\n\n* **\"50평 아파트\"** (50평, 50평형, 50평대 포함)\n    * 방문: 5개 -> **수량: 5**, 표시수량: \"5개\"\n    * 화장실문: 3개 -> **수량: 3**, 표시수량: \"3개\"\n    * 현관문: 1개 -> **수량: 1**, 표시수량: \"1개\"\n    * 샤시(단창): 14세트 -> **수량: 42**, 표시수량: \"14세트\"\n    * 50평 몰딩 -> **수량: 1**, 표시수량: \"1세트\"\n    * 50평 걸레받이 -> **수량: 1**, 표시수량: \"1세트\"\n    * 신발장: 1세트 -> **수량: 2**, 표시수량: \"1세트\"\n    * 붙박이장: 1세트 -> **수량: 2**, 표시수량: \"1세트\"\n    * 50평 싱크대 전체 -> **수량: 1**, 표시수량: \"1세트\"\n\n### [⭐⭐⭐ 4. 중요: 예외 처리 규칙]\n\n* **위 규칙에 없는 품목이라도 절대 누락하지 마세요.**\n* 사용자가 입력한 이름 그대로 출력하세요.\n* 예: \"쇼파 1개\" -> {\"품목명\": \"쇼파\", \"수량\": 1, \"표시수량\": \"1개\"}\n* 예: \"의자 2개\" -> {\"품목명\": \"의자\", \"수량\": 2, \"표시수량\": \"2개\"}\n`;\n\n// ↓ 여기부터 견적초안에만 더한 부탁 (1분견적에는 없다)\nconst draftPrompt = `\n### [5. 사장님 견적초안용 추가 규칙]\n이 글은 사장님이 카톡·문자·통화에서 받은 견적 요청을 붙여넣은 것이다 (출처: ${clip(b.출처, 10) || '카톡'}, 보낸 사람: ${clip(b.보낸이, 10) || '고객'}). 오늘은 ${clip(b.오늘, 10)} 이다.\n대화라서 인사·잡담·사장님 말이 섞여 있을 수 있다. 시공할 품목만 뽑아라.\n* \"세트\"는 문짝+문틀이다. \"방문3세트\" -> {\"품목명\": \"방문\", \"수량\": 3, \"표시수량\": \"3개\"}.\n* 각 품목에 \"구역\"을 붙인다: 글에 방·위치가 적혀 있으면 거실·주방·현관·방1(안방)·방2·방3·방4·방5 중 하나, 없으면 \"\".\n* 각 품목에 \"근거\"를 붙인다: 그 품목을 뽑은 글 조각을 그대로 (30자 이내).\n* 품목과 별도로 \"공통\"에 아래를 글에 적힌 것만 채운다. 없으면 \"\". 지어내지 마라.\n  - 거주: 지금 사람이 살고 있는 집인지 (\"살고 있음\" / \"빈집\" / \"\")\n  - 위치: 주소·아파트·동·호수\n  - 다른공정: 다른 공사(도배·마루·욕실 등)와 겹치거나 순서 이야기\n  - 날짜: 원하는 시공 날짜·시기\n  - 필름: 필름 색상·번호\n  - 평형: 평수\n`;\n\nconst userPrompt = `\n[사용자 요청]\n\"${userRequest.replace(/\"/g, '\\\\\"')}\"\n\n[출력 형식]\nJSON 객체만 출력:\n{\n  \"items\": [ { \"품목명\": \"...\", \"수량\": 숫자, \"표시수량\": \"...\", \"구역\": \"\", \"근거\": \"...\" } ],\n  \"공통\": { \"거주\": \"\", \"위치\": \"\", \"다른공정\": \"\", \"날짜\": \"\", \"필름\": \"\", \"평형\": \"\" }\n}\n`;\n\nreturn [{ json: { prompt: systemPrompt + '\\n\\n' + draftPrompt + '\\n\\n' + userPrompt, user_request: userRequest } }];\n"
+      }
+    },
+    {
+      "id": "g",
+      "name": "Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ text: $json.prompt }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } }) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "DVT2g7GvXhSY4Y4b",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "id": "c",
+      "name": "결과정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// n8n 견적초안_읽기 › 결과정리 (Code, runOnceForAllItems) — 2026-10-29\n// Gemini 답에서 JSON 을 꺼내고, 1분견적(견적모드_V1 › 품목명_정규화_검증1)과 같은 정규화를 한다:\n//   동의어 → 시공_품목명, 샤시는 원문 조각으로 종류·길이를 다시 계산 (2중창 숫자 혼동·'3m 2세트' 곱하기).\n// 앱이 받는 모양: { ok, items: [{품목명, 수량, 표시수량, 구역, 근거}], 공통: {거주, 위치, 다른공정, 날짜, 필름, 평형} }\nconst pre = $('프롬프트').first().json;\nconst r = $input.first().json || {};\nlet text = '';\ntry { text = r.candidates[0].content.parts.map(p => p.text || '').join(''); } catch (e) { text = ''; }\nlet out = {};\ntry { out = JSON.parse(String(text).replace(/^```(?:json)?\\s*|\\s*```$/g, '')); } catch (e) { out = {}; }\nif (Array.isArray(out)) out = { items: out };\n\n// --- 1분견적 품목명_정규화_검증1 와 같은 정규화 ---\nlet synonymRows = [];\ntry { synonymRows = $('동의어_조회').all(); } catch (e) {}\nconst synonymMap = {};\nconst canonicalNames = new Set();\nfor (const row of synonymRows) {\n  const fields = (row.json && (row.json.fields || row.json)) || {};\n  const canonical = (fields['시공_품목명'] || '').toString().trim();\n  if (!canonical) continue;\n  canonicalNames.add(canonical);\n  const synText = (fields['동의어'] || '').toString();\n  if (synText) synText.split(',').map(s => s.trim()).filter(Boolean).forEach(alt => { synonymMap[alt] = canonical; });\n}\nfunction normalizeItemName(name) {\n  if (!name) return name;\n  const trimmed = name.toString().trim();\n  if (canonicalNames.has(trimmed)) return trimmed;\n  if (synonymMap[trimmed]) return synonymMap[trimmed];\n  for (const alt of Object.keys(synonymMap)) {\n    if (alt && trimmed.includes(alt)) return synonymMap[alt];\n  }\n  return trimmed;\n}\nconst SASHI_FAMILY = ['샤시(단창)', '샤시(2중창)', '시스템샤시', '상가샤시(한쪽시공)', '상가샤시(양쪽시공)'];\nconst userInputText = pre.user_request || '';\nconst rawSegments = userInputText ? userInputText.split(/,|\\n|\\+|\\//).map(s => s.trim()).filter(Boolean) : [];\nconst usedSegmentIdx = new Set();\nconst SASHI_KEYWORDS = ['샤시', '샷시', '창호', '시스템', '상가', '갈바', '전면', '통유리'];\nfunction claimSashiSegment() {\n  for (let i = 0; i < rawSegments.length; i++) {\n    if (usedSegmentIdx.has(i)) continue;\n    if (SASHI_KEYWORDS.some(k => rawSegments[i].includes(k))) { usedSegmentIdx.add(i); return rawSegments[i]; }\n  }\n  return null;\n}\nfunction recalcSashiFromSegment(segmentText) {\n  let itemName = '';\n  if (segmentText.includes('시스템')) itemName = '시스템샤시';\n  else if (segmentText.includes('상가') || segmentText.includes('갈바') || segmentText.includes('전면') || segmentText.includes('통유리')) {\n    itemName = (segmentText.includes('양쪽') || segmentText.includes('양면') || segmentText.includes('양쪽시공')) ? '상가샤시(양쪽시공)' : '상가샤시(한쪽시공)';\n  }\n  else if (segmentText.includes('2중창') || segmentText.includes('이중창')) itemName = '샤시(2중창)';\n  else if (segmentText.includes('샤시') || segmentText.includes('샷시') || segmentText.includes('창호')) itemName = '샤시(단창)';\n  else return null;\n  const cleanForMatch = segmentText.replace(/2중창/g, '').replace(/이중창/g, '');\n  let mValue = 0, qtyValue = 0;\n  const mMatch = cleanForMatch.match(/(\\d+(\\.\\d+)?)\\s*(m|미터)/i);\n  if (mMatch) mValue = parseFloat(mMatch[1]);\n  const qtyMatch = cleanForMatch.match(/(\\d+(\\.\\d+)?)\\s*(개|틀|조|세트|짝|벌)/);\n  if (qtyMatch) qtyValue = parseFloat(qtyMatch[1]);\n  let count, displayLabel;\n  if (mValue > 0 && qtyValue > 0) { count = mValue * qtyValue; displayLabel = `${mValue}m ${qtyValue}세트`; }\n  else if (mValue > 0) { count = mValue; displayLabel = `${mValue}m`; }\n  else if (qtyValue > 0) { count = qtyValue * 3; displayLabel = `${qtyValue}세트`; }\n  else {\n    const numMatch = cleanForMatch.match(/(\\d+(\\.\\d+)?)/);\n    const num = numMatch ? parseFloat(numMatch[0]) : 1;\n    count = num * 3; displayLabel = `${num}세트`;\n  }\n  return { item: itemName, count, displayLabel };\n}\n\n// --- 값 거르기 ---\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\nconst 구역들 = ['거실', '주방', '현관', '방1', '방2', '방3', '방4', '방5'];\nconst items = (Array.isArray(out.items) ? out.items : []).map(it => {\n  if (!it || typeof it !== 'object') return null;\n  let 품목명 = normalizeItemName(s(it.품목명 || it.item, 40));\n  if (!품목명) return null;\n  let 수량 = Number(it.수량);\n  let 표시수량 = s(it.표시수량, 20);\n  if (SASHI_FAMILY.includes(품목명)) {\n    const seg = claimSashiSegment();\n    const re = seg ? recalcSashiFromSegment(seg) : null;\n    if (re) { 품목명 = re.item; 수량 = re.count; 표시수량 = re.displayLabel; }\n  }\n  if (!(수량 > 0)) 수량 = 1;\n  return { 품목명, 수량, 표시수량, 구역: 구역들.includes(s(it.구역, 10)) ? s(it.구역, 10) : '', 근거: s(it.근거, 60) };\n}).filter(Boolean).slice(0, 60);\n\nconst g = (out.공통 && typeof out.공통 === 'object') ? out.공통 : {};\nconst 공통 = {\n  // AI 가 '살고있음' 처럼 붙여 써도 받는다\n  거주: { 살고있음: '살고 있음', 빈집: '빈집' }[s(g.거주, 10).replace(/\\s+/g, '')] || '',\n  위치: s(g.위치, 120), 다른공정: s(g.다른공정, 200), 날짜: s(g.날짜, 60), 필름: s(g.필름, 120), 평형: s(g.평형, 20),\n};\nreturn [{ json: { ok: !!text, items, 공통 } }];\n"
+      }
+    },
+    {
+      "id": "r",
+      "name": "응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "받은요청": {
+      "main": [
+        [
+          {
+            "node": "동의어_조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "동의어_조회": {
+      "main": [
+        [
+          {
+            "node": "프롬프트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "프롬프트": {
+      "main": [
+        [
+          {
+            "node": "Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini": {
+      "main": [
+        [
+          {
+            "node": "결과정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "결과정리": {
+      "main": [
+        [
+          {
+            "node": "응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
