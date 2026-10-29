@@ -1628,6 +1628,14 @@ function 백업줄그리기() {
 /* 작성 중인 견적을 저장함에 담는다. 머리줄 '저장' 과 발행 창 '저장함에 담기' 가
    같이 쓴다. 작성 내용은 자동으로도 저장되지만(STORAGE_KEY) 그건 한 건뿐이라
    '새 견적' 을 누르면 덮인다. 저장함에 담아야 이름이 붙은 사본이 남는다. */
+// 업체를 고르지 않았어도 현장관리에서 거래처ID 를 넘겨 왔으면 업체 목록에서 이름을 찾는다
+function 요청거래처명(요청) {
+  if (요청.거래처명) return 요청.거래처명;
+  if (!요청.거래처ID || typeof 업체캐시 !== 'function') return '';
+  const 찾음 = (업체캐시().목록 || []).find((c) => c.id === 요청.거래처ID);
+  return (찾음 && 찾음.이름) || '';
+}
+
 function 저장함에담기() {
   persist();
   const 건수 = Object.keys(state.선택).length + (state.직접품목 || []).length;
@@ -1641,7 +1649,10 @@ function 저장함에담기() {
   const 오늘 = new Date();
   const 현장주소 = (state.현장명 || '').trim();
   const 기본이름 = [state.업체 && state.업체.이름, (오늘.getMonth() + 1) + '/' + 오늘.getDate(), 현장주소].filter(Boolean).join(' ');
-  const 이름 = 있던 ? 있던.이름 : (현장주소 ? 기본이름 : (prompt('저장할 이름을 적어주세요.', 기본이름) || ''));
+  // 견적요청으로 시작한 견적은 '김정헌업체 견적문의 10월29일 오후8시' (사장님 2026-10-29).
+  // 접수일시로 만들어 담을 때마다 같은 제목이라, 이미 담긴 것도 이 제목으로 맞춘다.
+  const 요청제목 = state.요청 ? RequestDraft.요청제목(state.요청, (state.업체 && state.업체.이름) || 요청거래처명(state.요청)) : '';
+  const 이름 = 요청제목 || (있던 ? 있던.이름 : (현장주소 ? 기본이름 : (prompt('저장할 이름을 적어주세요.', 기본이름) || '')));
   if (!이름.trim()) { toast('이름이 없어 저장하지 않았습니다.'); return false; }
 
   const list = 저장함읽기();
