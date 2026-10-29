@@ -1090,8 +1090,9 @@ function openPublish() {
   $('#pubAfter').hidden = true;
   $('#doPublish').disabled = false;
   $('#doPublish').textContent = '발행하기';
-  // 이미 발행한 견적을 고쳐 내는 거면 실제견적이 기본 (현장을 보고 고치는 경우가 대부분)
-  견적종류 = 비교할가견적() ? '실제견적' : '가견적';
+  // 늘 가견적이 기본 (사장님 2026-10-29). 다시 낼 때 실제견적이 먼저 골라져 있으면
+  // 현장을 안 본 견적에 '현장 확인 후 고친 견적' 표가 나간다. 실제견적은 직접 고를 때만.
+  견적종류 = '가견적';
   종류칸그리기();
   $('#pubBack').hidden = false;
   $('#pubSheet').hidden = false;
