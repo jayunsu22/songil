@@ -37,6 +37,9 @@ function 줄다시그리기(i) {
   const l = 실제줄(i);
   const 줄 = document.querySelector('.v-line[data-i="' + i + '"]');
   줄.querySelector('.v-nm').textContent = 줄이름(l);
+  // 문짝만·문틀만이면 '1세트' 가 아니라 '1개' (종류에 단위가 실려 온 줄만)
+  const 수량칸 = 줄.querySelector('.v-qty');
+  if (수량칸) 수량칸.textContent = String(l.수량 == null ? '' : l.수량) + String(l.단위 || '');
   줄.querySelector('.v-amt').innerHTML = won(줄금액(l)) + (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '');
   줄.classList.toggle('kind-changed', 종류선택[i] != null);
   const 설명 = document.querySelector('.v-desc[data-i="' + i + '"]');
@@ -107,9 +110,9 @@ function 부품을종류로(l) {
   if (!l.부품 || !l.부품.문짝 || !l.부품.문틀 || Array.isArray(l.종류들)) return;
   const 이름 = String(l.품목명 || '').split(' (')[0];
   l.종류들 = [
-    { 품목명: 이름, 표시금액: l.표시금액, 인건비표시금액: l.인건비표시금액, 품목설명: l.품목설명 || '' },
-    Object.assign({ 품목명: 이름 + ' (문짝만)' }, l.부품.문짝),
-    Object.assign({ 품목명: 이름 + ' (문틀만)' }, l.부품.문틀),
+    { 품목명: 이름, 단위: l.단위, 표시금액: l.표시금액, 인건비표시금액: l.인건비표시금액, 품목설명: l.품목설명 || '' },
+    Object.assign({ 품목명: 이름 + ' (문짝만)', 단위: '개' }, l.부품.문짝),
+    Object.assign({ 품목명: 이름 + ' (문틀만)', 단위: '개' }, l.부품.문틀),
   ];
   l.종류 = 0;
   l.부품칸 = true;
