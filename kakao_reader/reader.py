@@ -8,10 +8,12 @@
 state.json 에는 글 지문(sha1 앞 16자)과 사진 파일 이름만 남는다 — 글 내용은 저장하지 않는다.
 """
 import json
+import re
 import os
 import socket
 import sys
 import time
+import urllib.parse
 from datetime import datetime
 
 import kakao_photo
@@ -118,6 +120,10 @@ def run_once(cfg, state, dry=False):
 def main():
     args = sys.argv[1:]
     cfg = dict(DEFAULTS, **load_json(CONFIG, {}))
+    # 등록 링크(…#key=열쇠)를 통째로 넣어도 열쇠만 쓴다
+    m = re.search(r"key=([^&\s]+)", cfg["owner_key"])
+    if m:
+        cfg["owner_key"] = urllib.parse.unquote(m.group(1))
     if not cfg["owner_key"] and "--dry" not in args:
         log("config.json 에 owner_key(사장님 열쇠) 가 비어 있음 — README 를 보고 넣어 주세요")
     state = load_json(STATE, {"rooms": {}, "photos": None})
