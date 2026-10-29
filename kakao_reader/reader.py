@@ -31,7 +31,7 @@ DEFAULTS = {
     "interval": 60,
     "mask_secrets": True,
     "photo_dir": "",
-    "auto_save_photos": False,
+    "auto_save_photos": True,
 }
 
 

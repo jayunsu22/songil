@@ -5,5 +5,5 @@
   "interval": 60,
   "mask_secrets": true,
   "photo_dir": "",
-  "auto_save_photos": false
+  "auto_save_photos": true
 }
