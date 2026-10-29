@@ -711,6 +711,46 @@ function 종류후보(조정율) {
   return out;
 }
 
+/* 방문·화장실문 줄에 문짝·문틀 금액을 따로 싣는다 (사장님 2026-10-29). 견적서에서 고객이
+   [✓문짝] [✓문틀] 을 하나씩 빼 보면 금액이 바로 바뀐다 - '문틀까지 포함인가요?' 를 묻지 않아도 된다.
+   둘 다 체크면 원래 세트 단가 그대로. 문짝·문틀은 같은 구역 품목, 없으면(거실 화장실문의 문틀) 다른 구역 것.
+   수량·난이도·전체조정은 그 줄 그대로다. 견적요청 고정 금액 줄은 나눌 근거가 없어 싣지 않는다.
+   { 체크_ID: { 부품: { 문짝: { 표시금액, 인건비표시금액, 품목설명 }, 문틀: {...} } } } */
+const 문부품 = { 방문: { 문짝: '문짝', 문틀: '문틀' }, 화장실문: { 문짝: '화장실 문짝', 문틀: '문틀' } };
+function 부품후보(조정율) {
+  const 찾기 = (구역, 이름) => {
+    const z = MASTER.zones.find((x) => x.구역 === 구역);
+    const 여기 = z && z.items.find((i) => i.표시_품목명 === 이름);
+    if (여기) return 여기;
+    for (const zz of MASTER.zones) {
+      const 저기 = zz.items.find((i) => i.표시_품목명 === 이름);
+      if (저기) return 저기;
+    }
+    return null;
+  };
+  const out = {};
+  MASTER.zones.forEach((z) => z.items.forEach((item) => {
+    const 표 = 문부품[item.표시_품목명];
+    const s = state.선택[item.체크_ID];
+    if (!표 || !s || !보이는가(item) || s.고정) return;
+    const 부품 = {};
+    for (const k of ['문짝', '문틀']) {
+      const it = 찾기(z.구역, 표[k]);
+      if (!it) return;
+      const 줄 = 품목줄(it, z.구역, { 수량: s.수량, 난이도: s.난이도, 옵션: 0 });
+      const 금액 = QuoteCalc.lineAmount(줄);
+      const 인건비 = QuoteCalc.lineWage(줄);
+      부품[k] = {
+        표시금액: Math.round(금액 * (1 + 조정율)),
+        인건비표시금액: 인건비 == null ? null : Math.round(인건비 * (1 + 조정율)),
+        품목설명: 줄.품목설명 || '',
+      };
+    }
+    out[item.체크_ID] = { 부품 };
+  }));
+  return out;
+}
+
 function 선택품목들() {
   const out = [];
   MASTER.zones.forEach((z) => {
@@ -1288,7 +1328,8 @@ $('#doPublish').addEventListener('click', async () => {
         // 종류가 여럿인 줄에는 종류별 금액을 같이 싣는다 - 견적서에서 고객이 종류를 바꿔 볼 수 있다
         라인들: (() => {
           const 종류 = 종류후보(q.result.조정_합계율);
-          return q.result.라인들.map((l) => (종류[l.체크_ID] ? Object.assign({}, l, 종류[l.체크_ID]) : l));
+          const 부품 = 부품후보(q.result.조정_합계율);
+          return q.result.라인들.map((l) => Object.assign({}, l, 종류[l.체크_ID] || {}, 부품[l.체크_ID] || {}));
         })(),
         소계: q.result.소계,
         조정_합계율: q.result.조정_합계율,

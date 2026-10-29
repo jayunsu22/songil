@@ -32,6 +32,17 @@ function 현장명그리기(이름) {
     '<div class="v-site2">' + esc(m[3]) + ' (' + esc(m[4]) + ')</div>';
 }
 
+// 종류(샤시 탭·문짝/문틀 체크)를 바꾼 줄의 이름·금액·설명을 다시 쓴다
+function 줄다시그리기(i) {
+  const l = 실제줄(i);
+  const 줄 = document.querySelector('.v-line[data-i="' + i + '"]');
+  줄.querySelector('.v-nm').textContent = 줄이름(l);
+  줄.querySelector('.v-amt').innerHTML = won(줄금액(l)) + (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '');
+  줄.classList.toggle('kind-changed', 종류선택[i] != null);
+  const 설명 = document.querySelector('.v-desc[data-i="' + i + '"]');
+  if (설명) { 설명.textContent = l.품목설명 || ''; 설명.hidden = !l.품목설명; }
+}
+
 function 줄금액(l) {
   return (인건비만 && l.인건비표시금액 != null) ? l.인건비표시금액 : l.표시금액;
 }
@@ -89,6 +100,21 @@ function status(msg, isErr) {
   el.className = isErr ? 'err' : '';
 }
 
+/* 방문·화장실문 줄의 문짝·문틀 (2026-10-29). 발행할 때 부품: { 문짝, 문틀 } 금액이 실려 온다.
+   종류 고르기(샤시)와 같은 틀을 쓴다 - 종류 0 = 세트(그대로), 1 = 문짝만, 2 = 문틀만.
+   화면에는 탭 대신 [✓문짝] [✓문틀] 체크 두 개로 그린다. 둘 다 빼면 그 줄을 뺀 것과 같다. */
+function 부품을종류로(l) {
+  if (!l.부품 || !l.부품.문짝 || !l.부품.문틀 || Array.isArray(l.종류들)) return;
+  const 이름 = String(l.품목명 || '').split(' (')[0];
+  l.종류들 = [
+    { 품목명: 이름, 표시금액: l.표시금액, 인건비표시금액: l.인건비표시금액, 품목설명: l.품목설명 || '' },
+    Object.assign({ 품목명: 이름 + ' (문짝만)' }, l.부품.문짝),
+    Object.assign({ 품목명: 이름 + ' (문틀만)' }, l.부품.문틀),
+  ];
+  l.종류 = 0;
+  l.부품칸 = true;
+}
+
 // 견적서를 받아 DATA 에 둔다. 고객이 추가한 품목(고객추가)은 맨 위로 - 방금 넣은 게 바로 보이게
 async function 받기() {
   const res = await fetch(VIEW.quoteUrl + '?id=' + encodeURIComponent(코드));
@@ -96,6 +122,7 @@ async function 받기() {
   if (!res.ok || !j || j.error) return false;
   const 줄들 = j.라인들 || [];
   j.라인들 = 줄들.filter((l) => l.고객추가).concat(줄들.filter((l) => !l.고객추가));
+  j.라인들.forEach(부품을종류로);
   DATA = j;
   // 줄 순번이 바뀌므로 고객이 빼거나 바꾼 표시는 새로 시작한다
   해제.clear();
@@ -259,7 +286,13 @@ function render() {
         (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '') + '</span>' +
       '</div>');
     // 종류를 고를 수 있는 줄(샤시 단창/2중창/시스템). 탭을 누르면 금액·설명·합계가 바로 바뀐다
-    if (Array.isArray(l.종류들) && l.종류들.length > 1) {
+    if (l.부품칸) {
+      H.push('<div class="v-parts" data-i="' + i + '">' +
+        ['문짝', '문틀'].map((p, pi) => '<label class="v-part"><input type="checkbox" class="v-partc" checked data-i="' + i +
+          '" data-p="' + p + '"><span>' + p + '</span><small>' + won(줄금액(Object.assign({}, l, l.종류들[pi + 1]))) +
+          '</small></label>').join('') +
+        '</div>');
+    } else if (Array.isArray(l.종류들) && l.종류들.length > 1) {
       H.push('<div class="v-seg" data-i="' + i + '">' +
         l.종류들.map((k, ki) => '<button type="button" class="v-segb' + (ki === (l.종류 || 0) ? ' on' : '') +
           '" data-i="' + i + '" data-k="' + ki + '">' + esc(탭이름(k.품목명)) +
@@ -346,13 +379,23 @@ function render() {
       const k = +btn.dataset.k;
       if (k === (DATA.라인들[i].종류 || 0)) delete 종류선택[i]; else 종류선택[i] = k;
       document.querySelectorAll('.v-segb[data-i="' + i + '"]').forEach((b) => b.classList.toggle('on', b === btn));
-      const l = 실제줄(i);
-      const 줄 = document.querySelector('.v-line[data-i="' + i + '"]');
-      줄.querySelector('.v-nm').textContent = 줄이름(l);
-      줄.querySelector('.v-amt').innerHTML = won(줄금액(l)) + (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '');
-      줄.classList.toggle('kind-changed', 종류선택[i] != null);
-      const 설명 = document.querySelector('.v-desc[data-i="' + i + '"]');
-      if (설명) { 설명.textContent = l.품목설명 || ''; 설명.hidden = !l.품목설명; }
+      줄다시그리기(i);
+      renderSum();
+    });
+  });
+  // 문짝·문틀 체크: 둘 다 = 세트, 하나만 = 그 부품만, 둘 다 뺌 = 그 줄을 뺀 것과 같다
+  document.querySelectorAll('.v-partc').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const i = +cb.dataset.i;
+      const 짝 = document.querySelector('.v-partc[data-i="' + i + '"][data-p="문짝"]').checked;
+      const 틀 = document.querySelector('.v-partc[data-i="' + i + '"][data-p="문틀"]').checked;
+      if (짝 && 틀) delete 종류선택[i]; else if (짝) 종류선택[i] = 1; else if (틀) 종류선택[i] = 2; else delete 종류선택[i];
+      const 켬 = 짝 || 틀;
+      if (켬) 해제.delete(i); else 해제.add(i);
+      const 큰칸 = document.querySelector('.v-chk[data-i="' + i + '"]');
+      if (큰칸) 큰칸.checked = 켬;
+      document.querySelector('.v-item[data-i="' + i + '"]').classList.toggle('off', !켬);
+      줄다시그리기(i);
       renderSum();
     });
   });
@@ -361,6 +404,13 @@ function render() {
       const i = +cb.dataset.i;
       if (cb.checked) 해제.delete(i); else 해제.add(i);
       document.querySelector('.v-item[data-i="' + i + '"]').classList.toggle('off', !cb.checked);
+      // 문짝·문틀을 둘 다 뺀 줄을 다시 켜면 세트로 돌아간다
+      const 부품칸들 = document.querySelectorAll('.v-partc[data-i="' + i + '"]');
+      if (cb.checked && 부품칸들.length && ![...부품칸들].some((c) => c.checked)) {
+        부품칸들.forEach((c) => { c.checked = true; });
+        delete 종류선택[i];
+        줄다시그리기(i);
+      }
       renderSum();
     });
   });
