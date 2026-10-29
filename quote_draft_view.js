@@ -121,6 +121,10 @@
         ? '<ul class="dr-need">' + r.확인필요.map((x) =>
             '<li>⚠️ ' + esc(x.품목명) + ' ' + x.개수 + '개 — ' + esc(x.이유) + (x.근거 ? ' <small>「' + esc(x.근거) + '」</small>' : '') + '</li>').join('') + '</ul>'
         : '') +
+      // 길이를 안 말한 싱크대는 보통 길이로 채웠다 - 실측하면 수량 칸에서 고친다
+      (r.보통길이.length
+        ? '<p class="dr-len">📏 길이를 몰라 보통 길이로: ' + r.보통길이.map((x) => esc(x.품목명) + ' ' + x.길이 + 'm').join(' · ') + '</p>'
+        : '') +
       (아는것.length ? '<ul class="dr-know">' + 아는것.join('') + '</ul>' : '') +
       (빠짐.length ? '<p class="dr-miss">꼭 알아야 할 것 빠짐: <b>' + 빠짐.join(' · ') + '</b></p>' : '<p class="dr-ok">꼭 알아야 할 것 다 있어요</p>'));
     toast(새것.length + '개 품목을 체크했어요');
