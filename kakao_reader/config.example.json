@@ -1,0 +1,9 @@
+{
+  "webhook_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-inbox",
+  "owner_key": "",
+  "rooms": ["김정헌"],
+  "interval": 60,
+  "mask_secrets": true,
+  "photo_dir": "",
+  "auto_save_photos": false
+}

@@ -5,3 +5,9 @@ filmdb/cache/
 filmdb/node_modules/
 filmdb/package-lock.json
 filmdb/mirror/
+
+# 카톡 읽기: 사장님 열쇠·읽음 기록은 올리지 않는다
+kakao_reader/config.json
+kakao_reader/state.json
+kakao_reader/state.json.tmp
+kakao_reader/__pycache__/

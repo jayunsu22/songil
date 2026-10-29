@@ -1,0 +1,87 @@
+{
+  "name": "카톡_받은글",
+  "nodes": [
+    {
+      "id": "w",
+      "name": "받은글",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "5e0c7a1d-8b2f-4c63-9d4e-1a7f3b6c2e90",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kakao-inbox",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "headerAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "t",
+      "name": "정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 카톡_받은글 › 정리: 카톡 읽기 프로그램(kakao_reader)이 보낸 multipart 를 정리한다.\n// body.payload = JSON 글, binary photo0.. = 사진. 사진은 그대로 다음 노드로 넘긴다.\nconst out = [];\nfor (const item of $input.all()) {\n  const body = item.json.body || {};\n  let p = body.payload;\n  if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { p = null; } }\n  if (!p || !Array.isArray(p.messages)) throw new Error('payload 없음 — kakao_reader 가 보낸 요청이 아님');\n  const photoKeys = Object.keys(item.binary || {}).sort();\n  out.push({\n    json: {\n      room: p.room,\n      reader: p.reader,\n      sentAt: p.sentAt,\n      count: p.messages.length,\n      messages: p.messages,\n      photoFiles: p.photoFiles || [],\n      photoKeys,\n      photos: photoKeys.length,\n    },\n    binary: item.binary,\n  });\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "r",
+      "name": "응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, count: $json.count, photos: $json.photos }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "받은글": {
+      "main": [
+        [
+          {
+            "node": "정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "정리": {
+      "main": [
+        [
+          {
+            "node": "응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  }
+}
