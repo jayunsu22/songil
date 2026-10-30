@@ -244,11 +244,14 @@ def badge_digits(img, b):
     px = c.load()
     out = Image.new("L", c.size, 0)
     po = out.load()
+    # 배지 바탕의 초록 값 (가짜 그림 ~80, 10/30 노트북 진짜 카톡 (255, 122, 107) → 122) → 0, 흰색(255) → 255
+    greens = sorted(px[x, y][1] for y in range(c.height) for x in range(c.width) if is_red(px[x, y]))
+    bg = greens[len(greens) // 2] if greens else 80
+    span = max(1, 255 - bg)
     for y in range(c.height):
         reds = [x for x in range(c.width) if is_red(px[x, y])]
         for x in range(reds[0], reds[-1] + 1) if reds else ():
-            # 배지 빨강의 초록 값(~80) → 0, 흰색(255) → 255
-            po[x, y] = max(0, min(255, (px[x, y][1] - 80) * 255 // 175))
+            po[x, y] = max(0, min(255, (px[x, y][1] - bg) * 255 // span))
     return out
 
 
@@ -382,19 +385,31 @@ def analyze(img, region, force=False):
     sig = hashlib.sha1(b"".join(img.crop(b).tobytes() + repr(b).encode() for b in badges)).hexdigest()
     if sig == LAST["sig"] and not force:
         return None
+    # 배지가 있는 줄만 잘라 3배로 키워 읽는다 (목록 전체를 읽는 것보다 이름을 덜 틀림 — 10/30 '류춘화' 를 'TT준화' 로)
+    S = 3
+    rows = []
+    for b in badges:
+        bh = b[3] - b[1] + 1
+        cy = (b[1] + b[3]) // 2
+        rows.append((region[0], max(region[1], cy - 3 * bh), b[0] - 2, min(region[3], cy + bh + bh // 2)))
     tmp = tempfile.mkdtemp(prefix="kakao_list_")
     try:
-        lw, lh = region[2] - region[0], region[3] - region[1]
-        lp = os.path.join(tmp, "list.png")
-        img.crop(region).resize((lw * 2, lh * 2), Image.LANCZOS).save(lp)
-        res = ocr([lp])
+        paths = []
+        for i, r in enumerate(rows):
+            p = os.path.join(tmp, "row%d.png" % i)
+            img.crop(r).resize(((r[2] - r[0]) * S, (r[3] - r[1]) * S), Image.LANCZOS).save(p)
+            paths.append(p)
+        res = ocr(paths)
     finally:
         for f in os.listdir(tmp):
             os.remove(os.path.join(tmp, f))
         os.rmdir(tmp)
-    lines = [(x // 2, y // 2, wd // 2, ht // 2, t) for x, y, wd, ht, t in res.get(lp, [])]
+    lw = region[2] - region[0]
     now = {}
-    for b in badges:
+    for b, r, p in zip(badges, rows, paths):
+        # 줄 그림 좌표 → 목록 칸 좌표
+        dx, dy = r[0] - region[0], r[1] - region[1]
+        lines = [(x // S + dx, y // S + dy, wd // S, ht // S, t) for x, y, wd, ht, t in res.get(p, [])]
         rb = (b[0] - region[0], b[1] - region[1], b[2] - region[0], b[3] - region[1])
         name = clean_name(row_name(lines, rb, lw)) or NO_NAME
         bw = badge_digits(img, b)

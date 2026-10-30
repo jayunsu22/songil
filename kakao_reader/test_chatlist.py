@@ -110,22 +110,22 @@ class DiffTest(unittest.TestCase):
                               "한솔 방에 새 글\n공지 방에 새 글 (안 읽은 글 4개)")
 
 
-def draw_badge(d, x, y, text, size=11):
+def draw_badge(d, x, y, text, size=11, color=(255, 122, 107)):  # 10/30 노트북 진짜 카톡 배지 색
     from PIL import ImageFont
     font = ImageFont.truetype("C:/Windows/Fonts/malgun.ttf", size)
     bh = int(18 * size / 11)
     bw = bh + int(6 * size / 11) * (len(text) - 1)
-    d.rounded_rectangle((x, y, x + bw, y + bh), bh // 2, fill=(255, 78, 62))
+    d.rounded_rectangle((x, y, x + bw, y + bh), bh // 2, fill=color)
     d.text((x + bw / 2, y + bh / 2), text, font=font, fill="white", anchor="mm")
 
 
 class DigitTest(unittest.TestCase):
     def test_reads_badge_numbers(self):
         wrong, missed = [], []
-        for size in (11, 12, 13, 16, 18):
+        for size, color in [(s, c) for s in (11, 12, 13, 16, 18) for c in ((255, 122, 107), (255, 78, 62))]:
             for text in ["1", "3", "5", "7", "8", "12", "40", "69", "300+"]:
                 img = Image.new("RGB", (120, 60), "white")
-                draw_badge(ImageDraw.Draw(img), 20, 15, text, size)
+                draw_badge(ImageDraw.Draw(img), 20, 15, text, size, color)
                 b = chatlist.find_badges(img, (-200, 0, 120, 60))[0]
                 got = chatlist.read_digits(chatlist.badge_digits(img, b))
                 if got is None:
@@ -133,7 +133,7 @@ class DigitTest(unittest.TestCase):
                 elif got != int(text.rstrip("+")):
                     wrong.append((size, text, got))
         self.assertEqual(wrong, [])  # 틀린 숫자는 안 된다 (못 읽는 건 괜찮음 — 배지 모양으로 알림)
-        self.assertLessEqual(len(missed), 5, missed)
+        self.assertLessEqual(len(missed), 10, missed)
 
 
 def fake_list(scale=1.0):
@@ -153,6 +153,8 @@ def fake_list(scale=1.0):
     x0, y0 = s(70), s(90)
     for i, (name, preview, badge) in enumerate(rows):
         y = y0 + i * s(68)
+        if i == 0:  # 마우스가 올라간 줄은 회색 (10/30 노트북)
+            d.rectangle((x0, y, x0 + W, y + s(68)), fill=(240, 240, 240))
         d.rounded_rectangle((x0 + s(15), y + s(12), x0 + s(60), y + s(57)), s(16), fill=(170, 200, 230))
         d.text((x0 + s(72), y + s(14)), name, font=fb, fill=(25, 25, 25))
         d.text((x0 + s(72), y + s(36)), preview, font=f, fill=(130, 130, 130))
