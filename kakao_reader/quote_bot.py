@@ -41,19 +41,35 @@ def _open(p, headless):
 
 
 def setup():
+    """처음 한 번: 사장님이 관리자 암호와 백업키(거래처 목록용)를 직접 넣는다."""
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         ctx, page = _open(p, headless=False)
-        print("크롬 창에서 관리자 암호를 넣어 주세요 (5분 기다립니다).", flush=True)
-        ok = False
-        for _ in range(300):
-            if page.evaluate("() => !document.getElementById('pinGate') && localStorage.getItem('settleUnlocked')"):
-                ok = True
-                break
-            time.sleep(1)
+        print("1) 크롬 창에서 관리자 암호를 넣어 주세요 (5분 기다립니다).", flush=True)
+        ok = _wait_until(page, "() => !document.getElementById('pinGate') && localStorage.getItem('settleUnlocked')", 300)
+        if ok:
+            _wait_master(page)
+            if not page.evaluate("() => 업체캐시().목록.length"):
+                page.click("#vendorBtn")
+                print("2) '업체 선택' 창에 백업키(숫자 6자리)를 넣고 [업체 불러오기]를 눌러 주세요 (5분 기다립니다).", flush=True)
+                ok = _wait_until(page, "() => 업체캐시().목록.length > 0", 300)
+            if ok:
+                n = page.evaluate("() => 업체캐시().목록.length")
+                print("거래처 %d곳을 받았어요." % n, flush=True)
         page.wait_for_timeout(1500)
-        print("준비 완료" if ok else "아직 잠겨 있어요 — 다시 --setup 해 주세요")
+        print("준비 완료" if ok else "아직 안 됐어요 — 다시 --setup 해 주세요")
         ctx.close()
+
+
+def _wait_until(page, js, seconds):
+    for _ in range(seconds):
+        try:
+            if page.evaluate(js):
+                return True
+        except Exception:
+            pass  # 암호를 넣으면 화면이 다시 그려지는 순간이 있다
+        time.sleep(1)
+    return False
 
 
 def _wait_master(page):
@@ -140,7 +156,18 @@ def publish(text, photos, client="김정헌", received_at=None, headless=True):
             page.click("#resetBtn")
             page.wait_for_timeout(500)
             # 현장관리 '견적요청 작성하기' 로 연 것처럼: 접수일시·거래처명 → 제목 '위치 가견적 10월29일 오후8시(김정헌)'
-            page.evaluate("([t, c]) => { state.요청 = { 접수일시: t, 거래처명: c }; state.현장명 = ''; persist(); }", [received_at, client])
+            # 거래처(현장관리 앱) 고르기 - 그래야 현장관리 '견적요청 내역' 에 이 견적이 들어간다 (10/30)
+            found = page.evaluate("""async (c) => {
+                const 찾기 = () => 업체캐시().목록.find((v) => v.이름 === c);
+                if (!찾기() && 업체키()) { try { await 업체목록받기(업체키()); } catch (e) {} }
+                const v = 찾기() || null;
+                state.업체 = v; state.현장연결 = null;
+                save(STORAGE_KEY, state); 업체줄그리기();
+                return !!v;
+            }""", client)
+            if not found:
+                print("주의: 현장관리 거래처 '%s' 를 못 찾음 — 견적요청 내역에 안 들어감 (python quote_bot.py --setup 으로 백업키를 넣어 주세요)" % client, flush=True)
+            page.evaluate("([t, c]) => { state.요청 = { 접수일시: t, 거래처명: c, 거래처ID: (state.업체 && state.업체.id) || '' }; state.현장명 = ''; persist(); }", [received_at, client])
 
             page.click("#draftToggle")
             page.click('.draft-chips[data-k="출처"] button[data-v="카톡"]')

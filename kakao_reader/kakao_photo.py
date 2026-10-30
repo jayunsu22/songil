@@ -177,15 +177,57 @@ def _same_process(a, b):
     return pa.value == pb.value
 
 
-def _wait_viewer(room_hwnd, seconds):
-    """카톡 사진 뷰어(카톡 프로그램의 다른 창)가 앞에 뜰 때까지 기다린다. 뜨면 그 창, 아니면 None."""
+def _kakao_windows(room_hwnd):
+    """카톡 프로그램의 보이는 창들 {핸들: (왼, 위, 오른, 아래)}."""
+    out = {}
+    proc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+    def cb(h, _):
+        if u.IsWindowVisible(h) and not u.IsIconic(h) and _same_process(h, room_hwnd):
+            out[h] = _rect(h)
+        return True
+
+    u.EnumWindows(proc(cb), 0)
+    return out
+
+
+def _area(r):
+    return max(0, r[2] - r[0]) * max(0, r[3] - r[1])
+
+
+def _wait_viewer(room_hwnd, before, seconds):
+    """사진 뷰어 = 누른 뒤 새로 보이는 카톡 창 중 채팅창보다 큰 것. 앞에 안 떠도 찾아서 앞으로 가져온다."""
+    room_area = _area(_rect(room_hwnd))
     end = time.time() + seconds
     while time.time() < end:
-        fg = u.GetForegroundWindow()
-        if fg and fg != room_hwnd and _same_process(fg, room_hwnd) and _foreground_class() != "#32770":
-            return fg
-        time.sleep(0.2)
+        for h, r in _kakao_windows(room_hwnd).items():
+            if h != room_hwnd and h not in before and _area(r) > room_area:
+                u.keybd_event(0x12, 0, 0, 0)  # Alt: 앞으로 가져오기 허락
+                u.keybd_event(0x12, 0, 2, 0)
+                u.SetForegroundWindow(h)
+                time.sleep(0.5)
+                return h
+        time.sleep(0.3)
     return None
+
+
+def _shot_sig(h):
+    """뷰어 화면이 바뀌었는지 볼 작은 서명."""
+    from PIL import ImageGrab
+    img = ImageGrab.grab(_rect(h), all_screens=True).convert("L").resize((48, 32))
+    return bytes(img.getdata())
+
+
+def _go_newest(viewer, max_steps=15):
+    """→ 를 눌러 화면이 더 안 바뀔 때까지 = 이 방의 가장 최근 사진으로 간다."""
+    sig = _shot_sig(viewer)
+    for _ in range(max_steps):
+        _key(0x27)  # →
+        time.sleep(0.9)
+        new = _shot_sig(viewer)
+        if new == sig:
+            return
+        sig = new
 
 
 def save_latest_photos(room_hwnd, list_hwnd, count, folder):
@@ -202,20 +244,24 @@ def save_latest_photos(room_hwnd, list_hwnd, count, folder):
         return 0, "채팅창을 앞으로 못 가져옴"
     viewer = None
     for attempt in range(2):  # 느린 노트북은 뷰어가 늦게 뜬다 → 넉넉히 기다리고, 안 뜨면 한 번 더 누른다
+        before = set(_kakao_windows(room_hwnd))
         left, top, right, bottom = _rect(list_hwnd)
         spot = find_bottom_photo(ImageGrab.grab((left, top, right, bottom), all_screens=True))
         if not spot:
             return 0, "사진 말풍선을 못 찾음 (창이 가려졌나 확인)"
         if not _double_click(left + spot[0], top + spot[1]):
             return 0, "윈도우가 마우스 움직임을 막음"
-        viewer = _wait_viewer(room_hwnd, 8)
+        viewer = _wait_viewer(room_hwnd, before, 10)
         if viewer:
             break
         u.SetForegroundWindow(room_hwnd)
         time.sleep(0.5)
     if not viewer:
         return 0, "사진 뷰어가 안 열림 (앞 창: %s, 누른 곳 %s)" % (_foreground_class(), spot)
-    time.sleep(0.8)  # 뷰어가 사진을 다 띄울 때까지
+    time.sleep(1.0)  # 뷰어가 사진을 다 띄울 때까지
+    # 묶음 사진은 어느 장부터 열릴지 모른다 → 가장 최근 사진까지 간 뒤 ← 로 새로 온 장수만큼만 저장
+    # (그래야 예전 대화의 사진을 잘못 저장하지 않는다)
+    _go_newest(viewer)
     saved = set()
     for i in range(max(1, count)):
         _key(ord("S"), ctrl=True)
@@ -227,4 +273,7 @@ def save_latest_photos(room_hwnd, list_hwnd, count, folder):
             _key(0x25)  # ← 한 장 앞 사진
             time.sleep(0.8)
     _key(0x1B)  # Esc 로 뷰어 닫기
+    time.sleep(0.5)
+    if u.IsWindowVisible(viewer):
+        u.PostMessageW(viewer, 0x0010, 0, 0)  # WM_CLOSE (Esc 가 안 먹으면)
     return len(saved), ""
