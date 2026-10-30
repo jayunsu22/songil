@@ -39,6 +39,9 @@ DEFAULTS = {
     "quiet_seconds": 120,         # 마지막 글 뒤 이만큼 새 글이 없으면 한 건으로 묶어 견적
 }
 
+# 못 저장한 사진: 방 → {n: 장수, tries: 시도 횟수}. 3번까지 다시 해 보고, 그동안 견적 발행을 미룬다.
+PHOTO_RETRY = {}
+
 # 방마다 견적 대기 중인 글·사진 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다)
 PENDING = {}
 
@@ -98,10 +101,19 @@ def run_once(cfg, state, dry=False):
         if fresh is None:
             continue
         n_photo = sum(kakao_text.photo_count(m["text"]) for m in fresh)
+        retry = PHOTO_RETRY.get(room)
+        if not n_photo and retry:
+            n_photo = retry["n"]  # 지난번에 못 저장한 사진 다시 시도
         if n_photo and cfg["auto_save_photos"] and not dry:
             h, lst = kakao_window.find_room(room)
             got, why = kakao_photo.save_latest_photos(h, lst, n_photo, photo_dir)
-            log("[%s] 사진 %d장 중 %d장 저장%s" % (room, n_photo, got, (" — " + why + " → 손으로 받은 파일에 저장해 주세요") if why else ""))
+            tries = (retry["tries"] if retry else 0) + 1
+            if got >= n_photo or tries >= 3:
+                PHOTO_RETRY.pop(room, None)
+            else:
+                PHOTO_RETRY[room] = {"n": n_photo, "tries": tries}
+            log("[%s] 사진 %d장 중 %d장 저장%s" % (room, n_photo, got,
+                (" — %s → %s" % (why, "다음 확인 때 다시" if room in PHOTO_RETRY else "손으로 받은 파일에 저장해 주세요")) if why else ""))
         photos = [] if first_photos else kakao_photo.new_photos(photo_dir, set(state["photos"]))
         if not fresh and not photos:
             continue
@@ -145,7 +157,7 @@ def run_once(cfg, state, dry=False):
 def quote_if_quiet(cfg, room):
     pend = PENDING[room]
     quiet = time.time() - pend["last"]
-    if quiet < cfg["quiet_seconds"]:
+    if quiet < cfg["quiet_seconds"] or room in PHOTO_RETRY:  # 사진 저장을 다시 시도하는 중이면 기다린다
         return
     if not pend["texts"]:
         if quiet > 1800:  # 글 없이 사진만 30분 → 버림

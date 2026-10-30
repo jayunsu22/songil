@@ -132,7 +132,7 @@ def _foreground_class():
 def _finish_save_dialog(folder):
     """Ctrl+S 로 뜬 '다른 이름으로 저장' 창에서 파일 이름 앞에 folder 를 붙이고 저장. 이미 있으면 취소.
     돌려주는 값: 저장(또는 이미 있던) 파일 경로, 창이 없으면 None."""
-    for _ in range(20):
+    for _ in range(60):  # 느린 노트북: 저장 창이 늦게 뜬다
         if _foreground_class() == "#32770":
             break
         time.sleep(0.1)
@@ -163,10 +163,28 @@ def _finish_save_dialog(folder):
         return target
     u.SendMessageW(edits[0], 0x0C, 0, ctypes.c_wchar_p(target))  # WM_SETTEXT
     u.PostMessageW(dlg, 0x111, 1, 0)  # 저장
-    for _ in range(30):
+    for _ in range(60):
         if os.path.exists(target):
             return target
         time.sleep(0.1)
+    return None
+
+
+def _same_process(a, b):
+    pa, pb = ctypes.c_ulong(), ctypes.c_ulong()
+    u.GetWindowThreadProcessId(a, ctypes.byref(pa))
+    u.GetWindowThreadProcessId(b, ctypes.byref(pb))
+    return pa.value == pb.value
+
+
+def _wait_viewer(room_hwnd, seconds):
+    """카톡 사진 뷰어(카톡 프로그램의 다른 창)가 앞에 뜰 때까지 기다린다. 뜨면 그 창, 아니면 None."""
+    end = time.time() + seconds
+    while time.time() < end:
+        fg = u.GetForegroundWindow()
+        if fg and fg != room_hwnd and _same_process(fg, room_hwnd) and _foreground_class() != "#32770":
+            return fg
+        time.sleep(0.2)
     return None
 
 
@@ -182,15 +200,22 @@ def save_latest_photos(room_hwnd, list_hwnd, count, folder):
     time.sleep(0.5)
     if u.GetForegroundWindow() != room_hwnd:
         return 0, "채팅창을 앞으로 못 가져옴"
-    left, top, right, bottom = _rect(list_hwnd)
-    spot = find_bottom_photo(ImageGrab.grab((left, top, right, bottom), all_screens=True))
-    if not spot:
-        return 0, "사진 말풍선을 못 찾음 (창이 가려졌나 확인)"
-    if not _double_click(left + spot[0], top + spot[1]):
-        return 0, "윈도우가 마우스 움직임을 막음"
-    time.sleep(1.5)
-    if _foreground_class() != "EVA_Window_Dblclk" or u.GetForegroundWindow() == room_hwnd:
-        return 0, "사진 뷰어가 안 열림"
+    viewer = None
+    for attempt in range(2):  # 느린 노트북은 뷰어가 늦게 뜬다 → 넉넉히 기다리고, 안 뜨면 한 번 더 누른다
+        left, top, right, bottom = _rect(list_hwnd)
+        spot = find_bottom_photo(ImageGrab.grab((left, top, right, bottom), all_screens=True))
+        if not spot:
+            return 0, "사진 말풍선을 못 찾음 (창이 가려졌나 확인)"
+        if not _double_click(left + spot[0], top + spot[1]):
+            return 0, "윈도우가 마우스 움직임을 막음"
+        viewer = _wait_viewer(room_hwnd, 8)
+        if viewer:
+            break
+        u.SetForegroundWindow(room_hwnd)
+        time.sleep(0.5)
+    if not viewer:
+        return 0, "사진 뷰어가 안 열림 (앞 창: %s, 누른 곳 %s)" % (_foreground_class(), spot)
+    time.sleep(0.8)  # 뷰어가 사진을 다 띄울 때까지
     saved = set()
     for i in range(max(1, count)):
         _key(ord("S"), ctrl=True)
