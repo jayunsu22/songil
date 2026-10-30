@@ -129,10 +129,10 @@ def _foreground_class():
     return b.value
 
 
-def _finish_save_dialog(folder):
+def _finish_save_dialog(folder, wait=6):
     """Ctrl+S 로 뜬 '다른 이름으로 저장' 창에서 파일 이름 앞에 folder 를 붙이고 저장. 이미 있으면 취소.
     돌려주는 값: 저장(또는 이미 있던) 파일 경로, 창이 없으면 None."""
-    for _ in range(60):  # 느린 노트북: 저장 창이 늦게 뜬다
+    for _ in range(int(wait * 10)):  # 느린 노트북: 저장 창이 늦게 뜬다
         if _foreground_class() == "#32770":
             break
         time.sleep(0.1)
@@ -262,16 +262,20 @@ def save_latest_photos(room_hwnd, list_hwnd, count, folder):
     # 묶음 사진은 어느 장부터 열릴지 모른다 → 가장 최근 사진까지 간 뒤 ← 로 새로 온 장수만큼만 저장
     # (그래야 예전 대화의 사진을 잘못 저장하지 않는다)
     _go_newest(viewer)
+    before_files = set(list_photos(folder))
     saved = set()
     for i in range(max(1, count)):
         _key(ord("S"), ctrl=True)
-        path = _finish_save_dialog(folder)
+        # 카톡 설정에 따라 저장 창이 뜨거나(→ 폴더 지정) 창 없이 바로 받은 파일에 저장된다 (10/30 노트북)
+        path = _finish_save_dialog(folder, wait=4)
         if path:
             saved.add(path)
         time.sleep(0.5)
         if i < count - 1:
             _key(0x25)  # ← 한 장 앞 사진
             time.sleep(0.8)
+    time.sleep(1.0)
+    saved |= set(list_photos(folder)) - before_files  # 창 없이 바로 저장된 것도 센다
     _key(0x1B)  # Esc 로 뷰어 닫기
     time.sleep(0.5)
     if u.IsWindowVisible(viewer):
