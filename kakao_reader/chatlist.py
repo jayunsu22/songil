@@ -111,11 +111,42 @@ def _norm(s):
     return re.sub(r"[\s…]|\.{2,}", "", s).lower()
 
 
-def same_room(a, b):
-    """OCR 이 한두 글자 틀려도 같은 방으로 (띄어쓰기·대소문자 무시, 80% 이상 같으면)."""
+def _jamo(s):
+    """자모로 풀기 (춘 → ㅊㅜㄴ): OCR 이 '류춘화' 를 '류준화' 로 읽어도 한 자모만 다르게. 'TT' 는 ㅠ 로 (10/30 '류' → 'TT')."""
+    import unicodedata
+    return unicodedata.normalize("NFD", _norm(s).replace("tt", "ᅲ"))
+
+
+def _ratio(a, b):
     import difflib
-    a, b = _norm(a), _norm(b)
-    return a == b or (min(len(a), len(b)) >= 3 and difflib.SequenceMatcher(None, a, b).ratio() >= 0.8)
+    return difflib.SequenceMatcher(None, a, b).ratio()
+
+
+def fuzzy_in(word, name):
+    """word 가 name 안에 들어 있나 — 자모로 80% 이상 같은 토막이 있으면 (OCR 이 한두 자모 틀려도)."""
+    w, n = _jamo(word), _jamo(name)
+    if not w or not n:
+        return False
+    if w in n:
+        return True
+    if len(w) < 5:
+        return False
+    k = len(w)
+    return any(_ratio(n[i:i + k], w) >= 0.8 for i in range(max(1, len(n) - k + 1)))
+
+
+def same_room(a, b):
+    """OCR 이 한두 글자 틀려도 같은 방으로 (띄어쓰기·대소문자 무시, 자모로 80% 이상 같으면)."""
+    a, b = _jamo(a), _jamo(b)
+    return a == b or (min(len(a), len(b)) >= 5 and _ratio(a, b) >= 0.8)
+
+
+def known_name(cands, known):
+    """여러 번 읽은 이름 후보 중 하나가 config 에 적은 이름(알릴 방 등)을 품고 있으면 그 이름으로."""
+    for k in known:
+        if any(c and fuzzy_in(k, c) for c in cands):
+            return k
+    return None
 
 
 def match_names(prev, now):
@@ -134,8 +165,7 @@ def watched(name, watch):
         return True
     if not name:
         return False
-    n = _norm(name)
-    return any(_norm(e) and (_norm(e) in n or same_room(n, e)) for e in watch)
+    return any(_norm(e) and fuzzy_in(e, name) for e in watch)
 
 
 def excluded(name, exclude):
@@ -356,7 +386,7 @@ def ocr(paths):
     return parse_ocr(out)
 
 
-def read_badges(force=False, keep_image=None):
+def read_badges(force=False, keep_image=None, known=()):
     """지금 배지가 붙은 방들 {방 이름: 숫자 또는 None}. 배지가 지난번과 같으면 None (OCR 생략).
     카톡 창을 못 쓰면 RuntimeError (이유는 쉬운 말로)."""
     top, lst = find_chatlist()
@@ -373,10 +403,14 @@ def read_badges(force=False, keep_image=None):
         img.save(keep_image)
     tl, tt, _, _ = _rect(top)
     ll, lt, lr, lb = _rect(lst)
-    return analyze(img, (ll - tl, lt - tt, lr - tl, lb - tt), force)
+    return analyze(img, (ll - tl, lt - tt, lr - tl, lb - tt), force, known)
 
 
-def analyze(img, region, force=False):
+# 줄 그림을 여러 가지로 읽는다 (배율, 흑백 여부) — 한 가지로는 짧은 이름을 자주 틀림 (10/30 '류춘화' → 'TT춘화')
+VARIANTS = ((3, False), (4, False), (3, True))
+
+
+def analyze(img, region, force=False, known=()):
     """창 그림 + 채팅 목록 칸 위치 → {방 이름: 숫자 또는 None}, 배지가 지난번과 같으면 None."""
     badges = find_badges(img, region)
     if not badges:
@@ -386,7 +420,6 @@ def analyze(img, region, force=False):
     if sig == LAST["sig"] and not force:
         return None
     # 배지가 있는 줄만 잘라 3배로 키워 읽는다 (목록 전체를 읽는 것보다 이름을 덜 틀림 — 10/30 '류춘화' 를 'TT준화' 로)
-    S = 3
     rows = []
     for b in badges:
         bh = b[3] - b[1] + 1
@@ -396,9 +429,14 @@ def analyze(img, region, force=False):
     try:
         paths = []
         for i, r in enumerate(rows):
-            p = os.path.join(tmp, "row%d.png" % i)
-            img.crop(r).resize(((r[2] - r[0]) * S, (r[3] - r[1]) * S), Image.LANCZOS).save(p)
-            paths.append(p)
+            crop = img.crop(r)
+            for j, (sc, bw_) in enumerate(VARIANTS):
+                v = crop.resize((crop.width * sc, crop.height * sc), Image.LANCZOS)
+                if bw_:
+                    v = v.convert("L").point(lambda x: 0 if x < 150 else 255)
+                p = os.path.join(tmp, "row%d_%d.png" % (i, j))
+                v.save(p)
+                paths.append(p)
         res = ocr(paths)
     finally:
         for f in os.listdir(tmp):
@@ -406,12 +444,16 @@ def analyze(img, region, force=False):
         os.rmdir(tmp)
     lw = region[2] - region[0]
     now = {}
-    for b, r, p in zip(badges, rows, paths):
-        # 줄 그림 좌표 → 목록 칸 좌표
-        dx, dy = r[0] - region[0], r[1] - region[1]
-        lines = [(x // S + dx, y // S + dy, wd // S, ht // S, t) for x, y, wd, ht, t in res.get(p, [])]
+    for i, (b, r) in enumerate(zip(badges, rows)):
         rb = (b[0] - region[0], b[1] - region[1], b[2] - region[0], b[3] - region[1])
-        name = clean_name(row_name(lines, rb, lw)) or NO_NAME
+        dx, dy = r[0] - region[0], r[1] - region[1]
+        cands = []
+        for j, (sc, _) in enumerate(VARIANTS):
+            # 줄 그림 좌표 → 목록 칸 좌표
+            lines = [(x // sc + dx, y // sc + dy, wd // sc, ht // sc, t)
+                     for x, y, wd, ht, t in res.get(os.path.join(tmp, "row%d_%d.png" % (i, j)), [])]
+            cands.append(clean_name(row_name(lines, rb, lw)))
+        name = known_name(cands, known) or next((c for c in cands if c), None) or NO_NAME
         bw = badge_digits(img, b)
         # 숫자를 못 읽어도 배지 모양(지문)이 바뀌면 새 글로 본다
         fp = hashlib.sha1(bw.point(lambda v: 255 if v > 128 else 0).tobytes() + repr(bw.size).encode()).hexdigest()[:12]
@@ -423,7 +465,8 @@ def analyze(img, region, force=False):
 def check(cfg, state, notify, log, dry=False):
     """reader.py 가 확인할 때마다 부른다. 배지가 새로 생기거나 늘어난 방(빼는 방 제외)을 텔레그램으로."""
     try:
-        now = read_badges()
+        known = list(cfg.get("watch_rooms", [])) + list(cfg.get("exclude_rooms", [])) + list(cfg.get("quote_rooms", []))
+        now = read_badges(known=known)
     except Exception as e:
         if str(e) != LAST["warn"]:
             log("[채팅 목록] %s" % e)
@@ -501,7 +544,10 @@ def main():
             pass
     path = os.path.join(HERE, "chatlist_probe.png")
     try:
-        now = read_badges(force=True, keep_image=path)
+        import reader
+        cfg = reader.load_json(os.path.join(HERE, "config.json"), {})
+        known = list(cfg.get("watch_rooms", [])) + list(cfg.get("exclude_rooms", [])) + ["김정헌"]
+        now = read_badges(force=True, keep_image=path, known=known)
     except Exception as e:
         print("안 됨:", e)
         return 1
@@ -510,7 +556,8 @@ def main():
         print("빨간 배지가 안 보임 — 아래 숫자를 사진으로 보내 주세요")
         diagnose(path)
     for room, cur in now.items():
-        print("  %s : %s" % (room, cur["n"] if cur["n"] is not None else "숫자 못 읽음"))
+        mark = "알림" if watched(room, cfg.get("watch_rooms", [])) else "안 알림"
+        print("  %s : %s  (%s)" % (room, cur["n"] if cur["n"] is not None else "숫자 못 읽음", mark))
     if any(cur["n"] is None for cur in now.values()):
         show_badges(path)
     return 0

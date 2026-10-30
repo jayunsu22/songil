@@ -81,6 +81,16 @@ class ExcludeTest(unittest.TestCase):
         self.assertFalse(chatlist.watched(None, w))
         self.assertTrue(chatlist.watched("엄마", []))           # 비어 있으면 모든 방
 
+    def test_ocr_mistakes_in_short_names(self):
+        # 10/30 노트북·이 PC 윈도우 OCR 이 실제로 틀린 모양
+        self.assertTrue(chatlist.watched("TT춘화", ["류춘화"]))
+        self.assertTrue(chatlist.watched("류준화", ["류춘화"]))
+        self.assertTrue(chatlist.watched("pk디자인 대리님", ["pk디자인"]))
+        self.assertFalse(chatlist.watched("쿠팡이츠", ["류춘화", "pk디자인", "이종수", "오니브", "어치브"]))
+        self.assertFalse(chatlist.watched("캐시노트", ["류춘화", "pk디자인", "이종수", "오니브", "어치브"]))
+        self.assertEqual(chatlist.known_name(["TT춘화", None, "류준화"], ["pk디자인", "류춘화"]), "류춘화")
+        self.assertIsNone(chatlist.known_name(["쿠팡이츠"], ["pk디자인", "류춘화"]))
+
     def test_match_names(self):
         prev = {"한솔인테리어 김실장": 1}
         self.assertEqual(list(chatlist.match_names(prev, {"한솔인테리어 김싷장": 2, "엄마": 1})), ["한솔인테리어 김실장", "엄마"])
