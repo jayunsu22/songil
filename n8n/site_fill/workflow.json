@@ -1,0 +1,399 @@
+{
+  "name": "현장관리_빈칸",
+  "nodes": [
+    {
+      "id": "w1",
+      "name": "빈칸요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "8a3e51c2-7d4b-4f19-9c6e-2b5a0d7e1f34",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "site-gaps",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "a1",
+      "name": "현장읽기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "J5wefJCMalpjjm3Q",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      },
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/apprglBOGXhKQN4cl/%ED%98%84%EC%9E%A5",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "AND(NOT({삭제}), IS_AFTER(DATETIME_PARSE({시작날짜}), DATEADD(TODAY(), -2, 'days')))"
+            },
+            {
+              "name": "pageSize",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "paginationMode": "updateAParameterInEachRequest",
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "offset",
+                    "value": "={{ $response.body.offset }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.offset }}"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "a2",
+      "name": "거래처읽기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "J5wefJCMalpjjm3Q",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      },
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/apprglBOGXhKQN4cl/%EA%B1%B0%EB%9E%98%EC%B2%98",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "NOT({삭제})"
+            },
+            {
+              "name": "pageSize",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "paginationMode": "updateAParameterInEachRequest",
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "offset",
+                    "value": "={{ $response.body.offset }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.offset }}"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "c1",
+      "name": "빈칸고르기",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 현장관리_빈칸 › 빈칸고르기: 노트북이 POST site-gaps (사장님 열쇠) 로 부른다 (카톡 '비서' 4단계, 10/31).\n// 현장관리 백업(Airtable)에서 오늘~days 일 안에 시작하고 A(공동현관·세대 비번·화장실)·B(필름 번호) 중 빈칸이 있는 현장만.\n// 비번 같은 값은 돌려주지 않는다 (빈칸 이름만).\nconst body = $('빈칸요청').first().json.body || {};\nconst seoul = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);\nconst today = /^\\d{4}-\\d{2}-\\d{2}$/.test(body.today || '') ? body.today : seoul;\nconst days = Math.min(Math.max(parseInt(body.days, 10) || 7, 0), 30);\nconst until = new Date(Date.parse(today + 'T00:00:00Z') + days * 864e5).toISOString().slice(0, 10);\nconst str = (v) => String(v == null ? '' : v).trim();\nconst clients = {};\nfor (const it of $('거래처읽기').all()) for (const r of (it.json.records || [])) {\n  const f = r.fields || {};\n  if (f.id) clients[f.id] = str(f['이름']);\n}\nconst out = [];\nfor (const it of $('현장읽기').all()) for (const r of (it.json.records || [])) {\n  let s = {};\n  try { s = JSON.parse((r.fields || {}).data || '{}'); } catch (e) { continue; }\n  if (!s.id || s.hide) continue;\n  const date = str(s.date).slice(0, 10);\n  if (!date || date < today || date > until) continue;\n  const missing = ['pwLobby', 'pwUnit', 'toilet'].filter((k) => !str(s[k]));\n  if (!(Array.isArray(s.films) && s.films.some((x) => x && str(x.code)))) missing.push('films');\n  if (!missing.length) continue;\n  const name = str(s.name);\n  const squash = (v) => v.replace(/\\s+/g, '');\n  const extra = [str(s.unit), str(s.size)].filter((v) => v && squash(name).indexOf(squash(v)) === -1);\n  out.push({ id: s.id, client: clients[s.clientId] || clients[(r.fields || {})['거래처id']] || '', name: [name].concat(extra).filter(Boolean).join(' ') || '(이름없음)', date, missing });\n}\nout.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));\nreturn [{ json: { today, until, sites: out } }];\n"
+      }
+    },
+    {
+      "id": "r1",
+      "name": "빈칸응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "w2",
+      "name": "우편함넣기요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "4c9d2e7a-1b3f-4a85-b6d0-9e8f7a6b5c41",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "site-fill",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "c2",
+      "name": "우편함넣기",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 현장관리_빈칸 › 우편함넣기: 노트북이 POST site-fill (사장님 열쇠) — 업체 답에서 뽑은 칸 값을 우편함(staticData)에 둔다.\n// 현장관리 앱이 site-fill-take 로 가져가 그 기기 현장 칸에 바로 넣는다 (원본이 기기에 있어서, 10/31 사장님 '우편함').\nconst body = $input.first().json.body || {};\nconst sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nsd.fills = (sd.fills || []).filter((f) => now - f.t < 14 * 864e5);\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\nconst FIELDS = ['pwLobby', 'pwUnit', 'toilet'];\nlet n = 0;\nfor (const f of (Array.isArray(body.fills) ? body.fills : []).slice(0, 50)) {\n  if (!f || typeof f !== 'object') continue;\n  const o = { id: 'f' + now.toString(36) + n, t: now, siteId: s(f.siteId, 40), kind: f.kind, room: s(f.room, 40), at: s(f.at, 10) };\n  if (!o.siteId) continue;\n  if (o.kind === 'field') {\n    o.field = FIELDS.includes(f.field) ? f.field : '';\n    o.value = s(f.value, 300);\n    if (!o.field || !o.value) continue;\n  } else if (o.kind === 'films') {\n    o.films = (Array.isArray(f.films) ? f.films : []).map((x) => ({ place: s(x && x.place, 40), code: s(x && x.code, 30) })).filter((x) => x.code).slice(0, 30);\n    if (!o.films.length) continue;\n  } else continue;\n  sd.fills.push(o);\n  n++;\n}\nreturn [{ json: { ok: true, n } }];\n"
+      }
+    },
+    {
+      "id": "r2",
+      "name": "넣기응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "w3",
+      "name": "우편함꺼내기요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        600
+      ],
+      "webhookId": "2f7b4a1d-6e3c-4b92-8a5f-0c1d2e3f4a57",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "site-fill-take",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "c3",
+      "name": "우편함꺼내기",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        600
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 현장관리_빈칸 › 우편함꺼내기: 현장관리 앱이 POST site-fill-take (사장님 열쇠) {done:[번호]}.\n// done 은 그 기기가 칸에 넣은 것 → 지운다. 남은 것을 모두 준다 (이 기기에 없는 현장은 앱이 건너뛰고 다른 기기를 기다린다). 14일 지나면 지움.\nconst body = $input.first().json.body || {};\nconst done = new Set((Array.isArray(body.done) ? body.done : []).map(String));\nconst sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nsd.fills = (sd.fills || []).filter((f) => !done.has(f.id) && now - f.t < 14 * 864e5);\nreturn [{ json: { fills: sd.fills.map((f) => Object.assign({}, f)) } }];\n"
+      }
+    },
+    {
+      "id": "r3",
+      "name": "꺼내기응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        600
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "빈칸요청": {
+      "main": [
+        [
+          {
+            "node": "현장읽기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "현장읽기": {
+      "main": [
+        [
+          {
+            "node": "거래처읽기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "거래처읽기": {
+      "main": [
+        [
+          {
+            "node": "빈칸고르기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "빈칸고르기": {
+      "main": [
+        [
+          {
+            "node": "빈칸응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "우편함넣기요청": {
+      "main": [
+        [
+          {
+            "node": "우편함넣기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "우편함넣기": {
+      "main": [
+        [
+          {
+            "node": "넣기응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "우편함꺼내기요청": {
+      "main": [
+        [
+          {
+            "node": "우편함꺼내기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "우편함꺼내기": {
+      "main": [
+        [
+          {
+            "node": "꺼내기응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none"
+  }
+}

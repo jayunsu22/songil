@@ -110,7 +110,7 @@ class CheckFlowTest(unittest.TestCase):
     def setUp(self):
         self.calls, self.sent = [], []
         self.orig = (chatlist.read_badges, chatlist.read_and_report, chatlist.time.time)
-        chatlist.read_and_report = lambda cfg, state, room, notify, log, classify: self.calls.append(room)
+        chatlist.read_and_report = lambda cfg, state, room, notify, log, classify, answer=None: self.calls.append(room)
         self.t = 1000
         chatlist.time.time = lambda: self.t
 

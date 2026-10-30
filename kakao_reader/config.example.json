@@ -14,5 +14,6 @@
   "exclude_rooms": [],
   "auto_read": true,
   "read_quiet_seconds": 60,
-  "my_names": ["김정헌"]
+  "my_names": ["김정헌"],
+  "client_rooms": {"봄애": "봄애실장님"}
 }

@@ -62,3 +62,11 @@ def fetch_jobs(url, owner_key, timeout=30):
                                  headers={"Content-Type": "application/json", "x-owner-key": owner_key})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8")).get("jobs") or []
+
+
+def post_json(url, owner_key, body, timeout=90):
+    """사장님 열쇠로 JSON POST → JSON 답 (현장 빈칸: site-gaps·site-fill·kakao-digest). 실패하면 예외."""
+    req = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
+                                 headers={"Content-Type": "application/json", "x-owner-key": owner_key})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))

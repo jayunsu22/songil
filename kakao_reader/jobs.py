@@ -39,6 +39,15 @@ def new_job(state, title, kind, msgs, t):
     return job, buttons_for(kind, job)
 
 
+def new_ask_job(state, room, site, t):
+    """현장 빈칸 [시작해] 할 일 (4단계, 10/31). site = {id, name, client, date, missing} — 비번·글 내용 없음."""
+    jobs = {k: v for k, v in (state.get("jobs") or {}).items() if t - v.get("at", 0) < KEEP}
+    job = _new_id(jobs)
+    jobs[job] = {"title": room, "kind": "빈칸", "site": site, "at": t}
+    state["jobs"] = jobs
+    return job
+
+
 def pick_by_keys(msgs, keys):
     want = set(keys)
     return [m for m in msgs if m["key"] in want]
@@ -47,8 +56,13 @@ def pick_by_keys(msgs, keys):
 WARNED = {"fetch": False}
 
 
+ACTION_NAME = {"pub": "가견적 발행", "ask": "업체에 빈칸 묻기"}
+
+
 def poll(cfg, state, notify, log, fetch, run):
-    """n8n 에서 할 일을 가져와 [가견적 발행] 만 처리 (같은 번호는 한 번만)."""
+    """n8n 에서 할 일을 가져와 노트북이 할 버튼만 처리 (같은 번호는 한 번만).
+    run = {동작: 함수} — pub=[가견적 발행], ask=현장 빈칸 [시작해]. 함수 하나면 pub."""
+    runners = run if isinstance(run, dict) else {"pub": run}
     try:
         todo = fetch()
     except Exception as e:
@@ -60,21 +74,22 @@ def poll(cfg, state, notify, log, fetch, run):
     done = state.setdefault("jobs_done", [])
     for j in todo:
         job = j.get("job")
-        if j.get("action") != "pub" or job in done:
+        act = j.get("action")
+        if act not in runners or job in done:
             continue
         done.append(job)
         del done[:-300]
         info = (state.get("jobs") or {}).get(job)
         if not info:
             log("[버튼] 모르는 할 일 %s" % job)
-            notify("[카톡] 가견적 발행을 못 했습니다 — 7일 넘은 요약이거나 이 노트북이 보낸 요약이 아닙니다.")
+            notify("[카톡] %s을 못 했습니다 — 7일 넘은 알림이거나 이 노트북이 보낸 알림이 아닙니다." % ACTION_NAME.get(act, act))
             continue
-        log("[%s] 버튼: 가견적 발행" % info["title"])
+        log("[%s] 버튼: %s" % (info["title"], ACTION_NAME.get(act, act)))
         try:
-            run(cfg, state, job, info, notify, log)
+            runners[act](cfg, state, job, info, notify, log)
         except Exception as e:
-            log("[%s] 가견적 발행 실패: %s" % (info["title"], str(e)[:200]))
-            notify("[카톡] 가견적 발행 실패 · %s\n%s" % (info["title"], str(e)[:300]))
+            log("[%s] %s 실패: %s" % (info["title"], ACTION_NAME.get(act, act), str(e)[:200]))
+            notify("[카톡] %s 실패 · %s\n%s" % (ACTION_NAME.get(act, act), info["title"], str(e)[:300]))
 
 
 def run_publish(cfg, state, job, info, notify, log):

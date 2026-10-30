@@ -19,6 +19,7 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 
 import chatlist
+import gaps
 import jobs
 import kakao_photo
 import kakao_text
@@ -57,6 +58,12 @@ DEFAULTS = {
     "my_names": ["김정헌"],       # 카톡에 보이는 사장님 이름 — 이 이름으로 쓴 글은 보고하지 않는다     # 배지가 이만큼 그대로면(글이 멈추면) 연다 (사장님 10/30: 시험이라 1분)
     "classify_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-classify",  # n8n 카톡_분류 (Gemini)
     "jobs_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-jobs",  # n8n 카톡_버튼 (누른 버튼 가져오기)
+    # 현장 빈칸 채우기 (4단계, 사장님 10/31): 시공 1주 전 빈칸 → [시작해] → 업체 방에 질문 → 답을 현장관리 칸에
+    "site_gaps": True,
+    "client_rooms": {},           # 현장관리 거래처 이름 → 그 업체 카톡 방 이름 (예 {"봄애": "봄애실장님"})
+    "site_gaps_url": "https://primary-production-a6fa.up.railway.app/webhook/site-gaps",  # n8n 현장관리_빈칸
+    "site_fill_url": "https://primary-production-a6fa.up.railway.app/webhook/site-fill",  # 우편함 (앱이 가져가 칸에 넣음)
+    "digest_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-digest",  # 현장관리 📥 카톡 정리 AI
 }
 
 # 방마다 '견적발행시작' 을 기다리는 글·사진 묶음 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다.
@@ -150,11 +157,26 @@ def run_once(cfg, state, dry=False):
             for job in [j for j in READY if j["room"] == room and j["need"]]:
                 save_job_photos(cfg, state, job, photo_dir)
     if cfg["watch_list"]:
-        chatlist.check(cfg, state, lambda text, buttons=None: notify(cfg, text, buttons), log, dry,
-                       classify=lambda room, msgs: n8n_send.classify(cfg["classify_url"], cfg["owner_key"], room, msgs))
-    if cfg["auto_read"] and cfg["watch_list"] and not dry:  # 텔레그램 버튼 [가견적 발행] (3단계, 10/31)
+        # 빈칸을 물어보고 답을 기다리는 업체 방(7일)은 알릴 방에 더한다 — 그 방 새 글을 읽어야 칸을 채운다
+        extra = gaps.watch_extra(state, time.time()) if cfg["site_gaps"] else []
+        wcfg = cfg
+        if extra and cfg["watch_rooms"]:
+            wcfg = dict(cfg, watch_rooms=list(cfg["watch_rooms"]) + [r for r in extra if r not in cfg["watch_rooms"]])
+        chatlist.check(wcfg, state, lambda text, buttons=None: notify(cfg, text, buttons), log, dry,
+                       classify=lambda room, msgs: n8n_send.classify(cfg["classify_url"], cfg["owner_key"], room, msgs),
+                       answer=lambda room, msgs: gaps.on_answer(
+                           cfg, state, room, msgs,
+                           lambda r, today, sites, ms: n8n_send.post_json(cfg["digest_url"], cfg["owner_key"],
+                                                                          {"room": r, "today": today, "sites": sites, "messages": ms}),
+                           lambda fills: n8n_send.post_json(cfg["site_fill_url"], cfg["owner_key"], {"fills": fills}),
+                           lambda text: notify(cfg, text), log) if cfg["site_gaps"] else None)
+    if cfg["auto_read"] and cfg["watch_list"] and not dry:  # 텔레그램 버튼 [가견적 발행]·[시작해] (3·4단계, 10/31)
         jobs.poll(cfg, state, lambda text: notify(cfg, text), log,
-                  lambda: n8n_send.fetch_jobs(cfg["jobs_url"], cfg["owner_key"]), jobs.run_publish)
+                  lambda: n8n_send.fetch_jobs(cfg["jobs_url"], cfg["owner_key"]), {"pub": jobs.run_publish, "ask": gaps.run_ask})
+        if cfg["site_gaps"]:
+            gaps.check(cfg, state, time.time(),
+                       lambda: n8n_send.post_json(cfg["site_gaps_url"], cfg["owner_key"], {"days": 7}).get("sites") or [],
+                       lambda text, buttons=None: notify(cfg, text, buttons), log)
     if not dry:
         for job in [j for j in READY if not j["need"]]:
             READY.remove(job)
