@@ -103,6 +103,12 @@ class ClientTest(unittest.TestCase):
     def test_empty_goes_to_unknown(self):
         self.assertEqual(kt.match_client("", self.NAMES), ("업체미확인", "이름 없음"))
 
+    def test_client_in_text(self):
+        t = "미래타운 3단지 견적 업체는 pk 디자인\n사진 순서대로 1번 방문"
+        self.assertEqual(kt.client_in_text(t, self.NAMES), "PK디자인")
+        self.assertEqual(kt.client_in_text("방문 3개", self.NAMES), "")
+        self.assertEqual(kt.client_in_text("피케이디자인 현장", self.NAMES, {"피케이디자인": "PK디자인"}), "PK디자인")
+
     def test_no_unknown_vendor(self):
         self.assertEqual(kt.match_client("없는업체", ["PK디자인"]), (None, "못 찾음"))
 

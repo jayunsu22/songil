@@ -1,11 +1,12 @@
 // 견적사진_판단 › 프롬프트: 카톡으로 받은 사진이 견적의 어느 품목인지 Gemini 에게 묻는 요청을 만든다.
-// 받는 것: { items: [{ id, 이름 }], photos: [{ name, mime, data(base64) }] }
+// 받는 것: { items: [{ id, 이름 }], photos: [{ name, mime, data(base64) }] (보낸 순서), hint: 문의 글 }
 // 모르면 null - 억지로 고르면 엉뚱한 품목에 붙는다 (그때 프로그램이 첫 품목에 붙인다).
 const b = $input.first().json.body || {};
 const items = Array.isArray(b.items) ? b.items : [];
 const photos = Array.isArray(b.photos) ? b.photos : [];
 if (!items.length || !photos.length) throw new Error('items 와 photos 가 필요합니다');
 
+const hint = String(b.hint || '').slice(0, 1500);
 const 목록 = items.map((it) => '- ' + it.id + ' : ' + it.이름).join('\n');
 const 글 = [
   '인테리어 필름 시공 견적 문의로 받은 사진들이다. 각 사진이 아래 품목 중 무엇을 찍은 것인지 고른다.',
@@ -21,6 +22,14 @@ const 글 = [
   '- 같은 품목명이 여러 개면(방1 방문, 방2 방문) 아무거나 같은 이름 중 하나를 골라도 된다.',
   '- 확실하지 않으면 null.',
   '',
+  ...(hint ? [
+    '문의 글 (사진은 보낸 순서대로 사진0, 사진1 … 이다):',
+    hint,
+    '',
+    '- 글에 "사진 순서대로 1번 방문, 2번 화장실문 …" 처럼 사진 설명이 있으면 1번=사진0, 2번=사진1 … 로 그 설명을 따른다.',
+    '- 설명이 없거나 사진 내용과 전혀 안 맞으면 사진 내용으로 고른다.',
+    '',
+  ] : []),
   '답은 JSON 하나만: {"사진0": "품목id 또는 null", "사진1": ...}',
 ].join('\n');
 

@@ -30,9 +30,10 @@ DRAFT_TIMEOUT = 110_000
 CLASSIFY_URL = "https://primary-production-a6fa.up.railway.app/webhook/photo-classify"
 
 
-def classify_photos(items, photos):
+def classify_photos(items, photos, hint=""):
     """n8n 견적사진_판단(Gemini)에 '이 사진은 어느 품목?' 을 묻는다.
     items: [{'id': 체크_ID, '이름': '구역 품목명'}], photos: [경로] → [체크_ID 또는 None] (사진 순서대로).
+    hint: 문의 글 ('사진 순서대로 1번 방문, 2번 화장실문 …' 같은 설명을 참고하게).
     실패하면 전부 None (그때는 첫 품목에 붙인다)."""
     import base64
     import io
@@ -45,7 +46,7 @@ def classify_photos(items, photos):
         buf = io.BytesIO()
         img.save(buf, "JPEG", quality=80)
         data.append({"name": os.path.basename(ph), "mime": "image/jpeg", "data": base64.b64encode(buf.getvalue()).decode()})
-    body = json.dumps({"items": items, "photos": data}, ensure_ascii=False).encode("utf-8")
+    body = json.dumps({"items": items, "photos": data, "hint": hint[:1500]}, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(CLASSIFY_URL, data=body, method="POST",
                                  headers={"Content-Type": "application/json", "x-owner-key": _key()})
     try:
@@ -202,6 +203,8 @@ def publish(text, photos, client="", received_at=None, headless=True, aliases=No
                 if (업체키()) { try { await 업체목록받기(업체키()); } catch (e) {} }
                 return 업체캐시().목록.map((v) => v.이름);
             }""")
+            if not client:  # '견적발행시작' 만 썼으면 글 안의 거래처 이름 ('업체는 pk 디자인')
+                client = kakao_text.client_in_text(text, names, aliases)
             chosen, how = kakao_text.match_client(client, names, aliases)
             page.evaluate("""(c) => {
                 const v = 업체캐시().목록.find((x) => x.이름 === c) || null;
@@ -236,7 +239,7 @@ def publish(text, photos, client="", received_at=None, headless=True, aliases=No
             # 사진: AI(Gemini)가 사진을 보고 품목을 고른다. 모르는 사진은 첫 품목에 (사장님 10/30 - 글 순서로 붙이면 엉뚱하게 붙었다)
             if photos:
                 names = [{"id": cid, "이름": _row_name(page, cid)} for cid in ids]
-                picks = classify_photos(names, photos)
+                picks = classify_photos(names, photos, hint=text)
                 by_item = {}
                 for ph, cid in zip(photos, picks):
                     by_item.setdefault(cid or ids[0], []).append(ph)

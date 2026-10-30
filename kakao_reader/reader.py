@@ -48,13 +48,10 @@ DEFAULTS = {
     "notify_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-notify",  # 결과 → 사장님 텔레그램
 }
 
-# 못 저장한 사진: 방 → {n: 장수, tries: 시도 횟수}. 3번까지 다시 해 보고, 그동안 견적 발행을 미룬다.
-PHOTO_RETRY = {}
-
 # 방마다 '견적발행시작' 을 기다리는 글·사진 묶음 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다.
 # 프로그램을 다시 켜면 비어 있으니 그때는 글을 다시 올리고 신호를 준다)
 PENDING = {}
-# 신호를 받아 발행할 묶음 (사진을 다시 저장하는 중이면 끝날 때까지 기다린다)
+# 신호를 받아 발행할 묶음. need = 아직 저장 못 한 사진 장수 (0 이 되면 발행)
 READY = []
 
 
@@ -104,87 +101,87 @@ def check_room(cfg, state, room, dry):
 
 def run_once(cfg, state, dry=False):
     photo_dir = cfg["photo_dir"] or kakao_photo.default_dir()
-    first_photos = state.get("photos") is None
-    if first_photos:
+    if state.get("photos") is None:
         state["photos"] = [kakao_photo.file_id(p) for p in kakao_photo.list_photos(photo_dir)]
 
     for room in cfg["rooms"]:
         fresh = check_room(cfg, state, room, dry)
-        if fresh is None:
-            continue
-        n_photo = sum(kakao_text.photo_count(m["text"]) for m in fresh)
-        retry = PHOTO_RETRY.get(room)
-        if not n_photo and retry:
-            n_photo = retry["n"]  # 지난번에 못 저장한 사진 다시 시도
-        if n_photo and cfg["auto_save_photos"] and not dry:
-            h, lst = kakao_window.find_room(room)
-            got, why = kakao_photo.save_latest_photos(h, lst, n_photo, photo_dir)
-            tries = (retry["tries"] if retry else 0) + 1
-            if got >= n_photo or tries >= 3:
-                PHOTO_RETRY.pop(room, None)
-            else:
-                PHOTO_RETRY[room] = {"n": n_photo, "tries": tries}
-            log("[%s] 사진 %d장 중 %d장 저장%s" % (room, n_photo, got,
-                (" — %s → %s" % (why, "다음 확인 때 다시" if room in PHOTO_RETRY else "손으로 받은 파일에 저장해 주세요")) if why else ""))
-            if got < n_photo and room not in PHOTO_RETRY:
-                notify(cfg, "[카톡읽기] %s 방 사진 %d장 중 %d장만 저장됨 (%s)\n노트북에서 사진을 '카카오톡 받은 파일' 에 손으로 저장해 주세요." % (room, n_photo, got, why or "이유 모름"))
-        photos = [] if first_photos else kakao_photo.new_photos(photo_dir, set(state["photos"]))
-        if not fresh and not photos:
-            continue
-        log("[%s] 새 글 %d개 · 사진 %d장" % (room, len(fresh), len(photos)))
-        if dry:
-            continue
-        payload = {
-            "room": room,
-            "messages": [{"date": m["date"], "time": m["time"], "sender": m["sender"],
-                          "text": kakao_text.mask(m["text"]) if cfg["mask_secrets"] else m["text"],
-                          "photos": kakao_text.photo_count(m["text"]), "key": m["key"]} for m in fresh],
-            "photoFiles": [os.path.basename(p) for p in photos],
-            "sentAt": datetime.now().isoformat(timespec="seconds"),
-            "reader": socket.gethostname(),
-        }
-        try:
-            status, body = n8n_send.send(cfg["webhook_url"], cfg["owner_key"], payload, photos)
-        except Exception as e:  # 네트워크·열쇠 문제 → 지문을 저장하지 않으니 다음 주기에 다시 보낸다
-            log("[%s] 보내기 실패: %s" % (room, e))
-            continue
-        log("[%s] 보냄 (%s) %s" % (room, status, body[:200]))
-        rs = state["rooms"][room]
-        rs["keys"] = (rs["keys"] + [m["key"] for m in fresh])[-KEEP_KEYS:]
-        rs["at"] = datetime.now().isoformat(timespec="seconds")
-        state["photos"] = (state["photos"] + [kakao_photo.file_id(p) for p in photos])[-KEEP_KEYS:]
-        if room in cfg["quote_rooms"]:
-            collect(room, payload["messages"], photos)
+        if fresh:
+            log("[%s] 새 글 %d개" % (room, len(fresh)))
+        if fresh and not dry:
+            payload = {
+                "room": room,
+                "messages": [{"date": m["date"], "time": m["time"], "sender": m["sender"],
+                              "text": kakao_text.mask(m["text"]) if cfg["mask_secrets"] else m["text"],
+                              "photos": kakao_text.photo_count(m["text"]), "key": m["key"]} for m in fresh],
+                "photoFiles": [],
+                "sentAt": datetime.now().isoformat(timespec="seconds"),
+                "reader": socket.gethostname(),
+            }
+            try:
+                status, body = n8n_send.send(cfg["webhook_url"], cfg["owner_key"], payload, [])
+            except Exception as e:  # 네트워크·열쇠 문제 → 지문을 저장하지 않으니 다음 주기에 다시 보낸다
+                log("[%s] 보내기 실패: %s" % (room, e))
+                continue
+            log("[%s] 보냄 (%s) %s" % (room, status, body[:200]))
+            rs = state["rooms"][room]
+            rs["keys"] = (rs["keys"] + [m["key"] for m in fresh])[-KEEP_KEYS:]
+            rs["at"] = datetime.now().isoformat(timespec="seconds")
+            if room in cfg["quote_rooms"]:
+                collect(room, payload["messages"])
+        if fresh is not None and not dry:
+            for job in [j for j in READY if j["room"] == room and j["need"]]:
+                save_job_photos(cfg, state, job, photo_dir)
     if not dry:
-        for job in list(READY):
-            if job["room"] not in PHOTO_RETRY:  # 사진 저장을 다시 시도하는 중이면 기다린다
-                READY.remove(job)
-                publish_job(cfg, job)
+        for job in [j for j in READY if not j["need"]]:
+            READY.remove(job)
+            publish_job(cfg, job)
         save_state(state)
 
 
-def collect(room, messages, photos):
-    """'견적발행시작 [거래처]' 신호 방식 (사장님 10/30): 고객이 아직 쓰는 중에 견적을 내지 않게,
-    사장님이 김정헌 방에 글·사진을 모아 올리고 신호를 주면 그 앞 묶음(지난 신호·지난 링크 뒤)으로 발행한다."""
-    waiting = [j for j in READY if j["room"] == room]
+def save_job_photos(cfg, state, job, photo_dir):
+    """신호를 받은 뒤에야 사진을 저장한다 (사장님 10/30 — 신호 전에는 아무것도 하지 않는다).
+    묶음의 사진 장수만큼 이 방의 가장 최근 사진부터 저장. 못 하면 3번까지 다시, 그래도 안 되면 사진 없이 발행."""
+    room, need = job["room"], job["need"]
+    got, why = 0, "사진 자동 저장 꺼짐 (auto_save_photos)"
+    if cfg["auto_save_photos"]:
+        h, lst = kakao_window.find_room(room)
+        got, why = kakao_photo.save_latest_photos(h, lst, need, photo_dir)
+    time.sleep(2.5)  # new_photos 는 막 쓰는 중인(2초 안) 파일을 뺀다
+    new = kakao_photo.new_photos(photo_dir, set(state["photos"]))
+    state["photos"] = (state["photos"] + [kakao_photo.file_id(p) for p in new])[-KEEP_KEYS:]
+    job["photos"] += new
+    job["tries"] += 1
+    log("[%s] 사진 %d장 중 %d장 저장%s" % (room, need, len(new), (" — " + why) if why else ""))
+    if len(job["photos"]) >= need:
+        job["need"] = 0
+    elif job["tries"] >= 3 or not cfg["auto_save_photos"]:
+        notify(cfg, "[카톡읽기] %s 방 사진 %d장 중 %d장만 저장됨 (%s) — 사진이 빠진 채로 발행합니다." % (room, need, len(job["photos"]), why or "이유 모름"))
+        job["need"] = 0
+
+
+def collect(room, messages):
+    """'견적발행시작' 신호 방식 (사장님 10/30): 신호 전에는 글을 모아 두기만 하고 아무것도 하지 않는다.
+    신호가 오면 그 앞 묶음(지난 신호·지난 링크 뒤의 글, 사진 장수)으로 발행한다."""
     pend = PENDING.get(room)
     if pend and time.time() - pend["last"] > 24 * 3600:  # 하루 넘게 신호가 없던 묶음은 버린다
         pend = None
-    pend = pend or {"texts": [], "photos": [], "first": None}
-    # 사진을 다시 저장하는 중에 신호가 먼저 왔으면, 늦게 저장된 사진은 기다리는 그 묶음 것
-    (waiting[-1] if waiting and not messages else pend)["photos"] += photos
+    pend = pend or {"texts": [], "n_photo": 0, "first": None}
     for m in messages:
         t = m["text"]
-        if kakao_text.photo_count(t):
+        n = kakao_text.photo_count(t)
+        if n:
+            pend["n_photo"] += n
             continue
         if is_ours(t):  # 발행 링크 = 앞 묶음 끝
-            pend = {"texts": [], "photos": [], "first": None}
+            pend = {"texts": [], "n_photo": 0, "first": None}
             continue
         client = kakao_text.trigger_client(t)
         if client is not None:
-            READY.append({"room": room, "client": client, "texts": pend["texts"], "photos": pend["photos"], "first": pend["first"]})
-            log("[%s] 견적발행시작 신호 (거래처 '%s', 글 %d개, 사진 %d장)" % (room, client, len(pend["texts"]), len(pend["photos"])))
-            pend = {"texts": [], "photos": [], "first": None}
+            READY.append({"room": room, "client": client, "texts": pend["texts"], "photos": [],
+                          "need": pend["n_photo"], "tries": 0, "first": pend["first"]})
+            log("[%s] 견적발행시작 신호 (글 %d개, 사진 %d장)" % (room, len(pend["texts"]), pend["n_photo"]))
+            pend = {"texts": [], "n_photo": 0, "first": None}
             continue
         pend["texts"].append(t)
         pend["first"] = pend["first"] or datetime.now(timezone.utc).isoformat()

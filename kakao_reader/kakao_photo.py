@@ -274,8 +274,12 @@ def save_latest_photos(room_hwnd, list_hwnd, count, folder):
         if i < count - 1:
             _key(0x25)  # ← 한 장 앞 사진
             time.sleep(0.8)
-    time.sleep(1.0)
-    saved |= set(list_photos(folder)) - before_files  # 창 없이 바로 저장된 것도 센다
+    # 창 없이 바로 저장된 것도 센다. 느린 노트북은 파일이 늦게 생긴다 → 6초까지 기다린다 (10/30 '3장 중 0장')
+    for _ in range(12):
+        time.sleep(0.5)
+        if len(saved | (set(list_photos(folder)) - before_files)) >= count:
+            break
+    saved |= set(list_photos(folder)) - before_files
     _key(0x1B)  # Esc 로 뷰어 닫기
     time.sleep(0.5)
     if u.IsWindowVisible(viewer):

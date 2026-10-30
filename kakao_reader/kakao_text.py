@@ -116,3 +116,15 @@ def match_client(name, names, aliases=None, unknown=UNKNOWN_CLIENT):
     if len(part) == 1:
         return part[0], "이름 일부"
     return fallback, "못 찾음"
+
+
+def client_in_text(text, names, aliases=None, unknown=UNKNOWN_CLIENT):
+    """'견적발행시작' 에 거래처를 안 썼을 때: 묶음 글 안에 현장관리 거래처 이름(또는 별명)이 딱 하나 나오면 그 이름.
+    예 '미래타운 3단지 견적 업체는 pk 디자인' → 'PK디자인'. 없거나 여럿이면 ""."""
+    t = _norm(text)
+    hits = {x for x in names if x != unknown and len(_norm(x)) >= 2 and _norm(x) in t}
+    by_norm = {_norm(x): x for x in names}
+    for a, real in (aliases or {}).items():
+        if len(_norm(a)) >= 2 and _norm(a) in t and _norm(real) in by_norm:
+            hits.add(by_norm[_norm(real)])
+    return hits.pop() if len(hits) == 1 else ""
