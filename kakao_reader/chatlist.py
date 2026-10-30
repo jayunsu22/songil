@@ -480,6 +480,8 @@ def check(cfg, state, notify, log, dry=False, classify=None):
         return
     LAST["warn"] = None
     if now is not None:  # None = 배지 그대로
+        # 배지가 바뀔 때마다 읽은 그대로 남긴다 (10/30 노트북: 방을 안 열었는데 이유가 기록에 없었음)
+        log("[채팅 목록] 배지: " + (", ".join("%s %s" % (r, c["n"] if c["n"] is not None else "?") for r, c in now.items()) or "없음"))
         skip = list(cfg.get("exclude_rooms", [])) + list(cfg.get("quote_rooms", []))
         now = {r: n for r, n in now.items() if watched(r, cfg.get("watch_rooms", [])) and not excluded(r, skip)}
         if state.get("badges") is None:
@@ -503,7 +505,12 @@ def check(cfg, state, notify, log, dry=False, classify=None):
             return
         state["badges"] = now
     if auto and not dry:
-        due = due_rooms(state["badges"], time.time(), int(cfg.get("read_quiet_seconds", 60)))
+        quiet = int(cfg.get("read_quiet_seconds", 60))
+        for r, c in state["badges"].items():
+            if c.get("since") is not None and not c.get("told"):
+                c["told"] = True
+                log("[%s] 새 글 — %d초 조용하면 방을 엶" % (r, quiet))
+        due = due_rooms(state["badges"], time.time(), quiet)
         if due:
             read_and_report(cfg, state, due[0], notify, log, classify)
 
@@ -512,7 +519,10 @@ def mark_since(prev, now, t):
     """배지가 새로 생기거나 바뀐 방은 since = 지금 (글이 멈춘 지 얼마나 됐는지 재려고)."""
     for room, cur in now.items():
         old = prev.get(room)
-        cur["since"] = t if old is None or old["fp"] != cur["fp"] else old.get("since")
+        if old is None or old["fp"] != cur["fp"]:
+            cur["since"] = t
+        else:
+            cur["since"], cur["told"] = old.get("since"), old.get("told")
 
 
 def due_rooms(badges, t, quiet):
