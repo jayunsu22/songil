@@ -611,7 +611,9 @@ def check_rows(cfg, state, log, t):
             " / ".join("%s@%d,%d" % (tx[:15], x, y) for x, y, wd, ht, tx in sorted(lines, key=lambda ln: ln[1])[:8]))
     old = state.get("rows")
     state["rows"] = dict(old or {}, **times)
-    if times != {k: v for k, v in (old or {}).items() if k in times}:
+    first = not LAST.get("rows_shown")  # 켤 때는 무조건 한 번 보여 준다 (10/31: 안 보여서 읽는지 알 수 없었음)
+    LAST["rows_shown"] = True
+    if first or times != {k: v for k, v in (old or {}).items() if k in times}:
         missing = [w for w in watch if w not in times]
         log("[채팅 목록] 목록의 시간: %s%s" % (", ".join("%s %s" % kv for kv in times.items()) or "알릴 방이 화면에 없음",
                                        " (화면에서 못 찾음: %s)" % ", ".join(missing) if missing and times else ""))
