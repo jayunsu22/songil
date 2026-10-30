@@ -174,7 +174,8 @@ def quote_if_quiet(cfg, room):
         return
     log("[%s] 가견적 발행 %s (품목 %d개, 빠진 정보 %d개)" % (room, r["link"], len(r["items"]), len(r["missing"])))
     if room in cfg["send_rooms"]:
-        ok = kakao_window.send_text(room, "[가견적] " + (r["title"] or "견적서") + " " + r["link"])
+        # 링크만 보낸다 - 카톡이 미리보기 카드(제목·섬세한손길 시공 견적서)를 붙여 준다. 앞에 글을 붙이면 지저분하다 (사장님 10/30)
+        ok = kakao_window.send_text(room, r["link"])
         log("[%s] 카톡 전송 %s" % (room, "완료" if ok else "실패"))
 
 
