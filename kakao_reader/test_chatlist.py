@@ -50,6 +50,18 @@ class RowNameTest(unittest.TestCase):
         self.assertIsNone(chatlist.row_name(lines, (350, 200, 366, 216), list_w=400))
 
 
+class CleanNameTest(unittest.TestCase):
+    def test_icons_and_member_count(self):
+        # 10/30 노트북 실제 OCR 결과
+        self.assertEqual(chatlist.clean_name("류춘화 ' ,"), "류춘화")
+        self.assertEqual(chatlist.clean_name("0 매드센스 티스토리 구글블로그 정보공유 2..."), "매드센스 티스토리 구글블로그 정보공유 2...")
+        self.assertEqual(chatlist.clean_name("0삼산미래Et운3단지(2 169 %"), "삼산미래Et운3단지(2")
+        self.assertEqual(chatlist.clean_name("개시노트 %"), "개시노트")
+        self.assertEqual(chatlist.clean_name("0 [네이터팝콘1 Agentic 시 자동화 거유니El 928 %"), "[네이터팝콘1 Agentic 시 자동화 거유니El")
+        self.assertEqual(chatlist.clean_name("쿠팡이츠"), "쿠팡이츠")
+        self.assertEqual(chatlist.clean_name("pk디자인2"), "pk디자인2")
+
+
 class ExcludeTest(unittest.TestCase):
     def test_space_case_and_truncation(self):
         ex = ["가족 방", "PK디자인"]

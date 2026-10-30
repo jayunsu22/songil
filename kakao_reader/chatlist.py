@@ -94,6 +94,19 @@ def row_name(lines, badge, list_w):
     return min(cand, key=lambda ln: ln[1])[4] if cand else None
 
 
+def clean_name(name):
+    """OCR 로 읽은 방 이름에서 아이콘 찌꺼기를 지운다 (10/30 노트북: 오픈채팅 아이콘 → '0', 핀 → '%', 인원수 '169').
+    '0 매드센스 …' → '매드센스 …', '류춘화 ' ,' → '류춘화', '삼산미래타운3단지(2 169 %' → '삼산미래타운3단지(2'."""
+    if not name:
+        return name
+    n = re.sub(r"^[^\w가-힣\[(]+", "", name.strip())
+    n = re.sub(r"^[0Oo©@]\s*(?=[가-힣\[(])", "", n)
+    for _ in range(3):
+        n = re.sub(r"[\s'\",;:%*#~`^|/\\]+$", "", n)
+        n = re.sub(r"\s+\d{1,4}$", "", n)
+    return n or name
+
+
 def _norm(s):
     return re.sub(r"[\s…]|\.{2,}", "", s).lower()
 
@@ -383,7 +396,7 @@ def analyze(img, region, force=False):
     now = {}
     for b in badges:
         rb = (b[0] - region[0], b[1] - region[1], b[2] - region[0], b[3] - region[1])
-        name = row_name(lines, rb, lw) or NO_NAME
+        name = clean_name(row_name(lines, rb, lw)) or NO_NAME
         bw = badge_digits(img, b)
         # 숫자를 못 읽어도 배지 모양(지문)이 바뀌면 새 글로 본다
         fp = hashlib.sha1(bw.point(lambda v: 255 if v > 128 else 0).tobytes() + repr(bw.size).encode()).hexdigest()[:12]
@@ -483,7 +496,24 @@ def main():
         diagnose(path)
     for room, cur in now.items():
         print("  %s : %s" % (room, cur["n"] if cur["n"] is not None else "숫자 못 읽음"))
+    if any(cur["n"] is None for cur in now.values()):
+        show_badges(path)
     return 0
+
+
+def show_badges(path, most=3):
+    """숫자를 못 읽은 배지를 글자 그림으로 (사진으로 보내 주시면 숫자 읽기를 맞춘다. 배지 안만 — 글 내용은 안 보임)."""
+    top, lst = find_chatlist()
+    tl, tt, _, _ = _rect(top)
+    ll, lt, lr, lb = _rect(lst)
+    img = Image.open(path).convert("RGB")
+    shades = " .:-=+*#%@"
+    for b in find_badges(img, (ll - tl, lt - tt, lr - tl, lb - tt))[:most]:
+        c = img.crop((b[0], b[1], b[2] + 1, b[3] + 1))
+        print("배지", b, "크기", c.size, "가운데 색", c.getpixel((1, c.height // 2)), "숫자 칸:")
+        gray = badge_digits(img, b)
+        for y in range(gray.height):
+            print("   |" + "".join(shades[gray.getpixel((x, y)) * 9 // 255] for x in range(min(gray.width, 60))) + "|")
 
 
 if __name__ == "__main__":
