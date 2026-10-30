@@ -277,7 +277,11 @@ def main():
             faulthandler.cancel_dump_traceback_later()
         if "--once" in args:
             return
-        time.sleep(max(15, int(cfg["interval"])))
+        pause = max(15, int(cfg["interval"]))
+        due = chatlist.wait_seconds(state, cfg, time.time()) if cfg["watch_list"] else None
+        if due is not None:
+            pause = min(pause, due + 1)  # 열 방이 있으면 그 시각에 맞춰 깬다
+        time.sleep(pause)
 
 
 if __name__ == "__main__":

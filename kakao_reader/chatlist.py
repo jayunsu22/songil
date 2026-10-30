@@ -534,6 +534,15 @@ def keep_unread(prev, now):
             now[room] = dict(old, box=None, fp=None, gone=True)
 
 
+def wait_seconds(state, cfg, t):
+    """다음에 열 방이 있으면 그때까지 남은 초 (없으면 None) — reader.py 가 그만큼만 쉬게 (1분 + 확인 간격만큼 늦지 않게)."""
+    if not cfg.get("auto_read"):
+        return None
+    quiet = int(cfg.get("read_quiet_seconds", 60))
+    left = [c["since"] + quiet - t for c in (state.get("badges") or {}).values() if c.get("since") is not None]
+    return max(1, min(left)) if left else None
+
+
 def due_rooms(badges, t, quiet):
     """배지가 quiet 초 동안 그대로인(글이 멈춘) 방들 — 먼저 생긴 것부터."""
     due = [(c["since"], r) for r, c in badges.items() if c.get("since") is not None and t - c["since"] >= quiet]

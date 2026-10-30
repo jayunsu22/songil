@@ -25,6 +25,15 @@ class QuietTest(unittest.TestCase):
         self.assertEqual(chatlist.due_rooms(b, 170, 60), ["한솔", "pk"])
 
 
+class WaitTest(unittest.TestCase):
+    def test_wake_when_due(self):
+        st = {"badges": {"pk": B(1, "a", 100), "한솔": B(1, "b", None)}}
+        self.assertEqual(chatlist.wait_seconds(st, {"auto_read": True, "read_quiet_seconds": 60}, 130), 30)
+        self.assertEqual(chatlist.wait_seconds(st, {"auto_read": True, "read_quiet_seconds": 60}, 200), 1)
+        self.assertIsNone(chatlist.wait_seconds({"badges": {}}, {"auto_read": True}, 0))
+        self.assertIsNone(chatlist.wait_seconds(st, {"auto_read": False}, 130))
+
+
 class PickTest(unittest.TestCase):
     def test_after_seen_or_last_n(self):
         msgs = [M("옛 글", "1"), M("또 옛 글", "2"), M("새 글", "3"), M("사진", "4")]
