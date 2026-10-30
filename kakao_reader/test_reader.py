@@ -32,5 +32,15 @@ class CollectTest(unittest.TestCase):
         self.assertEqual(reader.READY[0]["texts"], ["새 문의"])
         self.assertEqual(reader.READY[0]["client"], "")
 
+class LoadJsonTest(unittest.TestCase):
+    def test_trailing_comma_and_bom(self):
+        import os
+        import tempfile
+        p = os.path.join(tempfile.mkdtemp(), "c.json")
+        with open(p, "w", encoding="utf-8-sig") as f:
+            f.write('{"exclude_rooms": ["탁구", "소프트시티", ],\n "interval": 30,\n}')
+        self.assertEqual(reader.load_json(p, {}), {"exclude_rooms": ["탁구", "소프트시티"], "interval": 30})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -70,10 +70,12 @@ def log(msg):
 
 def load_json(path, default):
     try:
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
+        with open(path, encoding="utf-8-sig") as f:  # 메모장이 붙이는 BOM 도 괜찮게
+            text = f.read()
     except FileNotFoundError:
         return default
+    # 메모장으로 고치다 남긴 맨 끝 쉼표 (["가족", ] 처럼) 는 봐준다
+    return json.loads(re.sub(r",\s*([\]}])", r"\1", text))
 
 
 def save_state(state):
