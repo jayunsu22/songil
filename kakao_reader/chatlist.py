@@ -28,7 +28,7 @@ LAST = {"sig": None, "warn": None}  # 지난번 배지 그림 지문 (같으면 
 
 def is_red(p):
     r, gg, b = p[:3]
-    return r > 200 and gg < 120 and b < 120
+    return r > 190 and r - gg > 90 and r - b > 90
 
 
 def find_badges(img, region):
@@ -423,6 +423,44 @@ def check(cfg, state, notify, log, dry=False):
         state["badges"] = now
 
 
+def diagnose(path):
+    """배지를 못 찾을 때: 창·목록 칸 위치와 그림 전체의 빨간 덩어리(위치·크기·색)를 보여 준다 (글 내용은 안 보임)."""
+    top, lst = find_chatlist()
+    img = Image.open(path).convert("RGB")
+    tl, tt, tr, tb = _rect(top)
+    ll, lt, lr, lb = _rect(lst)
+    print("창", (tl, tt, tr, tb), "그림 크기", img.size, "목록 칸(창 기준)", (ll - tl, lt - tt, lr - tl, lb - tt))
+    try:
+        print("화면 배율", u.GetDpiForWindow(top), "/ 96")
+    except Exception:
+        pass
+    W, H = img.size
+    px = img.load()
+    loose = lambda p: p[0] > 150 and p[0] - p[1] > 50 and p[0] - p[2] > 50
+    seen = bytearray(W * H)
+    blobs = []
+    for y in range(H):
+        for x in range(W):
+            if seen[y * W + x] or not loose(px[x, y]):
+                continue
+            seen[y * W + x] = 1
+            stack, bx, cols = [(x, y)], [x, y, x, y], []
+            while stack:
+                cx, cy = stack.pop()
+                cols.append(px[cx, cy])
+                bx = [min(bx[0], cx), min(bx[1], cy), max(bx[2], cx), max(bx[3], cy)]
+                for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                    if 0 <= nx < W and 0 <= ny < H and not seen[ny * W + nx] and loose(px[nx, ny]):
+                        seen[ny * W + nx] = 1
+                        stack.append((nx, ny))
+            if len(cols) >= 20:
+                avg = tuple(sum(c[i] for c in cols) // len(cols) for i in range(3))
+                blobs.append((bx, len(cols), avg))
+    print("빨간 덩어리 %d개 (상자, 점 수, 평균 색):" % len(blobs))
+    for b in blobs[:15]:
+        print("  ", *b)
+
+
 def main():
     try:
         u.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
@@ -441,7 +479,8 @@ def main():
         return 1
     print("카톡 창 그림:", path, "(카톡으로 보내지 마세요)")
     if not now:
-        print("빨간 배지가 안 보임 — 안 읽은 방이 없거나, 배지 색이 다름 (그림을 확인)")
+        print("빨간 배지가 안 보임 — 아래 숫자를 사진으로 보내 주세요")
+        diagnose(path)
     for room, cur in now.items():
         print("  %s : %s" % (room, cur["n"] if cur["n"] is not None else "숫자 못 읽음"))
     return 0
