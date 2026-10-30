@@ -1,0 +1,440 @@
+"""카톡 채팅 목록에서 안 읽은 표시(빨간 숫자 배지)가 생기거나 늘어난 방을 찾는다 — 방은 열지 않는다 (사장님 10/30 A안).
+
+카톡 메인 창을 그림으로 떠서(PrintWindow, 다른 창에 가려도 됨) 목록 오른쪽의 빨간 배지를 찾고,
+윈도우에 들어 있는 한국어 OCR(winocr.ps1, 인터넷·AI 안 씀)로 그 줄의 방 이름과 배지 숫자를 읽는다.
+배지가 그대로면 OCR 도 하지 않는다. 그림은 임시 폴더에 잠깐 썼다가 바로 지운다.
+
+    python chatlist.py     # 시험: 지금 보이는 배지·방 이름을 화면에 (알림 안 보냄), 그림은 chatlist_probe.png
+"""
+import ctypes
+import ctypes.wintypes as w
+import hashlib
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+from PIL import Image
+
+u = ctypes.windll.user32
+g = ctypes.windll.gdi32
+HERE = os.path.dirname(os.path.abspath(__file__))
+NO_NAME = "(이름 못 읽음)"
+LAST = {"sig": None, "warn": None}  # 지난번 배지 그림 지문 (같으면 OCR 안 함), 지난 경고 (같은 경고 반복 안 함)
+
+
+# ---- 그림에서 찾기 (윈도우와 상관없는 부분 — 테스트 있음) ----
+
+def is_red(p):
+    r, gg, b = p[:3]
+    return r > 200 and gg < 120 and b < 120
+
+
+def find_badges(img, region):
+    """region(x1, y1, x2, y2) 의 오른쪽 30% 에서 배지만 한 빨간 덩어리 상자들 [(x1, y1, x2, y2)] (위에서 아래 순)."""
+    x1, y1, x2, y2 = region
+    sx = x1 + (x2 - x1) * 7 // 10
+    strip = img.crop((sx, y1, x2, y2)).convert("RGB")
+    W, H = strip.size
+    px = strip.load()
+    seen = bytearray(W * H)
+    out = []
+    for y in range(H):
+        for x in range(W):
+            if seen[y * W + x] or not is_red(px[x, y]):
+                continue
+            seen[y * W + x] = 1
+            stack, bx = [(x, y)], [x, y, x, y]
+            while stack:
+                cx, cy = stack.pop()
+                bx = [min(bx[0], cx), min(bx[1], cy), max(bx[2], cx), max(bx[3], cy)]
+                for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                    if 0 <= nx < W and 0 <= ny < H and not seen[ny * W + nx] and is_red(px[nx, ny]):
+                        seen[ny * W + nx] = 1
+                        stack.append((nx, ny))
+            bw, bh = bx[2] - bx[0], bx[3] - bx[1]
+            if 10 <= bh <= 50 and 10 <= bw <= 90:
+                out.append((bx[0] + sx, bx[1] + y1, bx[2] + sx, bx[3] + y1))
+    return sorted(out, key=lambda b: b[1])
+
+
+def parse_ocr(out):
+    """winocr.ps1 출력 → {파일: [(x, y, 너비, 높이, 글)]}."""
+    files, cur = {}, None
+    for row in out.splitlines():
+        if row.startswith("#FILE "):
+            cur = row[6:].strip()
+            files[cur] = []
+            continue
+        try:
+            pos, txt = row.split("\t", 1)
+            x, y, wd, ht = map(int, pos.split())
+        except ValueError:
+            continue
+        if cur is not None:
+            files[cur].append((x, y, wd, ht, txt.strip()))
+    return files
+
+
+def parse_count(text):
+    """배지 숫자 OCR → 숫자 (못 읽으면 None). OCR 이 1 을 l·I·| 로, 0 을 O 로 읽기도 한다."""
+    t = text.translate(str.maketrans("lI|!iOoSs", "111110055")).replace(" ", "")
+    m = re.match(r"(\d+)", t)
+    return int(m.group(1)) if m else None
+
+
+def row_name(lines, badge, list_w):
+    """배지와 같은 줄(방 한 칸)의 왼쪽 맨 위 글 = 방 이름. lines 는 목록 그림 기준 좌표."""
+    bh = badge[3] - badge[1] + 1
+    cy = (badge[1] + badge[3]) / 2
+    cand = [ln for ln in lines
+            if ln[0] < list_w * 0.6 and ln[0] + ln[2] < badge[0]
+            and cy - 2.5 * bh <= ln[1] + ln[3] / 2 <= cy + bh]
+    return min(cand, key=lambda ln: ln[1])[4] if cand else None
+
+
+def _norm(s):
+    return re.sub(r"[\s…]|\.{2,}", "", s).lower()
+
+
+def same_room(a, b):
+    """OCR 이 한두 글자 틀려도 같은 방으로 (띄어쓰기·대소문자 무시, 80% 이상 같으면)."""
+    import difflib
+    a, b = _norm(a), _norm(b)
+    return a == b or (min(len(a), len(b)) >= 3 and difflib.SequenceMatcher(None, a, b).ratio() >= 0.8)
+
+
+def match_names(prev, now):
+    """now 의 방 이름을 prev 에 있는 비슷한 이름으로 맞춘다 (OCR 이 매번 조금 다르게 읽어도 같은 방)."""
+    out = {}
+    for room, v in now.items():
+        old = next((p for p in prev if same_room(p, room)), room)
+        out[old] = v
+    return out
+
+
+def excluded(name, exclude):
+    """빼는 방인지. 띄어쓰기·대소문자 무시, 목록에서 이름이 잘려('…') 보이면 앞부분만 맞아도 뺀다."""
+    if not name:
+        return False
+    n = _norm(name)
+    cut = name.rstrip().endswith(("…", ".."))
+    for e in exclude:
+        e = _norm(e)
+        if e and (n.startswith(e) or (cut and len(n) >= 2 and e.startswith(n)) or same_room(n, e)):
+            return True
+    return False
+
+
+def news(prev, now):
+    """새로 생기거나 늘어난 방 [(방, 늘어난 수, 지금 수)] — 수를 못 읽으면 None.
+    prev·now = {방: {"n": 숫자 또는 None, "fp": 배지 모양 지문}}. 배지 모양이 그대로면 같은 알림을 다시 안 보낸다."""
+    out = []
+    for room, cur in now.items():
+        old = prev.get(room)
+        n = cur["n"]
+        if old is None:
+            out.append((room, n, n))
+        elif cur["fp"] != old["fp"]:
+            if n is None or old["n"] is None:
+                out.append((room, None, n))
+            elif n > old["n"]:
+                out.append((room, n - old["n"], n))
+    return out
+
+
+def message(items):
+    lines = ["[카톡] 새 글"]
+    for room, add, total in items:
+        if add is None:
+            lines.append("%s 방에 새 글%s" % (room, " (안 읽은 글 %d개)" % total if total else ""))
+        elif add == total:
+            lines.append("%s 방에 새 글 %d개" % (room, add))
+        else:
+            lines.append("%s 방에 새 글 %d개 (안 읽은 글 %d개)" % (room, add, total))
+    return "\n".join(lines)
+
+
+# ---- 카톡 창 (윈도우 API) ----
+
+def _text(h):
+    n = u.GetWindowTextLengthW(h)
+    b = ctypes.create_unicode_buffer(n + 1)
+    u.GetWindowTextW(h, b, n + 1)
+    return b.value
+
+
+def find_chatlist():
+    """(카톡 메인 창, 채팅 목록 칸 ChatRoomListCtrl). 없으면 (0, 0)."""
+    found = []
+    P = ctypes.WINFUNCTYPE(ctypes.c_bool, w.HWND, w.LPARAM)
+
+    def top(h, _):
+        b = ctypes.create_unicode_buffer(64)
+        u.GetClassNameW(h, b, 64)
+        if b.value == "EVA_Window_Dblclk":
+            u.EnumChildWindows(h, P(lambda c, _l: child(h, c)), 0)
+        return True
+
+    def child(h, c):
+        if _text(c).startswith("ChatRoomListCtrl"):
+            found.append((h, c))
+        return True
+
+    u.EnumWindows(P(top), 0)
+    return found[0] if found else (0, 0)
+
+
+def _rect(h):
+    r = w.RECT()
+    u.GetWindowRect(h, ctypes.byref(r))
+    return r.left, r.top, r.right, r.bottom
+
+
+def capture(h):
+    """창 전체를 그림으로 (PrintWindow — 다른 창에 가려도 된다. 최소화돼 있으면 안 된다)."""
+    l, t, r, b = _rect(h)
+    wd, ht = r - l, b - t
+    if wd <= 0 or ht <= 0:
+        return None
+    hdc = u.GetWindowDC(h)
+    mdc = g.CreateCompatibleDC(hdc)
+    bmp = g.CreateCompatibleBitmap(hdc, wd, ht)
+    old = g.SelectObject(mdc, bmp)
+    u.PrintWindow(h, mdc, 2)  # PW_RENDERFULLCONTENT
+    buf = ctypes.create_string_buffer(wd * ht * 4)
+    bi = (ctypes.c_uint32 * 10)(40, wd, (-ht) & 0xFFFFFFFF, 1 | (32 << 16), 0, 0, 0, 0, 0, 0)
+    g.GetDIBits(mdc, bmp, 0, ht, buf, bi, 0)
+    g.SelectObject(mdc, old)
+    g.DeleteObject(bmp)
+    g.DeleteDC(mdc)
+    u.ReleaseDC(h, hdc)
+    return Image.frombuffer("RGB", (wd, ht), buf, "raw", "BGRX", 0, 1).copy()
+
+
+def badge_digits(img, b):
+    """배지(빨간 바탕 흰 숫자) → 숫자 밝기 그림 (0 = 빨간 바탕, 255 = 흰 숫자, 배지 밖은 0).
+    줄마다 첫 빨간 점 ~ 마지막 빨간 점 사이만 본다 (배지 밖 흰 바탕은 빼고)."""
+    c = img.crop((b[0], b[1], b[2] + 1, b[3] + 1)).convert("RGB")
+    px = c.load()
+    out = Image.new("L", c.size, 0)
+    po = out.load()
+    for y in range(c.height):
+        reds = [x for x in range(c.width) if is_red(px[x, y])]
+        for x in range(reds[0], reds[-1] + 1) if reds else ():
+            # 배지 빨강의 초록 값(~80) → 0, 흰색(255) → 255
+            po[x, y] = max(0, min(255, (px[x, y][1] - 80) * 255 // 175))
+    return out
+
+
+def _glyphs(gray):
+    """숫자 밝기 그림 → 글자마다 상자 [(x1, y1, x2, y2)] (왼쪽부터). 빈 세로줄로 나누고, 붙은 두 글자는 가장 옅은 곳에서 나눈다."""
+    W, H = gray.size
+    px = gray.load()
+    col = [sum(px[x, y] for y in range(H)) for x in range(W)]
+    on = [c > 255 * 0.6 for c in col]
+    spans, start = [], None
+    for x, v in enumerate(on + [False]):
+        if v and start is None:
+            start = x
+        elif not v and start is not None:
+            spans.append([start, x])
+            start = None
+    boxes = []
+    for x1, x2 in spans:
+        box = gray.crop((x1, 0, x2, H)).point(lambda v: 255 if v > 110 else 0).getbbox()
+        if box:
+            boxes.append((x1, box[1], x2, box[3]))
+    if not boxes:
+        return []
+    full_h = max(b[3] - b[1] for b in boxes)
+    out = []
+    for x1, y1, x2, y2 in boxes:
+        if x2 - x1 > full_h * 0.95 and y2 - y1 >= full_h * 0.7:  # 두 글자가 붙어 보임
+            mid = min(range(x1 + 2, x2 - 2), key=lambda x: col[x])
+            out += [(x1, y1, mid, y2), (mid, y1, x2, y2)]
+        else:
+            out.append((x1, y1, x2, y2))
+    return out
+
+
+_TEMPLATES = {}
+
+
+def _template(ch, h, bold):
+    """맑은 고딕으로 그린 글자 ch (숫자 높이 h, 밝기 그림)."""
+    key = (ch, h, bold)
+    if key not in _TEMPLATES:
+        from PIL import ImageDraw, ImageFont
+        font = ImageFont.truetype(os.path.join(os.environ.get("WINDIR", "C:/Windows"), "Fonts",
+                                               "malgunbd.ttf" if bold else "malgun.ttf"), max(6, round(h * 1.4)))
+        im = Image.new("L", (h * 3, h * 3), 0)
+        ImageDraw.Draw(im).text((h, h // 2), ch, font=font, fill=255)
+        _TEMPLATES[key] = im.crop(im.point(lambda v: 255 if v > 110 else 0).getbbox())
+    return _TEMPLATES[key]
+
+
+def _similar(a, b):
+    """두 밝기 그림이 얼마나 닮았나 (-1 ~ 1, 같은 크기로 맞춰 상관계수)."""
+    size = (max(a.width, b.width, 6), max(a.height, b.height, 8))
+    xa = list(a.resize(size, Image.BILINEAR).tobytes())
+    xb = list(b.resize(size, Image.BILINEAR).tobytes())
+    ma, mb = sum(xa) / len(xa), sum(xb) / len(xb)
+    da, db = [v - ma for v in xa], [v - mb for v in xb]
+    den = (sum(v * v for v in da) * sum(v * v for v in db)) ** 0.5
+    return sum(p * q for p, q in zip(da, db)) / den if den else 0.0
+
+
+def read_digits(gray):
+    """배지 숫자 → 숫자 (못 읽으면 None — 틀린 숫자보다 낫다). OCR 은 한 자리 숫자를 잘 못 읽어서
+    글자 모양을 맑은 고딕 0~9 와 맞춰 본다. 맨 끝의 작은 글자는 '+' (300+)."""
+    boxes = _glyphs(gray)
+    if not boxes or len(boxes) > 4:
+        return None
+    full_h = max(b[3] - b[1] for b in boxes)
+    text = ""
+    for i, b in enumerate(boxes):
+        if b[3] - b[1] < full_h * 0.8:
+            if i == len(boxes) - 1 and text:
+                break  # '+'
+            return None
+        g = gray.crop(b)
+        ratio = g.width / g.height
+        best, score, second = None, -1.0, -1.0
+        for ch in "0123456789":
+            for bold in (False, True):
+                t = _template(ch, full_h, bold)
+                if abs(t.width / t.height - ratio) > 0.35 and ch != "1":
+                    continue
+                s = _similar(g, t)
+                if s > score:
+                    best, second, score = ch, score if best != ch else second, s
+                elif s > second and ch != best:
+                    second = s
+        if best is None or score < 0.6 or score - second < 0.05:
+            return None
+        text += best
+    return int(text) if text else None
+
+
+def ocr(paths):
+    p = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                        os.path.join(HERE, "winocr.ps1")] + list(paths),
+                       capture_output=True, timeout=60, creationflags=0x08000000)  # 검은 창 안 띄움
+    out = p.stdout.decode("utf-8", "replace")
+    if p.returncode != 0:
+        raise RuntimeError("윈도우 OCR 실패 (%s) %s" % ("한국어 OCR 없음" if "NO_KOREAN_OCR" in out else p.returncode,
+                                                  p.stderr.decode("utf-8", "replace").strip()[:200]))
+    return parse_ocr(out)
+
+
+def read_badges(force=False, keep_image=None):
+    """지금 배지가 붙은 방들 {방 이름: 숫자 또는 None}. 배지가 지난번과 같으면 None (OCR 생략).
+    카톡 창을 못 쓰면 RuntimeError (이유는 쉬운 말로)."""
+    top, lst = find_chatlist()
+    if not lst:
+        raise RuntimeError("카톡 메인 창을 못 찾음 — 카톡이 켜져 있고 로그인돼 있나요?")
+    if u.IsIconic(top) or not u.IsWindowVisible(top):
+        raise RuntimeError("카톡 메인 창이 최소화(또는 닫힘) — 창을 열어 두세요 (다른 창 뒤에 있어도 됨)")
+    if not u.IsWindowVisible(lst):
+        raise RuntimeError("카톡 메인 창이 '채팅' 탭이 아님 — 말풍선(채팅) 탭을 눌러 두세요")
+    img = capture(top)
+    if img is None or img.convert("L").getextrema()[1] < 30:
+        raise RuntimeError("카톡 창 그림이 비어 있음 — 창이 화면 밖이거나 최소화")
+    if keep_image:
+        img.save(keep_image)
+    tl, tt, _, _ = _rect(top)
+    ll, lt, lr, lb = _rect(lst)
+    return analyze(img, (ll - tl, lt - tt, lr - tl, lb - tt), force)
+
+
+def analyze(img, region, force=False):
+    """창 그림 + 채팅 목록 칸 위치 → {방 이름: 숫자 또는 None}, 배지가 지난번과 같으면 None."""
+    badges = find_badges(img, region)
+    if not badges:
+        LAST["sig"] = ()
+        return {}
+    sig = hashlib.sha1(b"".join(img.crop(b).tobytes() + repr(b).encode() for b in badges)).hexdigest()
+    if sig == LAST["sig"] and not force:
+        return None
+    tmp = tempfile.mkdtemp(prefix="kakao_list_")
+    try:
+        lw, lh = region[2] - region[0], region[3] - region[1]
+        lp = os.path.join(tmp, "list.png")
+        img.crop(region).resize((lw * 2, lh * 2), Image.LANCZOS).save(lp)
+        res = ocr([lp])
+    finally:
+        for f in os.listdir(tmp):
+            os.remove(os.path.join(tmp, f))
+        os.rmdir(tmp)
+    lines = [(x // 2, y // 2, wd // 2, ht // 2, t) for x, y, wd, ht, t in res.get(lp, [])]
+    now = {}
+    for b in badges:
+        rb = (b[0] - region[0], b[1] - region[1], b[2] - region[0], b[3] - region[1])
+        name = row_name(lines, rb, lw) or NO_NAME
+        bw = badge_digits(img, b)
+        # 숫자를 못 읽어도 배지 모양(지문)이 바뀌면 새 글로 본다
+        fp = hashlib.sha1(bw.point(lambda v: 255 if v > 128 else 0).tobytes() + repr(bw.size).encode()).hexdigest()[:12]
+        now[name] = {"n": read_digits(bw), "fp": fp}
+    LAST["sig"] = sig
+    return now
+
+
+def check(cfg, state, notify, log, dry=False):
+    """reader.py 가 확인할 때마다 부른다. 배지가 새로 생기거나 늘어난 방(빼는 방 제외)을 텔레그램으로."""
+    try:
+        now = read_badges()
+    except Exception as e:
+        if str(e) != LAST["warn"]:
+            log("[채팅 목록] %s" % e)
+        LAST["warn"] = str(e)
+        return
+    LAST["warn"] = None
+    if now is None:  # 배지 그대로
+        return
+    skip = list(cfg.get("exclude_rooms", [])) + list(cfg.get("quote_rooms", []))
+    now = {r: n for r, n in now.items() if not excluded(r, skip)}
+    if state.get("badges") is None:
+        state["badges"] = now
+        log("[채팅 목록] 처음 실행: 안 읽은 방 %d곳을 기억 (알리지 않음)" % len(now))
+        return
+    now = match_names(state["badges"], now)
+    items = news(state["badges"], now)
+    if items:
+        log("[채팅 목록] " + ", ".join("%s +%s" % (r, a if a is not None else "?") for r, a, _ in items))
+        if dry:
+            return
+        if not notify(message(items)):
+            LAST["sig"] = None  # 다음 확인 때 다시 보낸다
+            return
+    if not dry:
+        state["badges"] = now
+
+
+def main():
+    try:
+        u.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+    except Exception:
+        pass
+    for s in (sys.stdout, sys.stderr):
+        try:
+            s.reconfigure(errors="replace")
+        except Exception:
+            pass
+    path = os.path.join(HERE, "chatlist_probe.png")
+    try:
+        now = read_badges(force=True, keep_image=path)
+    except Exception as e:
+        print("안 됨:", e)
+        return 1
+    print("카톡 창 그림:", path, "(카톡으로 보내지 마세요)")
+    if not now:
+        print("빨간 배지가 안 보임 — 안 읽은 방이 없거나, 배지 색이 다름 (그림을 확인)")
+    for room, cur in now.items():
+        print("  %s : %s" % (room, cur["n"] if cur["n"] is not None else "숫자 못 읽음"))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

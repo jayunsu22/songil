@@ -1,5 +1,6 @@
 """카톡 읽기 프로그램 — 정한 방의 새 글·사진만 n8n 으로 보낸다.
 김정헌 방에 '견적발행시작 거래처' 를 쓰면 그 앞 글·사진으로 가견적을 내고 링크를 그 방에 보낸 뒤 텔레그램으로 알린다.
+다른 방은 열지 않고, 채팅 목록의 안 읽은 표시가 생기거나 늘면 텔레그램으로 알린다 (chatlist.py).
 
     python reader.py           # 계속 돌기 (config.json 의 interval 초마다)
     python reader.py --once    # 한 번만 확인
@@ -17,6 +18,7 @@ import time
 import urllib.parse
 from datetime import datetime, timezone
 
+import chatlist
 import kakao_photo
 import kakao_text
 import kakao_window
@@ -46,6 +48,8 @@ DEFAULTS = {
     "send_rooms": ["김정헌"],    # 발행 링크를 카톡으로 보낼 방 (사장님 규칙: 김정헌 방만)
     "client_aliases": {},         # 거래처 별명 → 현장관리 거래처 이름 (예 {"피케이디자인": "PK디자인"})
     "notify_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-notify",  # 결과 → 사장님 텔레그램
+    "watch_list": True,           # 카톡 채팅 목록의 안 읽은 표시가 생기거나 늘면 텔레그램으로 (방은 열지 않음, 10/30 A안)
+    "exclude_rooms": [],          # 그 알림에서 뺄 방 (가족·개인). quote_rooms(김정헌)는 늘 빠짐
 }
 
 # 방마다 '견적발행시작' 을 기다리는 글·사진 묶음 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다.
@@ -132,6 +136,8 @@ def run_once(cfg, state, dry=False):
         if fresh is not None and not dry:
             for job in [j for j in READY if j["room"] == room and j["need"]]:
                 save_job_photos(cfg, state, job, photo_dir)
+    if cfg["watch_list"]:
+        chatlist.check(cfg, state, lambda text: notify(cfg, text), log, dry)
     if not dry:
         for job in [j for j in READY if not j["need"]]:
             READY.remove(job)
@@ -191,8 +197,10 @@ def collect(room, messages):
 
 def notify(cfg, text):
     if cfg.get("notify_url") and cfg["owner_key"]:
-        if not n8n_send.notify(cfg["notify_url"], cfg["owner_key"], text):
-            log("텔레그램 알림 실패")
+        if n8n_send.notify(cfg["notify_url"], cfg["owner_key"], text):
+            return True
+        log("텔레그램 알림 실패")
+    return False
 
 
 def publish_job(cfg, job):

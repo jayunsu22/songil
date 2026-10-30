@@ -8,5 +8,7 @@
   "auto_save_photos": true,
   "quote_rooms": ["김정헌"],
   "send_rooms": ["김정헌"],
-  "client_aliases": {"피케이디자인": "PK디자인"}
+  "client_aliases": {"피케이디자인": "PK디자인"},
+  "watch_list": true,
+  "exclude_rooms": ["가족방 이름", "개인 친구 이름"]
 }
