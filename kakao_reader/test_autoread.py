@@ -42,7 +42,8 @@ class RowsTest(unittest.TestCase):
         from PIL import Image
         orig = chatlist.ocr
         out = {"t": "오후 10:17"}
-        chatlist.ocr = lambda paths: {paths[0]: [(240, 40, 120, 72, "류춘화"), (1320, 48, 240, 56, out["t"])]}  # 4배 그림 좌표
+        chatlist.ocr = lambda paths: {p: [(80 * sc, 10 * sc, 30 * sc, 18 * sc, "류춘화"), (330 * sc, 12 * sc, 60 * sc, 14 * sc, out["t"])]
+                                      for p, (sc, _) in zip(paths, chatlist.ROW_VARIANTS)}
         try:
             cfg = {"watch_rooms": ["류춘화"]}
             st = {}
@@ -57,6 +58,19 @@ class RowsTest(unittest.TestCase):
             self.assertIsNone(st["badges"]["류춘화"]["box"])
         finally:
             chatlist.ocr = orig
+
+
+class ParseTimeTest(unittest.TestCase):
+    def test_forms(self):
+        P = chatlist.parse_time
+        self.assertEqual([P("오전 6:10"), P("오전 611"), P("오후 1211"), P("어 제"), P("오전 6대2")],
+                         ["오전 6:10", "오전 6:11", "오후 12:11", "어제", None])
+
+
+class MergeTest(unittest.TestCase):
+    def test_most_common(self):
+        per = [{"류춘화": "오전 6:20"}, {"류춘화": "오전 6:20", "pk": "어제"}, {"류춘화": "오전 6:29"}, {}]
+        self.assertEqual(chatlist.merge_times(per), {"류춘화": "오전 6:20", "pk": "어제"})
 
 
 class WaitTest(unittest.TestCase):

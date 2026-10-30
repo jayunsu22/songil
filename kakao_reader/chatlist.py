@@ -542,9 +542,12 @@ def keep_unread(prev, now):
 TIME_RE = re.compile(r"(\d{1,2})\s*[:;.]\s*(\d{2})")
 
 
+AMPM_RE = re.compile(r"(?:오전|오후)\s*(\d{1,2})(\d{2})(?!\d)")
+
+
 def parse_time(t):
     """목록 시간 글 → '오전 6:07' · '어제' · '10월29일' (못 읽으면 None)."""
-    m = TIME_RE.search(t)
+    m = TIME_RE.search(t) or AMPM_RE.search(t)  # '오전 611' (OCR 이 콜론을 빼먹음, 10/31)
     if m:
         ampm = "오후" if "후" in t else "오전" if "전" in t else ""
         return ("%s %d:%s" % (ampm, int(m.group(1)), m.group(2))).strip()
@@ -579,6 +582,18 @@ def row_times(lines, watch, lw):
     return out
 
 
+ROW_VARIANTS = ((3, False), (4, False), (3, True))
+
+
+def merge_times(per):
+    """여러 번 읽은 {방: 시간} 들 → 방마다 가장 많이 나온 시간 (같으면 앞의 것)."""
+    out = {}
+    for room in dict.fromkeys(r for tm in per for r in tm):
+        vals = [tm[room] for tm in per if room in tm]
+        out[room] = max(vals, key=lambda v: (vals.count(v), -vals.index(v)))
+    return out
+
+
 def check_rows(cfg, state, log, t):
     """채팅 목록 그림이 바뀌었으면 OCR 해서 알릴 방 줄의 시간이 바뀐 방을 '새 글' 로 (배지가 없어도). 열기는 1분 뒤."""
     img, region = LAST.get("img"), LAST.get("region")
@@ -589,12 +604,18 @@ def check_rows(cfg, state, log, t):
     sig = hashlib.sha1(crop.tobytes()).hexdigest()
     if sig == LAST.get("rows_sig"):
         return
+    # 세 가지로 읽어 합친다 (배율·흑백) — 한 가지로는 '류춘화' 같은 짧은 이름을 놓침 (10/31 노트북)
     tmp = tempfile.mkdtemp(prefix="kakao_list_")
     try:
-        p = os.path.join(tmp, "rows.png")
-        # 4배: 2배로는 마우스가 올라간 회색 줄의 시간을 못 읽음 (10/31 가짜 목록 시험)
-        crop.resize((crop.width * 4, crop.height * 4), Image.LANCZOS).save(p)
-        lines = [(x // 4, y // 4, wd // 4, ht // 4, tx) for x, y, wd, ht, tx in ocr([p]).get(p, [])]
+        paths = []
+        for j, (sc, bw_) in enumerate(ROW_VARIANTS):
+            v = crop.resize((crop.width * sc, crop.height * sc), Image.LANCZOS)
+            if bw_:
+                v = v.convert("L").point(lambda x: 0 if x < 150 else 255)
+            p = os.path.join(tmp, "rows%d.png" % j)
+            v.save(p)
+            paths.append(p)
+        res = ocr(paths)
     except Exception as e:
         log("[채팅 목록] 줄 읽기 실패: %s" % str(e)[:100])
         return
@@ -603,18 +624,23 @@ def check_rows(cfg, state, log, t):
             os.remove(os.path.join(tmp, f))
         os.rmdir(tmp)
     LAST["rows_sig"] = sig
-    times = row_times(lines, watch, region[2] - region[0])
-    if not times and not LAST.get("rows_warned"):
-        # 알릴 방 줄을 하나도 못 찾으면 읽은 줄을 한 번 남긴다 (사진으로 보내 주시면 맞춘다)
+    lw = region[2] - region[0]
+    per = []
+    for p, (sc, _) in zip(paths, ROW_VARIANTS):
+        lines = [(x // sc, y // sc, wd // sc, ht // sc, tx) for x, y, wd, ht, tx in res.get(p, [])]
+        per.append((lines, row_times(lines, watch, lw)))
+    times = merge_times([tm for _, tm in per])
+    missing = [w for w in watch if w not in times]
+    if missing and not LAST.get("rows_warned"):
+        # 못 찾은 방이 있으면 목록 왼쪽(이름)에서 읽은 글을 한 번 남긴다 (사진으로 보내 주시면 맞춘다)
         LAST["rows_warned"] = True
-        log("[채팅 목록] 목록에서 알릴 방 시간을 못 찾음 — 읽은 줄: " +
-            " / ".join("%s@%d,%d" % (tx[:15], x, y) for x, y, wd, ht, tx in sorted(lines, key=lambda ln: ln[1])[:8]))
+        names = sorted((ln for ln in per[0][0] if ln[0] < lw * 0.5), key=lambda ln: ln[1])[:10]
+        log("[채팅 목록] 목록 왼쪽에서 읽은 글: " + " / ".join(tx[:12] for *_, tx in names))
     old = state.get("rows")
     state["rows"] = dict(old or {}, **times)
     first = not LAST.get("rows_shown")  # 켤 때는 무조건 한 번 보여 준다 (10/31: 안 보여서 읽는지 알 수 없었음)
     LAST["rows_shown"] = True
     if first or times != {k: v for k, v in (old or {}).items() if k in times}:
-        missing = [w for w in watch if w not in times]
         log("[채팅 목록] 목록의 시간: %s%s" % (", ".join("%s %s" % kv for kv in times.items()) or "알릴 방이 화면에 없음",
                                        " (화면에서 못 찾음: %s)" % ", ".join(missing) if missing and times else ""))
     if old is None:
