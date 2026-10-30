@@ -482,9 +482,12 @@ def check(cfg, state, notify, log, dry=False, classify=None):
     LAST["warn"] = None
     if now is not None:  # None = 배지 그대로
         # 배지가 바뀔 때마다 읽은 그대로 남긴다 (10/30 노트북: 방을 안 열었는데 이유가 기록에 없었음)
-        log("[채팅 목록] 배지: " + (", ".join("%s %s" % (r, c["n"] if c["n"] is not None else "?") for r, c in now.items()) or "없음"))
         skip = list(cfg.get("exclude_rooms", [])) + list(cfg.get("quote_rooms", []))
+        others = len(now)
         now = {r: n for r, n in now.items() if watched(r, cfg.get("watch_rooms", [])) and not excluded(r, skip)}
+        # 알릴 방만 적는다 (사장님 10/31: 쿠팡이츠 같은 다른 방은 보일 필요 없음)
+        log("[채팅 목록] 알릴 방 배지: %s (다른 방 %d곳은 안 봄)" % (
+            ", ".join("%s %s" % (r, c["n"] if c["n"] is not None else "?") for r, c in now.items()) or "없음", others - len(now)))
         if state.get("badges") is None:
             for cur in now.values():
                 cur["since"] = None  # 켜기 전부터 있던 배지는 열지 않는다
@@ -592,6 +595,10 @@ def check_rows(cfg, state, log, t):
     times = row_times(lines, watch, region[2] - region[0])
     old = state.get("rows")
     state["rows"] = dict(old or {}, **times)
+    if times != {k: v for k, v in (old or {}).items() if k in times}:
+        missing = [w for w in watch if w not in times]
+        log("[채팅 목록] 목록의 시간: %s%s" % (", ".join("%s %s" % kv for kv in times.items()) or "알릴 방이 화면에 없음",
+                                       " (화면에서 못 찾음: %s)" % ", ".join(missing) if missing and times else ""))
     if old is None:
         return  # 처음: 기억만
     badges = state.setdefault("badges", {})
