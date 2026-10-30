@@ -333,6 +333,14 @@ function render() {
 
   H.push('<div class="v-sum" id="vSum"></div>');
 
+  // 추가금액 안내 (사장님 2026-10-30, 시안 B): 모든 견적서 합계 바로 아래에 크게.
+  // 메모의 '확인 필요: 사는 집인지·필름' 은 작아서 안 읽힌다 → 금액을 보는 자리에 둔다.
+  H.push('<div class="v-extra"><div class="v-extra-band">아래 두 가지에 해당하면 추가금액 발생</div>' +
+    '<div class="v-extra-grid">' +
+    '<div class="v-extra-box"><b>사는 집</b><span>거주 중 시공</span></div>' +
+    '<div class="v-extra-box"><b>한솔 · 매트필름</b><span>고급 필름 선택</span></div>' +
+    '</div></div>');
+
   // 메모는 ?d=1 여부와 무관하게 항상 보여준다. '안방-앞방 연결문 포함' 같은
   // 내용은 업자도 알아야 하므로 설명 토글로 감추면 안 된다.
   if (d.메모) {
@@ -482,6 +490,7 @@ function renderSum() {
   R.push('<div class="v-row total"><span>' + (BASE ? '실제견적 합계' : 인건비만 ? '인건비 합계' : '합계') +
     '</span><span>' + won(총) +
     (d.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span></div>');
+  R.push('<div class="v-basis">빈 집 · 기본 솔리드필름 기준</div>');
   if (BASE) {
     const 차 = 총 - 견적총액(BASE);
     R.push('<div class="v-row cmp diff"><span>차이</span><span class="' + (차 > 0 ? 'up' : 'down') + '">' + 부호(차) + '원</span></div>');

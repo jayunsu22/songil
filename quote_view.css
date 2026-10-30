@@ -175,6 +175,23 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); backg
   font-weight: 800;
 }
 .v-row.total small { font-size: 12px; font-weight: 500; color: var(--muted); }
+.v-basis { text-align: right; font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+/* 추가금액 안내 (2026-10-30 시안 B, 모든 견적서 합계 아래) */
+.v-extra { margin: 12px 12px 0; }
+.v-extra-band {
+  background: #a32d2d; color: #fff;
+  border-radius: 14px; padding: 13px 14px;
+  text-align: center; font-size: 17px; font-weight: 800;
+}
+.v-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.v-extra-box {
+  background: #fff; border: 1.5px solid #f09595; border-radius: 14px;
+  padding: 14px 8px; text-align: center;
+}
+.v-extra-box b { display: block; font-size: 17px; color: #791f1f; }
+.v-extra-box span { display: block; margin-top: 4px; font-size: 13px; color: #a32d2d; }
+
 /* 조정 줄의 '(거주중)' 같은 이유 표시. 항목명이 금액만큼 튀면 안 된다. */
 .v-row .v-why { color: var(--muted); font-size: 13px; }
 

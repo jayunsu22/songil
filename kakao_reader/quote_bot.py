@@ -261,8 +261,10 @@ def publish(text, photos, client="", received_at=None, headless=True, aliases=No
             if title:
                 page.evaluate("t => { state.현장명 = t; const el = document.getElementById('siteName'); if (el) el.value = t; persist(); }", title)
             memo = []
-            if info["missing"]:
-                memo.append("확인 필요: " + ", ".join(info["missing"]) + " — 알려주시면 반영해 드립니다.")
+            # 사는 집인지·필름은 견적서 합계 아래 '추가금액 발생' 안내가 크게 알려 준다 (사장님 10/30) → 메모엔 나머지만
+            ask = [m for m in info["missing"] if m not in ("사는 집인지", "필름")]
+            if ask:
+                memo.append("확인 필요: " + ", ".join(ask) + " — 알려주시면 반영해 드립니다.")
             if info["unmatched"]:
                 memo.append("견적에 못 넣은 품목: " + ", ".join(info["unmatched"]) + " (따로 안내드립니다)")
             page.click("#publishBtn")
