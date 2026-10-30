@@ -20,6 +20,37 @@ APP = "https://songil.netlify.app/quote_pro.html"
 DRAFT_TIMEOUT = 110_000
 
 
+CLASSIFY_URL = "https://primary-production-a6fa.up.railway.app/webhook/photo-classify"
+
+
+def classify_photos(items, photos):
+    """n8n 견적사진_판단(Gemini)에 '이 사진은 어느 품목?' 을 묻는다.
+    items: [{'id': 체크_ID, '이름': '구역 품목명'}], photos: [경로] → [체크_ID 또는 None] (사진 순서대로).
+    실패하면 전부 None (그때는 첫 품목에 붙인다)."""
+    import base64
+    import io
+    import urllib.request
+    from PIL import Image
+    data = []
+    for ph in photos:
+        img = Image.open(ph).convert("RGB")
+        img.thumbnail((800, 800))  # 판단에는 작은 사진이면 충분하다 - 보내는 양을 줄인다
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=80)
+        data.append({"name": os.path.basename(ph), "mime": "image/jpeg", "data": base64.b64encode(buf.getvalue()).decode()})
+    body = json.dumps({"items": items, "photos": data}, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(CLASSIFY_URL, data=body, method="POST",
+                                 headers={"Content-Type": "application/json", "x-owner-key": _key()})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            out = json.loads(r.read().decode("utf-8"))
+        a = out.get("assign") or []
+        return [a[i] if i < len(a) else None for i in range(len(photos))]
+    except Exception as e:
+        print("사진 판단 실패 (첫 품목에 붙임): %s" % e, flush=True)
+        return [None] * len(photos)
+
+
 def _key():
     with open(os.path.join(HERE, "config.json"), encoding="utf-8-sig") as f:
         k = json.load(f).get("owner_key", "")
@@ -188,9 +219,15 @@ def publish(text, photos, client="김정헌", received_at=None, headless=True):
                          unmatched: ((state.요청초안 && state.요청초안.확인필요) || []).map((x) => x.품목명) };
             }""")
 
-            # 사진: 품목 수와 같으면 말한 순서대로 한 장씩, 아니면 전부 첫 품목에 (첫 사진 = 방1 규칙과 같은 방향)
+            # 사진: AI(Gemini)가 사진을 보고 품목을 고른다. 모르는 사진은 첫 품목에 (사장님 10/30 - 글 순서로 붙이면 엉뚱하게 붙었다)
             if photos:
-                groups = [[ph] for ph in photos] if len(photos) == len(ids) else [list(photos)]
+                names = [{"id": cid, "이름": _row_name(page, cid)} for cid in ids]
+                picks = classify_photos(names, photos)
+                by_item = {}
+                for ph, cid in zip(photos, picks):
+                    by_item.setdefault(cid or ids[0], []).append(ph)
+                info["photo_map"] = {_row_name(page, cid): [os.path.basename(x) for x in fs] for cid, fs in by_item.items()}
+                ids, groups = list(by_item.keys()), list(by_item.values())
                 for cid, files in zip(ids, groups):
                     # 품목 줄 '사진' 버튼이 하는 일 그대로 (접힌 구역은 버튼이 안 보여서 함수를 직접 부른다)
                     page.evaluate("""(id) => { for (const z of MASTER.zones) for (const it of z.items) if (it.체크_ID === id)
@@ -217,7 +254,8 @@ def publish(text, photos, client="김정헌", received_at=None, headless=True):
                 page.fill("#memoText", "\n".join(memo))
                 page.dispatch_event("#memoText", "input")
             link = _publish_and_wait(page)
-            return {"link": link, "title": title, "items": info["items"], "missing": info["missing"], "unmatched": info["unmatched"]}
+            return {"link": link, "title": title, "items": info["items"], "missing": info["missing"], "unmatched": info["unmatched"],
+                    "photo_map": info.get("photo_map", {})}
         finally:
             ctx.close()
 
