@@ -191,6 +191,17 @@ class AnalyzeTest(unittest.TestCase):
             self.assertEqual({k: v["n"] for k, v in chatlist.match_names(want, got).items()}, want)
             self.assertIsNone(chatlist.analyze(img, region))  # 배지 그대로면 OCR 안 함
 
+    def test_find_row_by_name(self):
+        # 배지가 사라진 방(사장님이 폰으로 봄)은 이름으로 줄을 찾는다 — 4번째 줄 '투나여행 현장'
+        img, region = fake_list(1.0)
+        try:
+            box = chatlist.row_by_name(img, region, "투나여행")
+        except RuntimeError as e:
+            self.skipTest(str(e))
+        self.assertIsNotNone(box)
+        self.assertTrue(region[1] + 3 * 68 <= box[1] <= region[1] + 4 * 68, box)
+        self.assertIsNone(chatlist.row_by_name(img, region, "딥트앤무크"))
+
 
 if __name__ == "__main__":
     unittest.main()

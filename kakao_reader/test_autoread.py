@@ -79,6 +79,27 @@ class CheckFlowTest(unittest.TestCase):
         self.run_check(None, state, cfg)                               # 1분 조용 → 연다
         self.assertEqual(self.calls, ["류춘화"])
 
+    def test_owner_read_on_phone_still_reported(self):
+        # 사장님이 폰으로 먼저 봐서 배지가 사라져도, 노트북이 아직 안 읽었으면 그래도 연다 (사장님 10/30)
+        cfg = {"watch_rooms": ["류춘화"], "auto_read": True, "read_quiet_seconds": 60}
+        state = {}
+        self.run_check({}, state, cfg)
+        self.run_check({"류춘화": B(1, "a")}, state, cfg)
+        self.t = 1020
+        self.run_check({}, state, cfg)                                 # 배지 사라짐
+        self.assertTrue(state["badges"]["류춘화"]["gone"])
+        self.assertIsNone(state["badges"]["류춘화"]["box"])
+        self.t = 1061
+        self.run_check(None, state, cfg)
+        self.assertEqual(self.calls, ["류춘화"])
+
+    def test_old_badge_gone_is_forgotten(self):
+        cfg = {"watch_rooms": ["류춘화"], "auto_read": True}
+        state = {}
+        self.run_check({"류춘화": B(1, "a")}, state, cfg)              # 켜기 전부터 있던 배지 (since 없음)
+        self.run_check({}, state, cfg)
+        self.assertEqual(state["badges"], {})
+
     def test_auto_read_off_notifies_at_once(self):
         cfg = {"watch_rooms": ["류춘화"], "auto_read": False}
         state = {}

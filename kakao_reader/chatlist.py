@@ -494,6 +494,7 @@ def check(cfg, state, notify, log, dry=False, classify=None):
         now = match_names(prev, now)
         items = news(prev, now)
         mark_since(prev, now, time.time())
+        keep_unread(prev, now)
         if items:
             log("[채팅 목록] " + ", ".join("%s +%s" % (r, a if a is not None else "?") for r, a, _ in items))
             if dry:
@@ -525,6 +526,14 @@ def mark_since(prev, now, t):
             cur["since"], cur["told"] = old.get("since"), old.get("told")
 
 
+def keep_unread(prev, now):
+    """새 글이 와서 아직 노트북이 안 읽은 방은 배지가 사라져도(사장님이 폰으로 먼저 봄) 남겨 둔다 → 그래도 열어 읽고 보고한다
+    (사장님 10/30). 그런 방은 배지 자리(box)가 없으니 열 때 이름으로 줄을 찾는다."""
+    for room, old in prev.items():
+        if room not in now and old.get("since") is not None:
+            now[room] = dict(old, box=None, fp=None, gone=True)
+
+
 def due_rooms(badges, t, quiet):
     """배지가 quiet 초 동안 그대로인(글이 멈춘) 방들 — 먼저 생긴 것부터."""
     due = [(c["since"], r) for r, c in badges.items() if c.get("since") is not None and t - c["since"] >= quiet]
@@ -553,6 +562,37 @@ def _title_ok(room, title):
     return bool(title) and (fuzzy_in(room, title) or fuzzy_in(title, room) or same_room(room, title))
 
 
+def find_row(room):
+    """배지 없는 방의 줄을 이름으로 찾는다 → 창 그림 기준 [x1, y1, x2, y2] (못 찾으면 None).
+    목록 왼쪽(이름 쪽) 을 3배로 키워 OCR 하고, 줄 맨 위 글(이름) 중 room 과 자모로 맞는 것 (위에서부터)."""
+    top, lst = find_chatlist()
+    img = capture(top)
+    if img is None:
+        return None
+    tl, tt, _, _ = _rect(top)
+    ll, lt, lr, lb = _rect(lst)
+    return row_by_name(img, (ll - tl, lt - tt, lr - tl, lb - tt), room)
+
+
+def row_by_name(img, region, room):
+    region = (region[0], region[1], region[0] + (region[2] - region[0]) * 7 // 10, region[3])
+    crop = img.crop(region)
+    tmp = tempfile.mkdtemp(prefix="kakao_list_")
+    try:
+        p = os.path.join(tmp, "list.png")
+        crop.resize((crop.width * 3, crop.height * 3), Image.LANCZOS).save(p)
+        lines = ocr([p]).get(p, [])
+    finally:
+        for f in os.listdir(tmp):
+            os.remove(os.path.join(tmp, f))
+        os.rmdir(tmp)
+    for x, y, wd, ht, t in sorted(lines, key=lambda ln: ln[1]):
+        name = clean_name(t)
+        if name and (fuzzy_in(room, name) or same_room(room, name)):
+            return [region[0] + x // 3, region[1] + y // 3, region[0] + (x + wd) // 3, region[1] + (y + ht) // 3]
+    return None
+
+
 def open_room(room, box, log, wait=4.0):
     """채팅 목록에서 배지 줄을 더블클릭해 방을 연다 → (창, 제목). 엉뚱한 방이 열리면 바로 닫고 (0, None).
     먼저 마우스 없이(창에 클릭 신호) 해 보고, 안 열리면 마우스로 (카톡 메인 창을 앞으로)."""
@@ -560,6 +600,11 @@ def open_room(room, box, log, wait=4.0):
     import kakao_window
     top, lst, tl, tt, ll, lt, lw = LAST["geom"]
     x = int(lw * 0.35)
+    if box is None:
+        box = find_row(room)
+        if box is None:
+            log("[%s] 배지가 없어져서 목록에서 이름으로 찾았지만 못 찾음" % room)
+            return 0, None
     y = (box[1] + box[3]) // 2 - (lt - tt)
     before = set(kakao_window.chat_windows())
     for how in ("signal", "mouse"):
