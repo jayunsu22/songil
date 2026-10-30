@@ -553,6 +553,8 @@ def open_room(room, box, log, wait=4.0):
     y = (box[1] + box[3]) // 2 - (lt - tt)
     before = set(kakao_window.chat_windows())
     for how in ("signal", "mouse"):
+        if how == "mouse":
+            log("[채팅 목록] 마우스 없이는 안 열림 → 마우스로")
         if how == "signal":
             kakao_window.double_click_list(lst, x, y)
         else:
@@ -583,11 +585,13 @@ def read_and_report(cfg, state, room, notify, log, classify):
     cur = state["badges"][room]
     cur["since"] = None
     LAST["sig"] = None  # 방을 열면 목록이 바뀐다 → 다음 확인 때 새로 본다
+    log("[%s] 글이 멈춤 → 방 열기" % room)
     h, title = open_room(room, cur["box"], log)
     if not h:
         log("[채팅 목록] '%s' 방을 못 열었음 — 새 글 알림만" % room)
         notify(message([(room, cur.get("n"), cur.get("n"))]) + "\n(방을 못 열어서 요약 없음)")
         return
+    log("[%s] 열림 → 글 읽기" % title)
     try:
         text = kakao_window.copy_room_text(title)
     finally:
@@ -606,6 +610,7 @@ def read_and_report(cfg, state, room, notify, log, classify):
         return
     send = [{"time": m["time"], "sender": m["sender"],
              "text": kakao_text.mask(m["text"]) if cfg.get("mask_secrets", True) else m["text"]} for m in new]
+    log("[%s] 새 글 %d개 → 분류 묻는 중" % (title, len(send)))
     try:
         res = classify(title, send)
         if res.get("error") and not res.get("요약"):

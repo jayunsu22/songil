@@ -16,7 +16,7 @@ import socket
 import sys
 import time
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import chatlist
 import kakao_photo
@@ -68,8 +68,12 @@ def is_ours(text):
     return "/q/" in text or text.startswith(("[가견적]", "[자동]"))
 
 
+KST = timezone(timedelta(hours=9))
+
+
 def log(msg):
-    print("%s %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), msg), flush=True)
+    # 노트북 시간대 설정과 상관없이 한국 시간으로 (10/30 노트북 기록이 5시간 어긋남)
+    print("%s %s" % (datetime.now(KST).strftime("%m-%d %H:%M:%S"), msg), flush=True)
 
 
 def load_json(path, default):
@@ -260,11 +264,17 @@ def main():
     if "--dry" in args:
         run_once(cfg, json.loads(json.dumps(state)), dry=True)
         return
+    import faulthandler
     while True:
+        # 한 번 확인이 3분 넘게 걸리면 어디서 멈췄는지 화면에 찍는다 (사진으로 보내면 원인을 찾을 수 있게)
+        if sys.stderr:  # pythonw 로 돌면 화면이 없다
+            faulthandler.dump_traceback_later(180, exit=False)
         try:
             run_once(cfg, state)
         except Exception as e:
             log("오류: %r" % e)
+        if sys.stderr:
+            faulthandler.cancel_dump_traceback_later()
         if "--once" in args:
             return
         time.sleep(max(15, int(cfg["interval"])))
