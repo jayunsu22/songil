@@ -1,7 +1,8 @@
 # 카톡 읽기 프로그램 (kakao_reader)
 
-카톡 전용 노트북에서 돌면서 **정해 둔 방의 새 글·사진만** n8n `카톡_받은글`(POST `kakao-inbox`)로 보냅니다.
-읽기만 합니다 — 카톡에 글을 보내지 않습니다. AI 도 부르지 않습니다 (새 글이 없으면 아무것도 안 보냄).
+카톡 전용 노트북에서 돌면서 **정해 둔 방의 새 글·사진**을 n8n `카톡_받은글`(POST `kakao-inbox`)로 보내고,
+견적 문의면 현장견적 앱으로 **가견적을 발행해 링크를 카톡에 보냅니다** (`send_rooms`, 지금은 김정헌 방만).
+Claude 는 부르지 않습니다. AI 는 새 문의 1건에 n8n 견적초안_읽기(Gemini) 한 번뿐.
 설계: `docs/superpowers/specs/2026-10-29-카톡읽기-design.md`
 
 ## 어떻게 읽나
@@ -13,20 +14,35 @@
 - 노트북에는 글 지문(짧은 암호 같은 값)과 사진 파일 이름만 `state.json` 에 남고, 글 내용은 저장하지 않습니다.
 
 ## 노트북 준비 (사장님)
-1. 파이썬 3.12 설치 (python.org, 설치 때 'Add python.exe to PATH' 체크). 그다음 `pip install pillow` (사진 자동 저장용)
-2. 이 폴더(`kakao_reader`)를 노트북에 복사 (예: `C:\kakao_reader`).
-3. `config.example.json` 을 복사해 `config.json` 으로 이름을 바꾸고 메모장으로 열어 `owner_key` 에 **사장님 열쇠**를 직접 넣기.
+1. 노트북 설정: 절전 안 함 · 덮개 닫아도 아무것도 안 함 · 화면 잠금 끄기. 백신 광고 창(V3·알약)은 카톡 창을 가리므로 지우고 Windows 보안(Defender)만.
+2. 파이썬 3.12 설치: `https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe` ('Add python.exe to PATH' 체크).
+   (Windows 10 1903 처럼 옛 윈도우는 'Python Install Manager' 가 안 깔린다 — 위 설치 파일을 쓴다.) 그다음 명령 프롬프트에서
+   ```
+   python -m pip install pillow playwright
+   python -m playwright install chromium
+   ```
+3. 이 폴더(`kakao_reader`)를 노트북에 복사 (예: `C:\kakao_reader`).
+4. `config.example.json` 을 복사해 `config.json` 으로 이름을 바꾸고 메모장으로 열어 `owner_key` 에 **사장님 열쇠**를 직접 넣기 (등록 링크째 넣어도 됨). 이 파일은 카톡으로 보내지 않기.
    - `rooms`: 읽을 방 이름 (카톡 창 제목과 똑같이). 시험은 `["김정헌"]` 만.
-   - `interval`: 몇 초마다 볼지 (기본 60).
-4. PC 카톡 로그인 → 읽을 방마다 **채팅창을 열어 둠** (작게 해도 됨, 닫으면 못 읽음). 절전·화면 잠금 끄기.
-5. 시험: 명령 프롬프트에서
+   - `quote_rooms`: 견적 문의면 가견적을 발행할 방. `send_rooms`: 링크를 카톡으로 보낼 방 (김정헌만).
+   - `interval`: 몇 초마다 볼지 (기본 60), `quiet_seconds`: 마지막 글 뒤 이만큼 조용하면 한 건으로 묶어 견적 (기본 120).
+5. 현장견적 앱 열기 (처음 한 번): `python quote_bot.py --setup` → 크롬 창이 뜨면 **관리자 암호를 사장님이 직접** 넣기 → '준비 완료'.
+6. PC 카톡 로그인(잠금모드 끄기) → 읽을 방마다 **채팅창을 열어 둠** (작게 해도 됨, 닫으면 못 읽음).
+7. 시험: 명령 프롬프트에서
    ```
    cd C:\kakao_reader
    python reader.py --dry
    ```
    → `[김정헌] 처음 실행: …` 이 나오면 창을 찾은 것. (`--dry` 는 보내지 않고 개수만 봄)
-6. 실행: `python reader.py` (창을 닫으면 멈춤). 한 번만: `python reader.py --once`
-7. 켤 때 자동 시작: 작업 스케줄러 → 기본 작업 만들기 → '로그온할 때' → 프로그램 `pythonw.exe`, 인수 `reader.py`, 시작 위치 `C:\kakao_reader`.
+8. 실행: `python reader.py` (창을 닫으면 멈춤). 한 번만: `python reader.py --once`
+9. 켤 때 자동 시작: 작업 스케줄러 → 기본 작업 만들기 → '로그온할 때' → 프로그램 `pythonw.exe`, 인수 `reader.py`, 시작 위치 `C:\kakao_reader`.
+
+## 견적 발행 (quote_bot.py)
+- 새 견적 → 📋 요청 붙여넣기(카톡) → 초안 → 품목마다 사진(사진 수 = 품목 수면 말한 순서대로, 아니면 첫 품목) → 저장 → **가견적** 발행.
+  빠진 정보(사는 집인지·다른 공정·필름·날짜)는 묻지 않고 견적서 메모에 적는다 (사장님 2026-10-29). 사진이 다 올라갈 때까지 기다린 뒤 링크.
+- 시험: `python quote_bot.py --try "방문3개 부평 삼산동" 사진1.jpg …`
+- 고쳐서 다시 발행: `python quote_bot.py --revise 견적코드 샤시=2중창` (앞 견적은 '이전 견적' 으로 남음).
+- 카톡 보내기(`kakao_window.send_text`): 창 제목이 방 이름과 같고 입력칸이 비어 있을 때만. 링크 글은 다시 견적 문의로 읽지 않는다.
 
 ## 화면에 나오는 말
 | 말 | 뜻 |
