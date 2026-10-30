@@ -542,29 +542,40 @@ def keep_unread(prev, now):
 TIME_RE = re.compile(r"(\d{1,2})\s*[:;.]\s*(\d{2})")
 
 
+def parse_time(t):
+    """목록 시간 글 → '오전 6:07' · '어제' · '10월29일' (못 읽으면 None)."""
+    m = TIME_RE.search(t)
+    if m:
+        ampm = "오후" if "후" in t else "오전" if "전" in t else ""
+        return ("%s %d:%s" % (ampm, int(m.group(1)), m.group(2))).strip()
+    s = re.sub(r"\s", "", t)
+    if re.fullmatch(r"어제|\d{1,2}월\d{1,2}일|\d{4}[.-]\d{1,2}[.-]\d{1,2}\.?", s):
+        return s
+    return None  # OCR 이 시간을 깨뜨려 읽음 → 모른 척 (잘못 '바뀜' 으로 보면 괜히 방을 연다)
+
+
 def row_times(lines, watch, lw):
-    """목록 OCR 줄들 → {알릴 방: 그 줄 오른쪽 위의 시간 글('10:17', '어제' …)}. 새 글이 오면 이 시간이 바뀐다.
-    사장님이 폰으로 먼저 읽어 배지가 안 생겨도 시간은 바뀌므로 이걸로도 새 글을 안다 (사장님 10/30)."""
+    """목록 OCR 줄들 → {알릴 방: 그 줄 오른쪽 위의 시간('오전 6:07', '어제' …)}. 새 글이 오면 이 시간이 바뀐다.
+    사장님이 폰으로 먼저 읽어 배지가 안 생겨도 시간은 바뀌므로 이걸로도 새 글을 안다 (사장님 10/30).
+    OCR 이 '류춘화 … 오전 6:07' 을 한 줄로 붙여 읽기도 해서 (10/31 노트북) 이름 줄 안의 시간도 본다."""
     out = {}
-    names = [ln for ln in lines if ln[0] < lw * 0.5]
-    rights = [ln for ln in lines if ln[0] >= lw * 0.6]
+    names = sorted((ln for ln in lines if ln[0] < lw * 0.5), key=lambda ln: ln[1])
+    rights = [ln for ln in lines if ln[0] >= lw * 0.55]
     for w in watch:
-        hit = next((ln for ln in sorted(names, key=lambda ln: ln[1])
-                    if clean_name(ln[4]) and fuzzy_in(w, clean_name(ln[4]))), None)
+        hit = next((ln for ln in names if clean_name(ln[4]) and fuzzy_in(w, clean_name(ln[4]))), None)
         if hit is None:
             continue
-        cy, h = hit[1] + hit[3] / 2, max(hit[3], 8)
-        near = [ln for ln in rights if abs(ln[1] + ln[3] / 2 - cy) <= h * 1.2]
-        if not near:
-            continue
-        t = min(near, key=lambda ln: abs(ln[1] + ln[3] / 2 - cy))[4]
-        m = TIME_RE.search(t)
-        if m:
-            ampm = "오후" if "후" in t else "오전" if "전" in t else ""
-            out[w] = ("%s %d:%s" % (ampm, int(m.group(1)), m.group(2))).strip()
-        elif re.fullmatch(r"어제|\d{1,2}월\d{1,2}일|\d{4}[.-]\d{1,2}[.-]\d{1,2}\.?", re.sub(r"\s", "", t)):
-            out[w] = re.sub(r"\s", "", t)
-        # 그 밖(OCR 이 시간을 깨뜨려 읽음)은 이번엔 모른 척 — 잘못 '바뀜' 으로 보면 괜히 방을 연다
+        cy, h = hit[1] + hit[3] / 2, max(hit[3], 10)
+        cands = []
+        if hit[0] + hit[2] > lw * 0.55:  # 이름 줄이 오른쪽 끝까지 = 시간이 붙어 있음
+            cands.append(hit[4])
+        cands += [ln[4] for ln in sorted(rights, key=lambda ln: abs(ln[1] + ln[3] / 2 - cy))
+                  if abs(ln[1] + ln[3] / 2 - cy) <= h * 1.5]
+        for t in cands:
+            v = parse_time(t)
+            if v:
+                out[w] = v
+                break
     return out
 
 
@@ -593,6 +604,11 @@ def check_rows(cfg, state, log, t):
         os.rmdir(tmp)
     LAST["rows_sig"] = sig
     times = row_times(lines, watch, region[2] - region[0])
+    if not times and not LAST.get("rows_warned"):
+        # 알릴 방 줄을 하나도 못 찾으면 읽은 줄을 한 번 남긴다 (사진으로 보내 주시면 맞춘다)
+        LAST["rows_warned"] = True
+        log("[채팅 목록] 목록에서 알릴 방 시간을 못 찾음 — 읽은 줄: " +
+            " / ".join("%s@%d,%d" % (tx[:15], x, y) for x, y, wd, ht, tx in sorted(lines, key=lambda ln: ln[1])[:8]))
     old = state.get("rows")
     state["rows"] = dict(old or {}, **times)
     if times != {k: v for k, v in (old or {}).items() if k in times}:
