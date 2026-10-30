@@ -405,6 +405,7 @@ def read_badges(force=False, keep_image=None, known=()):
     tl, tt, _, _ = _rect(top)
     ll, lt, lr, lb = _rect(lst)
     LAST["geom"] = (top, lst, tl, tt, ll, lt, lr - ll)
+    LAST["img"], LAST["region"] = img, (ll - tl, lt - tt, lr - tl, lb - tt)
     return analyze(img, (ll - tl, lt - tt, lr - tl, lb - tt), force, known)
 
 
@@ -506,6 +507,7 @@ def check(cfg, state, notify, log, dry=False, classify=None):
             return
         state["badges"] = now
     if auto and not dry:
+        check_rows(cfg, state, log, time.time())
         quiet = int(cfg.get("read_quiet_seconds", 60))
         for r, c in state["badges"].items():
             if c.get("since") is not None and not c.get("told"):
@@ -534,6 +536,73 @@ def keep_unread(prev, now):
             now[room] = dict(old, box=None, fp=None, gone=True)
 
 
+TIME_RE = re.compile(r"(\d{1,2})\s*[:;.]\s*(\d{2})")
+
+
+def row_times(lines, watch, lw):
+    """목록 OCR 줄들 → {알릴 방: 그 줄 오른쪽 위의 시간 글('10:17', '어제' …)}. 새 글이 오면 이 시간이 바뀐다.
+    사장님이 폰으로 먼저 읽어 배지가 안 생겨도 시간은 바뀌므로 이걸로도 새 글을 안다 (사장님 10/30)."""
+    out = {}
+    names = [ln for ln in lines if ln[0] < lw * 0.5]
+    rights = [ln for ln in lines if ln[0] >= lw * 0.6]
+    for w in watch:
+        hit = next((ln for ln in sorted(names, key=lambda ln: ln[1])
+                    if clean_name(ln[4]) and fuzzy_in(w, clean_name(ln[4]))), None)
+        if hit is None:
+            continue
+        cy, h = hit[1] + hit[3] / 2, max(hit[3], 8)
+        near = [ln for ln in rights if abs(ln[1] + ln[3] / 2 - cy) <= h * 1.2]
+        if not near:
+            continue
+        t = min(near, key=lambda ln: abs(ln[1] + ln[3] / 2 - cy))[4]
+        m = TIME_RE.search(t)
+        if m:
+            ampm = "오후" if "후" in t else "오전" if "전" in t else ""
+            out[w] = ("%s %d:%s" % (ampm, int(m.group(1)), m.group(2))).strip()
+        elif re.fullmatch(r"어제|\d{1,2}월\d{1,2}일|\d{4}[.-]\d{1,2}[.-]\d{1,2}\.?", re.sub(r"\s", "", t)):
+            out[w] = re.sub(r"\s", "", t)
+        # 그 밖(OCR 이 시간을 깨뜨려 읽음)은 이번엔 모른 척 — 잘못 '바뀜' 으로 보면 괜히 방을 연다
+    return out
+
+
+def check_rows(cfg, state, log, t):
+    """채팅 목록 그림이 바뀌었으면 OCR 해서 알릴 방 줄의 시간이 바뀐 방을 '새 글' 로 (배지가 없어도). 열기는 1분 뒤."""
+    img, region = LAST.get("img"), LAST.get("region")
+    watch = list(cfg.get("watch_rooms", []))
+    if img is None or not watch:
+        return
+    crop = img.crop(region)
+    sig = hashlib.sha1(crop.tobytes()).hexdigest()
+    if sig == LAST.get("rows_sig"):
+        return
+    tmp = tempfile.mkdtemp(prefix="kakao_list_")
+    try:
+        p = os.path.join(tmp, "rows.png")
+        # 4배: 2배로는 마우스가 올라간 회색 줄의 시간을 못 읽음 (10/31 가짜 목록 시험)
+        crop.resize((crop.width * 4, crop.height * 4), Image.LANCZOS).save(p)
+        lines = [(x // 4, y // 4, wd // 4, ht // 4, tx) for x, y, wd, ht, tx in ocr([p]).get(p, [])]
+    except Exception as e:
+        log("[채팅 목록] 줄 읽기 실패: %s" % str(e)[:100])
+        return
+    finally:
+        for f in os.listdir(tmp):
+            os.remove(os.path.join(tmp, f))
+        os.rmdir(tmp)
+    LAST["rows_sig"] = sig
+    times = row_times(lines, watch, region[2] - region[0])
+    old = state.get("rows")
+    state["rows"] = dict(old or {}, **times)
+    if old is None:
+        return  # 처음: 기억만
+    badges = state.setdefault("badges", {})
+    for room, tm in times.items():
+        if room in old and old[room] != tm:
+            cur = badges.get(room)
+            if cur is None or cur.get("since") is None:
+                badges[room] = dict(cur or {"n": None, "fp": None}, box=None, gone=True, since=t, told=False)
+                log("[%s] 목록의 시간이 바뀜 (%s → %s) — 새 글로 봄" % (room, old[room], tm))
+
+
 def wait_seconds(state, cfg, t):
     """다음에 열 방이 있으면 그때까지 남은 초 (없으면 None) — reader.py 가 그만큼만 쉬게 (1분 + 확인 간격만큼 늦지 않게)."""
     if not cfg.get("auto_read"):
@@ -552,9 +621,7 @@ def due_rooms(badges, t, quiet):
 def pick_new(msgs, seen, n):
     """연 방의 글 중 새 글. 전에 읽은 적이 있으면 그 뒤 글, 처음이면 배지 숫자만큼(모르면 10개) 끝에서. 많아야 30개."""
     if seen:
-        new = [m for m in msgs if m["key"] not in seen]
-        if new:
-            return new[-30:]
+        return [m for m in msgs if m["key"] not in seen][-30:]
     return msgs[-min(n or 10, 30):]
 
 
@@ -669,8 +736,10 @@ def read_and_report(cfg, state, room, notify, log, classify):
     seen = seen_all.get(title, [])
     new = pick_new(msgs, set(seen), cur.get("n"))
     seen_all[title] = (seen + [m["key"] for m in msgs if m["key"] not in set(seen)])[-300:]
+    mine = {_norm(x) for x in cfg.get("my_names", ["김정헌"])}
+    new = [m for m in new if _norm(m["sender"]) not in mine]  # 사장님이 쓴 글은 보고하지 않는다
     if not new:
-        log("[%s] 새 글을 못 찾음" % title)
+        log("[%s] 새 글 없음 (사장님 글뿐이거나 이미 읽은 글)" % title)
         return
     send = [{"time": m["time"], "sender": m["sender"],
              "text": kakao_text.mask(m["text"]) if cfg.get("mask_secrets", True) else m["text"]} for m in new]

@@ -52,7 +52,8 @@ DEFAULTS = {
     "watch_rooms": [],            # 알릴 방 (업체 방 이름, 방 이름 안에 들어 있으면). 비우면 모든 방
     "exclude_rooms": [],          # 그 알림에서 뺄 방 (가족·개인). quote_rooms(김정헌)는 늘 빠짐
     "auto_read": True,            # 알릴 방에 글이 멈추면 방을 열어 읽고 분류·요약을 텔레그램으로 (10/30 B안). 끄면 '새 글 N개' 만
-    "read_quiet_seconds": 60,     # 배지가 이만큼 그대로면(글이 멈추면) 연다 (사장님 10/30: 시험이라 1분)
+    "read_quiet_seconds": 60,
+    "my_names": ["김정헌"],       # 카톡에 보이는 사장님 이름 — 이 이름으로 쓴 글은 보고하지 않는다     # 배지가 이만큼 그대로면(글이 멈추면) 연다 (사장님 10/30: 시험이라 1분)
     "classify_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-classify",  # n8n 카톡_분류 (Gemini)
 }
 

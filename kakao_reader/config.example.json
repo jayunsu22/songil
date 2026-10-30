@@ -13,5 +13,6 @@
   "watch_rooms": ["pk디자인", "한솔"],
   "exclude_rooms": [],
   "auto_read": true,
-  "read_quiet_seconds": 60
+  "read_quiet_seconds": 60,
+  "my_names": ["김정헌"]
 }
