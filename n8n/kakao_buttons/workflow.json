@@ -1,0 +1,255 @@
+{
+  "name": "카톡_버튼",
+  "nodes": [
+    {
+      "id": "tr",
+      "name": "버튼누름",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "3b7e9c21-5f4a-4d8b-9e6c-1a2f3d4b5c6e",
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "4iGW8eEwhNuTpFHa",
+          "name": "Telegram - 견적서작성발송봇"
+        }
+      }
+    },
+    {
+      "id": "a",
+      "name": "가맹점_조회",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        220,
+        0
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appAMNZv9V41mNjsY",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblOu4laeXOR8Wmm5",
+          "mode": "id"
+        },
+        "filterByFormula": "={업체코드} = 'p_001'",
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "J5wefJCMalpjjm3Q",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      }
+    },
+    {
+      "id": "p",
+      "name": "버튼정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 카톡_버튼 › 버튼정리: 사장님이 텔레그램 요약의 버튼을 누름 (카톡 읽기 3단계, 10/31).\r\n// 콜백 'k|번호|동작' (동작 pub=가견적 발행, later=나중에, ok=확인함). 사장님(가맹점 p_001 챗ID)이 누른 것만.\r\n// 가견적 발행은 이 흐름의 저장 공간(staticData)에 '할 일' 로 적어 두고, 노트북이 kakao-jobs 로 가져간다. 글 내용은 적지 않는다.\r\nconst cq = $('버튼누름').first().json.callback_query || {};\r\nconst owner = ($input.first().json.fields || $input.first().json).텔레그램_챗ID;\r\nif (!owner || String((cq.from || {}).id) !== String(owner)) return [];\r\nconst [k, job, act] = String(cq.data || '').split('|');\r\nif (k !== 'k' || !/^[a-z0-9]{6}$/.test(job || '')) return [];\r\nconst 표시 = { pub: '⏳ 가견적 발행 중 — 노트북이 처리하면 링크가 옵니다', later: '⏸ 나중에', ok: '✔ 확인함' }[act];\r\nif (!표시) return [];\r\nif (act === 'pub') {\r\n  const sd = $getWorkflowStaticData('global');\r\n  sd.jobs = (sd.jobs || []).filter((j) => Date.now() - j.at < 7 * 864e5);\r\n  if (!sd.jobs.some((j) => j.job === job && j.action === act)) sd.jobs.push({ job, action: act, at: Date.now(), taken: false });\r\n}\r\nconst msg = cq.message || {};\r\nreturn [{ json: {\r\n  query_id: cq.id, answer: act === 'pub' ? '받았습니다 — 노트북이 곧 처리' : '받았습니다',\r\n  chat_id: String((msg.chat || {}).id || owner), message_id: String(msg.message_id || ''),\r\n  text: (String(msg.text || '').slice(0, 3900) + '\\n\\n' + 표시).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),\r\n} }];\r\n"
+      }
+    },
+    {
+      "id": "q",
+      "name": "받았다고_답",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        660,
+        0
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "resource": "callback",
+        "operation": "answerQuery",
+        "queryId": "={{ $json.query_id }}",
+        "additionalFields": {
+          "text": "={{ $json.answer }}"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "4iGW8eEwhNuTpFHa",
+          "name": "Telegram - 견적서작성발송봇"
+        }
+      }
+    },
+    {
+      "id": "e",
+      "name": "버튼지우고_표시",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        0
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "resource": "message",
+        "operation": "editMessageText",
+        "messageType": "message",
+        "chatId": "={{ $('버튼정리').item.json.chat_id }}",
+        "messageId": "={{ $('버튼정리').item.json.message_id }}",
+        "text": "={{ $('버튼정리').item.json.text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "4iGW8eEwhNuTpFHa",
+          "name": "Telegram - 견적서작성발송봇"
+        }
+      }
+    },
+    {
+      "id": "w",
+      "name": "할일요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "6d1c8a4e-2b9f-4e7a-8c3d-5f0a1b2c3d4e",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kakao-jobs",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "t",
+      "name": "할일꺼내기",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 카톡_버튼 › 할일꺼내기: 노트북이 POST kakao-jobs (사장님 열쇠) 로 부른다 → 안 가져간 할 일을 주고 가져감 표시.\nconst sd = $getWorkflowStaticData('global');\nsd.jobs = (sd.jobs || []).filter((j) => Date.now() - j.at < 7 * 864e5);\nconst out = sd.jobs.filter((j) => !j.taken).map((j) => ({ job: j.job, action: j.action, at: j.at }));\nsd.jobs.forEach((j) => { j.taken = true; });\nreturn [{ json: { jobs: out } }];\n"
+      }
+    },
+    {
+      "id": "r",
+      "name": "할일응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "버튼누름": {
+      "main": [
+        [
+          {
+            "node": "가맹점_조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "가맹점_조회": {
+      "main": [
+        [
+          {
+            "node": "버튼정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "버튼정리": {
+      "main": [
+        [
+          {
+            "node": "받았다고_답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "받았다고_답": {
+      "main": [
+        [
+          {
+            "node": "버튼지우고_표시",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "할일요청": {
+      "main": [
+        [
+          {
+            "node": "할일꺼내기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "할일꺼내기": {
+      "main": [
+        [
+          {
+            "node": "할일응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -34,9 +34,11 @@ def send(url, owner_key, payload, photo_paths, timeout=60):
         return r.status, r.read().decode("utf-8", "replace")
 
 
-def notify(url, owner_key, text, timeout=30):
-    """n8n 카톡_알림 → 사장님 텔레그램. 실패해도 프로그램은 계속 (돌려주는 값 True/False)."""
-    req = urllib.request.Request(url, data=json.dumps({"text": text}, ensure_ascii=False).encode("utf-8"), method="POST",
+def notify(url, owner_key, text, buttons=None, timeout=30):
+    """n8n 카톡_알림 → 사장님 텔레그램. buttons = [[{text, data}]] 면 인라인 버튼 (카톡_버튼 흐름이 받음).
+    실패해도 프로그램은 계속 (돌려주는 값 True/False)."""
+    body = {"text": text, "buttons": buttons} if buttons else {"text": text}
+    req = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
                                  headers={"Content-Type": "application/json", "x-owner-key": owner_key})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -52,3 +54,11 @@ def classify(url, owner_key, room, messages, timeout=90):
                                  headers={"Content-Type": "application/json", "x-owner-key": owner_key})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8"))
+
+
+def fetch_jobs(url, owner_key, timeout=30):
+    """n8n 카톡_버튼 (POST kakao-jobs) → 사장님이 누른, 아직 안 가져간 할 일 [{job, action, at}]. 가져가면 n8n 이 '가져감' 으로 바꾼다."""
+    req = urllib.request.Request(url, data=b"{}", method="POST",
+                                 headers={"Content-Type": "application/json", "x-owner-key": owner_key})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8")).get("jobs") or []

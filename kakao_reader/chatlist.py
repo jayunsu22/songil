@@ -689,6 +689,16 @@ def _title_ok(room, title):
     return bool(title) and (fuzzy_in(room, title) or fuzzy_in(title, room) or same_room(room, title))
 
 
+def refresh_geom():
+    """방 열기(open_room) 전에 카톡 메인 창·목록 칸 위치를 새로 잡는다 (버튼 처리처럼 배지 확인과 따로 열 때)."""
+    top, lst = find_chatlist()
+    if not lst:
+        raise RuntimeError("카톡 메인 창을 못 찾음")
+    tl, tt, _, _ = _rect(top)
+    ll, lt, lr, _ = _rect(lst)
+    LAST["geom"] = (top, lst, tl, tt, ll, lt, lr - ll)
+
+
 def find_row(room):
     """배지 없는 방의 줄을 이름으로 찾는다 → 창 그림 기준 [x1, y1, x2, y2] (못 찾으면 None).
     목록 왼쪽(이름 쪽) 을 3배로 키워 OCR 하고, 줄 맨 위 글(이름) 중 room 과 자모로 맞는 것 (위에서부터)."""
@@ -803,7 +813,9 @@ def read_and_report(cfg, state, room, notify, log, classify):
         log("[%s] 분류 실패: %s" % (title, str(e)[:200]))
         res = {"종류": "분류 실패", "요약": "\n".join("%s: %s" % (m["sender"], m["text"][:100]) for m in send[-5:])}
     log("[%s] 새 글 %d개 → %s" % (title, len(new), res.get("종류")))
-    notify(report(title, res, new))
+    import jobs
+    job, buttons = jobs.new_job(state, title, res.get("종류"), new, time.time())
+    notify(report(title, res, new), buttons)
 
 
 def diagnose(path):

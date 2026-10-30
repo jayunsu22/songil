@@ -19,6 +19,7 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 
 import chatlist
+import jobs
 import kakao_photo
 import kakao_text
 import kakao_window
@@ -55,6 +56,7 @@ DEFAULTS = {
     "read_quiet_seconds": 60,
     "my_names": ["김정헌"],       # 카톡에 보이는 사장님 이름 — 이 이름으로 쓴 글은 보고하지 않는다     # 배지가 이만큼 그대로면(글이 멈추면) 연다 (사장님 10/30: 시험이라 1분)
     "classify_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-classify",  # n8n 카톡_분류 (Gemini)
+    "jobs_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-jobs",  # n8n 카톡_버튼 (누른 버튼 가져오기)
 }
 
 # 방마다 '견적발행시작' 을 기다리는 글·사진 묶음 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다.
@@ -148,8 +150,11 @@ def run_once(cfg, state, dry=False):
             for job in [j for j in READY if j["room"] == room and j["need"]]:
                 save_job_photos(cfg, state, job, photo_dir)
     if cfg["watch_list"]:
-        chatlist.check(cfg, state, lambda text: notify(cfg, text), log, dry,
+        chatlist.check(cfg, state, lambda text, buttons=None: notify(cfg, text, buttons), log, dry,
                        classify=lambda room, msgs: n8n_send.classify(cfg["classify_url"], cfg["owner_key"], room, msgs))
+    if cfg["auto_read"] and cfg["watch_list"] and not dry:  # 텔레그램 버튼 [가견적 발행] (3단계, 10/31)
+        jobs.poll(cfg, state, lambda text: notify(cfg, text), log,
+                  lambda: n8n_send.fetch_jobs(cfg["jobs_url"], cfg["owner_key"]), jobs.run_publish)
     if not dry:
         for job in [j for j in READY if not j["need"]]:
             READY.remove(job)
@@ -207,9 +212,9 @@ def collect(room, messages):
     PENDING[room] = pend
 
 
-def notify(cfg, text):
+def notify(cfg, text, buttons=None):
     if cfg.get("notify_url") and cfg["owner_key"]:
-        if n8n_send.notify(cfg["notify_url"], cfg["owner_key"], text):
+        if n8n_send.notify(cfg["notify_url"], cfg["owner_key"], text, buttons):
             return True
         log("텔레그램 알림 실패")
     return False
