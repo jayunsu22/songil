@@ -261,6 +261,13 @@ def main():
         cfg["owner_key"] = urllib.parse.unquote(m.group(1))
     if not cfg["owner_key"] and "--dry" not in args:
         log("config.json 에 owner_key(사장님 열쇠) 가 비어 있음 — README 를 보고 넣어 주세요")
+    # 켤 때 버전(노트북용 zip 을 만든 때)을 먼저 보여 준다 — 새 zip 을 제대로 덮어썼는지 확인 (사장님 10/31)
+    try:
+        with open(os.path.join(HERE, "version.txt"), encoding="utf-8") as f:
+            ver = f.read().strip()
+    except OSError:
+        ver = "표시 없음 (예전 파일 — 새 zip 을 이 폴더에 덮어썼는지 확인)"
+    log("카톡 읽기 프로그램 버전 %s · 폴더 %s" % (ver, HERE))
     state = load_json(STATE, {"rooms": {}, "photos": None})
     if "--dry" in args:
         run_once(cfg, json.loads(json.dumps(state)), dry=True)
