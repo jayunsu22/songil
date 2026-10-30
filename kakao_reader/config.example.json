@@ -11,5 +11,7 @@
   "client_aliases": {"피케이디자인": "PK디자인"},
   "watch_list": true,
   "watch_rooms": ["pk디자인", "한솔"],
-  "exclude_rooms": []
+  "exclude_rooms": [],
+  "auto_read": true,
+  "read_quiet_seconds": 60
 }

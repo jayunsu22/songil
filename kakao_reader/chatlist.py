@@ -14,6 +14,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 from PIL import Image
 
@@ -403,6 +404,7 @@ def read_badges(force=False, keep_image=None, known=()):
         img.save(keep_image)
     tl, tt, _, _ = _rect(top)
     ll, lt, lr, lb = _rect(lst)
+    LAST["geom"] = (top, lst, tl, tt, ll, lt, lr - ll)
     return analyze(img, (ll - tl, lt - tt, lr - tl, lb - tt), force, known)
 
 
@@ -457,13 +459,17 @@ def analyze(img, region, force=False, known=()):
         bw = badge_digits(img, b)
         # 숫자를 못 읽어도 배지 모양(지문)이 바뀌면 새 글로 본다
         fp = hashlib.sha1(bw.point(lambda v: 255 if v > 128 else 0).tobytes() + repr(bw.size).encode()).hexdigest()[:12]
-        now[name] = {"n": read_digits(bw), "fp": fp}
+        now[name] = {"n": read_digits(bw), "fp": fp, "box": list(b)}
     LAST["sig"] = sig
     return now
 
 
-def check(cfg, state, notify, log, dry=False):
-    """reader.py 가 확인할 때마다 부른다. 배지가 새로 생기거나 늘어난 방(빼는 방 제외)을 텔레그램으로."""
+def check(cfg, state, notify, log, dry=False, classify=None):
+    """reader.py 가 확인할 때마다 부른다. 알릴 방에 배지가 새로 생기거나 늘면:
+    - auto_read 꺼짐(A안): 바로 "○○ 방에 새 글 N개" 텔레그램.
+    - auto_read 켜짐(B안, 사장님 10/30): 배지가 read_quiet_seconds 동안 그대로면(글이 멈추면) 그 방을 열어 읽고 닫은 뒤
+      n8n 카톡_분류(Gemini) 로 종류·요약을 텔레그램. 방을 열면 상대 카톡의 '1' 과 사장님 폰의 숫자가 사라진다."""
+    auto = bool(cfg.get("auto_read")) and classify is not None
     try:
         known = list(cfg.get("watch_rooms", [])) + list(cfg.get("exclude_rooms", [])) + list(cfg.get("quote_rooms", []))
         now = read_badges(known=known)
@@ -473,25 +479,142 @@ def check(cfg, state, notify, log, dry=False):
         LAST["warn"] = str(e)
         return
     LAST["warn"] = None
-    if now is None:  # 배지 그대로
-        return
-    skip = list(cfg.get("exclude_rooms", [])) + list(cfg.get("quote_rooms", []))
-    now = {r: n for r, n in now.items() if watched(r, cfg.get("watch_rooms", [])) and not excluded(r, skip)}
-    if state.get("badges") is None:
-        state["badges"] = now
-        log("[채팅 목록] 처음 실행: 안 읽은 방 %d곳을 기억 (알리지 않음)" % len(now))
-        return
-    now = match_names(state["badges"], now)
-    items = news(state["badges"], now)
-    if items:
-        log("[채팅 목록] " + ", ".join("%s +%s" % (r, a if a is not None else "?") for r, a, _ in items))
+    if now is not None:  # None = 배지 그대로
+        skip = list(cfg.get("exclude_rooms", [])) + list(cfg.get("quote_rooms", []))
+        now = {r: n for r, n in now.items() if watched(r, cfg.get("watch_rooms", [])) and not excluded(r, skip)}
+        if state.get("badges") is None:
+            for cur in now.values():
+                cur["since"] = None  # 켜기 전부터 있던 배지는 열지 않는다
+            state["badges"] = now
+            log("[채팅 목록] 처음 실행: 안 읽은 방 %d곳을 기억 (알리지 않음)" % len(now))
+            return
+        prev = state["badges"]
+        now = match_names(prev, now)
+        items = news(prev, now)
+        mark_since(prev, now, time.time())
+        if items:
+            log("[채팅 목록] " + ", ".join("%s +%s" % (r, a if a is not None else "?") for r, a, _ in items))
+            if dry:
+                return
+            if not auto and not notify(message(items)):
+                LAST["sig"] = None  # 다음 확인 때 다시 보낸다
+                return
         if dry:
             return
-        if not notify(message(items)):
-            LAST["sig"] = None  # 다음 확인 때 다시 보낸다
-            return
-    if not dry:
         state["badges"] = now
+    if auto and not dry:
+        due = due_rooms(state["badges"], time.time(), int(cfg.get("read_quiet_seconds", 60)))
+        if due:
+            read_and_report(cfg, state, due[0], notify, log, classify)
+
+
+def mark_since(prev, now, t):
+    """배지가 새로 생기거나 바뀐 방은 since = 지금 (글이 멈춘 지 얼마나 됐는지 재려고)."""
+    for room, cur in now.items():
+        old = prev.get(room)
+        cur["since"] = t if old is None or old["fp"] != cur["fp"] else old.get("since")
+
+
+def due_rooms(badges, t, quiet):
+    """배지가 quiet 초 동안 그대로인(글이 멈춘) 방들 — 먼저 생긴 것부터."""
+    due = [(c["since"], r) for r, c in badges.items() if c.get("since") is not None and t - c["since"] >= quiet]
+    return [r for _, r in sorted(due)]
+
+
+def pick_new(msgs, seen, n):
+    """연 방의 글 중 새 글. 전에 읽은 적이 있으면 그 뒤 글, 처음이면 배지 숫자만큼(모르면 10개) 끝에서. 많아야 30개."""
+    if seen:
+        new = [m for m in msgs if m["key"] not in seen]
+        if new:
+            return new[-30:]
+    return msgs[-min(n or 10, 30):]
+
+
+def report(room, res, msgs):
+    """텔레그램 글: [카톡] 방 · 종류 / 요약 / (새 글 N개 · 사진 k장)."""
+    from kakao_text import photo_count
+    photos = sum(photo_count(m["text"]) for m in msgs)
+    head = "[카톡] %s%s · %s" % ("⚠ " if res.get("급함") else "", room, res.get("종류") or "기타")
+    tail = "(새 글 %d개%s)" % (len(msgs), " · 사진 %d장" % photos if photos else "")
+    return "\n".join(x for x in (head, res.get("요약") or "", tail) if x)
+
+
+def _title_ok(room, title):
+    return bool(title) and (fuzzy_in(room, title) or fuzzy_in(title, room) or same_room(room, title))
+
+
+def open_room(room, box, log, wait=4.0):
+    """채팅 목록에서 배지 줄을 더블클릭해 방을 연다 → (창, 제목). 엉뚱한 방이 열리면 바로 닫고 (0, None).
+    먼저 마우스 없이(창에 클릭 신호) 해 보고, 안 열리면 마우스로 (카톡 메인 창을 앞으로)."""
+    import kakao_photo
+    import kakao_window
+    top, lst, tl, tt, ll, lt, lw = LAST["geom"]
+    x = int(lw * 0.35)
+    y = (box[1] + box[3]) // 2 - (lt - tt)
+    before = set(kakao_window.chat_windows())
+    for how in ("signal", "mouse"):
+        if how == "signal":
+            kakao_window.double_click_list(lst, x, y)
+        else:
+            u.keybd_event(0x12, 0, 0, 0)  # Alt: 윈도우가 앞으로 가져오기를 허락하게
+            u.keybd_event(0x12, 0, 2, 0)
+            u.SetForegroundWindow(top)
+            time.sleep(0.4)
+            kakao_photo._double_click(ll + x, lt + y)
+        end = time.time() + wait
+        while time.time() < end:
+            time.sleep(0.3)
+            new = {h: t for h, t in kakao_window.chat_windows().items() if h not in before and h != top}
+            if new:
+                h, title = next(iter(new.items()))
+                if _title_ok(room, title):
+                    time.sleep(1.0)  # 글을 다 불러오게
+                    return h, title
+                log("[채팅 목록] '%s' 을 열려다 다른 방이 열려 그냥 닫음" % room)
+                kakao_window.close_window(h)
+                return 0, None
+    return 0, None
+
+
+def read_and_report(cfg, state, room, notify, log, classify):
+    """글이 멈춘 방 하나를 열어 새 글을 읽고 닫은 뒤 분류·요약을 텔레그램으로. 실패해도 같은 배지로 다시 열지 않는다."""
+    import kakao_text
+    import kakao_window
+    cur = state["badges"][room]
+    cur["since"] = None
+    LAST["sig"] = None  # 방을 열면 목록이 바뀐다 → 다음 확인 때 새로 본다
+    h, title = open_room(room, cur["box"], log)
+    if not h:
+        log("[채팅 목록] '%s' 방을 못 열었음 — 새 글 알림만" % room)
+        notify(message([(room, cur.get("n"), cur.get("n"))]) + "\n(방을 못 열어서 요약 없음)")
+        return
+    try:
+        text = kakao_window.copy_room_text(title)
+    finally:
+        kakao_window.close_window(h)
+    if not text:
+        log("[%s] 글 복사 실패" % title)
+        notify(message([(title, cur.get("n"), cur.get("n"))]) + "\n(글을 못 읽어서 요약 없음)")
+        return
+    msgs = kakao_text.with_keys(kakao_text.parse(text))
+    seen_all = state.setdefault("read", {})
+    seen = seen_all.get(title, [])
+    new = pick_new(msgs, set(seen), cur.get("n"))
+    seen_all[title] = (seen + [m["key"] for m in msgs if m["key"] not in set(seen)])[-300:]
+    if not new:
+        log("[%s] 새 글을 못 찾음" % title)
+        return
+    send = [{"time": m["time"], "sender": m["sender"],
+             "text": kakao_text.mask(m["text"]) if cfg.get("mask_secrets", True) else m["text"]} for m in new]
+    try:
+        res = classify(title, send)
+        if res.get("error") and not res.get("요약"):
+            raise RuntimeError(res["error"])
+    except Exception as e:
+        log("[%s] 분류 실패: %s" % (title, str(e)[:200]))
+        res = {"종류": "분류 실패", "요약": "\n".join("%s: %s" % (m["sender"], m["text"][:100]) for m in send[-5:])}
+    log("[%s] 새 글 %d개 → %s" % (title, len(new), res.get("종류")))
+    notify(report(title, res, new))
 
 
 def diagnose(path):

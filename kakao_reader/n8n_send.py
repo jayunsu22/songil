@@ -43,3 +43,12 @@ def notify(url, owner_key, text, timeout=30):
             return r.status == 200
     except Exception:
         return False
+
+
+def classify(url, owner_key, room, messages, timeout=90):
+    """n8n 카톡_분류(Gemini) → {종류, 요약, 현장, 급함, error}. 실패하면 예외."""
+    body = json.dumps({"room": room, "messages": messages}, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(url, data=body, method="POST",
+                                 headers={"Content-Type": "application/json", "x-owner-key": owner_key})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))

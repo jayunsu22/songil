@@ -156,3 +156,35 @@ def send_text(room, text):
         if not _input_text(edit).strip():
             return True
     return False
+
+
+def chat_windows():
+    """지금 떠 있는 카톡 창들 {창: 제목} (메인 창 '카카오톡' 포함 — 쓰는 쪽에서 뺀다)."""
+    out = {}
+    P = ctypes.WINFUNCTYPE(ctypes.c_bool, w.HWND, w.LPARAM)
+
+    def each(h, _):
+        b = ctypes.create_unicode_buffer(64)
+        u.GetClassNameW(h, b, 64)
+        if b.value == "EVA_Window_Dblclk" and u.IsWindowVisible(h):
+            n = u.GetWindowTextLengthW(h)
+            t = ctypes.create_unicode_buffer(n + 1)
+            u.GetWindowTextW(h, t, n + 1)
+            if t.value:
+                out[h] = t.value
+        return True
+
+    u.EnumWindows(P(each), 0)
+    return out
+
+
+def double_click_list(lst, x, y):
+    """채팅 목록 칸(lst)의 (x, y) 를 마우스 없이 더블클릭 (방 열기). 좌표는 목록 칸 기준."""
+    lp = (y << 16) | (x & 0xFFFF)
+    for msg, wp in ((0x201, 1), (0x202, 0), (0x203, 1), (0x202, 0)):  # DOWN UP DBLCLK UP
+        u.PostMessageW(lst, msg, wp, lp)
+        time.sleep(0.05)
+
+
+def close_window(h):
+    u.PostMessageW(h, 0x0010, 0, 0)  # WM_CLOSE

@@ -1,0 +1,150 @@
+{
+  "name": "카톡_분류",
+  "nodes": [
+    {
+      "id": "w",
+      "name": "받은글",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "5e1b7c3a-9d24-4f6e-b8a1-2c7d9e4f6a35",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kakao-classify",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "p",
+      "name": "프롬프트",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 카톡_분류 › 프롬프트: 업체·고객 카톡 방의 새 글을 Gemini 에게 분류·요약시키는 요청을 만든다 (사장님 10/30 '비서' 2단계 B안).\n// 받는 것: { room: 방 이름, messages: [{ time, sender, text }] } — 노트북이 비번 숫자는 가려서 보낸다.\nconst b = $input.first().json.body || {};\nconst room = String(b.room || '').slice(0, 100);\nconst msgs = Array.isArray(b.messages) ? b.messages.slice(-40) : [];\nif (!room || !msgs.length) throw new Error('room 과 messages 가 필요합니다');\n\nconst 대화 = msgs.map((m) => '[' + (m.time || '') + '] ' + (m.sender || '') + ': ' + String(m.text || '').slice(0, 800)).join('\\n');\nconst 글 = [\n  '너는 인테리어 필름 시공 업체(섬세한손길) 사장님의 비서다. 거래처·고객 카톡 방에 새로 온 글을 읽고 사장님이 바로 판단할 수 있게 분류하고 요약한다.',\n  '',\n  '방: ' + room,\n  '새 글:',\n  대화,\n  '',\n  '종류 (하나만):',\n  '- 견적 문의: 새 현장 견적 요청 (주소·품목·사진·평수)',\n  '- 견적 추가: 이미 받은/낸 견적에 품목 추가·변경·빼기',\n  '- 하자보수: 시공 뒤 들뜸·찢김·찍힘·AS 요청',\n  '- 일정 변경: 시공 날짜·시간을 바꾸거나 확인·문의',\n  '- 결제: 입금·계좌·계산서·잔금·견적 금액 문의',\n  '- 기타: 인사·고맙다·잡담·광고·그 밖',\n  '',\n  '요약 규칙:',\n  '- 한두 줄. 누가 무엇을 원하는지, 현장 이름·주소, 날짜(예 11/14 → 11/16), 품목·수량을 넣는다.',\n  '- 비밀번호·계좌번호·주민번호 같은 숫자는 요약에 적지 않는다.',\n  '- 글에 없는 것은 지어내지 않는다.',\n  '- 급함: 오늘·내일 일정, 하자, 화난 말투, 사장님 답을 기다리는 질문이면 true.',\n  '',\n  '답은 JSON 하나만: {\"종류\": \"...\", \"요약\": \"...\", \"현장\": \"현장 이름이나 주소, 없으면 빈 글\", \"급함\": true/false}',\n].join('\\n');\n\nreturn [{ json: {\n  room,\n  gemini: { contents: [{ role: 'user', parts: [{ text: 글 }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } },\n} }];\n"
+      }
+    },
+    {
+      "id": "g",
+      "name": "Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.gemini) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "DVT2g7GvXhSY4Y4b",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "id": "c",
+      "name": "결과정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 카톡_분류 › 결과정리: Gemini 답을 { 종류, 요약, 현장, 급함 } 으로. 목록에 없는 종류는 '기타'.\nconst 종류들 = ['견적 문의', '견적 추가', '하자보수', '일정 변경', '결제', '기타'];\nconst r = $input.first().json || {};\nlet 답 = {};\ntry {\n  const t = (((r.candidates || [])[0] || {}).content || {}).parts || [];\n  답 = JSON.parse((t[0] && t[0].text) || '{}');\n} catch (e) { 답 = {}; }\nconst 종류 = 종류들.includes(답.종류) ? 답.종류 : '기타';\nreturn [{ json: {\n  종류,\n  요약: String(답.요약 || '').slice(0, 500),\n  현장: String(답.현장 || '').slice(0, 100),\n  급함: 답.급함 === true,\n  error: r.error ? String(r.error.message || r.error) : (답.요약 ? '' : 'Gemini 답 없음'),\n} }];\n"
+      }
+    },
+    {
+      "id": "r",
+      "name": "응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "받은글": {
+      "main": [
+        [
+          {
+            "node": "프롬프트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "프롬프트": {
+      "main": [
+        [
+          {
+            "node": "Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini": {
+      "main": [
+        [
+          {
+            "node": "결과정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "결과정리": {
+      "main": [
+        [
+          {
+            "node": "응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
