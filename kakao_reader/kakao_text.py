@@ -78,3 +78,41 @@ def mask(text):
             line = DIGITS_RE.sub(lambda d: "●" * len(d.group(0)), line)
         lines.append(line)
     return "\n".join(lines)
+
+
+TRIGGER_RE = re.compile(r"^\s*견적\s*발행\s*시작\s*[:：]?\s*(.*?)\s*$")
+
+
+def trigger_client(text):
+    """'견적발행시작 [거래처]' 이면 거래처 이름("" = 안 씀), 아니면 None. 글 맨 앞에 있을 때만 신호."""
+    m = TRIGGER_RE.match(text)
+    return m.group(1) if m else None
+
+
+UNKNOWN_CLIENT = "업체미확인"
+
+
+def _norm(s):
+    s = re.sub(r"\(주\)|㈜|주식회사", "", s or "")
+    return re.sub(r"[\s\-_.·()]", "", s).lower()
+
+
+def match_client(name, names, aliases=None, unknown=UNKNOWN_CLIENT):
+    """현장관리 거래처 이름(names) 중 하나를 고른다 → (이름 또는 None, 어떻게).
+    띄어쓰기·대소문자 무시 → 별명(aliases: 별명 → 진짜 이름) → 이름 일부가 한 곳에만 맞을 때.
+    비슷한 이름을 짐작으로 고르지 않는다 (pk디자인/ph디자인 — 틀린 업체에 들어가는 게 더 나쁘다).
+    못 찾으면 '업체미확인' 거래처 (사장님이 거기서 진짜 업체로 옮긴다), 그것도 없으면 None."""
+    fallback = unknown if unknown in names else None
+    n = _norm(name)
+    if not n:
+        return fallback, "이름 없음"
+    by_norm = {_norm(x): x for x in names}
+    if n in by_norm:
+        return by_norm[n], "같은 이름"
+    for a, real in (aliases or {}).items():
+        if _norm(a) == n and _norm(real) in by_norm:
+            return by_norm[_norm(real)], "별명"
+    part = [x for k, x in by_norm.items() if len(n) >= 2 and x != unknown and (n in k or (len(k) >= 2 and k in n))]
+    if len(part) == 1:
+        return part[0], "이름 일부"
+    return fallback, "못 찾음"

@@ -5,5 +5,8 @@
   "interval": 60,
   "mask_secrets": true,
   "photo_dir": "",
-  "auto_save_photos": true
+  "auto_save_photos": true,
+  "quote_rooms": ["김정헌"],
+  "send_rooms": ["김정헌"],
+  "client_aliases": {"피케이디자인": "PK디자인"}
 }

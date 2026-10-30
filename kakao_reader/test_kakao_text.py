@@ -71,5 +71,41 @@ class MaskTest(unittest.TestCase):
         self.assertEqual(kt.mask(s), s)
 
 
+class TriggerTest(unittest.TestCase):
+    def test_trigger_with_client(self):
+        self.assertEqual(kt.trigger_client("견적발행시작 pk디자인"), "pk디자인")
+        self.assertEqual(kt.trigger_client(" 견적 발행 시작: 투나 여행 "), "투나 여행")
+
+    def test_trigger_without_client(self):
+        self.assertEqual(kt.trigger_client("견적발행시작"), "")
+
+    def test_not_trigger(self):
+        self.assertIsNone(kt.trigger_client("방문3개 견적발행시작 해주세요"))
+        self.assertIsNone(kt.trigger_client("견적 부탁드려요"))
+
+
+class ClientTest(unittest.TestCase):
+    NAMES = ["PK디자인", "PH인테리어", "투나여행", "업체미확인", "김정헌"]
+
+    def test_ignores_spaces_and_case(self):
+        self.assertEqual(kt.match_client("pk 디자인", self.NAMES), ("PK디자인", "같은 이름"))
+
+    def test_alias(self):
+        self.assertEqual(kt.match_client("피케이디자인", self.NAMES, {"피케이 디자인": "PK디자인"}), ("PK디자인", "별명"))
+
+    def test_unique_part(self):
+        self.assertEqual(kt.match_client("투나", self.NAMES), ("투나여행", "이름 일부"))
+
+    def test_no_guess_on_similar_name(self):
+        # ph디자인 은 PK디자인·PH인테리어 어느 쪽인지 모른다 - 짐작하지 않는다
+        self.assertEqual(kt.match_client("ph디자인", self.NAMES), ("업체미확인", "못 찾음"))
+
+    def test_empty_goes_to_unknown(self):
+        self.assertEqual(kt.match_client("", self.NAMES), ("업체미확인", "이름 없음"))
+
+    def test_no_unknown_vendor(self):
+        self.assertEqual(kt.match_client("없는업체", ["PK디자인"]), (None, "못 찾음"))
+
+
 if __name__ == "__main__":
     unittest.main()

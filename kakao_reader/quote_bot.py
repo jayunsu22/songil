@@ -5,7 +5,7 @@
 빠진 정보는 묻지 않고 견적서 메모에 적는다 (사장님 2026-10-29).
 
     python quote_bot.py --setup      # 처음 한 번: 크롬 창이 뜨면 관리자 암호를 사장님이 직접 넣는다
-    python quote_bot.py --try "방문3개 부평 삼산동" [사진...]   # 시험 발행 (김정헌 이름으로)
+    python quote_bot.py --try "방문3개 부평 삼산동" [사진...] [--client 거래처]   # 시험 발행
     python quote_bot.py --revise XFXUPBRJ 샤시=2중창            # 발행한 견적 고쳐 다시 발행
 """
 import json
@@ -13,6 +13,13 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
+
+# 명령 프롬프트가 cp949 일 때 '—' 같은 글자로 멈추지 않게 (파이프·기록 파일로 보낼 때)
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(errors="replace")
+    except Exception:
+        pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROFILE = os.path.join(HERE, "browser_profile")
@@ -174,9 +181,12 @@ def revise(code, options=None, memo=None, headless=True):
             ctx.close()
 
 
-def publish(text, photos, client="김정헌", received_at=None, headless=True):
-    """가견적을 발행하고 {link, title, items, missing, unmatched} 를 돌려준다. 실패하면 예외."""
+def publish(text, photos, client="", received_at=None, headless=True, aliases=None):
+    """가견적을 발행하고 {link, title, items, missing, unmatched, client, client_how} 를 돌려준다. 실패하면 예외.
+    client: 사장님이 '견적발행시작 거래처' 에 쓴 이름 - kakao_text.match_client 로 현장관리 거래처를 고른다
+    (못 찾으면 '업체미확인' 거래처, 사장님이 현장관리 앱에서 옮긴다)."""
     from playwright.sync_api import sync_playwright
+    import kakao_text
     received_at = received_at or datetime.now(timezone.utc).isoformat()
     with sync_playwright() as p:
         ctx, page = _open(p, headless)
@@ -186,19 +196,23 @@ def publish(text, photos, client="김정헌", received_at=None, headless=True):
             _wait_master(page)
             page.click("#resetBtn")
             page.wait_for_timeout(500)
-            # 현장관리 '견적요청 작성하기' 로 연 것처럼: 접수일시·거래처명 → 제목 '위치 가견적 10월29일 오후8시(김정헌)'
+            # 현장관리 '견적요청 작성하기' 로 연 것처럼: 접수일시·거래처명 → 제목 '위치 가견적 10월29일 오후8시(거래처)'
             # 거래처(현장관리 앱) 고르기 - 그래야 현장관리 '견적요청 내역' 에 이 견적이 들어간다 (10/30)
-            found = page.evaluate("""async (c) => {
-                const 찾기 = () => 업체캐시().목록.find((v) => v.이름 === c);
-                if (!찾기() && 업체키()) { try { await 업체목록받기(업체키()); } catch (e) {} }
-                const v = 찾기() || null;
+            names = page.evaluate("""async () => {
+                if (업체키()) { try { await 업체목록받기(업체키()); } catch (e) {} }
+                return 업체캐시().목록.map((v) => v.이름);
+            }""")
+            chosen, how = kakao_text.match_client(client, names, aliases)
+            page.evaluate("""(c) => {
+                const v = 업체캐시().목록.find((x) => x.이름 === c) || null;
                 state.업체 = v; state.현장연결 = null;
                 save(STORAGE_KEY, state); 업체줄그리기();
-                return !!v;
-            }""", client)
-            if not found:
-                print("주의: 현장관리 거래처 '%s' 를 못 찾음 — 견적요청 내역에 안 들어감 (python quote_bot.py --setup 으로 백업키를 넣어 주세요)" % client, flush=True)
-            page.evaluate("([t, c]) => { state.요청 = { 접수일시: t, 거래처명: c, 거래처ID: (state.업체 && state.업체.id) || '' }; state.현장명 = ''; persist(); }", [received_at, client])
+            }""", chosen)
+            if not chosen:
+                print("주의: 현장관리 거래처 '%s' 를 못 찾고 '업체미확인' 거래처도 없음 — 견적요청 내역에 안 들어감" % client, flush=True)
+            # 제목·요청의 거래처명: 고른 업체, 업체미확인이면 사장님이 쓴 이름 그대로 (나중에 알아보게)
+            shown = chosen if chosen and chosen != kakao_text.UNKNOWN_CLIENT else (client or chosen or "")
+            page.evaluate("([t, c]) => { state.요청 = { 접수일시: t, 거래처명: c, 거래처ID: (state.업체 && state.업체.id) || '' }; state.현장명 = ''; persist(); }", [received_at, shown])
 
             page.click("#draftToggle")
             page.click('.draft-chips[data-k="출처"] button[data-v="카톡"]')
@@ -255,7 +269,7 @@ def publish(text, photos, client="김정헌", received_at=None, headless=True):
                 page.dispatch_event("#memoText", "input")
             link = _publish_and_wait(page)
             return {"link": link, "title": title, "items": info["items"], "missing": info["missing"], "unmatched": info["unmatched"],
-                    "photo_map": info.get("photo_map", {})}
+                    "photo_map": info.get("photo_map", {}), "client": chosen, "client_how": how}
         finally:
             ctx.close()
 
@@ -265,7 +279,13 @@ if __name__ == "__main__":
         setup()
     elif "--try" in sys.argv:
         i = sys.argv.index("--try")
-        r = publish(sys.argv[i + 1], sys.argv[i + 2:], headless="--show" not in sys.argv)
+        rest = [a for a in sys.argv[i + 2:] if a != "--show"]
+        client = ""
+        if "--client" in rest:
+            j = rest.index("--client")
+            client = rest[j + 1]
+            rest = rest[:j] + rest[j + 2:]
+        r = publish(sys.argv[i + 1], rest, client=client, headless="--show" not in sys.argv)
         print(json.dumps(r, ensure_ascii=False, indent=1))
     elif "--revise" in sys.argv:
         i = sys.argv.index("--revise")

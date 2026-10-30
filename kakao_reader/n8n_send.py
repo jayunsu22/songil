@@ -32,3 +32,14 @@ def send(url, owner_key, payload, photo_paths, timeout=60):
         req.add_header("x-owner-key", owner_key)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.status, r.read().decode("utf-8", "replace")
+
+
+def notify(url, owner_key, text, timeout=30):
+    """n8n 카톡_알림 → 사장님 텔레그램. 실패해도 프로그램은 계속 (돌려주는 값 True/False)."""
+    req = urllib.request.Request(url, data=json.dumps({"text": text}, ensure_ascii=False).encode("utf-8"), method="POST",
+                                 headers={"Content-Type": "application/json", "x-owner-key": owner_key})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status == 200
+    except Exception:
+        return False
