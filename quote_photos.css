@@ -277,6 +277,17 @@
   font-weight: 700;
   white-space: nowrap;
 }
+/* 사진이 있으면 버튼 안에 첫 장을 작게 (2026-10-31) */
+.photo-btn .pb-thumb {
+  width: 28px;
+  height: 28px;
+  margin-right: 6px;
+  border-radius: 6px;
+  object-fit: cover;
+  vertical-align: middle;
+}
+.item-head .photo-btn .pb-thumb { width: 22px; height: 22px; margin-right: 4px; }
+.photo-btn:has(.pb-thumb) { padding-left: 5px; }
 /* 이 품목에 네모를 그려둔 사진이 있다. 견적서에 그 사진이 실린다. */
 .item-body .photo-btn.on,
 .item-head .photo-btn.on {

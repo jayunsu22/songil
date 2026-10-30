@@ -55,6 +55,7 @@ let 사진가능 = true;
 // 이게 있으면 사진 한 장을 고르는 순간 그 품목에 태그하고 네모 표시로 바로 넘어간다.
 let 사진대상 = null;          // { 구역, 체크_ID, 품목명 }
 let 표시된품목 = new Set();   // 네모를 그려둔 품목 id — 줄의 버튼을 '사진 있음'으로 바꾼다
+let 품목썸네일 = new Map();   // 체크_ID → { url: 첫 장 썸네일 objectURL, n: 장수 } — 사진 버튼 안에 작게 보인다 (2026-10-31)
 // 저장함 서버 백업 (boot() 이 부르므로 여기 둔다 — 아래에 두면 TDZ)
 const BOX_KEY = 'quote_pro_box_v1';
 const BOX_QUEUE_KEY = 'quote_pro_box_queue_v1';   // 서버에 아직 못 올린 저장함 변경
@@ -2818,7 +2819,15 @@ async function 구역장수갱신() {
   표시된품목 = new Set();
   // 태그한 사진은 네모가 없어도 견적서에 나간다. 그래서 '사진 있음' 은
   // 태그 기준이다. 네모만 남은 예전 데이터도 같이 센다.
-  QuotePhotos.올릴사진목록(전체).forEach((it) => 표시된품목.add(it.체크_ID));
+  // 품목별 첫 장 썸네일. 다시 그릴 때마다 앞 objectURL 은 풀어준다 (안 풀면 폰 메모리가 쌓인다)
+  품목썸네일.forEach((v) => URL.revokeObjectURL(v.url));
+  품목썸네일 = new Map();
+  QuotePhotos.올릴사진목록(전체).forEach((it) => {
+    표시된품목.add(it.체크_ID);
+    const 앞 = 품목썸네일.get(it.체크_ID);
+    if (앞) 앞.n++;
+    else if (it.사진.thumb || it.사진.blob) 품목썸네일.set(it.체크_ID, { url: URL.createObjectURL(it.사진.thumb || it.사진.blob), n: 1 });
+  });
   전체.forEach((p) => { 장수맵[p.구역] = (장수맵[p.구역] || 0) + 1; });
   document.querySelectorAll('.zone').forEach((det) => {
     if (!det._cam) return;
@@ -2932,8 +2941,45 @@ async function 수정진입() {
       }
     } catch (e) { /* 통신이 안 되면 저장함 것만으로 */ }
   }
+  const 사진n = await 수정사진챙기기().catch(() => 0);
   toast('‘' + 항목.이름 + '’ 불러왔습니다' + (붙인 ? ' · 고객이 추가한 품목 ' + 붙인 + '개를 직접 입력으로 넣었습니다' : '') +
-    ' · 고친 뒤 실제견적으로 발행하세요');
+    (사진n ? ' · 사진 ' + 사진n + '장' : '') + ' · 고친 뒤 실제견적으로 발행하세요');
+}
+
+/* 다른 기기(카톡 읽기 노트북 등)에서 만든 견적을 고치러 오면 사진이 이 폰에 없다 (사장님 2026-10-31).
+   1) 서버 저장함 사진 백업 (태그·네모 그대로)  2) 없으면 발행된 견적서에 붙은 사진 (네모는 이미 박혀 있다)
+   이 현장에 사진이 한 장이라도 있으면 손대지 않는다 - 폰 쪽이 최신이다. */
+async function 수정사진챙기기() {
+  if (!사진가능) return 0;
+  if ((await PDB.현장사진(현장ID확보())).length) return 0;
+  let n = 0;
+  try { n = await 사진되살리기(); } catch (e) { n = 0; }
+  if (!n && state.현장코드) n = await 견적서사진들여오기(state.현장코드);
+  if (n) { await 구역장수갱신(); }
+  return n;
+}
+
+/* 발행된 견적서의 사진(파일명 = 체크_ID.jpg / 체크_ID__2.jpg)을 그 품목 사진으로 넣는다 */
+async function 견적서사진들여오기(코드) {
+  let d = null;
+  try {
+    const res = await fetch(CONFIG.quoteUrl + '?id=' + encodeURIComponent(코드));
+    d = res.ok ? await res.json() : null;
+  } catch (e) { d = null; }
+  const 사진들 = (d && d.사진들) || [];
+  let n = 0;
+  for (const 사진 of 사진들) {
+    const id = String(사진.파일명 || '').replace(/(__\d+)?\.jpg$/i, '');
+    if (!사진.url || !id) continue;
+    const 구역 = (MASTER.zones.find((z) => z.items.some((it) => it.체크_ID === id)) || {}).구역 ||
+      ((state.직접품목 || []).find((c) => c.id === id) || {}).구역 || '전체공통';
+    try {
+      const blob = await (await fetch(사진.url)).blob();
+      await PDB.들여오기(state.현장ID, 구역, blob, { 태그: [id], 출처: '견적서' });
+      n++;
+    } catch (e) { /* 한 장 실패는 건너뛴다 */ }
+  }
+  return n;
 }
 
 /* 품목 줄에 붙는 '사진' 버튼 */
@@ -2957,7 +3003,19 @@ function 사진버튼만들기(구역, 체크_ID, 품목명) {
 function 사진버튼칠하기(b, 체크_ID) {
   const 있음 = 표시된품목.has(체크_ID);
   b.classList.toggle('on', 있음);
-  b.textContent = 있음 ? '사진 있음' : '사진';
+  // 사진이 있으면 버튼 안에 첫 장을 작게 보여 준다 - '사진 있음' 글만으로는 무슨 사진인지 몰라 열어 봐야 했다 (사장님 2026-10-31)
+  const 작은 = 있음 && 품목썸네일.get(체크_ID);
+  if (작은) {
+    b.textContent = '';
+    const img = document.createElement('img');
+    img.className = 'pb-thumb';
+    img.alt = '';
+    img.src = 작은.url;
+    b.appendChild(img);
+    b.appendChild(document.createTextNode(작은.n > 1 ? '사진 ' + 작은.n : '사진'));
+  } else {
+    b.textContent = 있음 ? '사진 있음' : '사진';
+  }
   // 제목 줄 버튼은 체크 여부로도 감추므로(syncRow) 여기서는 못 쓰는 경우만 감춘다
   if (!사진가능) b.hidden = true;
   else if (!b.closest('.item-head') || !state.선택[체크_ID]) b.hidden = false;
