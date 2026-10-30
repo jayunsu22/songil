@@ -49,6 +49,7 @@ DEFAULTS = {
     "client_aliases": {},         # 거래처 별명 → 현장관리 거래처 이름 (예 {"피케이디자인": "PK디자인"})
     "notify_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-notify",  # 결과 → 사장님 텔레그램
     "watch_list": True,           # 카톡 채팅 목록의 안 읽은 표시가 생기거나 늘면 텔레그램으로 (방은 열지 않음, 10/30 A안)
+    "watch_rooms": [],            # 알릴 방 (업체 방 이름, 방 이름 안에 들어 있으면). 비우면 모든 방
     "exclude_rooms": [],          # 그 알림에서 뺄 방 (가족·개인). quote_rooms(김정헌)는 늘 빠짐
 }
 

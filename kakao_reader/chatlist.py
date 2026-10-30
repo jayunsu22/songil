@@ -114,6 +114,17 @@ def match_names(prev, now):
     return out
 
 
+def watched(name, watch):
+    """알릴 방인지 (사장님 10/30: 업체 방 10곳 정도만 적는다). 적은 이름이 방 이름 안에 들어 있으면
+    (띄어쓰기·대소문자 무시, OCR 이 한두 글자 틀려도). watch 가 비어 있으면 모든 방."""
+    if not watch:
+        return True
+    if not name:
+        return False
+    n = _norm(name)
+    return any(_norm(e) and (_norm(e) in n or same_room(n, e)) for e in watch)
+
+
 def excluded(name, exclude):
     """빼는 방인지. 띄어쓰기·대소문자 무시, 목록에서 이름이 잘려('…') 보이면 앞부분만 맞아도 뺀다."""
     if not name:
@@ -394,7 +405,7 @@ def check(cfg, state, notify, log, dry=False):
     if now is None:  # 배지 그대로
         return
     skip = list(cfg.get("exclude_rooms", [])) + list(cfg.get("quote_rooms", []))
-    now = {r: n for r, n in now.items() if not excluded(r, skip)}
+    now = {r: n for r, n in now.items() if watched(r, cfg.get("watch_rooms", [])) and not excluded(r, skip)}
     if state.get("badges") is None:
         state["badges"] = now
         log("[채팅 목록] 처음 실행: 안 읽은 방 %d곳을 기억 (알리지 않음)" % len(now))

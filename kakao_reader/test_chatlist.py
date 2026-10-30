@@ -60,6 +60,15 @@ class ExcludeTest(unittest.TestCase):
         self.assertFalse(chatlist.excluded(None, ex))
         self.assertTrue(chatlist.excluded("한솔인테리어 김싷장", ["한솔인테리어 김실장"]))  # OCR 한 글자 틀림
 
+    def test_watch_list_contains(self):
+        w = ["pk디자인", "한솔"]
+        self.assertTrue(chatlist.watched("PK 디자인", w))
+        self.assertTrue(chatlist.watched("한솔인테리어 김실장", w))
+        self.assertTrue(chatlist.watched("부평 한솔", w))       # 중간에 들어 있어도
+        self.assertFalse(chatlist.watched("엄마", w))
+        self.assertFalse(chatlist.watched(None, w))
+        self.assertTrue(chatlist.watched("엄마", []))           # 비어 있으면 모든 방
+
     def test_match_names(self):
         prev = {"한솔인테리어 김실장": 1}
         self.assertEqual(list(chatlist.match_names(prev, {"한솔인테리어 김싷장": 2, "엄마": 1})), ["한솔인테리어 김실장", "엄마"])
