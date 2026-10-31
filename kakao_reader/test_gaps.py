@@ -10,9 +10,8 @@ SITE = {"id": "s1", "client": "봄애", "name": "그린워크1차 1104동 604호
 CFG = {"client_rooms": {"봄애": "봄애실장님"}}
 
 
-def at_hour(h):
-    lt = time.localtime()
-    return time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, h, 30, 0, 0, 0, -1))
+def at_hour(h, ymd=(2026, 11, 2)):  # 기본은 평일(월)
+    return time.mktime(ymd + (h, 30, 0, 0, 0, -1))
 
 
 class TextTest(unittest.TestCase):
@@ -34,6 +33,18 @@ class TextTest(unittest.TestCase):
         self.assertEqual(gaps.rooms_for({"client_rooms": {"봄애": ["봄애실장님", "봄애대리님"]}}, "봄애"), ["봄애실장님", "봄애대리님"])
         self.assertEqual(gaps.rooms_for(CFG, "pk디자인"), [])
         self.assertEqual(gaps.rooms_for(CFG, ""), [])
+
+
+class HoursTest(unittest.TestCase):
+    def test_weekday_saturday_9_to_20(self):
+        self.assertEqual([gaps.in_hours(at_hour(h)) for h in (8, 9, 19, 20)], [False, True, True, False])
+        self.assertTrue(gaps.in_hours(at_hour(9, (2026, 11, 7))))               # 토요일도 9시부터
+
+    def test_sunday_holiday_from_13(self):
+        for ymd in ((2026, 11, 1), (2026, 12, 25), (2027, 2, 9)):               # 일요일, 성탄절, 설 대체공휴일
+            self.assertEqual([gaps.in_hours(at_hour(h, ymd)) for h in (12, 13)], [False, True], ymd)
+        self.assertFalse(gaps.in_hours(at_hour(10, (2026, 12, 31)), ["2026-12-31"]))  # config 임시공휴일
+        self.assertTrue(gaps.in_hours(at_hour(10, (2026, 12, 31))))
 
 
 class CheckTest(unittest.TestCase):

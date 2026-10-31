@@ -13,7 +13,18 @@ import time
 CHECK_EVERY = 3600          # 빈칸 확인 1시간마다
 ASK_KEEP = 7 * 86400        # 물어본 뒤 답을 7일 기다림
 ASKED_KEEP = 60 * 86400     # '물어봄' 기록 (현장당 한 번) 60일 보관
-HOURS = (8, 20)             # 텔레그램은 아침 8시~저녁 8시에만
+HOURS = (9, 20)             # 텔레그램은 평일·토요일 오전 9시~저녁 8시 (사장님 11/1)
+HOLIDAY_START = 13          # 일요일·공휴일은 오후 1시부터
+# 공휴일 (설·추석 연휴, 대체공휴일, 2026 지방선거 포함). 매년 말에 다음 해를 더한다.
+# 임시공휴일처럼 갑자기 생긴 날은 config.json "holidays": ["2026-12-31"] 로 더한다
+HOLIDAYS = {
+    "2026-01-01", "2026-02-16", "2026-02-17", "2026-02-18", "2026-03-01", "2026-03-02", "2026-05-05",
+    "2026-05-24", "2026-05-25", "2026-06-03", "2026-06-06", "2026-08-15", "2026-08-17", "2026-09-24",
+    "2026-09-25", "2026-09-26", "2026-10-03", "2026-10-05", "2026-10-09", "2026-12-25",
+    "2027-01-01", "2027-02-06", "2027-02-07", "2027-02-08", "2027-02-09", "2027-03-01", "2027-05-05",
+    "2027-05-13", "2027-06-06", "2027-08-15", "2027-08-16", "2027-09-14", "2027-09-15", "2027-09-16",
+    "2027-10-03", "2027-10-04", "2027-10-09", "2027-10-11", "2027-12-25", "2027-12-27",
+}
 FIELDS = ("pwLobby", "pwUnit", "toilet")
 LABEL = {"pwLobby": "공동현관 비번", "pwUnit": "세대 비번", "toilet": "화장실 위치", "films": "필름 정보"}
 ASK_LABEL = dict(LABEL, films="필름 정보(위치별 번호)")
@@ -84,8 +95,17 @@ def ask_buttons(pairs):
     return [row + [{"text": "나중에", "data": "k|%s|later" % first}]]
 
 
-def in_hours(t):
-    return HOURS[0] <= time.localtime(t).tm_hour < HOURS[1]
+def is_holiday(t, extra=()):
+    """일요일이거나 공휴일(HOLIDAYS + config holidays)."""
+    lt = time.localtime(t)
+    day = time.strftime("%Y-%m-%d", lt)
+    return lt.tm_wday == 6 or day in HOLIDAYS or day in set(extra or ())
+
+
+def in_hours(t, extra=()):
+    """빈칸 알림을 보내도 되는 때: 평일·토요일 9시~20시, 일요일·공휴일 13시~20시."""
+    start = HOLIDAY_START if is_holiday(t, extra) else HOURS[0]
+    return start <= time.localtime(t).tm_hour < HOURS[1]
 
 
 def _site(s):
@@ -94,10 +114,10 @@ def _site(s):
 
 
 def check(cfg, state, now, fetch, notify, log):
-    """reader.py 가 확인할 때마다 부른다. 1시간마다·8~20시에만 빈칸 현장을 가져와 처음 보는 현장만 텔레그램으로."""
+    """reader.py 가 확인할 때마다 부른다. 1시간마다·알림 시간(in_hours)에만 빈칸 현장을 가져와 처음 보는 현장만 텔레그램으로."""
     import jobs
     g = state.setdefault("gaps", {"at": 0, "asked": {}})
-    if now - g.get("at", 0) < CHECK_EVERY or not in_hours(now):
+    if now - g.get("at", 0) < CHECK_EVERY or not in_hours(now, cfg.get("holidays")):
         return
     g["at"] = now
     try:
