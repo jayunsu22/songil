@@ -718,6 +718,10 @@ function 종류후보(조정율) {
    수량·난이도·전체조정은 그 줄 그대로다. 견적요청 고정 금액 줄은 나눌 근거가 없어 싣지 않는다.
    { 체크_ID: { 부품: { 문짝: { 표시금액, 인건비표시금액, 품목설명 }, 문틀: {...} } } } */
 const 문부품 = { 방문: { 문짝: '문짝', 문틀: '문틀' }, 화장실문: { 문짝: '화장실 문짝', 문틀: '문틀' } };
+/* 문짝만·문틀만 고른 줄도 같은 [✓문짝] [✓문틀] 칸으로 (사장님 2026-11-01): '문짝 3개' 요청이면 견적서에
+   방문(문+틀) 줄을 문짝만 체크된 채로 보여, 고객이 문틀을 켜 보면 세트 금액이 나온다. 금액은 그대로 문짝만.
+   부품기본 = 처음 체크된 쪽, 부품.세트 = 문+틀 세트 금액. 문틀만은 방문 세트로 본다 */
+const 부품만 = { 문짝: ['방문', '문짝'], '화장실 문짝': ['화장실문', '문짝'], 문틀: ['방문', '문틀'] };
 function 부품후보(조정율) {
   const 찾기 = (구역, 이름) => {
     const z = MASTER.zones.find((x) => x.구역 === 구역);
@@ -729,25 +733,35 @@ function 부품후보(조정율) {
     }
     return null;
   };
+  const 금액들 = (it, 구역, s) => {
+    const 줄 = 품목줄(it, 구역, { 수량: s.수량, 난이도: s.난이도, 옵션: 0 });
+    const 금액 = QuoteCalc.lineAmount(줄);
+    const 인건비 = QuoteCalc.lineWage(줄);
+    return {
+      표시금액: Math.round(금액 * (1 + 조정율)),
+      인건비표시금액: 인건비 == null ? null : Math.round(인건비 * (1 + 조정율)),
+      품목설명: 줄.품목설명 || '',
+    };
+  };
   const out = {};
   MASTER.zones.forEach((z) => z.items.forEach((item) => {
-    const 표 = 문부품[item.표시_품목명];
     const s = state.선택[item.체크_ID];
-    if (!표 || !s || !보이는가(item) || s.고정) return;
+    if (!s || !보이는가(item) || s.고정) return;
+    const 하나 = 부품만[item.표시_품목명];
+    const 세트이름 = 하나 ? 하나[0] : item.표시_품목명;
+    const 표 = 문부품[세트이름];
+    if (!표) return;
     const 부품 = {};
     for (const k of ['문짝', '문틀']) {
       const it = 찾기(z.구역, 표[k]);
       if (!it) return;
-      const 줄 = 품목줄(it, z.구역, { 수량: s.수량, 난이도: s.난이도, 옵션: 0 });
-      const 금액 = QuoteCalc.lineAmount(줄);
-      const 인건비 = QuoteCalc.lineWage(줄);
-      부품[k] = {
-        표시금액: Math.round(금액 * (1 + 조정율)),
-        인건비표시금액: 인건비 == null ? null : Math.round(인건비 * (1 + 조정율)),
-        품목설명: 줄.품목설명 || '',
-      };
+      부품[k] = 금액들(it, z.구역, s);
     }
-    out[item.체크_ID] = { 부품 };
+    if (!하나) { out[item.체크_ID] = { 부품 }; return; }
+    const 세트 = 찾기(z.구역, 세트이름);
+    if (!세트) return;
+    부품.세트 = Object.assign(금액들(세트, z.구역, s), { 품목명: 세트이름 });
+    out[item.체크_ID] = { 부품, 부품기본: 하나[1] };
   }));
   return out;
 }

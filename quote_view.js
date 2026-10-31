@@ -108,14 +108,26 @@ function status(msg, isErr) {
    화면에는 탭 대신 [✓문짝] [✓문틀] 체크 두 개로 그린다. 둘 다 빼면 그 줄을 뺀 것과 같다. */
 function 부품을종류로(l) {
   if (!l.부품 || !l.부품.문짝 || !l.부품.문틀 || Array.isArray(l.종류들)) return;
-  const 이름 = String(l.품목명 || '').split(' (')[0];
+  /* 문짝만·문틀만 고른 줄 (2026-11-01): 부품기본 = 처음 체크된 쪽, 부품.세트 = 문+틀 세트 금액.
+     줄 금액은 그대로(문짝만) 두고, 세트 이름의 줄로 보이며 [✓문짝] [ 문틀] 로 시작한다 */
+  const 기본 = l.부품.세트 ? { 문짝: 1, 문틀: 2 }[l.부품기본] || 0 : 0;
+  const 이름 = 기본 ? l.부품.세트.품목명 : String(l.품목명 || '').split(' (')[0];
+  const 세트 = 기본 ? { 품목명: 이름, 단위: '세트', 표시금액: l.부품.세트.표시금액, 인건비표시금액: l.부품.세트.인건비표시금액, 품목설명: l.부품.세트.품목설명 || '' }
+    : { 품목명: 이름, 단위: l.단위, 표시금액: l.표시금액, 인건비표시금액: l.인건비표시금액, 품목설명: l.품목설명 || '' };
   l.종류들 = [
-    { 품목명: 이름, 단위: l.단위, 표시금액: l.표시금액, 인건비표시금액: l.인건비표시금액, 품목설명: l.품목설명 || '' },
+    세트,
     Object.assign({ 품목명: 이름 + ' (문짝만)', 단위: '개' }, l.부품.문짝),
     Object.assign({ 품목명: 이름 + ' (문틀만)', 단위: '개' }, l.부품.문틀),
   ];
-  l.종류 = 0;
+  l.종류 = 기본;
+  if (기본) l.품목명 = l.종류들[기본].품목명;
   l.부품칸 = true;
+}
+
+// 문짝·문틀 칸이 지금 켜져 있어야 하나 — 고객이 고른 것, 없으면 발행한 기본 (0 세트 = 둘 다, 1 문짝만, 2 문틀만)
+function 부품켬(i, p) {
+  const k = 종류선택[i] != null ? 종류선택[i] : (DATA.라인들[i].종류 || 0);
+  return k === 0 || (k === 1 && p === '문짝') || (k === 2 && p === '문틀');
 }
 
 // 견적서를 받아 DATA 에 둔다. 고객이 추가한 품목(고객추가)은 맨 위로 - 방금 넣은 게 바로 보이게
@@ -291,7 +303,7 @@ function render() {
     // 종류를 고를 수 있는 줄(샤시 단창/2중창/시스템). 탭을 누르면 금액·설명·합계가 바로 바뀐다
     if (l.부품칸) {
       H.push('<div class="v-parts" data-i="' + i + '">' +
-        ['문짝', '문틀'].map((p, pi) => '<label class="v-part"><input type="checkbox" class="v-partc" checked data-i="' + i +
+        ['문짝', '문틀'].map((p, pi) => '<label class="v-part"><input type="checkbox" class="v-partc"' + (부품켬(i, p) ? ' checked' : '') + ' data-i="' + i +
           '" data-p="' + p + '"><span>' + p + '</span><small>' + won(줄금액(Object.assign({}, l, l.종류들[pi + 1]))) +
           '</small></label>').join('') +
         '</div>');
@@ -400,7 +412,9 @@ function render() {
       const i = +cb.dataset.i;
       const 짝 = document.querySelector('.v-partc[data-i="' + i + '"][data-p="문짝"]').checked;
       const 틀 = document.querySelector('.v-partc[data-i="' + i + '"][data-p="문틀"]').checked;
-      if (짝 && 틀) delete 종류선택[i]; else if (짝) 종류선택[i] = 1; else if (틀) 종류선택[i] = 2; else delete 종류선택[i];
+      // 발행한 기본(세트·문짝만·문틀만)과 같으면 '바꾼 것' 이 아니다
+      const k = 짝 && 틀 ? 0 : 짝 ? 1 : 틀 ? 2 : null;
+      if (k === null || k === (DATA.라인들[i].종류 || 0)) delete 종류선택[i]; else 종류선택[i] = k;
       const 켬 = 짝 || 틀;
       if (켬) 해제.delete(i); else 해제.add(i);
       const 큰칸 = document.querySelector('.v-chk[data-i="' + i + '"]');
@@ -415,11 +429,11 @@ function render() {
       const i = +cb.dataset.i;
       if (cb.checked) 해제.delete(i); else 해제.add(i);
       document.querySelector('.v-item[data-i="' + i + '"]').classList.toggle('off', !cb.checked);
-      // 문짝·문틀을 둘 다 뺀 줄을 다시 켜면 세트로 돌아간다
+      // 문짝·문틀을 둘 다 뺀 줄을 다시 켜면 발행한 기본(보통 세트, 문짝만 요청이면 문짝만)으로 돌아간다
       const 부품칸들 = document.querySelectorAll('.v-partc[data-i="' + i + '"]');
       if (cb.checked && 부품칸들.length && ![...부품칸들].some((c) => c.checked)) {
-        부품칸들.forEach((c) => { c.checked = true; });
         delete 종류선택[i];
+        부품칸들.forEach((c) => { c.checked = 부품켬(i, c.dataset.p); });
         줄다시그리기(i);
       }
       renderSum();
