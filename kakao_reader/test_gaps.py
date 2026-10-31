@@ -23,8 +23,9 @@ class TextTest(unittest.TestCase):
         self.assertEqual(gaps.question(dict(SITE, missing=["toilet"])).splitlines()[-1], "화장실 위치 알려주세요.")
 
     def test_ask_text(self):
-        self.assertEqual(gaps.ask_text(SITE), "[현장] 그린워크1차 1104동 604호 (봄애, 11/25 시작)\n"
-                                              "공동현관 비번·세대 비번·화장실 위치·필름 정보가 비어 있습니다.")
+        self.assertEqual(gaps.ask_text(SITE, "업체(봄애실장님 방)에 물어볼까요?"),
+                         "🏠 <b>그린워크1차 1104동 604호</b>\n봄애 · 11/25 시작\n"
+                         "공동현관 비번·세대 비번·화장실 위치·필름 정보가 비어 있습니다.\n업체(봄애실장님 방)에 물어볼까요?")
         self.assertTrue(gaps.ask_text(dict(SITE, missing=["pwUnit"])).endswith("세대 비번이 비어 있습니다."))
 
     def test_rooms_for(self):
@@ -76,9 +77,9 @@ class CheckTest(unittest.TestCase):
         gaps.check(cfg, st, at_hour(9), lambda: [SITE], self.notify, lambda m: None)
         text, buttons = self.sent[0]
         self.assertIn("어느 방에 물어볼까요?", text)
-        self.assertEqual([b["text"] for b in buttons[0]], ["봄애실장님", "봄애대리님"])
-        self.assertEqual(buttons[1][0]["text"], "나중에")
-        rooms = [st["jobs"][b["data"].split("|")[1]]["title"] for b in buttons[0]]
+        self.assertEqual(len(buttons), 1)                                   # 카톡_알림 은 한 줄만
+        self.assertEqual([b["text"] for b in buttons[0]], ["봄애실장님", "봄애대리님", "나중에"])
+        rooms = [st["jobs"][b["data"].split("|")[1]]["title"] for b in buttons[0][:2]]
         self.assertEqual(rooms, ["봄애실장님", "봄애대리님"])                  # 누른 방에 묻는다
 
     def test_failed_notify_retries(self):

@@ -100,14 +100,18 @@ class ReportTest(unittest.TestCase):
     def test_message(self):
         msgs = [M("투나 현장 14일을 16일로 미뤄도 될까요", "1"), M("사진 2장", "2")]
         r = chatlist.report("pk디자인 대리님", {"종류": "일정 변경", "요약": "투나여행 현장 11/14 → 11/16 요청", "급함": True}, msgs)
-        self.assertEqual(r, "[카톡] ⚠ pk디자인 대리님 · 일정 변경\n투나여행 현장 11/14 → 11/16 요청\n(새 글 2개 · 사진 2장)")
+        self.assertEqual(r, "⚠ 📅 <b>pk디자인 대리님 · 일정 변경</b>\n투나여행 현장 11/14 → 11/16 요청\n새 글 2개 · 사진 2장")
+        import tg
+        self.assertIsInstance(r, tg.Html)                              # 서식으로 보냄 (11/1)
+        r = chatlist.report("a<b>", {"종류": "견적 문의", "요약": "문 3개 & 샤시 <1>"}, msgs[:1])
+        self.assertEqual(r.splitlines()[:2], ["💬 <b>a&lt;b&gt; · 견적 문의</b>", "문 3개 &amp; 샤시 &lt;1&gt;"])  # 카톡 글은 바꿔 넣음
 
     def test_my_reply_shown(self):
         # 사장님이 이미 답했는지 보고만 보고 알게 (11/1) — 사진만 보낸 건 빼고 마지막 2개
         msgs = [M("미래타운 3단지 방문짝 3개 견적 내어주세요", "1")]
         mine = [M("사진", "x", "김정헌"), M("네  확인했습니다\n나중에 정리해 드릴께요", "y", "김정헌")]
         r = chatlist.report("류춘화", {"종류": "견적 문의", "요약": "미래타운 3단지 방문 3개 견적 요청"}, msgs, mine)
-        self.assertEqual(r.splitlines()[2:], ["↩ 내 답: 네 확인했습니다 나중에 정리해 드릴께요", "(새 글 1개)"])
+        self.assertEqual(r.splitlines()[2:], ["↩ 내 답: 네 확인했습니다 나중에 정리해 드릴께요", "새 글 1개"])
 
     def test_title_check(self):
         self.assertTrue(chatlist._title_ok("pk디자인", "pk디자인 대리님"))

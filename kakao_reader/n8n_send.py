@@ -36,8 +36,13 @@ def send(url, owner_key, payload, photo_paths, timeout=60):
 
 def notify(url, owner_key, text, buttons=None, timeout=30):
     """n8n 카톡_알림 → 사장님 텔레그램. buttons = [[{text, data}]] 면 인라인 버튼 (카톡_버튼 흐름이 받음).
-    실패해도 프로그램은 계속 (돌려주는 값 True/False)."""
-    body = {"text": text, "buttons": buttons} if buttons else {"text": text}
+    text 가 tg.Html 이면 서식(굵게·링크)으로 보낸다 (html: true, 11/1). 실패해도 프로그램은 계속 (돌려주는 값 True/False)."""
+    import tg
+    body = {"text": str(text)}
+    if buttons:
+        body["buttons"] = buttons
+    if isinstance(text, tg.Html):
+        body["html"] = True
     req = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
                                  headers={"Content-Type": "application/json", "x-owner-key": owner_key})
     try:

@@ -125,13 +125,9 @@ def run_publish(cfg, state, job, info, notify, log):
     words = [m["text"] for m in picked if not kakao_text.photo_count(m["text"])]
     log("[%s] 가견적 발행 시작 (글 %d개, 사진 %d장)" % (opened, len(words), len(photos)))
     r = quote_bot.publish("\n".join(words), photos, client=opened, aliases=cfg.get("client_aliases") or {})
-    lines = ["[카톡] 가견적 발행 · %s" % opened, r["title"],
-             "거래처: %s" % (r["client"] or "못 찾음 — 현장관리에 안 들어감"),
-             "품목 %d개 · 사진 %d장" % (len(r["items"]), len(photos))]
+    import tg
+    warn = [] if r["client"] else ["거래처 못 찾음 — 현장관리에 안 들어감"]
     if info.get("photos") and len(photos) < info["photos"]:
-        lines.append("⚠ 사진 %d장 중 %d장만 저장됨 (%s)" % (info["photos"], len(photos), why or "이유 모름"))
-    if r["missing"]:
-        lines.append("빠진 정보(메모에 적음): " + ", ".join(r["missing"]))
-    lines.append(r["link"])
-    notify("\n".join(lines))
+        warn.append("사진 %d장 중 %d장만 저장됨 (%s)" % (info["photos"], len(photos), why or "이유 모름"))
+    notify(tg.published(opened, r["title"], len(r["items"]), len(photos), r["link"], warn, r["missing"]))
     log("[%s] 가견적 발행 %s" % (opened, r["link"]))

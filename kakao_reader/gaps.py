@@ -59,20 +59,29 @@ def question(site):
     return "%s\n%s (%s 시공)\n%s 알려주세요." % (GREETING, site["name"], md(site["date"]), want)
 
 
-def ask_text(site):
-    """텔레그램: '[현장] 그린워크1차 1104동 604호 (봄애, 11/25 시작)\\n공동현관 비번·…이 비어 있습니다.'"""
+def ask_text(site, more=""):
+    """텔레그램 (굵은 첫 줄, 11/1):
+    🏠 그린워크1차 1104동 604호 (굵게)
+    봄애 · 11/25 시작
+    공동현관 비번·…이 비어 있습니다.
+    + more (업체에 물어볼까요? 등)"""
+    import tg
     names = [LABEL[k] for k in site["missing"] if k in LABEL]
-    who = ", ".join(x for x in (site.get("client"), md(site["date"]) + " 시작") if x)
-    return "[현장] %s (%s)\n%s%s 비어 있습니다." % (site["name"], who, "·".join(names), _josa(names[-1]) if names else "가")
+    who = " · ".join(x for x in (site.get("client"), md(site["date"]) + " 시작") if x)
+    return tg.lines("🏠 " + tg.b(site["name"]), tg.esc(who),
+                    "%s%s 비어 있습니다." % ("·".join(names), _josa(names[-1]) if names else "가"), tg.esc(more))
+
+
+MAX_ROOM_BUTTONS = 2  # 카톡_알림 은 한 줄에 버튼 3개까지 → 방 2개 + [나중에]
 
 
 def ask_buttons(pairs):
-    """[(방, 할 일 번호)] → 방 하나면 [시작해] [나중에], 여럿이면 방마다 버튼(누른 방에 묻는다) + [나중에]."""
+    """[(방, 할 일 번호)] → 방 하나면 [시작해] [나중에], 여럿이면 방마다 버튼(누른 방에 묻는다, 2개까지) + [나중에]. 한 줄."""
     first = pairs[0][1]
     if len(pairs) == 1:
         return [[{"text": "시작해", "data": "k|%s|ask" % first}, {"text": "나중에", "data": "k|%s|later" % first}]]
-    row = [{"text": room[:20], "data": "k|%s|ask" % job} for room, job in pairs]
-    return [row[i:i + 2] for i in range(0, len(row), 2)] + [[{"text": "나중에", "data": "k|%s|later" % first}]]
+    row = [{"text": room[:20], "data": "k|%s|ask" % job} for room, job in pairs[:MAX_ROOM_BUTTONS]]
+    return [row + [{"text": "나중에", "data": "k|%s|later" % first}]]
 
 
 def in_hours(t):
@@ -106,11 +115,13 @@ def check(cfg, state, now, fetch, notify, log):
         room = ", ".join(rooms)
         if rooms:
             pairs = [(r, jobs.new_ask_job(state, r, site, now)) for r in rooms]
-            more = "\n업체(%s 방)에 물어볼까요?" % rooms[0] if len(rooms) == 1 else "\n어느 방에 물어볼까요?"
-            ok = notify(ask_text(site) + more, ask_buttons(pairs))
+            more = "업체(%s 방)에 물어볼까요?" % rooms[0] if len(rooms) == 1 else "어느 방에 물어볼까요?"
+            if len(rooms) > MAX_ROOM_BUTTONS:
+                log("[현장] %s 방이 %d개 — 앞의 %d개만 버튼으로" % (site["client"], len(rooms), MAX_ROOM_BUTTONS))
+            ok = notify(ask_text(site, more), ask_buttons(pairs))
         else:
-            ok = notify(ask_text(site) + "\n카톡 방 짝이 없어 물어볼 수 없습니다 — 노트북 config.json 의 client_rooms 에 "
-                        "\"%s\": \"카톡 방 이름\" 을 넣어 주세요." % (site["client"] or "거래처"))
+            ok = notify(ask_text(site, "카톡 방 짝이 없어 물어볼 수 없습니다 — 노트북 config.json 의 client_rooms 에 "
+                                       "\"%s\": \"카톡 방 이름\" 을 넣어 주세요." % (site["client"] or "거래처")))
         if ok:
             asked[site["id"]] = {"at": now}
             log("[현장] 빈칸 알림: %s (%s)" % (site["name"], room or "방 짝 없음"))
@@ -140,7 +151,8 @@ def run_ask(cfg, state, job, info, notify, log):
     lst.append(dict(site, at=time.time()))
     asks[opened] = lst
     log("[%s] 빈칸 질문 보냄: %s" % (opened, site["name"]))
-    notify("[현장] 업체에 물었습니다 · %s\n%s\n답이 오면 현장관리 칸에 넣고 알려 드립니다." % (opened, site["name"]))
+    import tg
+    notify(tg.lines("🏠 " + tg.b("업체에 물었습니다 · %s" % opened), tg.esc(site["name"]), "답이 오면 현장관리 칸에 넣고 알려 드립니다."))
 
 
 def _ask_key(asks, room):
@@ -188,17 +200,18 @@ def pick_fills(items, pend, room, today):
 
 
 def filled_text(site, fills):
-    lines = ["[현장] 넣었습니다 · %s" % site["name"]]
+    import tg
+    lines = ["✅ " + tg.b("넣었습니다 · %s" % site["name"])]
     for f in fills:
         if f["kind"] == "field":
-            lines.append("%s: %s" % (LABEL[f["field"]], f["value"]))
+            lines.append(tg.esc("%s: %s" % (LABEL[f["field"]], f["value"])))
         else:
-            lines.append("필름: " + ", ".join(("%s %s" % (x["place"], x["code"])).strip() for x in f["films"]))
+            lines.append(tg.esc("필름: " + ", ".join(("%s %s" % (x["place"], x["code"])).strip() for x in f["films"])))
     left = [LABEL[k] for k in site["missing"] if k not in {f.get("field") or "films" for f in fills}]
     if left:
-        lines.append("아직 못 받음: " + "·".join(left))
+        lines.append("❓ 아직 못 받음: " + "·".join(left))
     lines.append("(현장관리 앱을 열면 들어갑니다)")
-    return "\n".join(lines)
+    return tg.lines(*lines)
 
 
 def on_answer(cfg, state, room, msgs, digest, put, notify, log):

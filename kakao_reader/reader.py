@@ -258,25 +258,23 @@ def publish_job(cfg, job):
         notify(cfg, "[카톡읽기] 가견적 발행 실패 ('%s')\n%s" % (client, str(e)[:300]))
         return
     log("[%s] 가견적 발행 %s (거래처 %s, 품목 %d개, 빠진 정보 %d개)" % (room, r["link"], r["client"], len(r["items"]), len(r["missing"])))
-    sent = ""
+    notes = []
     if room in cfg["send_rooms"]:
         # 링크만 보낸다 - 카톡이 미리보기 카드(제목·섬세한손길 시공 견적서)를 붙여 준다. 앞에 글을 붙이면 지저분하다 (사장님 10/30)
         ok = kakao_window.send_text(room, r["link"])
         log("[%s] 카톡 전송 %s" % (room, "완료" if ok else "실패"))
-        sent = "\n%s 방에 링크 %s" % (room, "보냄" if ok else "못 보냄 (손으로 보내 주세요)")
+        notes.append("%s 방에 링크 %s" % (room, "보냄" if ok else "못 보냄 (손으로 보내 주세요)"))
+    warn = []
     if r["client"] and r["client"] != kakao_text.UNKNOWN_CLIENT:
-        where = "거래처: %s%s" % (r["client"], "" if r["client_how"] == "같은 이름" else " (%s '%s')" % (r["client_how"], client))
+        if r["client_how"] != "같은 이름":
+            notes.insert(0, "거래처: %s (%s '%s')" % (r["client"], r["client_how"], client))
     elif r["client"]:
-        where = "⚠ 거래처 '%s' 못 찾음 → 현장관리 '%s' 에 들어감. 진짜 업체로 옮겨 주세요." % (client, kakao_text.UNKNOWN_CLIENT)
+        warn.append("거래처 '%s' 못 찾음 → 현장관리 '%s' 에 들어감. 진짜 업체로 옮겨 주세요." % (client, kakao_text.UNKNOWN_CLIENT))
     else:
-        where = "⚠ 거래처 '%s' 못 찾음, '%s' 거래처도 없음 → 현장관리 견적요청 내역에 안 들어감." % (client, kakao_text.UNKNOWN_CLIENT)
-    lines = ["[카톡읽기] 가견적 발행", r["title"], where,
-             "품목 %d개 · 사진 %d장" % (len(r["items"]), len(job["photos"]))]
-    if r["missing"]:
-        lines.append("빠진 정보(메모에 적음): " + ", ".join(r["missing"]))
-    if r["unmatched"]:
-        lines.append("못 넣은 품목: " + ", ".join(r["unmatched"]))
-    notify(cfg, "\n".join(lines) + sent + "\n" + r["link"])
+        warn.append("거래처 '%s' 못 찾음, '%s' 거래처도 없음 → 현장관리 견적요청 내역에 안 들어감." % (client, kakao_text.UNKNOWN_CLIENT))
+    import tg
+    notify(cfg, tg.published(r["client"] or client, r["title"], len(r["items"]), len(job["photos"]), r["link"],
+                             warn, r["missing"], r["unmatched"], notes))
 
 
 def main():

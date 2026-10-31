@@ -681,11 +681,13 @@ def report(room, res, msgs, replies=()):
     """텔레그램 글: [카톡] 방 · 종류 / 요약 / ↩ 내 답: … / (새 글 N개 · 사진 k장).
     replies = 업체 글 뒤에 사장님이 이미 쓴 답 — 보고만 봐도 답했는지 알게 (사장님 11/1). 마지막 2개, 한 줄 60자."""
     from kakao_text import photo_count
+    import tg
     photos = sum(photo_count(m["text"]) for m in msgs)
-    head = "[카톡] %s%s · %s" % ("⚠ " if res.get("급함") else "", room, res.get("종류") or "기타")
-    said = ["↩ 내 답: " + " ".join(m["text"].split())[:60] for m in replies if not photo_count(m["text"])][-2:]
-    tail = "(새 글 %d개%s)" % (len(msgs), " · 사진 %d장" % photos if photos else "")
-    return "\n".join(x for x in [head, res.get("요약") or ""] + said + [tail] if x)
+    kind = res.get("종류") or "기타"
+    head = "%s%s %s" % ("⚠ " if res.get("급함") else "", tg.emoji(kind), tg.b("%s · %s" % (room, kind)))
+    said = ["↩ 내 답: " + tg.esc(" ".join(m["text"].split())[:60]) for m in replies if not photo_count(m["text"])][-2:]
+    tail = "새 글 %d개%s" % (len(msgs), " · 사진 %d장" % photos if photos else "")
+    return tg.lines(head, tg.esc(res.get("요약") or ""), *said, tail)
 
 
 def _title_ok(room, title):
