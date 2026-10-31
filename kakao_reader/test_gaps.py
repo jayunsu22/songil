@@ -8,6 +8,9 @@ import jobs
 SITE = {"id": "s1", "client": "봄애", "name": "그린워크1차 1104동 604호", "date": "2026-11-25",
         "missing": ["pwLobby", "pwUnit", "toilet", "films"]}
 CFG = {"client_rooms": {"봄애": "봄애실장님"}}
+CHECKS = [{"id": "door", "text": "방문이 상하좌우 문틀에 닿는지", "ok": False},
+          {"id": "overlap", "text": "{날짜}에 겹치는 다른 공정", "ok": False},
+          {"id": "xmark", "text": "현관문 X 표시 부탁드려요", "ok": True}]
 
 
 def at_hour(h, ymd=(2026, 11, 2)):  # 기본은 평일(월)
@@ -16,16 +19,19 @@ def at_hour(h, ymd=(2026, 11, 2)):  # 기본은 평일(월)
 
 class TextTest(unittest.TestCase):
     def test_question(self):
-        self.assertEqual(gaps.question(SITE),
-                         "안녕하세요. 실장님~\n그린워크1차 1104동 604호 (11/25 시공)\n"
-                         "공동현관 비번, 세대 비번, 화장실 위치, 필름 정보(위치별 번호) 알려주세요.")
-        self.assertEqual(gaps.question(dict(SITE, missing=["toilet"])).splitlines()[-1], "화장실 위치 알려주세요.")
+        # 번호를 매겨 번호로 답하게 (11/1) — 빈칸 먼저, 그다음 업체 확인 질문, {날짜} 는 시공날짜
+        self.assertEqual(gaps.question(dict(SITE, checks=CHECKS)),
+                         "안녕하세요. 실장님~\n그린워크1차 1104동 604호 (11/25 시공) 확인 부탁드려요.\n번호로 짧게 답 주시면 됩니다 🙏\n"
+                         "1. 공동현관 비번\n2. 세대 비번\n3. 화장실 위치\n4. 필름 번호 (위치별)\n"
+                         "5. 방문이 상하좌우 문틀에 닿는지\n6. 11/25에 겹치는 다른 공정\n7. 현관문 X 표시 부탁드려요")
+        self.assertEqual(gaps.question(dict(SITE, missing=[], checks=CHECKS[1:2])).splitlines()[3:], ["1. 11/25에 겹치는 다른 공정"])
 
     def test_ask_text(self):
         self.assertEqual(gaps.ask_text(SITE, "업체(봄애실장님 방)에 물어볼까요?"),
                          "🏠 <b>그린워크1차 1104동 604호</b>\n봄애 · 11/25 시작\n"
                          "공동현관 비번·세대 비번·화장실 위치·필름 정보가 비어 있습니다.\n업체(봄애실장님 방)에 물어볼까요?")
         self.assertTrue(gaps.ask_text(dict(SITE, missing=["pwUnit"])).endswith("세대 비번이 비어 있습니다."))
+        self.assertEqual(gaps.ask_text(dict(SITE, missing=[], checks=CHECKS)).splitlines()[2:], ["📋 업체 확인 질문 3개"])
 
     def test_rooms_for(self):
         self.assertEqual(gaps.rooms_for(CFG, "봄 애"), ["봄애실장님"])
@@ -127,8 +133,8 @@ class AnswerTest(unittest.TestCase):
         self.sent, self.put, self.asked = [], [], None
 
     def run_answer(self, st, items, room="봄애실장님"):
-        def digest(r, today, sites, msgs):
-            self.asked = (r, sites, msgs)
+        def digest(r, today, sites, msgs, asked=""):
+            self.asked = (r, sites, msgs, asked)
             return {"ok": True, "items": items}
         gaps.on_answer(CFG, st, room, [M("공동현관 #1234* 세대 5678")], digest, self.put.append, self.sent.append, lambda m: None)
 
@@ -146,7 +152,7 @@ class AnswerTest(unittest.TestCase):
         self.assertEqual([(f["field"], f["value"]) for f in self.put[0]], [("pwLobby", "#1234*"), ("pwUnit", "5678")])
         self.assertEqual(self.asked[2][0]["text"], "공동현관 #1234* 세대 5678")          # 이 경우 비번 안 가림
         self.assertIn("공동현관 비번: #1234*", self.sent[0])
-        self.assertIn("아직 못 받음: 화장실 위치·필름 정보", self.sent[0])
+        self.assertIn("아직 못 받음: 화장실 위치 · 필름 정보", self.sent[0])
         self.assertEqual(st["asks"]["봄애실장님"][0]["missing"], ["toilet", "films"])
         self.assertNotIn("1234", repr(st))                                             # 비번은 state 에 안 남음
 
@@ -162,6 +168,36 @@ class AnswerTest(unittest.TestCase):
         self.assertEqual([s["id"] for s in st["asks"]["봄애실장님"]], ["s1"])
         self.run_answer(st, [{"siteId": "s1", "kind": "field", "field": "toilet", "value": "1층"}])
         self.assertNotIn("봄애실장님", st["asks"])                                      # 다 받으면 끝
+
+    def test_check_answers_and_same_numbers(self):
+        # 업체 확인 질문의 답 (11/1): 물어본 질문만, 업체가 본 번호 그대로(q) AI 에 보냄, 다 받으면 끝
+        site = dict(SITE, missing=["toilet"], checks=CHECKS)
+        st = self.st(dict(site, q=gaps.question(site)))
+        self.run_answer(st, [
+            {"siteId": "s1", "kind": "check", "checkId": "door", "value": "안 닿음"},
+            {"siteId": "s1", "kind": "check", "checkId": "nope", "value": "?"},          # 안 물어본 질문은 버림
+            {"siteId": "s1", "kind": "check", "checkId": "xmark", "value": " "},
+        ])
+        self.assertIn("2. 방문이 상하좌우 문틀에 닿는지", self.asked[3])
+        self.assertEqual(self.asked[1][0]["checks"][1]["text"], "11/25에 겹치는 다른 공정")
+        self.assertEqual([(f["kind"], f["checkId"], f["value"]) for f in self.put[0]], [("check", "door", "안 닿음")])
+        self.assertIn("📋 방문이 상하좌우 문틀에 닿는지: 안 닿음", self.sent[0])
+        self.assertIn("아직 못 받음: 화장실 위치 · 11/25에 겹치는 다른 공정 · 현관문 X 표시 부탁드려요", self.sent[0])
+        left = st["asks"]["봄애실장님"][0]
+        self.assertEqual(([c["id"] for c in left["checks"]], left["missing"]), (["overlap", "xmark"], ["toilet"]))
+        self.run_answer(st, [{"siteId": "s1", "kind": "check", "checkId": "overlap", "value": "도배 24일까지"}])
+        self.assertIn("2. 방문이 상하좌우 문틀에 닿는지", self.asked[3])                 # 남은 질문이 줄어도 번호는 처음 그대로
+        self.run_answer(st, [{"siteId": "s1", "kind": "check", "checkId": "xmark", "value": "확답 받음"},
+                             {"siteId": "s1", "kind": "field", "field": "toilet", "value": "1층"}])
+        self.assertNotIn("봄애실장님", st["asks"])
+
+    def test_check_only_site_is_asked(self):
+        sent = []
+        gaps.check(CFG, {}, at_hour(10), lambda: [dict(SITE, missing=[], checks=CHECKS)], lambda t, b=None: sent.append(t) or True, lambda m: None)
+        self.assertEqual(len(sent), 1)                                                  # 빈칸이 없어도 확인 질문이 있으면 묻는다
+        sent.clear()
+        gaps.check(CFG, {}, at_hour(10), lambda: [dict(SITE, missing=[], checks=[])], lambda t, b=None: sent.append(t) or True, lambda m: None)
+        self.assertEqual(sent, [])
 
     def test_not_asked_room_or_nothing(self):
         st = self.st(SITE)

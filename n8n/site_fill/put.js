@@ -18,6 +18,11 @@ for (const f of (Array.isArray(body.fills) ? body.fills : []).slice(0, 50)) {
   } else if (o.kind === 'films') {
     o.films = (Array.isArray(f.films) ? f.films : []).map((x) => ({ place: s(x && x.place, 40), code: s(x && x.code, 30) })).filter((x) => x.code).slice(0, 30);
     if (!o.films.length) continue;
+  } else if (o.kind === 'check') {
+    // 업체 확인 질문의 답 (2026-11-01)
+    o.checkId = s(f.checkId, 40);
+    o.value = s(f.value, 300);
+    if (!o.checkId || !o.value) continue;
   } else continue;
   sd.fills.push(o);
   n++;

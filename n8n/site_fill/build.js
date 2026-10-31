@@ -40,6 +40,7 @@ const workflow = {
     hook('w1', '빈칸요청', 'site-gaps', '8a3e51c2-7d4b-4f19-9c6e-2b5a0d7e1f34', 0),
     airRead('a1', '현장읽기', '현장', "AND(NOT({삭제}), IS_AFTER(DATETIME_PARSE({시작날짜}), DATEADD(TODAY(), -2, 'days')))", 220, 0),
     airRead('a2', '거래처읽기', '거래처', 'NOT({삭제})', 440, 0),
+    airRead('a3', '설정읽기', '설정', 'NOT({삭제})', 550, 150),   // 업체 확인 질문 (앱 설정, 2026-11-01)
     code('c1', '빈칸고르기', 'gaps.js', 660, 0),
     answer('r1', '빈칸응답', 880, 0),
     hook('w2', '우편함넣기요청', 'site-fill', '4c9d2e7a-1b3f-4a85-b6d0-9e8f7a6b5c41', 300),
@@ -52,7 +53,8 @@ const workflow = {
   connections: {
     빈칸요청: { main: [[{ node: '현장읽기', type: 'main', index: 0 }]] },
     현장읽기: { main: [[{ node: '거래처읽기', type: 'main', index: 0 }]] },
-    거래처읽기: { main: [[{ node: '빈칸고르기', type: 'main', index: 0 }]] },
+    거래처읽기: { main: [[{ node: '설정읽기', type: 'main', index: 0 }]] },
+    설정읽기: { main: [[{ node: '빈칸고르기', type: 'main', index: 0 }]] },
     빈칸고르기: { main: [[{ node: '빈칸응답', type: 'main', index: 0 }]] },
     우편함넣기요청: { main: [[{ node: '우편함넣기', type: 'main', index: 0 }]] },
     우편함넣기: { main: [[{ node: '넣기응답', type: 'main', index: 0 }]] },

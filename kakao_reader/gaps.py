@@ -27,7 +27,7 @@ HOLIDAYS = {
 }
 FIELDS = ("pwLobby", "pwUnit", "toilet")
 LABEL = {"pwLobby": "공동현관 비번", "pwUnit": "세대 비번", "toilet": "화장실 위치", "films": "필름 정보"}
-ASK_LABEL = dict(LABEL, films="필름 정보(위치별 번호)")
+ASK_LABEL = dict(LABEL, films="필름 번호 (위치별)")
 GREETING = "안녕하세요. 실장님~"  # 사장님 10/31
 
 
@@ -64,10 +64,21 @@ def _josa(word):
     return "이" if "가" <= ch <= "힣" and (ord(ch) - 0xAC00) % 28 else "가"
 
 
+def check_text(c, site):
+    """업체 확인 질문 글 — {날짜} 는 그 현장 시공날짜 (11/25)."""
+    return str(c.get("text") or "").replace("{날짜}", md(site["date"]))
+
+
+def numbered(site):
+    """[(번호, 질문)] — 빈칸 먼저, 그다음 업체 확인 질문 (앱 설정 순서). 업체에 가는 번호 그대로."""
+    items = [ASK_LABEL[k] for k in site["missing"] if k in ASK_LABEL] + [check_text(c, site) for c in site.get("checks") or []]
+    return list(enumerate(items, 1))
+
+
 def question(site):
-    """업체 카톡 방에 보낼 질문 (빈칸만)."""
-    want = ", ".join(ASK_LABEL[k] for k in site["missing"] if k in ASK_LABEL)
-    return "%s\n%s (%s 시공)\n%s 알려주세요." % (GREETING, site["name"], md(site["date"]), want)
+    """업체 카톡 방에 보낼 질문 — 번호를 매겨 번호로 짧게 답하게 (사장님 11/1: 질문이 많으면 답하기·정리하기 어렵다)."""
+    lines = [GREETING, "%s (%s 시공) 확인 부탁드려요." % (site["name"], md(site["date"])), "번호로 짧게 답 주시면 됩니다 🙏"]
+    return "\n".join(lines + ["%d. %s" % (n, t) for n, t in numbered(site)])
 
 
 def ask_text(site, more=""):
@@ -75,12 +86,15 @@ def ask_text(site, more=""):
     🏠 그린워크1차 1104동 604호 (굵게)
     봄애 · 11/25 시작
     공동현관 비번·…이 비어 있습니다.
+    📋 업체 확인 질문 3개
     + more (업체에 물어볼까요? 등)"""
     import tg
     names = [LABEL[k] for k in site["missing"] if k in LABEL]
     who = " · ".join(x for x in (site.get("client"), md(site["date"]) + " 시작") if x)
+    checks = site.get("checks") or []
     return tg.lines("🏠 " + tg.b(site["name"]), tg.esc(who),
-                    "%s%s 비어 있습니다." % ("·".join(names), _josa(names[-1]) if names else "가"), tg.esc(more))
+                    "%s%s 비어 있습니다." % ("·".join(names), _josa(names[-1])) if names else "",
+                    "📋 업체 확인 질문 %d개" % len(checks) if checks else "", tg.esc(more))
 
 
 MAX_ROOM_BUTTONS = 2  # 카톡_알림 은 한 줄에 버튼 3개까지 → 방 2개 + [나중에]
@@ -110,7 +124,9 @@ def in_hours(t, extra=()):
 
 def _site(s):
     return {"id": s["id"], "name": s.get("name") or "(이름없음)", "client": s.get("client") or "", "date": s.get("date") or "",
-            "missing": [k for k in s.get("missing") or [] if k in LABEL]}
+            "missing": [k for k in s.get("missing") or [] if k in LABEL],
+            "checks": [{"id": str(c["id"]), "text": str(c["text"]), "ok": bool(c.get("ok"))}
+                       for c in s.get("checks") or [] if c.get("id") and c.get("text")]}
 
 
 def check(cfg, state, now, fetch, notify, log):
@@ -129,7 +145,7 @@ def check(cfg, state, now, fetch, notify, log):
     g["asked"] = asked
     for raw in sites:
         site = _site(raw)
-        if site["id"] in asked or not site["missing"]:
+        if site["id"] in asked or not (site["missing"] or site["checks"]):
             continue
         rooms = rooms_for(cfg, site["client"])
         room = ", ".join(rooms)
@@ -168,7 +184,8 @@ def run_ask(cfg, state, job, info, notify, log):
         return
     asks = state.setdefault("asks", {})
     lst = [x for x in asks.get(opened, []) if x["id"] != site["id"]]
-    lst.append(dict(site, at=time.time()))
+    # q = 보낸 질문 그대로 — 답이 일부만 와서 남은 질문이 줄어도, 업체가 본 번호로 맞추게 (비번 같은 값은 없음)
+    lst.append(dict(site, at=time.time(), q=text))
     asks[opened] = lst
     log("[%s] 빈칸 질문 보냄: %s" % (opened, site["name"]))
     import tg
@@ -216,20 +233,35 @@ def pick_fills(items, pend, room, today):
                 prev = got.get((sid, "films"))
                 got[(sid, "films")] = {"siteId": sid, "kind": "films", "films": (prev["films"] if prev else []) + films,
                                        "room": room, "at": today}
+        elif kind == "check" and it.get("checkId") in {c["id"] for c in by_id[sid].get("checks") or []} \
+                and str(it.get("value") or "").strip():
+            # 업체 확인 질문의 답 (11/1)
+            got[(sid, "check:" + it["checkId"])] = {"siteId": sid, "kind": "check", "checkId": it["checkId"],
+                                                    "value": str(it["value"]).strip(), "room": room, "at": today}
     return list(got.values())
+
+
+def _done_key(f):
+    return "check:" + f["checkId"] if f["kind"] == "check" else (f.get("field") or "films")
 
 
 def filled_text(site, fills):
     import tg
+    checks = {c["id"]: c for c in site.get("checks") or []}
+    short = lambda c: re.sub(r"\s*\(.*?\)", "", check_text(c, site))[:24]   # 괄호 설명은 빼고 짧게
     lines = ["✅ " + tg.b("넣었습니다 · %s" % site["name"])]
     for f in fills:
         if f["kind"] == "field":
             lines.append(tg.esc("%s: %s" % (LABEL[f["field"]], f["value"])))
+        elif f["kind"] == "check":
+            lines.append(tg.esc("📋 %s: %s" % (short(checks[f["checkId"]]), f["value"])))
         else:
             lines.append(tg.esc("필름: " + ", ".join(("%s %s" % (x["place"], x["code"])).strip() for x in f["films"])))
-    left = [LABEL[k] for k in site["missing"] if k not in {f.get("field") or "films" for f in fills}]
+    done = {_done_key(f) for f in fills}
+    left = [LABEL[k] for k in site["missing"] if k not in done] + \
+           [short(c) for c in site.get("checks") or [] if "check:" + c["id"] not in done]
     if left:
-        lines.append("❓ 아직 못 받음: " + "·".join(left))
+        lines.append("❓ 아직 못 받음: " + tg.esc(" · ".join(left)))
     lines.append("(현장관리 앱을 열면 들어갑니다)")
     return tg.lines(*lines)
 
@@ -244,11 +276,13 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log):
     today = time.strftime("%Y-%m-%d")
     # 비번은 일반 정보로 다룬다(사장님 10/31) — 이 경우만 가리지 않고 보낸다
     messages = [{"d": m["date"], "t": m["time"], "who": m["sender"], "text": m["text"]} for m in msgs]
-    sites = [{"id": s["id"], "name": s["name"], "date": s["date"], "known": {}} for s in pend]
+    sites = [{"id": s["id"], "name": s["name"], "date": s["date"], "known": {},
+              "checks": [dict(c, text=check_text(c, s)) for c in s.get("checks") or []]} for s in pend]
+    asked = "\n\n".join(s.get("q") or question(s) for s in pend)   # 업체가 본 번호 그대로
     client = pend[0].get("client") or key
     log("[%s] 물어본 현장 %d곳 — 답에서 값 찾는 중" % (key, len(pend)))
     try:
-        res = digest({"client": client, "name": key}, today, sites, messages)
+        res = digest({"client": client, "name": key}, today, sites, messages, asked)
     except Exception as e:
         log("[%s] 값 찾기 실패: %s" % (key, str(e)[:150]))
         return
@@ -268,8 +302,9 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log):
             continue
         notify(filled_text(s, mine))
         log("[%s] 빈칸 %d개 넣음: %s" % (key, len(mine), s["name"]))
-        done = {f.get("field") or "films" for f in mine}
+        done = {_done_key(f) for f in mine}
         s["missing"] = [k for k in s["missing"] if k not in done]
-    asks[key] = [s for s in pend if s["missing"]]
+        s["checks"] = [c for c in s.get("checks") or [] if "check:" + c["id"] not in done]
+    asks[key] = [s for s in pend if s["missing"] or s.get("checks")]
     if not asks[key]:
         del asks[key]
