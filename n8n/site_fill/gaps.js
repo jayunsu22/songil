@@ -24,7 +24,8 @@ for (const it of $('설정읽기').all()) for (const r of (it.json.records || []
   try { const d = JSON.parse((r.fields || {}).data || '{}'); if (Array.isArray(d.checks)) checks = d.checks; } catch (e) { /* 다음 줄 */ }
 }
 checks = (checks || DEFAULT_CHECKS).filter((c) => c && str(c.id) && str(c.text) && !c.off).map((c) => ({ id: str(c.id), text: str(c.text), ok: !!c.ok }));
-const answered = (s, id) => { const a = (s.checks || {})[id]; return !!str(a && typeof a === 'object' ? a.v : a); };
+// 답을 받았거나 '이 현장은 안 물음'(skip, 11/1) 이면 묻지 않는다
+const answered = (s, id) => { const a = (s.checks || {})[id]; return !!(a && typeof a === 'object' && a.skip) || !!str(a && typeof a === 'object' ? a.v : a); };
 const out = [];
 for (const it of $('현장읽기').all()) for (const r of (it.json.records || [])) {
   let s = {};
