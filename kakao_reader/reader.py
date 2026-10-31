@@ -178,6 +178,8 @@ def run_once(cfg, state, dry=False):
             gaps.check(cfg, state, time.time(),
                        lambda: n8n_send.post_json(cfg["site_gaps_url"], cfg["owner_key"], {"days": 7}).get("sites") or [],
                        lambda text, buttons=None: notify(cfg, text, buttons), log)
+            # 못 받은 답은 2시간 뒤 남은 번호만 자동으로 다시 (사장님 11/1, 18시 넘으면 다음 날 9시)
+            gaps.reask(cfg, state, time.time(), gaps.send_to_room, lambda text: notify(cfg, text), log)
     if not dry:
         for job in [j for j in READY if not j["need"]]:
             READY.remove(job)

@@ -13,6 +13,11 @@ import time
 CHECK_EVERY = 3600          # 빈칸 확인 1시간마다
 ASK_KEEP = 7 * 86400        # 물어본 뒤 답을 7일 기다림
 ASKED_KEEP = 60 * 86400     # '물어봄' 기록 (현장당 한 번) 60일 보관
+# 못 받은 답 다시 묻기 (사장님 11/1): 마지막으로 묻거나 업체가 답한 뒤 2시간, 저녁 6시 넘으면 다음 날 9시(일·공휴일 13시) 뒤.
+# 텔레그램 없이 자동으로 남은 번호만. 업체를 조르지 않게 3번까지, 그래도 없으면 사장님께 한 번 알림
+REASK_AFTER = 2 * 3600
+REASK_END = 18
+MAX_REASK = 3
 HOURS = (9, 20)             # 텔레그램은 평일·토요일 오전 9시~저녁 8시 (사장님 11/1)
 HOLIDAY_START = 13          # 일요일·공휴일은 오후 1시부터
 # 공휴일 (설·추석 연휴, 대체공휴일, 2026 지방선거 포함). 매년 말에 다음 해를 더한다.
@@ -73,6 +78,27 @@ def numbered(site):
     """[(번호, 질문)] — 빈칸 먼저, 그다음 업체 확인 질문 (앱 설정 순서). 업체에 가는 번호 그대로."""
     items = [ASK_LABEL[k] for k in site["missing"] if k in ASK_LABEL] + [check_text(c, site) for c in site.get("checks") or []]
     return list(enumerate(items, 1))
+
+
+def item_numbers(site):
+    """[[칸 또는 'check:id', 번호]] — numbered() 와 같은 순서."""
+    keys = [k for k in site["missing"] if k in ASK_LABEL] + ["check:" + c["id"] for c in site.get("checks") or []]
+    return [[k, n] for n, k in enumerate(keys, 1)]
+
+
+def send_to_room(room, text, log):
+    """카톡 목록에서 방을 열어 text 를 보내고 닫는다 → (연 방 이름, 실패 이유 '' | 'no-room' | 'send')."""
+    import chatlist
+    import kakao_window
+    chatlist.refresh_geom()
+    h, opened = chatlist.open_room(room, None, log)
+    if not h:
+        return room, "no-room"
+    try:
+        ok = kakao_window.send_text(opened, text)
+    finally:
+        kakao_window.close_window(h)
+    return opened, "" if ok else "send"
 
 
 def question(site):
@@ -165,31 +191,81 @@ def check(cfg, state, now, fetch, notify, log):
 
 def run_ask(cfg, state, job, info, notify, log):
     """[시작해] — 그 업체 방을 열어 질문을 보내고, 답을 7일 기다린다 (asks)."""
-    import chatlist
-    import kakao_window
     site, room = info["site"], info["title"]
     text = question(site)
-    chatlist.refresh_geom()
-    h, opened = chatlist.open_room(room, None, log)
-    if not h:
+    opened, why = send_to_room(room, text, log)
+    if why == "no-room":
         notify("[현장] 업체에 못 물음 · %s\n카톡 목록에서 방을 못 찾았습니다 (목록 화면에 보이게 해 주세요). 손으로 보내려면:\n%s" % (room, text))
         return
-    try:
-        ok = kakao_window.send_text(opened, text)
-    finally:
-        kakao_window.close_window(h)
-    if not ok:
+    if why:
         notify("[현장] 업체에 못 물음 · %s\n입력칸에 쓰던 글이 있거나 보내기가 안 됐습니다. 손으로 보내려면:\n%s" % (opened, text))
         log("[%s] 빈칸 질문 보내기 실패" % opened)
         return
     asks = state.setdefault("asks", {})
     lst = [x for x in asks.get(opened, []) if x["id"] != site["id"]]
     # q = 보낸 질문 그대로 — 답이 일부만 와서 남은 질문이 줄어도, 업체가 본 번호로 맞추게 (비번 같은 값은 없음)
-    lst.append(dict(site, at=time.time(), q=text))
+    # items = [[칸 또는 'check:id', 번호]] — 다시 물을 때 남은 것만 처음 번호 그대로 (11/1). last = 마지막으로 묻거나 업체가 답한 때
+    now = time.time()
+    lst.append(dict(site, at=now, q=text, items=item_numbers(site), last=now, tries=0))
     asks[opened] = lst
     log("[%s] 빈칸 질문 보냄: %s" % (opened, site["name"]))
     import tg
     notify(tg.lines("🏠 " + tg.b("업체에 물었습니다 · %s" % opened), tg.esc(site["name"]), "답이 오면 현장관리 칸에 넣고 알려 드립니다."))
+
+
+def reask_at(last, extra=()):
+    """다시 물어도 되는 때: last + 2시간, 저녁 6시 넘으면 다음 날 알림 시작(9시, 일·공휴일 13시), 시작 전이면 그 시각."""
+    t = last + REASK_AFTER
+    for _ in range(14):
+        lt = time.localtime(t)
+        if lt.tm_hour >= REASK_END:
+            t = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday + 1, 0, 0, 0, 0, 0, -1))
+            continue
+        start = HOLIDAY_START if is_holiday(t, extra) else HOURS[0]
+        if lt.tm_hour < start:
+            return time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, start, 0, 0, 0, 0, -1))
+        return t
+    return t
+
+
+def remaining(entry):
+    """아직 못 받은 [(처음 번호, 질문)]."""
+    left = {k: ASK_LABEL[k] for k in entry["missing"] if k in ASK_LABEL}
+    left.update({"check:" + c["id"]: check_text(c, entry) for c in entry.get("checks") or []})
+    return [(n, left[k]) for k, n in entry.get("items") or [] if k in left]
+
+
+def reask_text(entry):
+    lines = ["실장님~ %s (%s 시공) 아직 확인 못 한 것만 부탁드려요 🙏" % (entry["name"], md(entry["date"]))]
+    return "\n".join(lines + ["%d. %s" % (n, t) for n, t in remaining(entry)])
+
+
+def reask(cfg, state, now, send, notify, log):
+    """물어본 현장에 못 받은 답이 남았으면 때가 됐을 때 남은 번호만 업체 방에 다시 보낸다 (한 번에 한 현장).
+    send(방, 글, log) → (연 방, 실패 이유). 3번 다시 물어도 안 오면 사장님께 텔레그램 한 번."""
+    import tg
+    today = time.strftime("%Y-%m-%d", time.localtime(now))
+    for room, lst in (state.get("asks") or {}).items():
+        for e in lst:
+            if e.get("gaveup") or "items" not in e or (e.get("date") or "") < today or not remaining(e):
+                continue
+            if now < reask_at(e.get("last", e["at"]), cfg.get("holidays")):
+                continue
+            if e.get("tries", 0) >= MAX_REASK:
+                e["gaveup"] = True
+                notify(tg.lines("🏠 " + tg.b("업체 답이 없습니다 · %s" % e["name"]),
+                                tg.esc("%s 방에 %d번 다시 물었는데 못 받은 것:" % (room, MAX_REASK)),
+                                *[tg.esc("%d. %s" % nt) for nt in remaining(e)], "직접 확인해 주세요."))
+                log("[%s] %s — 다시 묻기 %d번, 그만 (사장님께 알림)" % (room, e["name"], MAX_REASK))
+                return
+            opened, why = send(room, reask_text(e), log)
+            e["last"] = now   # 못 보냈어도 2시간 뒤에 다시 (계속 방을 열지 않게)
+            if why:
+                log("[%s] 못 받은 답 다시 묻기 실패 (%s)" % (room, why))
+                return
+            e["tries"] = e.get("tries", 0) + 1
+            log("[%s] 못 받은 답 다시 물음 (%d번째): %s" % (opened, e["tries"], e["name"]))
+            return
 
 
 def _ask_key(asks, room):
@@ -261,7 +337,7 @@ def filled_text(site, fills):
     left = [LABEL[k] for k in site["missing"] if k not in done] + \
            [short(c) for c in site.get("checks") or [] if "check:" + c["id"] not in done]
     if left:
-        lines.append("❓ 아직 못 받음: " + tg.esc(" · ".join(left)))
+        lines.append("❓ 아직 못 받음: " + tg.esc(" · ".join(left)) + " (2시간 뒤 다시 물어봄)")
     lines.append("(현장관리 앱을 열면 들어갑니다)")
     return tg.lines(*lines)
 
@@ -273,6 +349,8 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log):
     if not key or not asks[key] or not msgs:
         return
     pend = asks[key]
+    for s in pend:
+        s["last"] = time.time()   # 업체가 뭐라도 답했으면 다시 묻기는 그때부터 2시간 뒤
     today = time.strftime("%Y-%m-%d")
     # 비번은 일반 정보로 다룬다(사장님 10/31) — 이 경우만 가리지 않고 보낸다
     messages = [{"d": m["date"], "t": m["time"], "who": m["sender"], "text": m["text"]} for m in msgs]
