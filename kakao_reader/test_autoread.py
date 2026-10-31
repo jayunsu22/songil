@@ -56,6 +56,11 @@ class RowsTest(unittest.TestCase):
             chatlist.check_rows(cfg, st, lambda m: None, 200)
             self.assertEqual(st["badges"]["류춘화"]["since"], 200)
             self.assertIsNone(st["badges"]["류춘화"]["box"])
+            st["badges"] = {}
+            out["t"] = "어제"                                           # 자정이 지나 바뀐 것 → 새 글 아님 (11/1)
+            chatlist.LAST.update(img=Image.new("RGB", (500, 300), "white"))
+            chatlist.check_rows(cfg, st, lambda m: None, 300)
+            self.assertNotIn("류춘화", st["badges"])
         finally:
             chatlist.ocr = orig
 

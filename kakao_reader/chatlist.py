@@ -647,7 +647,8 @@ def check_rows(cfg, state, log, t):
         return  # 처음: 기억만
     badges = state.setdefault("badges", {})
     for room, tm in times.items():
-        if room in old and old[room] != tm:
+        # 새 글이면 시간은 늘 '오전/오후 h:mm' 이다. '오후 6:25 → 어제' 는 자정이 지나 바뀐 것뿐 (11/1 노트북)
+        if room in old and old[room] != tm and re.search(r"\d:\d", tm):
             cur = badges.get(room)
             if cur is None or cur.get("since") is None:
                 badges[room] = dict(cur or {"n": None, "fp": None}, box=None, gone=True, since=t, told=False)
