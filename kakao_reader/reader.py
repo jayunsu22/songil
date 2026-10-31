@@ -176,7 +176,8 @@ def run_once(cfg, state, dry=False):
                   lambda: n8n_send.fetch_jobs(cfg["jobs_url"], cfg["owner_key"]), {"pub": jobs.run_publish, "ask": gaps.run_ask})
         if cfg["site_gaps"]:
             gaps.check(cfg, state, time.time(),
-                       lambda: n8n_send.post_json(cfg["site_gaps_url"], cfg["owner_key"], {"days": 7}).get("sites") or [],
+                       # orders = 필름 주문 알림 (시공 5일 전, 사장님 11/1)
+                       lambda: n8n_send.post_json(cfg["site_gaps_url"], cfg["owner_key"], {"days": 7, "orderDays": gaps.ORDER_DAYS}),
                        lambda text, buttons=None: notify(cfg, text, buttons), log)
             # 못 받은 답은 2시간 뒤 남은 번호만 자동으로 다시 (사장님 11/1, 18시 넘으면 다음 날 9시)
             gaps.reask(cfg, state, time.time(), gaps.send_to_room, lambda text: notify(cfg, text), log)

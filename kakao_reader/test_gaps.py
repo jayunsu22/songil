@@ -222,6 +222,29 @@ class AnswerTest(unittest.TestCase):
         self.assertEqual(gaps.watch_extra(st, time.time()), ["pk"])
         self.assertNotIn("봄애실장님", st["asks"])
 
+class FilmOrderTest(unittest.TestCase):
+    """필름 주문 알림 (사장님 11/1): 시공 5일 전, 현장마다 한 번, 앱 필름 탭 링크."""
+    O = {"id": "s1", "client": "봄애", "name": "평창팬션작업", "date": "2026-11-08", "stage": 1,
+         "films": [{"code": "pwt1200", "qty": "1롤"}, {"code": "pwe1501-2", "qty": ""}]}
+
+    def test_text(self):
+        r = gaps.order_text(self.O, {}, at_hour(10, (2026, 11, 3)))
+        self.assertEqual(r.splitlines(), [
+            "🎞 <b>필름 주문할 때입니다 · 평창팬션작업</b>", "봄애 · 11/8 시작 (D-5)",
+            "pwt1200 1롤", "pwe1501-2 (필요량 미정)", "❓ 필요량을 골라 주세요",
+            '<a href="https://jayunsu22.github.io/sitenote/#site/s1/film">👉 앱에서 문자 보내기</a>'])
+        self.assertIn("필름 번호가 아직 없습니다", gaps.order_text(dict(self.O, films=[]), {}, at_hour(10)))
+
+    def test_once_per_site_with_check(self):
+        sent, st = [], {}
+        fetch = lambda: {"sites": [], "orders": [self.O]}
+        gaps.check({}, st, at_hour(10), fetch, lambda t, b=None: sent.append(t) or True, lambda m: None)
+        gaps.check({}, st, at_hour(12), fetch, lambda t, b=None: sent.append(t) or True, lambda m: None)
+        self.assertEqual(len(sent), 1)
+        self.assertIn("필름 주문할 때입니다", sent[0])
+        gaps.check({}, {}, at_hour(10), lambda: [], lambda t, b=None: sent.append(t) or True, lambda m: None)   # 옛 모양(목록)도 됨
+
+
 class ReaskTest(unittest.TestCase):
     """못 받은 답 다시 묻기 (사장님 11/1): 2시간 뒤, 18시 넘으면 다음 날 9시(일·공휴일 13시), 남은 번호만, 3번까지."""
 

@@ -155,6 +155,43 @@ def _site(s):
                        for c in s.get("checks") or [] if c.get("id") and c.get("text")]}
 
 
+ORDER_DAYS = 5   # 필름 주문 알림: 시공 5일 전부터 (사장님 11/1 — 재고 없음·판매 중지도 있어서)
+APP_URL = "https://jayunsu22.github.io/sitenote/"
+
+
+def order_text(o, cfg, now):
+    """🎞 필름 주문할 때입니다 · 현장 / 업체 · 11/8 시작 (D-5) / 번호 필요량 … / 👉 앱에서 문자 보내기 (그 현장 필름 탭)."""
+    import tg
+    try:
+        left = int((time.mktime(time.strptime(o["date"], "%Y-%m-%d")) - time.mktime(time.strptime(
+            time.strftime("%Y-%m-%d", time.localtime(now)), "%Y-%m-%d"))) // 86400)
+    except (ValueError, KeyError):
+        left = None
+    who = " · ".join(x for x in (o.get("client"), md(o.get("date")) + " 시작" + (" (D-%d)" % left if left is not None else "")) if x)
+    films = o.get("films") or []
+    lines = ["🎞 " + tg.b("필름 주문할 때입니다 · %s" % o["name"]), tg.esc(who)]
+    lines += [tg.esc("%s %s" % (f["code"], f.get("qty") or "(필요량 미정)")) for f in films]
+    if not films:
+        lines.append("❓ 필름 번호가 아직 없습니다")
+    elif any(not f.get("qty") for f in films):
+        lines.append("❓ 필요량을 골라 주세요")
+    url = (cfg.get("app_url") or APP_URL) + "#site/%s/film" % o["id"]
+    lines.append(tg.link(url, "👉 앱에서 문자 보내기"))
+    return tg.lines(*lines)
+
+
+def film_orders(cfg, g, now, orders, notify, log):
+    """시공 5일 안·아직 '필름 주문' 전인 현장을 현장마다 한 번 텔레그램으로 (check 와 같은 알림 시간)."""
+    told = {k: v for k, v in (g.get("film_told") or {}).items() if now - v.get("at", 0) < ASKED_KEEP}
+    g["film_told"] = told
+    for o in orders:
+        if not o.get("id") or o["id"] in told:
+            continue
+        if notify(order_text(o, cfg, now)):
+            told[o["id"]] = {"at": now}
+            log("[필름] 주문 알림: %s (%s)" % (o.get("name"), o.get("date")))
+
+
 def check(cfg, state, now, fetch, notify, log):
     """reader.py 가 확인할 때마다 부른다. 1시간마다·알림 시간(in_hours)에만 빈칸 현장을 가져와 처음 보는 현장만 텔레그램으로."""
     import jobs
@@ -163,10 +200,13 @@ def check(cfg, state, now, fetch, notify, log):
         return
     g["at"] = now
     try:
-        sites = fetch()
+        data = fetch()
     except Exception as e:
         log("[현장] 빈칸 확인 실패: %s" % str(e)[:150])
         return
+    sites = (data.get("sites") or []) if isinstance(data, dict) else data
+    if isinstance(data, dict):
+        film_orders(cfg, g, now, data.get("orders") or [], notify, log)
     asked = {k: v for k, v in (g.get("asked") or {}).items() if now - v.get("at", 0) < ASKED_KEEP}
     g["asked"] = asked
     for raw in sites:

@@ -26,21 +26,41 @@ for (const it of $('설정읽기').all()) for (const r of (it.json.records || []
 checks = (checks || DEFAULT_CHECKS).filter((c) => c && str(c.id) && str(c.text) && !c.off).map((c) => ({ id: str(c.id), text: str(c.text), ok: !!c.ok }));
 // 답을 받았거나 '이 현장은 안 물음'(skip, 11/1) 이면 묻지 않는다
 const answered = (s, id) => { const a = (s.checks || {})[id]; return !!(a && typeof a === 'object' && a.skip) || !!str(a && typeof a === 'object' ? a.v : a); };
-const out = [];
+// 필름 주문 알림 (사장님 11/1) — 시공 orderDays(5)일 안이고 필름 단계가 아직 '필름 주문'(2) 전인 현장. 재고 없음·판매 중지까지 생각해 5일 전
+const orderDays = Math.min(Math.max(parseInt(body.orderDays, 10) || 0, 0), 30);
+const orderUntil = new Date(Date.parse(today + 'T00:00:00Z') + orderDays * 864e5).toISOString().slice(0, 10);
+const last = until > orderUntil ? until : orderUntil;
+// 주문 문자와 같은 모양 — 같은 번호는 한 번, 필요량은 ' + ' 로 (앱 Share.filmOrderText)
+const orderFilms = (films) => {
+  const seen = {}, order = [];
+  (Array.isArray(films) ? films : []).filter((x) => x && str(x.code)).forEach((x) => {
+    const k = str(x.code).replace(/\s+/g, ' ').toLowerCase();
+    if (!seen[k]) { seen[k] = { code: str(x.code), qty: [] }; order.push(k); }
+    if (str(x.qty) && !seen[k].qty.includes(str(x.qty))) seen[k].qty.push(str(x.qty));
+  });
+  return order.map((k) => ({ code: seen[k].code, qty: seen[k].qty.join(' + ') }));
+};
+const out = [], orders = [];
 for (const it of $('현장읽기').all()) for (const r of (it.json.records || [])) {
   let s = {};
   try { s = JSON.parse((r.fields || {}).data || '{}'); } catch (e) { continue; }
   if (!s.id || s.hide) continue;
   const date = str(s.date).slice(0, 10);
-  if (!date || date < today || date > until) continue;
+  if (!date || date < today || date > last) continue;
+  const name0 = str(s.name);
+  const squash = (v) => v.replace(/\s+/g, '');
+  const extra = [str(s.unit), str(s.size)].filter((v) => v && squash(name0).indexOf(squash(v)) === -1);
+  const name = [name0].concat(extra).filter(Boolean).join(' ') || '(이름없음)';
+  const client = clients[s.clientId] || clients[(r.fields || {})['거래처id']] || '';
+  const stage = parseInt(s.filmStage, 10) || 0;
+  if (orderDays && date <= orderUntil && stage < 2) orders.push({ id: s.id, client, name, date, stage, films: orderFilms(s.films) });
+  if (date > until) continue;
   const missing = ['pwLobby', 'pwUnit', 'toilet'].filter((k) => !str(s[k]));
   if (!(Array.isArray(s.films) && s.films.some((x) => x && str(x.code)))) missing.push('films');
   const ask = checks.filter((c) => !answered(s, c.id));
   if (!missing.length && !ask.length) continue;
-  const name = str(s.name);
-  const squash = (v) => v.replace(/\s+/g, '');
-  const extra = [str(s.unit), str(s.size)].filter((v) => v && squash(name).indexOf(squash(v)) === -1);
-  out.push({ id: s.id, client: clients[s.clientId] || clients[(r.fields || {})['거래처id']] || '', name: [name].concat(extra).filter(Boolean).join(' ') || '(이름없음)', date, missing, checks: ask });
+  out.push({ id: s.id, client, name, date, missing, checks: ask });
 }
-out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-return [{ json: { today, until, sites: out } }];
+const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+out.sort(byDate); orders.sort(byDate);
+return [{ json: { today, until, sites: out, orders } }];
