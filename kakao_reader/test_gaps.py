@@ -27,11 +27,12 @@ class TextTest(unittest.TestCase):
                                               "공동현관 비번·세대 비번·화장실 위치·필름 정보가 비어 있습니다.")
         self.assertTrue(gaps.ask_text(dict(SITE, missing=["pwUnit"])).endswith("세대 비번이 비어 있습니다."))
 
-    def test_room_for(self):
-        self.assertEqual(gaps.room_for(CFG, "봄 애"), "봄애실장님")
-        self.assertEqual(gaps.room_for({"client_rooms": {"보람인테리어": "보람"}}, "보람인테리어(인천)"), "보람")
-        self.assertIsNone(gaps.room_for(CFG, "pk디자인"))
-        self.assertIsNone(gaps.room_for(CFG, ""))
+    def test_rooms_for(self):
+        self.assertEqual(gaps.rooms_for(CFG, "봄 애"), ["봄애실장님"])
+        self.assertEqual(gaps.rooms_for({"client_rooms": {"보람인테리어": "보람"}}, "보람인테리어(인천)"), ["보람"])
+        self.assertEqual(gaps.rooms_for({"client_rooms": {"봄애": ["봄애실장님", "봄애대리님"]}}, "봄애"), ["봄애실장님", "봄애대리님"])
+        self.assertEqual(gaps.rooms_for(CFG, "pk디자인"), [])
+        self.assertEqual(gaps.rooms_for(CFG, ""), [])
 
 
 class CheckTest(unittest.TestCase):
@@ -55,7 +56,8 @@ class CheckTest(unittest.TestCase):
         text, buttons = self.sent[0]
         self.assertIn("봄애실장님 방", text)
         job = buttons[0][0]["data"].split("|")[1]
-        self.assertEqual(buttons, gaps.ask_buttons(job))
+        self.assertEqual(buttons, gaps.ask_buttons([("봄애실장님", job)]))
+        self.assertEqual([b["text"] for b in buttons[0]], ["시작해", "나중에"])
         self.assertEqual(st["jobs"][job]["kind"], "빈칸")
         self.assertEqual(st["jobs"][job]["title"], "봄애실장님")
         self.assertIsNone(self.sent[1][1])                                  # 방 짝 없음 → 버튼 없이
@@ -67,6 +69,17 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(len(self.sent), 2)                                 # 현장당 한 번만
         gaps.check(CFG, st, at_hour(21), self.fetch, self.notify, lambda m: None)
         self.assertEqual(self.fetched, 2)                                   # 20시 뒤엔 안 봄
+
+    def test_two_rooms_button_each(self):
+        st = {}
+        cfg = {"client_rooms": {"봄애": ["봄애실장님", "봄애대리님"]}}
+        gaps.check(cfg, st, at_hour(9), lambda: [SITE], self.notify, lambda m: None)
+        text, buttons = self.sent[0]
+        self.assertIn("어느 방에 물어볼까요?", text)
+        self.assertEqual([b["text"] for b in buttons[0]], ["봄애실장님", "봄애대리님"])
+        self.assertEqual(buttons[1][0]["text"], "나중에")
+        rooms = [st["jobs"][b["data"].split("|")[1]]["title"] for b in buttons[0]]
+        self.assertEqual(rooms, ["봄애실장님", "봄애대리님"])                  # 누른 방에 묻는다
 
     def test_failed_notify_retries(self):
         st = {}

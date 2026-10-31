@@ -15,5 +15,5 @@
   "auto_read": true,
   "read_quiet_seconds": 60,
   "my_names": ["김정헌"],
-  "client_rooms": {"봄애": "봄애실장님"}
+  "client_rooms": {"봄애": "봄애실장님", "PK디자인": ["pk디자인 대표실장", "pk디자인 대리"]}
 }

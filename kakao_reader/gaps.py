@@ -24,19 +24,19 @@ def _norm(s):
     return re.sub(r"\s+", "", str(s or "")).lower()
 
 
-def room_for(cfg, client):
-    """거래처 이름 → 카톡 방 (config.json client_rooms). 띄어쓰기·대소문자 무시, 없으면 None."""
+def rooms_for(cfg, client):
+    """거래처 이름 → 카톡 방 목록 (config.json client_rooms). 한 업체에 방이 여럿이면 목록으로 적는다:
+    {"봄애": ["봄애실장님", "봄애대리님"]} (같은 이름을 두 번 쓰면 JSON 이 뒤의 것만 남긴다). 띄어쓰기·대소문자 무시, 없으면 []."""
     rooms = cfg.get("client_rooms") or {}
     c = _norm(client)
     if not c:
-        return None
-    for k, v in rooms.items():
-        if _norm(k) == c:
-            return v
-    for k, v in rooms.items():  # '보람인테리어(인천)' 처럼 뒤에 붙은 것
-        if _norm(k) and c.startswith(_norm(k)):
-            return v
-    return None
+        return []
+    hit = next((v for k, v in rooms.items() if _norm(k) == c), None)
+    if hit is None:  # '보람인테리어(인천)' 처럼 뒤에 붙은 것
+        hit = next((v for k, v in rooms.items() if _norm(k) and c.startswith(_norm(k))), None)
+    if hit is None:
+        return []
+    return [r for r in ([hit] if isinstance(hit, str) else list(hit)) if str(r).strip()]
 
 
 def md(date):
@@ -66,8 +66,13 @@ def ask_text(site):
     return "[현장] %s (%s)\n%s%s 비어 있습니다." % (site["name"], who, "·".join(names), _josa(names[-1]) if names else "가")
 
 
-def ask_buttons(job):
-    return [[{"text": "시작해", "data": "k|%s|ask" % job}, {"text": "나중에", "data": "k|%s|later" % job}]]
+def ask_buttons(pairs):
+    """[(방, 할 일 번호)] → 방 하나면 [시작해] [나중에], 여럿이면 방마다 버튼(누른 방에 묻는다) + [나중에]."""
+    first = pairs[0][1]
+    if len(pairs) == 1:
+        return [[{"text": "시작해", "data": "k|%s|ask" % first}, {"text": "나중에", "data": "k|%s|later" % first}]]
+    row = [{"text": room[:20], "data": "k|%s|ask" % job} for room, job in pairs]
+    return [row[i:i + 2] for i in range(0, len(row), 2)] + [[{"text": "나중에", "data": "k|%s|later" % first}]]
 
 
 def in_hours(t):
@@ -97,10 +102,12 @@ def check(cfg, state, now, fetch, notify, log):
         site = _site(raw)
         if site["id"] in asked or not site["missing"]:
             continue
-        room = room_for(cfg, site["client"])
-        if room:
-            job = jobs.new_ask_job(state, room, site, now)
-            ok = notify(ask_text(site) + "\n업체(%s 방)에 물어볼까요?" % room, ask_buttons(job))
+        rooms = rooms_for(cfg, site["client"])
+        room = ", ".join(rooms)
+        if rooms:
+            pairs = [(r, jobs.new_ask_job(state, r, site, now)) for r in rooms]
+            more = "\n업체(%s 방)에 물어볼까요?" % rooms[0] if len(rooms) == 1 else "\n어느 방에 물어볼까요?"
+            ok = notify(ask_text(site) + more, ask_buttons(pairs))
         else:
             ok = notify(ask_text(site) + "\n카톡 방 짝이 없어 물어볼 수 없습니다 — 노트북 config.json 의 client_rooms 에 "
                         "\"%s\": \"카톡 방 이름\" 을 넣어 주세요." % (site["client"] or "거래처"))
