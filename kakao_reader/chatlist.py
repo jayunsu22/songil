@@ -677,13 +677,15 @@ def pick_new(msgs, seen, n):
     return msgs[-min(n or 10, 30):]
 
 
-def report(room, res, msgs):
-    """텔레그램 글: [카톡] 방 · 종류 / 요약 / (새 글 N개 · 사진 k장)."""
+def report(room, res, msgs, replies=()):
+    """텔레그램 글: [카톡] 방 · 종류 / 요약 / ↩ 내 답: … / (새 글 N개 · 사진 k장).
+    replies = 업체 글 뒤에 사장님이 이미 쓴 답 — 보고만 봐도 답했는지 알게 (사장님 11/1). 마지막 2개, 한 줄 60자."""
     from kakao_text import photo_count
     photos = sum(photo_count(m["text"]) for m in msgs)
     head = "[카톡] %s%s · %s" % ("⚠ " if res.get("급함") else "", room, res.get("종류") or "기타")
+    said = ["↩ 내 답: " + " ".join(m["text"].split())[:60] for m in replies if not photo_count(m["text"])][-2:]
     tail = "(새 글 %d개%s)" % (len(msgs), " · 사진 %d장" % photos if photos else "")
-    return "\n".join(x for x in (head, res.get("요약") or "", tail) if x)
+    return "\n".join(x for x in [head, res.get("요약") or ""] + said + [tail] if x)
 
 
 def _title_ok(room, title):
@@ -800,7 +802,8 @@ def read_and_report(cfg, state, room, notify, log, classify, answer=None):
     new = pick_new(msgs, set(seen), cur.get("n"))
     seen_all[title] = (seen + [m["key"] for m in msgs if m["key"] not in set(seen)])[-300:]
     mine = {_norm(x) for x in cfg.get("my_names", ["김정헌"])}
-    new = [m for m in new if _norm(m["sender"]) not in mine]  # 사장님이 쓴 글은 보고하지 않는다
+    replies = [m for m in new if _norm(m["sender"]) in mine]
+    new = [m for m in new if _norm(m["sender"]) not in mine]  # 사장님이 쓴 글은 요약하지 않는다 (보고 끝에 '내 답' 으로만)
     if not new:
         log("[%s] 새 글 없음 (사장님 글뿐이거나 이미 읽은 글)" % title)
         return
@@ -822,7 +825,10 @@ def read_and_report(cfg, state, room, notify, log, classify, answer=None):
     log("[%s] 새 글 %d개 → %s" % (title, len(new), res.get("종류")))
     import jobs
     job, buttons = jobs.new_job(state, title, res.get("종류"), new, time.time())
-    notify(report(title, res, new), buttons)
+    # 업체 첫 글 뒤에 쓴 사장님 글만 '내 답' (그 앞의 글은 질문 등이라 답이 아님). 비번은 평소처럼 가림
+    replies = [dict(m, text=kakao_text.mask(m["text"]) if cfg.get("mask_secrets", True) else m["text"])
+               for m in replies if (m["date"], m["time"]) >= (new[0]["date"], new[0]["time"])]
+    notify(report(title, res, new, replies), buttons)
 
 
 def diagnose(path):
