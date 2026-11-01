@@ -507,6 +507,15 @@ function buildItem(item, 구역) {
   // 견적요청 금액으로 고정된 품목을 여기서 고치면 그때부터 방문견적 단가로 다시 계산한다
   const 고정풀기 = (s) => { if (s && s.고정) { delete s.고정; syncRow(row); } };
 
+  // 체크한 품목의 금액을 누르면 직접 고친다 (현장에서 말로 알려준 금액 맞추기, 2026-11-01).
+  // 금액 칸은 label 안이라 그냥 두면 체크가 풀린다 - 체크된 줄이면 막고 고치기 창을 연다.
+  row.amt.addEventListener('click', (e) => {
+    if (!state.선택[item.체크_ID]) return;
+    e.preventDefault();
+    e.stopPropagation();
+    금액고치기(item, 구역, row);
+  });
+
   /* 이벤트 */
   row.cb.addEventListener('change', () => {
     if (row.cb.checked) {
@@ -570,6 +579,43 @@ function buildItem(item, 구역) {
   return box;
 }
 
+/* 품목 금액 직접 고치기. 고친 금액을 원래 인건비·자재비 비율로 나눠 '고정' 금액으로 둔다
+   (견적요청 고정과 같은 칸 - 수량·난이도·종류를 바꾸면 풀리고 단가 계산으로 돌아간다).
+   비율은 처음 금액 기준이다: 견적요청에서 넘어온 금액이면 그 금액, 아니면 방문견적 단가 계산.
+   여러 번 고쳐도 '원래' 는 처음 금액을 남긴다. 비우고 확인하면 원래대로 돌아간다. */
+function 금액고치기(item, 구역, row) {
+  const s = state.선택[item.체크_ID];
+  if (!s) return;
+  const 지금줄 = 품목줄(item, 구역, s);
+  const 지금 = QuoteCalc.lineAmount(지금줄);
+  const 요청고정 = s.고정 && !s.고정.고침 ? s.고정 : null;
+  const 기준 = 요청고정
+    ? { 금액: 요청고정.금액, 인건비: 요청고정.인건비 }
+    : (() => { const 줄 = 품목줄(item, 구역, Object.assign({}, s, { 고정: null }));
+               return { 금액: QuoteCalc.lineAmount(줄), 인건비: QuoteCalc.lineWage(줄) }; })();
+  const 원래 = s.고정 && s.고정.원래 != null ? s.고정.원래 : 지금;
+  const 답 = prompt('‘' + 지금줄.품목명 + '’ 금액 (원래 ' + won(원래) + ')\n비우고 확인하면 원래 금액으로 돌아갑니다.',
+    QuoteCalc.금액포맷(String(지금)));
+  if (답 == null) return;
+  const 새 = QuoteCalc.금액파싱(답);
+  if (!isFinite(새)) {
+    if (s.고정 && s.고정.고침) {
+      // 견적요청 금액을 고쳤던 거면 견적요청 금액으로, 아니면 단가 계산으로
+      if (s.고정.요청) s.고정 = s.고정.요청; else delete s.고정;
+    }
+  } else {
+    const 나눔 = QuoteCalc.금액나누기(새, 기준.인건비, 기준.금액);
+    s.고정 = Object.assign({}, 나눔, {
+      고침: true, 원래: 원래,
+      범위: 요청고정 ? 요청고정.범위 : (s.고정 && s.고정.범위),
+      요청: 요청고정 || (s.고정 && s.고정.요청) || null,
+    });
+  }
+  persist();
+  syncRow(row);
+  refresh();
+}
+
 /* 저장된 상태를 한 행의 컨트롤에 반영한다 */
 function syncRow(row) {
   const s = state.선택[row.item.체크_ID];
@@ -581,7 +627,12 @@ function syncRow(row) {
     row.diff.value = String(s.난이도 || 1);
     if (row.kind) row.kind.value = String(s.옵션 || 0);
   }
-  if (row.req) row.req.hidden = !(s && s.고정);
+  if (row.req) {
+    row.req.hidden = !(s && s.고정);
+    // 견적요청에서 넘어온 금액인지, 여기서 직접 고친 금액인지
+    // 머리줄은 품목명·금액이 같이 있어 짧게. 원래 금액은 인건비·자재비 줄 아래에 (refresh)
+    row.req.textContent = s && s.고정 && s.고정.고침 ? '고침' : '견적요청';
+  }
   // 체크하면 몸통 줄의 사진 버튼이 보이므로 제목 줄 것은 감춘다. 둘 다 있으면 헷갈린다.
   if (row.photoHead) row.photoHead.hidden = !!s || !사진가능;
   if (row.descBtn) {
@@ -830,8 +881,11 @@ function refresh() {
     나눔맵[l.체크_ID] = 인건비자재비글(l);
   });
   ROWS.forEach((row, id) => {
+    // 금액을 고친 줄은 원래 금액을 인건비·자재비 줄 아래에 남긴다
+    const 고정 = state.선택[id] && state.선택[id].고정;
+    const 원래 = 고정 && 고정.고침 && 고정.원래 != null ? '<small class="i-split">원래 ' + esc(won(고정.원래)) + '</small>' : '';
     row.amt.innerHTML = 금액맵[id] != null
-      ? esc(won(금액맵[id])) + (나눔맵[id] ? '<small class="i-split">' + esc(나눔맵[id]) + '</small>' : '')
+      ? esc(won(금액맵[id])) + (나눔맵[id] ? '<small class="i-split">' + esc(나눔맵[id]) + '</small>' : '') + 원래
       : '';
   });
 

@@ -1027,3 +1027,7 @@ header { column-gap: 6px; }
   border-radius: 6px; background: #fef3c7; color: #92400e;
   font-size: 12px; font-weight: 700;
 }
+
+/* 체크한 품목의 금액은 눌러서 고칠 수 있다 (2026-11-01) - 점선 밑줄로 눌리는 곳임을 보인다 */
+.item.on .i-amt { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 4px; }
+.item.on .i-amt .i-split { text-decoration: none; }
