@@ -49,8 +49,19 @@ class HoursTest(unittest.TestCase):
     def test_sunday_holiday_from_13(self):
         for ymd in ((2026, 11, 1), (2026, 12, 25), (2027, 2, 9)):               # 일요일, 성탄절, 설 대체공휴일
             self.assertEqual([gaps.in_hours(at_hour(h, ymd)) for h in (12, 13)], [False, True], ymd)
-        self.assertFalse(gaps.in_hours(at_hour(10, (2026, 12, 31)), ["2026-12-31"]))  # config 임시공휴일
+        self.assertFalse(gaps.in_hours(at_hour(10, (2026, 12, 31)), {"holidays": ["2026-12-31"]}))  # config 임시공휴일
         self.assertTrue(gaps.in_hours(at_hour(10, (2026, 12, 31))))
+
+    def test_config_each_kind(self):
+        # config.json alert_hours — 평일·토요일·일요일·공휴일 따로 (사장님 11/1: 시험할 때 일요일 8시부터)
+        cfg = {"alert_hours": {"일요일": [8, 20], "토요일": [10, 17]}}
+        self.assertTrue(gaps.in_hours(at_hour(8, (2026, 11, 1)), cfg))               # 일요일 8시
+        self.assertEqual([gaps.in_hours(at_hour(h, (2026, 11, 7)), cfg) for h in (9, 10, 16, 17)], [False, True, True, False])
+        self.assertFalse(gaps.in_hours(at_hour(8, (2026, 11, 2)), cfg))              # 평일은 그대로 9시
+        self.assertFalse(gaps.in_hours(at_hour(12, (2026, 12, 25)), cfg))            # 공휴일도 그대로 13시
+        self.assertEqual(gaps.alert_hours(at_hour(10), {"alert_hours": {"평일": ["x"]}}), (9, 20))   # 잘못 적으면 기본값
+        self.assertEqual([gaps.day_kind(at_hour(10, d)) for d in ((2026, 11, 2), (2026, 11, 7), (2026, 11, 1), (2026, 12, 25))],
+                         ["평일", "토요일", "일요일", "공휴일"])
 
 
 class CheckTest(unittest.TestCase):
@@ -255,6 +266,9 @@ class ReaskTest(unittest.TestCase):
         self.assertEqual(gaps.reask_at(T(17)), T(9, (2026, 11, 3)))               # 19시 → 다음 날 9시
         self.assertEqual(gaps.reask_at(T(17, (2026, 11, 7))), T(13, (2026, 11, 8)))  # 토 → 일요일은 13시
         self.assertEqual(gaps.reask_at(T(6)), T(9))                                # 새벽 → 9시
+        cfg = {"reask": {"간격": 1, "끝": 20}, "alert_hours": {"일요일": [8, 20]}}     # config 로 간격·끝·시작 바꿈
+        self.assertEqual(gaps.reask_at(T(18), cfg), T(19))
+        self.assertEqual(gaps.reask_at(T(19, (2026, 11, 7)), cfg), T(8, (2026, 11, 8)))
 
     def entry(self, **kw):
         site = dict(SITE, checks=CHECKS)

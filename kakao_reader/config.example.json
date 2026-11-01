@@ -1,19 +1,60 @@
 {
   "webhook_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-inbox",
   "owner_key": "",
-  "rooms": ["김정헌"],
+  "rooms": [
+    "김정헌"
+  ],
   "interval": 60,
   "mask_secrets": true,
   "photo_dir": "",
   "auto_save_photos": true,
-  "quote_rooms": ["김정헌"],
-  "send_rooms": ["김정헌"],
-  "client_aliases": {"피케이디자인": "PK디자인"},
+  "quote_rooms": [
+    "김정헌"
+  ],
+  "send_rooms": [
+    "김정헌"
+  ],
+  "client_aliases": {
+    "피케이디자인": "PK디자인"
+  },
   "watch_list": true,
-  "watch_rooms": ["pk디자인", "한솔"],
+  "watch_rooms": [
+    "pk디자인",
+    "한솔"
+  ],
   "exclude_rooms": [],
   "auto_read": true,
   "read_quiet_seconds": 60,
-  "my_names": ["김정헌"],
-  "client_rooms": {"봄애": "봄애실장님", "PK디자인": ["pk디자인 대표실장", "pk디자인 대리"]}
+  "my_names": [
+    "김정헌"
+  ],
+  "client_rooms": {
+    "봄애": "봄애실장님",
+    "PK디자인": [
+      "pk디자인 대표실장",
+      "pk디자인 대리"
+    ]
+  },
+  "alert_hours": {
+    "평일": [
+      9,
+      20
+    ],
+    "토요일": [
+      9,
+      20
+    ],
+    "일요일": [
+      13,
+      20
+    ],
+    "공휴일": [
+      13,
+      20
+    ]
+  },
+  "reask": {
+    "간격": 2,
+    "끝": 18
+  }
 }

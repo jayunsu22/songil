@@ -135,17 +135,35 @@ def ask_buttons(pairs):
     return [row + [{"text": "나중에", "data": "k|%s|later" % first}]]
 
 
-def is_holiday(t, extra=()):
-    """일요일이거나 공휴일(HOLIDAYS + config holidays)."""
+DEFAULT_ALERT_HOURS = {"평일": [HOURS[0], HOURS[1]], "토요일": [HOURS[0], HOURS[1]],
+                       "일요일": [HOLIDAY_START, HOURS[1]], "공휴일": [HOLIDAY_START, HOURS[1]]}
+
+
+def day_kind(t, cfg=None):
+    """'평일' · '토요일' · '일요일' · '공휴일' (공휴일 = HOLIDAYS + config holidays, 일요일이 공휴일이면 공휴일)."""
     lt = time.localtime(t)
     day = time.strftime("%Y-%m-%d", lt)
-    return lt.tm_wday == 6 or day in HOLIDAYS or day in set(extra or ())
+    if day in HOLIDAYS or day in set((cfg or {}).get("holidays") or ()):
+        return "공휴일"
+    return "일요일" if lt.tm_wday == 6 else "토요일" if lt.tm_wday == 5 else "평일"
 
 
-def in_hours(t, extra=()):
-    """빈칸 알림을 보내도 되는 때: 평일·토요일 9시~20시, 일요일·공휴일 13시~20시."""
-    start = HOLIDAY_START if is_holiday(t, extra) else HOURS[0]
-    return start <= time.localtime(t).tm_hour < HOURS[1]
+def alert_hours(t, cfg=None):
+    """그날 알림을 보내는 [시작, 끝] 시각. config.json "alert_hours": {"평일": [9, 20], "토요일": [9, 20],
+    "일요일": [13, 20], "공휴일": [13, 20]} 로 요일 종류마다 따로 바꾼다 (사장님 11/1). 빠진 칸은 기본값."""
+    kind = day_kind(t, cfg)
+    v = ((cfg or {}).get("alert_hours") or {}).get(kind)
+    try:
+        start, end = int(v[0]), int(v[1])
+    except (TypeError, ValueError, IndexError):
+        start, end = DEFAULT_ALERT_HOURS[kind]
+    return start, end
+
+
+def in_hours(t, cfg=None):
+    """빈칸·필름 알림을 보내도 되는 때 (alert_hours)."""
+    start, end = alert_hours(t, cfg)
+    return start <= time.localtime(t).tm_hour < end
 
 
 def _site(s):
@@ -196,7 +214,7 @@ def check(cfg, state, now, fetch, notify, log):
     """reader.py 가 확인할 때마다 부른다. 1시간마다·알림 시간(in_hours)에만 빈칸 현장을 가져와 처음 보는 현장만 텔레그램으로."""
     import jobs
     g = state.setdefault("gaps", {"at": 0, "asked": {}})
-    if now - g.get("at", 0) < CHECK_EVERY or not in_hours(now, cfg.get("holidays")):
+    if now - g.get("at", 0) < CHECK_EVERY or not in_hours(now, cfg):
         return
     g["at"] = now
     try:
@@ -253,15 +271,22 @@ def run_ask(cfg, state, job, info, notify, log):
     notify(tg.lines("🏠 " + tg.b("업체에 물었습니다 · %s" % opened), tg.esc(site["name"]), "답이 오면 현장관리 칸에 넣고 알려 드립니다."))
 
 
-def reask_at(last, extra=()):
-    """다시 물어도 되는 때: last + 2시간, 저녁 6시 넘으면 다음 날 알림 시작(9시, 일·공휴일 13시), 시작 전이면 그 시각."""
-    t = last + REASK_AFTER
+def reask_at(last, cfg=None):
+    """다시 물어도 되는 때: last + 간격(2시간), 끝(저녁 6시) 넘으면 다음 날 알림 시작(alert_hours), 시작 전이면 그 시각.
+    config.json "reask": {"간격": 2, "끝": 18} 로 바꾼다."""
+    r = (cfg or {}).get("reask") or {}
+    try:
+        gap = float(r.get("간격", REASK_AFTER / 3600)) * 3600
+        stop = int(r.get("끝", REASK_END))
+    except (TypeError, ValueError):
+        gap, stop = REASK_AFTER, REASK_END
+    t = last + gap
     for _ in range(14):
         lt = time.localtime(t)
-        if lt.tm_hour >= REASK_END:
+        if lt.tm_hour >= stop:
             t = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday + 1, 0, 0, 0, 0, 0, -1))
             continue
-        start = HOLIDAY_START if is_holiday(t, extra) else HOURS[0]
+        start = alert_hours(t, cfg)[0]
         if lt.tm_hour < start:
             return time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, start, 0, 0, 0, 0, -1))
         return t
@@ -289,7 +314,7 @@ def reask(cfg, state, now, send, notify, log):
         for e in lst:
             if e.get("gaveup") or "items" not in e or (e.get("date") or "") < today or not remaining(e):
                 continue
-            if now < reask_at(e.get("last", e["at"]), cfg.get("holidays")):
+            if now < reask_at(e.get("last", e["at"]), cfg):
                 continue
             if e.get("tries", 0) >= MAX_REASK:
                 e["gaveup"] = True
