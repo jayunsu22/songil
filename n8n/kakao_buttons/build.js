@@ -62,6 +62,18 @@ const workflow = {
     // 필름 주문 문자 (2026-11-01): 버튼정리가 sms 를 넘기면 사장님 폰(SMS Gateway 클라우드)으로 보내고 결과를 붙인다
     { id: 'si', name: '문자인가', type: 'n8n-nodes-base.if', typeVersion: 2, position: [440, 200], parameters: { conditions: isTrue('={{ !!$json.sms }}'), options: {} } },
     workflowSms,
+    // 인원 모집 [넣기]·[안 넣기] (11/1) — 인원모집 흐름 crew-act 로 넘기고 그 답을 글 끝에
+    { id: 'ci', name: '모집인가', type: 'n8n-nodes-base.if', typeVersion: 2, position: [440, -200], parameters: { conditions: isTrue('={{ !!$json.crew }}'), options: {} } },
+    {
+      id: 'cp', name: '모집전달', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [660, -200], continueOnFail: true,
+      parameters: {
+        method: 'POST', url: 'https://primary-production-a6fa.up.railway.app/webhook/crew-act',
+        authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+        sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.crew) }}', options: { timeout: 30000 },
+      },
+      credentials: OWNER,
+    },
+    { id: 'cr', name: '모집결과', type: 'n8n-nodes-base.code', typeVersion: 2, position: [880, -200], parameters: { mode: 'runOnceForAllItems', jsCode: read('crew_result.js') } },
     { id: 'sr', name: '문자결과', type: 'n8n-nodes-base.code', typeVersion: 2, position: [880, 200], parameters: { mode: 'runOnceForAllItems', jsCode: read('sms_result.js') } },
     { id: 'so', name: '보냄인가', type: 'n8n-nodes-base.if', typeVersion: 2, position: [1100, 200], parameters: { conditions: isTrue('={{ $json.ok }}'), options: {} } },
     {
@@ -118,7 +130,10 @@ const workflow = {
   connections: {
     버튼누름: { main: [[{ node: '가맹점_조회', type: 'main', index: 0 }]] },
     가맹점_조회: { main: [[{ node: '버튼정리', type: 'main', index: 0 }]] },
-    버튼정리: { main: [[{ node: '문자인가', type: 'main', index: 0 }]] },
+    버튼정리: { main: [[{ node: '모집인가', type: 'main', index: 0 }]] },
+    모집인가: { main: [[{ node: '모집전달', type: 'main', index: 0 }], [{ node: '문자인가', type: 'main', index: 0 }]] },
+    모집전달: { main: [[{ node: '모집결과', type: 'main', index: 0 }]] },
+    모집결과: { main: [[{ node: '표시', type: 'main', index: 0 }]] },
     문자인가: { main: [[{ node: '문자보내기', type: 'main', index: 0 }], [{ node: '표시', type: 'main', index: 0 }]] },
     문자보내기: { main: [[{ node: '문자결과', type: 'main', index: 0 }]] },
     문자결과: { main: [[{ node: '보냄인가', type: 'main', index: 0 }]] },

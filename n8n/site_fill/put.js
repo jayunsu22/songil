@@ -25,6 +25,10 @@ for (const f of (Array.isArray(body.fills) ? body.fills : []).slice(0, 50)) {
     if (!o.checkId || !o.value) continue;
   } else if (o.kind === 'filmOrdered') {
     o.value = s(f.value, 300);   // 주문한 필름 'ps170 1롤 · px450 30m 이상'
+  } else if (o.kind === 'crewAdd') {
+    // 인원 모집 [넣기] (인원모집 흐름, 11/1) — 그날 인원에 이름
+    o.date = s(f.date, 10); o.name = s(f.name, 20);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date) || !o.name) continue;
   } else continue;   // 모르는 kind 는 버림. filmOrdered: 텔레그램 버튼으로 주문 문자를 보냄 → 앱 '필름 주문' 단계 (카톡_버튼, 11/1)
   sd.fills.push(o);
   n++;

@@ -1,0 +1,598 @@
+{
+  "name": "인원모집",
+  "nodes": [
+    {
+      "id": "w1",
+      "name": "모집요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "5e2a9c4d-7b1f-4e3a-9d6c-2a8b0f1e3c57",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crew-recruit",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "headerAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "c1",
+      "name": "모집",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 인원모집 공용 (2026-11-01 사장님) — 코드 노드마다 앞에 붙는다 (build.js).\n// 저장 공간 sd.recruits[번호] = { id, siteId, siteName, date, label, slots, budget, band, active, exhausted, at,\n//   people: [{ name, phone, pay, st: wait|asked|yes|in|no|timeout|skip, tries, at, reply }] }\n// 예산 규칙은 앱 share.js pickWithinBudget 와 같다 (바꾸면 둘 다). 설계 docs/superpowers/specs/2026-11-01-인원모집-design.md\nconst sd = $getWorkflowStaticData('global');\nsd.recruits = sd.recruits || {};\nconst now = Date.now();\nconst KST = 9 * 3600e3;\nconst out = { resp: { ok: true }, sms: [], notify: [], fills: [] };\n// 문자 (사장님이 정한 그대로)\nconst ASK = (label) => '안녕하세요~\\n' + label + ' 일정 가능하신가요?\\n가능하시면 \"네\", 일정 안되시면 \"아니요\"라고 해주세요~';\nconst THANKS = '네~ 감사합니다.\\n주소확정되면 보내드릴께요~';\nconst SORRY = '아쉽네요~ 담에봐요~';\nconst GONE = '연락이 없어서 다른분께 연락드릴께요.\\n담에봐요~';\nconst WAIT = 2 * 3600e3, MAX_TRY = 2, OPEN = 8, CLOSE = 20;   // 2시간, 두 번까지, 문자는 오전 8시~저녁 8시\nconst e164 = (p) => { const d = String(p || '').replace(/[^0-9+]/g, ''); return d.startsWith('+') ? d : '+82' + d.replace(/^0/, ''); };\nconst tail = (p) => String(p || '').replace(/[^0-9]/g, '').slice(-8);\nconst esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst hourKST = (t) => new Date(t + KST).getUTCHours();\nconst todayKST = () => new Date(now + KST).toISOString().slice(0, 10);\n// last 부터 8~20시만 세어 2시간이 되는 때 (밤에 걸리면 다음 날 8시부터 다시 센다)\nfunction dueAt(last) {\n  let t = last, left = WAIT;\n  for (let i = 0; i < 60 && left > 0; i++) {\n    const d = new Date(t + KST), h = d.getUTCHours();\n    const day = (n, hh) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + n, hh) - KST;\n    if (h < OPEN) { t = day(0, OPEN); continue; }\n    if (h >= CLOSE) { t = day(1, OPEN); continue; }\n    const step = Math.min(left, day(0, CLOSE) - t);\n    t += step; left -= step;\n  }\n  return t;\n}\nconst pending = (r) => r.people.filter((p) => p.st === 'asked' || p.st === 'yes');\nconst inCount = (r) => r.people.filter((p) => p.st === 'in').length;\nfunction ask(r, p) {\n  p.st = 'asked'; p.tries = (p.tries || 0) + 1; p.at = now;\n  out.sms.push({ phone: e164(p.phone), text: ASK(r.label) });\n}\n// 빈 자리(필요 − 넣음 − 답 기다림)만큼 순서대로 다음 사람에게. 예산 = 이 사람 + 남은 자리를 가장 싼 사람들로 채워도 넘지 않게\nfunction advance(r) {\n  if (!r.active) return;\n  for (let guard = 0; guard < 50; guard++) {\n    const open = r.slots - inCount(r) - pending(r).length;\n    if (open <= 0) return;\n    const used = r.people.filter((p) => ['in', 'asked', 'yes'].includes(p.st)).reduce((a, p) => a + p.pay, 0);\n    const left = r.budget ? r.budget - used : 0;\n    const waits = r.people.filter((p) => p.st === 'wait');\n    let hit = null;\n    for (let i = 0; i < waits.length && !hit; i++) {\n      const fill = waits.filter((_, j) => j !== i).map((p) => p.pay).sort((a, b) => a - b).slice(0, open - 1).reduce((a, b) => a + b, 0);\n      if (!r.budget || waits[i].pay + fill <= left) hit = waits[i];\n    }\n    if (!hit) {\n      if (!pending(r).length && inCount(r) < r.slots && !r.exhausted) {\n        r.exhausted = true; r.active = false;\n        out.notify.push({ html: true, text: '👥 <b>모두 안 됨 · ' + esc(r.label) + ' ' + (r.slots - inCount(r)) + '자리</b>\\n' + esc(r.siteName) +\n          '\\n순서대로 다 물어봤습니다 — 밴드에서 구해 주세요.\\n────\\n' + esc(r.band || '') });\n      }\n      return;\n    }\n    ask(r, hit);\n  }\n}\nconst finish = () => [{ json: out }];\n\n// 인원모집 › 모집: 현장관리 앱이 POST crew-recruit (사장님 열쇠) — action start | status | stop\nconst b = $('모집요청').first().json.body || {};\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\n// 지난 날 모집은 지운다 (시공일 다음 날까지만 둔다)\nconst yday = new Date(now + KST - 864e5).toISOString().slice(0, 10);\nfor (const [k, r] of Object.entries(sd.recruits)) if (r.date < yday) delete sd.recruits[k];\nconst siteId = s(b.siteId, 40), date = s(b.date, 10);\nconst mine = Object.values(sd.recruits).filter((r) => r.siteId === siteId);\nif (b.action === 'status') {\n  out.resp = { ok: true, recruits: mine.map((r) => ({ date: r.date, active: r.active, exhausted: !!r.exhausted,\n    people: r.people.map((p) => ({ name: p.name, pay: p.pay, st: p.st, tries: p.tries || 0, at: p.at || 0 })) })) };\n  return finish();\n}\nif (b.action === 'stop') {\n  mine.filter((r) => r.date === date).forEach((r) => { r.active = false; });\n  return finish();\n}\nif (b.action !== 'start') throw new Error('action 은 start·status·stop');\nif (!siteId || !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) throw new Error('siteId·date 가 없음');\nconst slots = Math.max(0, Math.min(20, parseInt(b.slots, 10) || 0));\nif (!slots) throw new Error('남은 자리가 없음');\n// 같은 현장·날짜의 예전 모집은 멈춘다 (이미 물어본 사람의 답은 그대로 받는다)\nmine.filter((r) => r.date === date).forEach((r) => { r.active = false; });\nlet id = '';\nwhile (!id || sd.recruits[id]) id = (Math.random().toString(36).slice(2) + '000000').slice(0, 6);\nconst r = sd.recruits[id] = {\n  id, siteId, siteName: s(b.siteName, 80), date, label: s(b.label, 20) || date, slots,\n  budget: Math.max(0, parseInt(b.budget, 10) || 0), band: s(b.band, 600), active: true, at: now,\n  people: (Array.isArray(b.queue) ? b.queue : []).slice(0, 40).map((q) => ({\n    name: s(q && q.name, 20), phone: s(q && q.phone, 20).replace(/[^0-9+]/g, ''), pay: parseInt(q && q.pay, 10) || 0, st: 'wait' }))\n    .filter((p) => p.name && p.phone.length >= 9 && p.pay > 0),\n};\nadvance(r);\nout.resp = { ok: true, id, sent: out.sms.length };\nreturn finish();\n"
+      }
+    },
+    {
+      "id": "r1",
+      "name": "모집응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        -80
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.resp) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "w2",
+      "name": "답장받음",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "webhookId": "8b4d1f6a-3c9e-4a72-b5d0-6e1f2a3b4c58",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sms-in-7f3c9a2e5d1b",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "c2",
+      "name": "답장",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 인원모집 공용 (2026-11-01 사장님) — 코드 노드마다 앞에 붙는다 (build.js).\n// 저장 공간 sd.recruits[번호] = { id, siteId, siteName, date, label, slots, budget, band, active, exhausted, at,\n//   people: [{ name, phone, pay, st: wait|asked|yes|in|no|timeout|skip, tries, at, reply }] }\n// 예산 규칙은 앱 share.js pickWithinBudget 와 같다 (바꾸면 둘 다). 설계 docs/superpowers/specs/2026-11-01-인원모집-design.md\nconst sd = $getWorkflowStaticData('global');\nsd.recruits = sd.recruits || {};\nconst now = Date.now();\nconst KST = 9 * 3600e3;\nconst out = { resp: { ok: true }, sms: [], notify: [], fills: [] };\n// 문자 (사장님이 정한 그대로)\nconst ASK = (label) => '안녕하세요~\\n' + label + ' 일정 가능하신가요?\\n가능하시면 \"네\", 일정 안되시면 \"아니요\"라고 해주세요~';\nconst THANKS = '네~ 감사합니다.\\n주소확정되면 보내드릴께요~';\nconst SORRY = '아쉽네요~ 담에봐요~';\nconst GONE = '연락이 없어서 다른분께 연락드릴께요.\\n담에봐요~';\nconst WAIT = 2 * 3600e3, MAX_TRY = 2, OPEN = 8, CLOSE = 20;   // 2시간, 두 번까지, 문자는 오전 8시~저녁 8시\nconst e164 = (p) => { const d = String(p || '').replace(/[^0-9+]/g, ''); return d.startsWith('+') ? d : '+82' + d.replace(/^0/, ''); };\nconst tail = (p) => String(p || '').replace(/[^0-9]/g, '').slice(-8);\nconst esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst hourKST = (t) => new Date(t + KST).getUTCHours();\nconst todayKST = () => new Date(now + KST).toISOString().slice(0, 10);\n// last 부터 8~20시만 세어 2시간이 되는 때 (밤에 걸리면 다음 날 8시부터 다시 센다)\nfunction dueAt(last) {\n  let t = last, left = WAIT;\n  for (let i = 0; i < 60 && left > 0; i++) {\n    const d = new Date(t + KST), h = d.getUTCHours();\n    const day = (n, hh) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + n, hh) - KST;\n    if (h < OPEN) { t = day(0, OPEN); continue; }\n    if (h >= CLOSE) { t = day(1, OPEN); continue; }\n    const step = Math.min(left, day(0, CLOSE) - t);\n    t += step; left -= step;\n  }\n  return t;\n}\nconst pending = (r) => r.people.filter((p) => p.st === 'asked' || p.st === 'yes');\nconst inCount = (r) => r.people.filter((p) => p.st === 'in').length;\nfunction ask(r, p) {\n  p.st = 'asked'; p.tries = (p.tries || 0) + 1; p.at = now;\n  out.sms.push({ phone: e164(p.phone), text: ASK(r.label) });\n}\n// 빈 자리(필요 − 넣음 − 답 기다림)만큼 순서대로 다음 사람에게. 예산 = 이 사람 + 남은 자리를 가장 싼 사람들로 채워도 넘지 않게\nfunction advance(r) {\n  if (!r.active) return;\n  for (let guard = 0; guard < 50; guard++) {\n    const open = r.slots - inCount(r) - pending(r).length;\n    if (open <= 0) return;\n    const used = r.people.filter((p) => ['in', 'asked', 'yes'].includes(p.st)).reduce((a, p) => a + p.pay, 0);\n    const left = r.budget ? r.budget - used : 0;\n    const waits = r.people.filter((p) => p.st === 'wait');\n    let hit = null;\n    for (let i = 0; i < waits.length && !hit; i++) {\n      const fill = waits.filter((_, j) => j !== i).map((p) => p.pay).sort((a, b) => a - b).slice(0, open - 1).reduce((a, b) => a + b, 0);\n      if (!r.budget || waits[i].pay + fill <= left) hit = waits[i];\n    }\n    if (!hit) {\n      if (!pending(r).length && inCount(r) < r.slots && !r.exhausted) {\n        r.exhausted = true; r.active = false;\n        out.notify.push({ html: true, text: '👥 <b>모두 안 됨 · ' + esc(r.label) + ' ' + (r.slots - inCount(r)) + '자리</b>\\n' + esc(r.siteName) +\n          '\\n순서대로 다 물어봤습니다 — 밴드에서 구해 주세요.\\n────\\n' + esc(r.band || '') });\n      }\n      return;\n    }\n    ask(r, hit);\n  }\n}\nconst finish = () => [{ json: out }];\n\n// 인원모집 › 답장: SMS Gateway(사장님 폰)가 받은 문자를 POST sms-in-… (sms:received). 모집 중에 물어본 번호의 답만 본다 —\n// 다른 문자(가족·업체)는 그냥 지나간다. 네 → 텔레그램 [넣기][안 넣기], 아니요 → '아쉽네요' + 다음 사람, 애매 → 원문 + 버튼\nconst body = $('답장받음').first().json.body || {};\nconst pl = body.payload || body;\nconst msg = String(pl.message || pl.text || '').trim();\nconst from = tail(pl.sender || pl.phoneNumber || pl.phone || '');\nif (!msg || !from) return finish();\n// 그 번호를 물어본 모집 — 최근 것부터\nlet r = null, idx = -1;\nfor (const x of Object.values(sd.recruits).sort((a, b) => b.at - a.at)) {\n  const i = x.people.findIndex((p) => tail(p.phone) === from && ['asked', 'yes', 'timeout'].includes(p.st));\n  if (i >= 0) { r = x; idx = i; break; }\n}\nif (!r) return finish();\nconst p = r.people[idx];\np.reply = msg.slice(0, 200);\nconst NO = /(아니|아뇨|안\\s*돼|안\\s*되|안돼|안되|불가|못\\s*(해|가|할)|어렵|힘들|선약|ㄴㄴ|no\\b)/i;\nconst YES = /^(네|넵|넹|예|옙|응|ㅇㅇ|ㅇㅋ|오케|ok|okay|가능|좋아요|됩니다|될것|돼요|되요|갈께|갈게|콜)/i;\nconst kind = NO.test(msg) ? 'no' : (YES.test(msg) || /가능/.test(msg)) ? 'yes' : '';\nconst head = esc(p.name) + '(' + p.pay + ') · ' + esc(r.label);\nconst btn = (lab, a) => ({ text: lab, data: 'k|' + r.id + '|' + a + idx });\nif (kind === 'no') {\n  p.st = 'no'; p.at = now;\n  out.sms.push({ phone: e164(p.phone), text: SORRY });\n  advance(r);\n  return finish();\n}\nconst full = inCount(r) >= r.slots;\np.st = 'yes'; p.at = now;   // 애매한 답도 사장님이 정할 때까지 시계를 멈춘다\nif (full || !r.active) {\n  out.notify.push({ html: true, text: '👤 <b>' + head + ' ' + (kind ? '가능' : '답장') + '</b> (모집 끝 — 넣으려면 앱에서 직접)\\n' +\n    esc(r.siteName) + '\\n답장: \"' + esc(p.reply) + '\"' });\n  return finish();\n}\nout.notify.push({ html: true, buttons: [[btn('✅ 넣기', 'y'), btn('안 넣기', 'n')]],\n  text: '👤 <b>' + head + ' ' + (kind ? '가능' : '— 답을 봐 주세요') + '</b>\\n' + esc(r.siteName) + '\\n답장: \"' + esc(p.reply) + '\"' });\nreturn finish();\n"
+      }
+    },
+    {
+      "id": "r2",
+      "name": "답장응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        280
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.resp) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "w3",
+      "name": "버튼요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ],
+      "webhookId": "1d7e3b9c-5a2f-4c86-8e1d-9f0a2b3c4d59",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crew-act",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "headerAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "c3",
+      "name": "버튼",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        400
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 인원모집 공용 (2026-11-01 사장님) — 코드 노드마다 앞에 붙는다 (build.js).\n// 저장 공간 sd.recruits[번호] = { id, siteId, siteName, date, label, slots, budget, band, active, exhausted, at,\n//   people: [{ name, phone, pay, st: wait|asked|yes|in|no|timeout|skip, tries, at, reply }] }\n// 예산 규칙은 앱 share.js pickWithinBudget 와 같다 (바꾸면 둘 다). 설계 docs/superpowers/specs/2026-11-01-인원모집-design.md\nconst sd = $getWorkflowStaticData('global');\nsd.recruits = sd.recruits || {};\nconst now = Date.now();\nconst KST = 9 * 3600e3;\nconst out = { resp: { ok: true }, sms: [], notify: [], fills: [] };\n// 문자 (사장님이 정한 그대로)\nconst ASK = (label) => '안녕하세요~\\n' + label + ' 일정 가능하신가요?\\n가능하시면 \"네\", 일정 안되시면 \"아니요\"라고 해주세요~';\nconst THANKS = '네~ 감사합니다.\\n주소확정되면 보내드릴께요~';\nconst SORRY = '아쉽네요~ 담에봐요~';\nconst GONE = '연락이 없어서 다른분께 연락드릴께요.\\n담에봐요~';\nconst WAIT = 2 * 3600e3, MAX_TRY = 2, OPEN = 8, CLOSE = 20;   // 2시간, 두 번까지, 문자는 오전 8시~저녁 8시\nconst e164 = (p) => { const d = String(p || '').replace(/[^0-9+]/g, ''); return d.startsWith('+') ? d : '+82' + d.replace(/^0/, ''); };\nconst tail = (p) => String(p || '').replace(/[^0-9]/g, '').slice(-8);\nconst esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst hourKST = (t) => new Date(t + KST).getUTCHours();\nconst todayKST = () => new Date(now + KST).toISOString().slice(0, 10);\n// last 부터 8~20시만 세어 2시간이 되는 때 (밤에 걸리면 다음 날 8시부터 다시 센다)\nfunction dueAt(last) {\n  let t = last, left = WAIT;\n  for (let i = 0; i < 60 && left > 0; i++) {\n    const d = new Date(t + KST), h = d.getUTCHours();\n    const day = (n, hh) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + n, hh) - KST;\n    if (h < OPEN) { t = day(0, OPEN); continue; }\n    if (h >= CLOSE) { t = day(1, OPEN); continue; }\n    const step = Math.min(left, day(0, CLOSE) - t);\n    t += step; left -= step;\n  }\n  return t;\n}\nconst pending = (r) => r.people.filter((p) => p.st === 'asked' || p.st === 'yes');\nconst inCount = (r) => r.people.filter((p) => p.st === 'in').length;\nfunction ask(r, p) {\n  p.st = 'asked'; p.tries = (p.tries || 0) + 1; p.at = now;\n  out.sms.push({ phone: e164(p.phone), text: ASK(r.label) });\n}\n// 빈 자리(필요 − 넣음 − 답 기다림)만큼 순서대로 다음 사람에게. 예산 = 이 사람 + 남은 자리를 가장 싼 사람들로 채워도 넘지 않게\nfunction advance(r) {\n  if (!r.active) return;\n  for (let guard = 0; guard < 50; guard++) {\n    const open = r.slots - inCount(r) - pending(r).length;\n    if (open <= 0) return;\n    const used = r.people.filter((p) => ['in', 'asked', 'yes'].includes(p.st)).reduce((a, p) => a + p.pay, 0);\n    const left = r.budget ? r.budget - used : 0;\n    const waits = r.people.filter((p) => p.st === 'wait');\n    let hit = null;\n    for (let i = 0; i < waits.length && !hit; i++) {\n      const fill = waits.filter((_, j) => j !== i).map((p) => p.pay).sort((a, b) => a - b).slice(0, open - 1).reduce((a, b) => a + b, 0);\n      if (!r.budget || waits[i].pay + fill <= left) hit = waits[i];\n    }\n    if (!hit) {\n      if (!pending(r).length && inCount(r) < r.slots && !r.exhausted) {\n        r.exhausted = true; r.active = false;\n        out.notify.push({ html: true, text: '👥 <b>모두 안 됨 · ' + esc(r.label) + ' ' + (r.slots - inCount(r)) + '자리</b>\\n' + esc(r.siteName) +\n          '\\n순서대로 다 물어봤습니다 — 밴드에서 구해 주세요.\\n────\\n' + esc(r.band || '') });\n      }\n      return;\n    }\n    ask(r, hit);\n  }\n}\nconst finish = () => [{ json: out }];\n\n// 인원모집 › 버튼: 카톡_버튼 흐름이 텔레그램 [넣기]·[안 넣기] 를 POST crew-act (사장님 열쇠) 로 넘긴다 { rid, act: 'y3'|'n3' }\n// 넣기 → 감사 문자 + 우편함 crewAdd (앱 그날 인원에) / 안 넣기 → 문자 없이 다음 사람. resp.msg 는 텔레그램 글 끝에 붙는다\nconst b = $('버튼요청').first().json.body || {};\nconst r = sd.recruits[String(b.rid || '')];\nconst m = /^([yn])(\\d+)$/.exec(String(b.act || ''));\nconst p = r && m && r.people[Number(m[2])];\nif (!p) { out.resp = { ok: true, msg: '❌ 모집 정보가 없습니다 (끝났거나 지난 날)' }; return finish(); }\nif (m[1] === 'y') {\n  if (p.st === 'in') out.resp = { ok: true, msg: '✔ 이미 넣었습니다' };\n  else if (inCount(r) >= r.slots) out.resp = { ok: true, msg: '❗ 자리가 다 찼습니다 — 넣으려면 앱에서 직접' };\n  else {\n    p.st = 'in'; p.at = now;\n    out.sms.push({ phone: e164(p.phone), text: THANKS });\n    out.fills.push({ siteId: r.siteId, kind: 'crewAdd', date: r.date, name: p.name, room: '인원 모집', at: todayKST() });\n    const done = inCount(r) >= r.slots;\n    if (done) r.active = false;\n    else advance(r);   // 남은 자리를 마저 (후보가 없으면 '모두 안 됨' → 밴드)\n    out.resp = { ok: true, msg: '✅ ' + p.name + ' 넣음 — 감사 문자 보냄 (앱을 열면 인원에 들어갑니다)' + (done ? '\\n🎉 ' + r.label + ' 자리가 다 찼습니다' : '') };\n  }\n} else {\n  p.st = 'skip'; p.at = now;\n  const before = out.sms.length;\n  advance(r);\n  out.resp = { ok: true, msg: '➖ ' + p.name + ' 안 넣음' + (out.sms.length > before ? ' — 다음 사람에게 보냈습니다' : '') };\n}\nreturn finish();\n"
+      }
+    },
+    {
+      "id": "r3",
+      "name": "버튼응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.resp) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "tk",
+      "name": "10분마다",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        600
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c4",
+      "name": "시계",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        600
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 인원모집 공용 (2026-11-01 사장님) — 코드 노드마다 앞에 붙는다 (build.js).\n// 저장 공간 sd.recruits[번호] = { id, siteId, siteName, date, label, slots, budget, band, active, exhausted, at,\n//   people: [{ name, phone, pay, st: wait|asked|yes|in|no|timeout|skip, tries, at, reply }] }\n// 예산 규칙은 앱 share.js pickWithinBudget 와 같다 (바꾸면 둘 다). 설계 docs/superpowers/specs/2026-11-01-인원모집-design.md\nconst sd = $getWorkflowStaticData('global');\nsd.recruits = sd.recruits || {};\nconst now = Date.now();\nconst KST = 9 * 3600e3;\nconst out = { resp: { ok: true }, sms: [], notify: [], fills: [] };\n// 문자 (사장님이 정한 그대로)\nconst ASK = (label) => '안녕하세요~\\n' + label + ' 일정 가능하신가요?\\n가능하시면 \"네\", 일정 안되시면 \"아니요\"라고 해주세요~';\nconst THANKS = '네~ 감사합니다.\\n주소확정되면 보내드릴께요~';\nconst SORRY = '아쉽네요~ 담에봐요~';\nconst GONE = '연락이 없어서 다른분께 연락드릴께요.\\n담에봐요~';\nconst WAIT = 2 * 3600e3, MAX_TRY = 2, OPEN = 8, CLOSE = 20;   // 2시간, 두 번까지, 문자는 오전 8시~저녁 8시\nconst e164 = (p) => { const d = String(p || '').replace(/[^0-9+]/g, ''); return d.startsWith('+') ? d : '+82' + d.replace(/^0/, ''); };\nconst tail = (p) => String(p || '').replace(/[^0-9]/g, '').slice(-8);\nconst esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst hourKST = (t) => new Date(t + KST).getUTCHours();\nconst todayKST = () => new Date(now + KST).toISOString().slice(0, 10);\n// last 부터 8~20시만 세어 2시간이 되는 때 (밤에 걸리면 다음 날 8시부터 다시 센다)\nfunction dueAt(last) {\n  let t = last, left = WAIT;\n  for (let i = 0; i < 60 && left > 0; i++) {\n    const d = new Date(t + KST), h = d.getUTCHours();\n    const day = (n, hh) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + n, hh) - KST;\n    if (h < OPEN) { t = day(0, OPEN); continue; }\n    if (h >= CLOSE) { t = day(1, OPEN); continue; }\n    const step = Math.min(left, day(0, CLOSE) - t);\n    t += step; left -= step;\n  }\n  return t;\n}\nconst pending = (r) => r.people.filter((p) => p.st === 'asked' || p.st === 'yes');\nconst inCount = (r) => r.people.filter((p) => p.st === 'in').length;\nfunction ask(r, p) {\n  p.st = 'asked'; p.tries = (p.tries || 0) + 1; p.at = now;\n  out.sms.push({ phone: e164(p.phone), text: ASK(r.label) });\n}\n// 빈 자리(필요 − 넣음 − 답 기다림)만큼 순서대로 다음 사람에게. 예산 = 이 사람 + 남은 자리를 가장 싼 사람들로 채워도 넘지 않게\nfunction advance(r) {\n  if (!r.active) return;\n  for (let guard = 0; guard < 50; guard++) {\n    const open = r.slots - inCount(r) - pending(r).length;\n    if (open <= 0) return;\n    const used = r.people.filter((p) => ['in', 'asked', 'yes'].includes(p.st)).reduce((a, p) => a + p.pay, 0);\n    const left = r.budget ? r.budget - used : 0;\n    const waits = r.people.filter((p) => p.st === 'wait');\n    let hit = null;\n    for (let i = 0; i < waits.length && !hit; i++) {\n      const fill = waits.filter((_, j) => j !== i).map((p) => p.pay).sort((a, b) => a - b).slice(0, open - 1).reduce((a, b) => a + b, 0);\n      if (!r.budget || waits[i].pay + fill <= left) hit = waits[i];\n    }\n    if (!hit) {\n      if (!pending(r).length && inCount(r) < r.slots && !r.exhausted) {\n        r.exhausted = true; r.active = false;\n        out.notify.push({ html: true, text: '👥 <b>모두 안 됨 · ' + esc(r.label) + ' ' + (r.slots - inCount(r)) + '자리</b>\\n' + esc(r.siteName) +\n          '\\n순서대로 다 물어봤습니다 — 밴드에서 구해 주세요.\\n────\\n' + esc(r.band || '') });\n      }\n      return;\n    }\n    ask(r, hit);\n  }\n}\nconst finish = () => [{ json: out }];\n\n// 인원모집 › 시계: 10분마다. 오전 8시~저녁 8시에만 — 2시간(밤은 빼고 센다) 답이 없으면 한 번 더 묻고,\n// 두 번째도 없으면 '연락이 없어서…' 를 보내고 다음 사람에게\nconst h = hourKST(now);\nif (h < OPEN || h >= CLOSE) return finish();\nfor (const r of Object.values(sd.recruits)) {\n  if (!r.active) continue;\n  let moved = false;\n  for (const p of r.people) {\n    if (p.st !== 'asked' || now < dueAt(p.at)) continue;\n    if ((p.tries || 0) < MAX_TRY) ask(r, p);\n    else { p.st = 'timeout'; p.at = now; out.sms.push({ phone: e164(p.phone), text: GONE }); moved = true; }\n  }\n  if (moved) advance(r);\n}\nreturn finish();\n"
+      }
+    },
+    {
+      "id": "s1",
+      "name": "문자목록",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return ($input.first().json.sms || []).map((x) => ({ json: x }));"
+      }
+    },
+    {
+      "id": "h1",
+      "name": "문자보내기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        100
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sms-gate.app/3rdparty/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ textMessage: { text: $json.text }, phoneNumbers: [$json.phone] }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "DXh5rioJUf4RGJEN",
+          "name": "SMS Gateway (사장님 폰)"
+        }
+      }
+    },
+    {
+      "id": "s2",
+      "name": "알림목록",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return ($input.first().json.notify || []).map((x) => ({ json: x }));"
+      }
+    },
+    {
+      "id": "h2",
+      "name": "알림보내기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        300
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-notify",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "s3",
+      "name": "우편목록",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        500
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const f = $input.first().json.fills || []; return f.length ? [{ json: { fills: f } }] : [];"
+      }
+    },
+    {
+      "id": "h3",
+      "name": "우편넣기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        500
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-a6fa.up.railway.app/webhook/site-fill",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fills: $json.fills }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "w4",
+      "name": "답장주소등록요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        800
+      ],
+      "webhookId": "3f8a2d6b-9c1e-4b57-a0d3-7e2f1a9b8c60",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crew-sms-hook",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "headerAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "h4",
+      "name": "답장주소등록",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        800
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sms-gate.app/3rdparty/v1/webhooks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ url: 'https://primary-production-a6fa.up.railway.app/webhook/sms-in-7f3c9a2e5d1b', event: 'sms:received' }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "DXh5rioJUf4RGJEN",
+          "name": "SMS Gateway (사장님 폰)"
+        }
+      }
+    },
+    {
+      "id": "r4",
+      "name": "등록응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        800
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "모집요청": {
+      "main": [
+        [
+          {
+            "node": "모집",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "답장받음": {
+      "main": [
+        [
+          {
+            "node": "답장",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "버튼요청": {
+      "main": [
+        [
+          {
+            "node": "버튼",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10분마다": {
+      "main": [
+        [
+          {
+            "node": "시계",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "문자목록": {
+      "main": [
+        [
+          {
+            "node": "문자보내기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "알림목록": {
+      "main": [
+        [
+          {
+            "node": "알림보내기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "우편목록": {
+      "main": [
+        [
+          {
+            "node": "우편넣기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "답장주소등록요청": {
+      "main": [
+        [
+          {
+            "node": "답장주소등록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "답장주소등록": {
+      "main": [
+        [
+          {
+            "node": "등록응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "모집": {
+      "main": [
+        [
+          {
+            "node": "모집응답",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "문자목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "알림목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "우편목록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "답장": {
+      "main": [
+        [
+          {
+            "node": "답장응답",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "문자목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "알림목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "우편목록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "버튼": {
+      "main": [
+        [
+          {
+            "node": "버튼응답",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "문자목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "알림목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "우편목록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "시계": {
+      "main": [
+        [
+          {
+            "node": "문자목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "알림목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "우편목록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all"
+  }
+}

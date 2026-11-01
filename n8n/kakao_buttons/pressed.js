@@ -10,7 +10,9 @@ if (k !== 'k' || !/^[a-z0-9]{6}$/.test(job || '')) return [];
 const sd = $getWorkflowStaticData('global');
 // ask = 현장 빈칸을 업체 카톡 방에 물어보기 [시작해] (4단계, 10/31)
 let 표시 = { pub: '⏳ 가견적 발행 중 — 노트북이 처리하면 링크가 옵니다', ask: '⏳ 업체에 묻는 중 — 노트북이 카톡을 보내면 알려 드립니다', later: '⏸ 나중에', ok: '✔ 확인함' }[act];
-let sms = null;
+let sms = null, crew = null;
+// y3·n3 = 인원 모집 '네' 한 팀원 [넣기]·[안 넣기] (11/1) — 인원모집 흐름(crew-act)이 처리하고 결과 글을 돌려준다
+if (/^[yn]\d+$/.test(act || '')) { crew = { rid: job, act }; 표시 = ''; }
 if (/^o\d$/.test(act || '')) {
   const o = (sd.orders || {})[job];
   const p = o && o.people[Number(act.slice(1))];
@@ -31,7 +33,7 @@ if (act === 'pub' || act === 'ask') {
 const msg = cq.message || {};
 const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 return [{ json: {
-  query_id: cq.id, answer: act === 'pub' || act === 'ask' ? '받았습니다 — 노트북이 곧 처리' : sms ? '문자 보내는 중' : '받았습니다',
+  query_id: cq.id, answer: act === 'pub' || act === 'ask' ? '받았습니다 — 노트북이 곧 처리' : sms || crew ? '처리 중' : '받았습니다', crew,
   chat_id: String((msg.chat || {}).id || owner), message_id: String(msg.message_id || ''),
   text: esc(String(msg.text || '').slice(0, 3800)) + (표시 ? '\n\n' + esc(표시) : ''), sms,
 } }];
