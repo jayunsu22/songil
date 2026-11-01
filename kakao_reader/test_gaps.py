@@ -257,13 +257,14 @@ class FilmOrderTest(unittest.TestCase):
 
 
 class ReaskTest(unittest.TestCase):
-    """못 받은 답 다시 묻기 (사장님 11/1): 2시간 뒤, 18시 넘으면 다음 날 9시(일·공휴일 13시), 남은 번호만, 3번까지."""
+    """못 받은 답 다시 묻기 (사장님 11/1): 3시간 뒤, 18시 넘으면 다음 날 9시(일·공휴일 13시), 남은 것만 1번부터, 3번까지."""
 
     def test_reask_at(self):
         T = lambda h, ymd=(2026, 11, 2), m=0: time.mktime(ymd + (h, m, 0, 0, 0, -1))
-        self.assertEqual(gaps.reask_at(T(10)), T(12))                              # 월 10시 → 12시
-        self.assertEqual(gaps.reask_at(T(15, m=30)), T(17, m=30))                  # 17:30 은 아직 됨
-        self.assertEqual(gaps.reask_at(T(17)), T(9, (2026, 11, 3)))               # 19시 → 다음 날 9시
+        self.assertEqual(gaps.reask_at(T(10)), T(13))                              # 월 10시 → 13시
+        self.assertEqual(gaps.reask_at(T(14, m=30)), T(17, m=30))                  # 17:30 은 아직 됨
+        self.assertEqual(gaps.reask_at(T(15)), T(9, (2026, 11, 3)))               # 18시 → 다음 날 9시
+        self.assertEqual(gaps.reask_at(T(17)), T(9, (2026, 11, 3)))               # 20시 → 다음 날 9시
         self.assertEqual(gaps.reask_at(T(17, (2026, 11, 7))), T(13, (2026, 11, 8)))  # 토 → 일요일은 13시
         self.assertEqual(gaps.reask_at(T(6)), T(9))                                # 새벽 → 9시
         cfg = {"reask": {"간격": 1, "끝": 20}, "alert_hours": {"일요일": [8, 20]}}     # config 로 간격·끝·시작 바꿈
@@ -277,9 +278,11 @@ class ReaskTest(unittest.TestCase):
         e.update(kw)
         return e
 
-    def test_text_keeps_first_numbers(self):
-        self.assertEqual(gaps.reask_text(self.entry()),
-                         "실장님~ 그린워크1차 1104동 604호 (11/25 시공) 아직 확인 못 한 것만 부탁드려요 🙏\n3. 화장실 위치\n6. 11/25에 겹치는 다른 공정")
+    def test_text_renumbers_from_one(self):
+        # 사장님 11/1: 남은 것만 1번부터, 부탁하는 말로
+        self.assertEqual(gaps.reask_text(self.entry(checks=CHECKS[1:])),
+                         "실장님.. 궁금한거 있어서 연락드려요\n그린워크1차 1104동 604호 (11/25 시공)\n"
+                         "1. 화장실 위치 부탁드려요\n2. 11/25에 겹치는 다른 공정 부탁드려요\n3. 현관문 X 표시 부탁드려요")
 
     def run_reask(self, st, now, ok=True):
         self.sends, self.sent = getattr(self, "sends", []), getattr(self, "sent", [])
@@ -289,19 +292,22 @@ class ReaskTest(unittest.TestCase):
     def test_flow_three_times_then_tell_owner(self):
         mon = lambda h: time.mktime((2026, 11, 2, h, 0, 0, 0, 0, -1))
         st = {"asks": {"봄애실장님": [self.entry(last=mon(9))]}}
-        self.run_reask(st, mon(10))
-        self.assertEqual(self.sends, [])                                            # 2시간 안 됨
         self.run_reask(st, mon(11))
+        self.assertEqual(self.sends, [])                                            # 3시간 안 됨
+        self.run_reask(st, mon(12))
         self.assertEqual(len(self.sends), 1)
-        self.assertIn("3. 화장실 위치", self.sends[0][1])
+        self.assertIn("1. 화장실 위치 부탁드려요", self.sends[0][1])
         e = st["asks"]["봄애실장님"][0]
-        self.assertEqual((e["tries"], e["last"]), (1, mon(11)))
-        self.run_reask(st, mon(13)); self.run_reask(st, mon(15))
+        self.assertEqual((e["tries"], e["last"], e["q"], e["thanked"]), (1, mon(12), self.sends[0][1], False))   # 새 번호를 AI 에
+        self.run_reask(st, mon(15))
+        self.run_reask(st, mon(17))                                                 # 15+3=18시 → 다음 날 9시
+        self.assertEqual(len(self.sends), 2)
+        self.run_reask(st, mon(9) + 86400)
         self.assertEqual(len(self.sends), 3)
-        self.run_reask(st, mon(17))
+        self.run_reask(st, mon(12) + 86400)
         self.assertEqual(len(self.sends), 3)                                        # 3번 넘으면 안 보냄
         self.assertIn("업체 답이 없습니다", self.sent[0])
-        self.run_reask(st, mon(19) + 86400)
+        self.run_reask(st, mon(16) + 86400)
         self.assertEqual(len(self.sent), 1)                                         # 알림도 한 번만
 
     def test_skip_past_or_failed_send(self):
@@ -310,9 +316,9 @@ class ReaskTest(unittest.TestCase):
         self.run_reask(st, mon(11))
         self.assertEqual(self.sends, [])                                            # 시공일 지난 현장
         st = {"asks": {"봄애실장님": [self.entry(last=mon(9))]}}
-        self.run_reask(st, mon(11), ok=False)
+        self.run_reask(st, mon(12), ok=False)
         e = st["asks"]["봄애실장님"][0]
-        self.assertEqual((e["tries"], e["last"]), (0, mon(11)))                     # 못 보내도 2시간 뒤 다시
+        self.assertEqual((e["tries"], e["last"]), (0, mon(12)))                     # 못 보내도 3시간 뒤 다시
         st = {"asks": {"봄애실장님": [dict(self.entry(), missing=[], checks=[])]}}
         self.sends = []
         self.run_reask(st, mon(11))
@@ -322,6 +328,30 @@ class ReaskTest(unittest.TestCase):
         st = {"asks": {"봄애실장님": [self.entry(last=0)]}}
         gaps.on_answer(CFG, st, "봄애실장님", [M("잠시만요")], lambda *a: {"items": []}, lambda f: None, lambda t: None, lambda m: None)
         self.assertGreater(st["asks"]["봄애실장님"][0]["last"], time.time() - 5)
+
+    def test_thanks_once_per_round(self):
+        # 업체가 답하면 바로 '감사합니다~' (사장님 11/1) — 묻기 한 번에 한 번, 다시 물으면 또 한 번
+        st, sends = {"asks": {"봄애실장님": [self.entry()]}}, []
+        send = lambda room, text, log: (sends.append((room, text)) or room, "")
+        ans = lambda: gaps.on_answer(CFG, st, "봄애실장님", [M("잠시만요")], lambda *a: {"items": []}, lambda f: None,
+                                     lambda t: None, lambda m: None, send)
+        ans(); ans()
+        self.assertEqual(sends, [("봄애실장님", gaps.THANKS)])
+        st["asks"]["봄애실장님"][0]["thanked"] = False                               # 다시 물은 뒤
+        ans()
+        self.assertEqual(len(sends), 2)
+
+    def test_film_confirmed_message(self):
+        # 업체 답으로 필름 번호가 들어오면 '필름 넘버가 확정되었습니다' (사장님 11/1)
+        st, sent = {"asks": {"봄애실장님": [self.entry(missing=["films"], checks=[])]}}, []
+        items = [{"siteId": "s1", "kind": "films", "films": [{"place": "전체", "code": "ps170"}, {"place": "현관문", "code": "px450"}]}]
+        gaps.on_answer(CFG, st, "봄애실장님", [M("4번 전체 ps170")], lambda *a: {"items": items}, lambda f: None,
+                       sent.append, lambda m: None)
+        film = [t for t in sent if "필름 넘버가 확정되었습니다" in t]
+        self.assertEqual(len(film), 1)
+        self.assertIn("전체 ps170 / 현관문 px450", film[0])
+        self.assertIn("수량을 표시해주시면 주문을 넣도록 하겠습니다.", film[0])
+        self.assertIn("#site/s1/film", film[0])
 
 
 if __name__ == "__main__":

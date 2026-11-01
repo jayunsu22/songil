@@ -170,7 +170,7 @@ def run_once(cfg, state, dry=False):
                                cfg["digest_url"], cfg["owner_key"],
                                {"room": r, "today": today, "sites": sites, "messages": ms, "asked": asked}),
                            lambda fills: n8n_send.post_json(cfg["site_fill_url"], cfg["owner_key"], {"fills": fills}),
-                           lambda text: notify(cfg, text), log) if cfg["site_gaps"] else None)
+                           lambda text: notify(cfg, text), log, gaps.send_to_room) if cfg["site_gaps"] else None)
     if cfg["auto_read"] and cfg["watch_list"] and not dry:  # 텔레그램 버튼 [가견적 발행]·[시작해] (3·4단계, 10/31)
         jobs.poll(cfg, state, lambda text: notify(cfg, text), log,
                   lambda: n8n_send.fetch_jobs(cfg["jobs_url"], cfg["owner_key"]), {"pub": jobs.run_publish, "ask": gaps.run_ask})

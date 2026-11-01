@@ -13,9 +13,11 @@ import time
 CHECK_EVERY = 3600          # 빈칸 확인 1시간마다
 ASK_KEEP = 7 * 86400        # 물어본 뒤 답을 7일 기다림
 ASKED_KEEP = 60 * 86400     # '물어봄' 기록 (현장당 한 번) 60일 보관
-# 못 받은 답 다시 묻기 (사장님 11/1): 마지막으로 묻거나 업체가 답한 뒤 2시간, 저녁 6시 넘으면 다음 날 9시(일·공휴일 13시) 뒤.
-# 텔레그램 없이 자동으로 남은 번호만. 업체를 조르지 않게 3번까지, 그래도 없으면 사장님께 한 번 알림
-REASK_AFTER = 2 * 3600
+# 못 받은 답 다시 묻기 (사장님 11/1): 마지막으로 묻거나 업체가 답한 뒤 3시간, 저녁 6시 넘으면 다음 날 9시(일·공휴일 13시) 뒤.
+# 텔레그램 없이 자동으로 남은 것만 1번부터 다시 번호를 매겨. 업체를 조르지 않게 3번까지, 그래도 없으면 사장님께 한 번 알림
+REASK_AFTER = 3 * 3600
+# 업체가 답하면 바로(5분 안) 그 방에 보내는 인사 (사장님 11/1) — 묻기·다시 묻기 한 번에 한 번만
+THANKS = "감사합니다~\n궁금한거 생기면 다시 연락드릴께요."
 REASK_END = 18
 MAX_REASK = 3
 HOURS = (9, 20)             # 텔레그램은 평일·토요일 오전 9시~저녁 8시 (사장님 11/1)
@@ -300,9 +302,16 @@ def remaining(entry):
     return [(n, left[k]) for k, n in entry.get("items") or [] if k in left]
 
 
+def _ask_phrase(t):
+    """다시 물을 때는 부탁하는 말로: '공동현관 비번' → '공동현관 비번 부탁드려요', 이미 '…요' 로 끝나면 그대로."""
+    t = str(t).strip()
+    return t if t.endswith("요") or t.endswith("요)") else t + " 부탁드려요"
+
+
 def reask_text(entry):
-    lines = ["실장님~ %s (%s 시공) 아직 확인 못 한 것만 부탁드려요 🙏" % (entry["name"], md(entry["date"]))]
-    return "\n".join(lines + ["%d. %s" % (n, t) for n, t in remaining(entry)])
+    """남은 것만 1번부터 다시 번호를 매긴다 (사장님 11/1). 업체가 여러 현장을 하면 헷갈리니 현장 줄을 넣는다."""
+    lines = ["실장님.. 궁금한거 있어서 연락드려요", "%s (%s 시공)" % (entry["name"], md(entry["date"]))]
+    return "\n".join(lines + ["%d. %s" % (i, _ask_phrase(t)) for i, (_, t) in enumerate(remaining(entry), 1)])
 
 
 def reask(cfg, state, now, send, notify, log):
@@ -323,11 +332,14 @@ def reask(cfg, state, now, send, notify, log):
                                 *[tg.esc("%d. %s" % nt) for nt in remaining(e)], "직접 확인해 주세요."))
                 log("[%s] %s — 다시 묻기 %d번, 그만 (사장님께 알림)" % (room, e["name"], MAX_REASK))
                 return
-            opened, why = send(room, reask_text(e), log)
-            e["last"] = now   # 못 보냈어도 2시간 뒤에 다시 (계속 방을 열지 않게)
+            text = reask_text(e)
+            opened, why = send(room, text, log)
+            e["last"] = now   # 못 보냈어도 3시간 뒤에 다시 (계속 방을 열지 않게)
             if why:
                 log("[%s] 못 받은 답 다시 묻기 실패 (%s)" % (room, why))
                 return
+            e["q"] = text          # 업체는 이제 새 번호로 답한다 → AI 에 이 글을 준다
+            e["thanked"] = False   # 이번 다시 묻기에 답이 오면 또 한 번 인사
             e["tries"] = e.get("tries", 0) + 1
             log("[%s] 못 받은 답 다시 물음 (%d번째): %s" % (opened, e["tries"], e["name"]))
             return
@@ -386,7 +398,24 @@ def _done_key(f):
     return "check:" + f["checkId"] if f["kind"] == "check" else (f.get("field") or "films")
 
 
-def filled_text(site, fills):
+def reask_gap_hours(cfg=None):
+    try:
+        return float(((cfg or {}).get("reask") or {}).get("간격", REASK_AFTER / 3600))
+    except (TypeError, ValueError):
+        return REASK_AFTER / 3600
+
+
+def film_confirmed_text(site, films, cfg=None):
+    """업체 답으로 필름 번호가 들어왔을 때 (사장님 11/1) — 사장님이 앱에서 수량을 골라야 주문할 수 있다."""
+    import tg
+    url = ((cfg or {}).get("app_url") or APP_URL) + "#site/%s/film" % site["id"]
+    return tg.lines("🎞 " + tg.b("필름 넘버가 확정되었습니다 · %s" % site["name"]),
+                    tg.esc(" / ".join(("%s %s" % (x.get("place") or "", x["code"])).strip() for x in films)),
+                    "수량을 표시해주시면 주문을 넣도록 하겠습니다.",
+                    tg.link(url, "👉 앱에서 수량 고르기"))
+
+
+def filled_text(site, fills, cfg=None):
     import tg
     checks = {c["id"]: c for c in site.get("checks") or []}
     short = lambda c: re.sub(r"\s*\(.*?\)", "", check_text(c, site))[:24]   # 괄호 설명은 빼고 짧게
@@ -402,20 +431,29 @@ def filled_text(site, fills):
     left = [LABEL[k] for k in site["missing"] if k not in done] + \
            [short(c) for c in site.get("checks") or [] if "check:" + c["id"] not in done]
     if left:
-        lines.append("❓ 아직 못 받음: " + tg.esc(" · ".join(left)) + " (2시간 뒤 다시 물어봄)")
+        lines.append("❓ 아직 못 받음: " + tg.esc(" · ".join(left)) + " (%g시간 뒤 다시 물어봄)" % reask_gap_hours(cfg))
     lines.append("(현장관리 앱을 열면 들어갑니다)")
     return tg.lines(*lines)
 
 
-def on_answer(cfg, state, room, msgs, digest, put, notify, log):
-    """물어본 방에 업체 새 글(사장님 글 뺀 것)이 오면 → kakao-digest 로 값 뽑기 → 우편함 → 텔레그램. 받은 칸은 asks 에서 뺀다."""
+def on_answer(cfg, state, room, msgs, digest, put, notify, log, send=None):
+    """물어본 방에 업체 새 글(사장님 글 뺀 것)이 오면 → 고맙다는 인사 → kakao-digest 로 값 뽑기 → 우편함 → 텔레그램.
+    받은 칸은 asks 에서 뺀다. send(방, 글, log) 가 있으면 인사를 보낸다 (묻기·다시 묻기마다 한 번)."""
     asks = state.get("asks") or {}
     key = _ask_key(asks, room)
     if not key or not asks[key] or not msgs:
         return
     pend = asks[key]
     for s in pend:
-        s["last"] = time.time()   # 업체가 뭐라도 답했으면 다시 묻기는 그때부터 2시간 뒤
+        s["last"] = time.time()   # 업체가 뭐라도 답했으면 다시 묻기는 그때부터 3시간 뒤
+    if send and any(not s.get("thanked") for s in pend):
+        _, why = send(key, THANKS, log)
+        if why:
+            log("[%s] 감사 인사 못 보냄 (%s)" % (key, why))
+        else:
+            for s in pend:
+                s["thanked"] = True
+            log("[%s] 감사 인사 보냄" % key)
     today = time.strftime("%Y-%m-%d")
     # 비번은 일반 정보로 다룬다(사장님 10/31) — 이 경우만 가리지 않고 보낸다
     messages = [{"d": m["date"], "t": m["time"], "who": m["sender"], "text": m["text"]} for m in msgs]
@@ -443,8 +481,11 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log):
         mine = [f for f in fills if f["siteId"] == s["id"]]
         if not mine:
             continue
-        notify(filled_text(s, mine))
+        notify(filled_text(s, mine, cfg))
         log("[%s] 빈칸 %d개 넣음: %s" % (key, len(mine), s["name"]))
+        films = [x for f in mine if f["kind"] == "films" for x in f["films"]]
+        if films:
+            notify(film_confirmed_text(s, films, cfg))
         done = {_done_key(f) for f in mine}
         s["missing"] = [k for k in s["missing"] if k not in done]
         s["checks"] = [c for c in s.get("checks") or [] if "check:" + c["id"] not in done]
