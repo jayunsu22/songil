@@ -17,8 +17,14 @@ ASKED_KEEP = 60 * 86400     # '물어봄' 기록 (현장당 한 번) 60일 보�
 # 못 받은 답 다시 묻기 (사장님 11/1): 마지막으로 묻거나 업체가 답한 뒤 3시간, 저녁 6시 넘으면 다음 날 9시(일·공휴일 13시) 뒤.
 # 텔레그램 없이 자동으로 남은 것만 1번부터 다시 번호를 매겨. 업체를 조르지 않게 3번까지, 그래도 없으면 사장님께 한 번 알림
 REASK_AFTER = 3 * 3600
-# 업체가 답하면 바로(5분 안) 그 방에 보내는 인사 (사장님 11/1) — 묻기·다시 묻기 한 번에 한 번만
-THANKS = "감사합니다~\n궁금한거 생기면 다시 연락드릴께요."
+# 업체가 답하면 3분쯤 뒤 그 방에 보내는 인사 (사장님 11/1) — 넷 중 아무거나. 값(비번·필름·답)이 온 글마다,
+# 값이 없는 글('네' 처럼)은 묻기·다시 묻기 한 번에 한 번만. 비번·필름을 바꾼다는 글에는 CHANGE_REPLY
+THANKS = ("감사합니다~😊\n궁금한거 생기면 다시 연락드릴께요.",
+          "네~ 알겠습니다.🙂",
+          "알겠어요~👍\n준비 잘할께요~",
+          "알겠어요~\n또 연락드릴께요~😊")
+CHANGE_REPLY = "알겠습니다~ 변경할께요.."
+REPLY_DELAY = 120   # 방을 여는 데 이미 1분(조용해지면 엶) — 2분 더 기다려 글이 온 뒤 3분쯤에 보낸다
 REASK_END = 18
 MAX_REASK = 3
 HOURS = (9, 20)             # 텔레그램은 평일·토요일 오전 9시~저녁 8시 (사장님 11/1)
@@ -213,6 +219,16 @@ def film_orders(cfg, g, now, orders, notify, log):
             log("[필름] 주문 알림: %s (%s)" % (o.get("name"), o.get("date")))
 
 
+def sync_checks(state, site):
+    """물어본 뒤 앱에서 질문을 '확답만' 으로 바꾸거나 글을 고치면 기다리는 질문에도 반영 (사장님 11/1 — '네' 를 놓친 것)."""
+    now = {c["id"]: c for c in site["checks"]}
+    for lst in (state.get("asks") or {}).values():
+        for e in lst:
+            if e["id"] == site["id"]:
+                e["checks"] = [dict(c, ok=now[c["id"]]["ok"], text=now[c["id"]]["text"]) if c["id"] in now else c
+                               for c in e.get("checks") or []]
+
+
 def check(cfg, state, now, fetch, notify, log):
     """reader.py 가 확인할 때마다 부른다. 1시간마다·알림 시간(in_hours)에만 빈칸 현장을 가져와 처음 보는 현장만 텔레그램으로."""
     import jobs
@@ -232,6 +248,7 @@ def check(cfg, state, now, fetch, notify, log):
     g["asked"] = asked
     for raw in sites:
         site = _site(raw)
+        sync_checks(state, site)
         if site["id"] in asked or not (site["missing"] or site["checks"]):
             continue
         rooms = rooms_for(cfg, site["client"])
@@ -480,24 +497,55 @@ def filled_text(site, fills, cfg=None):
     return tg.lines(*lines)
 
 
+def queue_reply(state, room, text, now):
+    """인사를 바로 보내지 않고 REPLY_DELAY 뒤에 (send_replies). 그 사이 또 오면 '변경' 인사가 이긴다."""
+    q = state.setdefault("replies", {})
+    old = q.get(room)
+    if old and old["text"] == CHANGE_REPLY:
+        text = CHANGE_REPLY
+    q[room] = {"text": text, "due": now + REPLY_DELAY}
+
+
+def send_replies(state, now, send, log):
+    """때가 된 인사를 보낸다 (한 번에 한 방). 못 보내면 버린다 — 인사 때문에 방을 계속 열지 않게."""
+    q = state.get("replies") or {}
+    for room, r in list(q.items()):
+        if now < r["due"]:
+            continue
+        del q[room]
+        _, why = send(room, r["text"], log)
+        log("[%s] 인사 %s" % (room, "못 보냄 (%s)" % why if why else "보냄: " + r["text"].split("\n")[0]))
+        return
+
+
+def _reply(state, key, pend, kind, now):
+    """kind: 'change' = 바꾼다는 글, 'got' = 값이 온 글, '' = 값 없는 글 (이번 묻기에 아직 인사 안 했을 때만)."""
+    import random
+    if not kind and all(s.get("thanked") for s in pend):
+        return
+    queue_reply(state, key, CHANGE_REPLY if kind == "change" else random.choice(THANKS), now)
+    for s in pend:
+        s["thanked"] = True
+
+
 def on_answer(cfg, state, room, msgs, digest, put, notify, log, send=None):
-    """물어본 방에 업체 새 글(사장님 글 뺀 것)이 오면 → 고맙다는 인사 → kakao-digest 로 값 뽑기 → 우편함 → 텔레그램.
-    받은 칸은 asks 에서 뺀다. send(방, 글, log) 가 있으면 인사를 보낸다 (묻기·다시 묻기마다 한 번)."""
+    """물어본 방에 업체 새 글(사장님 글 뺀 것)이 오면 → kakao-digest 로 값 뽑기 → 우편함 → 텔레그램 → 3분쯤 뒤 인사.
+    받은 칸은 asks 에서 뺀다. send 가 있으면 인사를 줄에 넣는다 (send_replies 가 보냄)."""
     asks = state.get("asks") or {}
     key = _ask_key(asks, room)
     if not key or not asks[key] or not msgs:
         return
     pend = asks[key]
+    now = time.time()
     for s in pend:
-        s["last"] = time.time()   # 업체가 뭐라도 답했으면 다시 묻기는 그때부터 3시간 뒤
-    if send and any(not s.get("thanked") for s in pend):
-        _, why = send(key, THANKS, log)
-        if why:
-            log("[%s] 감사 인사 못 보냄 (%s)" % (key, why))
-        else:
-            for s in pend:
-                s["thanked"] = True
-            log("[%s] 감사 인사 보냄" % key)
+        s["last"] = now   # 업체가 뭐라도 답했으면 다시 묻기는 그때부터 3시간 뒤
+    kind = _answer(cfg, key, pend, msgs, digest, put, notify, log)
+    if send:
+        _reply(state, key, pend, kind, now)
+
+
+def _answer(cfg, key, pend, msgs, digest, put, notify, log):
+    """값을 뽑아 넣고 알린다. 돌려줌: 'change' / 'got' / '' (인사 고르기용)."""
     today = time.strftime("%Y-%m-%d")
     # 비번은 일반 정보로 다룬다(사장님 10/31) — 이 경우만 가리지 않고 보낸다
     messages = [{"d": m["date"], "t": m["time"], "who": m["sender"], "text": m["text"]} for m in msgs]
@@ -510,7 +558,7 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log, send=None):
         res = digest({"client": client, "name": key}, today, sites, messages, asked)
     except Exception as e:
         log("[%s] 값 찾기 실패: %s" % (key, str(e)[:150]))
-        return
+        return ""
     fills = pick_fills((res or {}).get("items"), pend, key, today)
     # 필름 번호를 바꾸자는 건 앱에 넣지 않고 알림만 — 사장님이 직접 바꾼다 (11/1). 비번·화장실 변경은 바로 고쳐 넣는다
     film_changes = [f for f in fills if f["kind"] == "films" and f.get("update")]
@@ -522,13 +570,13 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log, send=None):
     if not fills:
         if not film_changes:
             log("[%s] 답에 넣을 값 없음" % key)
-        return
+        return "change" if film_changes else ""
     try:
         put(fills)
     except Exception as e:
         log("[%s] 우편함 넣기 실패: %s" % (key, str(e)[:150]))
         notify("[현장] 업체 답을 받았지만 현장관리에 못 넣었습니다 · %s\n%s" % (key, str(e)[:200]))
-        return
+        return "got"
     for s in list(pend):
         mine = [f for f in fills if f["siteId"] == s["id"]]
         new = [f for f in mine if not f.get("update")]
@@ -546,3 +594,4 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log, send=None):
         s["missing"] = [k for k in s["missing"] if k not in done]
         s["checks"] = [c for c in s.get("checks") or [] if "check:" + c["id"] not in done]
     # 다 받은 현장도 시공일까지 남겨 둔다 — 업체가 나중에 바꾼 정보를 고쳐 넣게 (watch_extra 가 시공일 뒤 지움)
+    return "change" if film_changes or any(f.get("update") for f in fills) else "got"

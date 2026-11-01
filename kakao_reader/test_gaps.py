@@ -367,17 +367,60 @@ class ReaskTest(unittest.TestCase):
         gaps.on_answer(CFG, st, "봄애실장님", [M("잠시만요")], lambda *a: {"items": []}, lambda f: None, lambda t: None, lambda m: None)
         self.assertGreater(st["asks"]["봄애실장님"][0]["last"], time.time() - 5)
 
-    def test_thanks_once_per_round(self):
-        # 업체가 답하면 바로 '감사합니다~' (사장님 11/1) — 묻기 한 번에 한 번, 다시 물으면 또 한 번
-        st, sends = {"asks": {"봄애실장님": [self.entry()]}}, []
+    def reply_run(self, st, items, now=1000.0):
+        sends = []
+        gaps.on_answer(CFG, st, "봄애실장님", [M("글")], lambda *a: {"items": items}, lambda f: None,
+                       lambda t: None, lambda m: None, lambda *a: ("", ""))
+        gaps.send_replies(st, now, lambda room, text, log: (sends.append((room, text)) or room, ""), lambda m: None)
+        return sends
+
+    def test_reply_after_delay_and_random(self):
+        # 업체 글에 3분쯤 뒤 인사, 넷 중 아무거나 (사장님 11/1)
+        st = {"asks": {"봄애실장님": [self.entry()]}}
+        gaps.on_answer(CFG, st, "봄애실장님", [M("네")], lambda *a: {"items": []}, lambda f: None,
+                       lambda t: None, lambda m: None, lambda *a: ("", ""))
+        due = st["replies"]["봄애실장님"]["due"]
+        self.assertAlmostEqual(due, time.time() + gaps.REPLY_DELAY, delta=5)
+        sends = []
         send = lambda room, text, log: (sends.append((room, text)) or room, "")
-        ans = lambda: gaps.on_answer(CFG, st, "봄애실장님", [M("잠시만요")], lambda *a: {"items": []}, lambda f: None,
-                                     lambda t: None, lambda m: None, send)
-        ans(); ans()
-        self.assertEqual(sends, [("봄애실장님", gaps.THANKS)])
-        st["asks"]["봄애실장님"][0]["thanked"] = False                               # 다시 물은 뒤
-        ans()
-        self.assertEqual(len(sends), 2)
+        gaps.send_replies(st, due - 1, send, lambda m: None)
+        self.assertEqual(sends, [])                                                 # 아직
+        gaps.send_replies(st, due, send, lambda m: None)
+        self.assertEqual(len(sends), 1)
+        self.assertIn(sends[0][1], gaps.THANKS)
+        self.assertEqual(st["replies"], {})
+
+    def test_reply_once_without_values_but_every_answer(self):
+        # 값 없는 글('네', '잠시만요')은 묻기 한 번에 한 번, 값이 온 글은 매번 (9:31·9:59 비번에 인사가 없던 것)
+        st = {"asks": {"봄애실장님": [self.entry()]}}
+        self.assertEqual(len(self.reply_run(st, [], now=time.time() + 999)), 1)
+        self.assertEqual(self.reply_run(st, [], now=time.time() + 999), [])
+        got = [{"siteId": "s1", "kind": "field", "field": "toilet", "value": "1층"}]
+        sends = self.reply_run(st, got, now=time.time() + 999)
+        self.assertIn(sends[0][1], gaps.THANKS)
+
+    def test_change_reply(self):
+        # 비번·필름을 바꾼다는 글에는 '알겠습니다~ 변경할께요..' (사장님 11/1)
+        st = {"asks": {"봄애실장님": [self.entry(missing=[])]}}
+        pw = [{"siteId": "s1", "kind": "field", "field": "pwUnit", "value": "4321"}]
+        self.assertEqual(self.reply_run(st, pw, now=time.time() + 999), [("봄애실장님", gaps.CHANGE_REPLY)])
+        st = {"asks": {"봄애실장님": [self.entry(missing=[])]}}
+        film = [{"siteId": "s1", "kind": "films", "films": [{"place": "현관문", "code": "ps035"}]}]
+        self.assertEqual(self.reply_run(st, film, now=time.time() + 999), [("봄애실장님", gaps.CHANGE_REPLY)])
+
+    def test_change_reply_wins_while_waiting(self):
+        st = {}
+        gaps.queue_reply(st, "봄애실장님", gaps.CHANGE_REPLY, 0)
+        gaps.queue_reply(st, "봄애실장님", gaps.THANKS[0], 10)
+        self.assertEqual(st["replies"]["봄애실장님"], {"text": gaps.CHANGE_REPLY, "due": 10 + gaps.REPLY_DELAY})
+
+    def test_sync_checks_from_app(self):
+        # 물은 뒤 앱에서 '확답만' 으로 바꾸면 기다리는 질문도 ok:true ('네' 를 놓친 것, 11/1)
+        st = {"asks": {"봄애실장님": [self.entry()]}}
+        cid = st["asks"]["봄애실장님"][0]["checks"][0]["id"]
+        gaps.sync_checks(st, {"id": "s1", "checks": [{"id": cid, "text": "고친 글", "ok": True}]})
+        c = st["asks"]["봄애실장님"][0]["checks"][0]
+        self.assertEqual((c["ok"], c["text"]), (True, "고친 글"))
 
     def test_film_confirmed_message(self):
         # 업체 답으로 필름 번호가 들어오면 '필름 넘버가 확정되었습니다' (사장님 11/1)

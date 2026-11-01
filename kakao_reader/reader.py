@@ -181,6 +181,8 @@ def run_once(cfg, state, dry=False):
                        lambda text, buttons=None: notify(cfg, text, buttons), log)
             # 못 받은 답은 2시간 뒤 남은 번호만 자동으로 다시 (사장님 11/1, 18시 넘으면 다음 날 9시)
             gaps.reask(cfg, state, time.time(), gaps.send_to_room, lambda text: notify(cfg, text), log)
+            # 업체 답에 3분쯤 뒤 인사 (사장님 11/1)
+            gaps.send_replies(state, time.time(), gaps.send_to_room, log)
     if not dry:
         for job in [j for j in READY if not j["need"]]:
             READY.remove(job)
