@@ -471,6 +471,23 @@
   </div>
 </section>
 
+<!-- 품목 금액 고치기 (2026-11-01). 휴대폰 기본 입력창은 ✕·쉼표를 못 넣어서 따로 둔다 -->
+<div id="amtBack" hidden></div>
+<section id="amtSheet" hidden aria-label="금액 고치기">
+  <h2 id="amtTitle">금액 고치기</h2>
+  <p class="hint" id="amtOrig"></p>
+  <div class="amt-wrap">
+    <input type="text" id="amtInput" inputmode="numeric" autocomplete="off" placeholder="0원">
+    <button type="button" id="amtClear" aria-label="지우기">✕</button>
+  </div>
+  <p class="hint" id="amtSplit"></p>
+  <div class="amt-row">
+    <button type="button" id="amtCancel">취소</button>
+    <button type="button" id="amtOk" class="primary">확인</button>
+  </div>
+  <button type="button" id="amtReset">원래 금액으로</button>
+</section>
+
 <div id="toast" hidden></div>
 
 <!-- quote_calc.js 가 먼저 로드되어야 한다 (quote_pro.js 가 QuoteCalc 를 쓴다) -->

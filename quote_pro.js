@@ -582,7 +582,10 @@ function buildItem(item, 구역) {
 /* 품목 금액 직접 고치기. 고친 금액을 원래 인건비·자재비 비율로 나눠 '고정' 금액으로 둔다
    (견적요청 고정과 같은 칸 - 수량·난이도·종류를 바꾸면 풀리고 단가 계산으로 돌아간다).
    비율은 처음 금액 기준이다: 견적요청에서 넘어온 금액이면 그 금액, 아니면 방문견적 단가 계산.
-   여러 번 고쳐도 '원래' 는 처음 금액을 남긴다. 비우고 확인하면 원래대로 돌아간다. */
+   여러 번 고쳐도 '원래' 는 처음 금액을 남긴다.
+   창: 치는 동안 천 단위 쉼표, ✕ 는 칸을 비운다(= 0원), [원래 금액으로] 는 고침을 푼다. */
+let 금액창 = null;   // { item, 구역, row, 기준, 원래, 요청고정 }
+
 function 금액고치기(item, 구역, row) {
   const s = state.선택[item.체크_ID];
   if (!s) return;
@@ -594,27 +597,74 @@ function 금액고치기(item, 구역, row) {
     : (() => { const 줄 = 품목줄(item, 구역, Object.assign({}, s, { 고정: null }));
                return { 금액: QuoteCalc.lineAmount(줄), 인건비: QuoteCalc.lineWage(줄) }; })();
   const 원래 = s.고정 && s.고정.원래 != null ? s.고정.원래 : 지금;
-  const 답 = prompt('‘' + 지금줄.품목명 + '’ 금액 (원래 ' + won(원래) + ')\n비우고 확인하면 원래 금액으로 돌아갑니다.',
-    QuoteCalc.금액포맷(String(지금)));
-  if (답 == null) return;
-  const 새 = QuoteCalc.금액파싱(답);
-  if (!isFinite(새)) {
+  금액창 = { item: item, 구역: 구역, row: row, 기준: 기준, 원래: 원래, 요청고정: 요청고정 };
+  $('#amtTitle').textContent = '‘' + 지금줄.품목명 + '’ 금액';
+  $('#amtOrig').textContent = '원래 ' + won(원래);
+  $('#amtInput').value = QuoteCalc.금액포맷(String(지금));
+  $('#amtReset').hidden = !(s.고정 && s.고정.고침);
+  금액창나눔();
+  $('#amtBack').hidden = false;
+  $('#amtSheet').hidden = false;
+  const inp = $('#amtInput');
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+}
+
+// 지금 친 금액이면 인건비·자재비가 얼마씩인지 미리 보여준다 (빈 칸은 0원)
+function 금액창나눔() {
+  if (!금액창) return;
+  const 새 = QuoteCalc.금액파싱($('#amtInput').value);
+  const 나눔 = QuoteCalc.금액나누기(isFinite(새) ? 새 : 0, 금액창.기준.인건비, 금액창.기준.금액);
+  $('#amtSplit').textContent = 나눔.인건비 == null
+    ? won(나눔.금액) + ' (인건비·자재비를 나눌 수 없는 줄)'
+    : won(나눔.금액) + ' = 인건비 ' + won(나눔.인건비) + ' · 자재비 ' + won(나눔.자재비);
+}
+
+function 금액창닫기() {
+  $('#amtBack').hidden = true;
+  $('#amtSheet').hidden = true;
+  금액창 = null;
+}
+
+/* 확인(되돌리기=false) 또는 [원래 금액으로](되돌리기=true) */
+function 금액창적용(되돌리기) {
+  const c = 금액창;
+  if (!c) return;
+  const s = state.선택[c.item.체크_ID];
+  if (!s) { 금액창닫기(); return; }
+  if (되돌리기) {
+    // 견적요청 금액을 고쳤던 거면 견적요청 금액으로, 아니면 단가 계산으로
     if (s.고정 && s.고정.고침) {
-      // 견적요청 금액을 고쳤던 거면 견적요청 금액으로, 아니면 단가 계산으로
       if (s.고정.요청) s.고정 = s.고정.요청; else delete s.고정;
     }
   } else {
-    const 나눔 = QuoteCalc.금액나누기(새, 기준.인건비, 기준.금액);
+    const 새 = QuoteCalc.금액파싱($('#amtInput').value);
+    const 나눔 = QuoteCalc.금액나누기(isFinite(새) ? 새 : 0, c.기준.인건비, c.기준.금액);
     s.고정 = Object.assign({}, 나눔, {
-      고침: true, 원래: 원래,
-      범위: 요청고정 ? 요청고정.범위 : (s.고정 && s.고정.범위),
-      요청: 요청고정 || (s.고정 && s.고정.요청) || null,
+      고침: true, 원래: c.원래,
+      범위: c.요청고정 ? c.요청고정.범위 : (s.고정 && s.고정.범위),
+      요청: c.요청고정 || (s.고정 && s.고정.요청) || null,
     });
   }
+  const row = c.row;
+  금액창닫기();
   persist();
   syncRow(row);
   refresh();
 }
+
+$('#amtInput').addEventListener('input', () => {
+  const el = $('#amtInput');
+  const 새값 = QuoteCalc.금액포맷(el.value);
+  if (새값 !== el.value) el.value = 새값;
+  금액창나눔();
+});
+$('#amtInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); 금액창적용(false); } });
+$('#amtClear').addEventListener('click', () => { $('#amtInput').value = ''; 금액창나눔(); $('#amtInput').focus(); });
+$('#amtOk').addEventListener('click', () => 금액창적용(false));
+$('#amtReset').addEventListener('click', () => 금액창적용(true));
+$('#amtCancel').addEventListener('click', 금액창닫기);
+$('#amtBack').addEventListener('click', 금액창닫기);
 
 /* 저장된 상태를 한 행의 컨트롤에 반영한다 */
 function syncRow(row) {
