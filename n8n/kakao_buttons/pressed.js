@@ -19,7 +19,7 @@ if (/^o\d$/.test(act || '')) {
   else {
     // 한국 번호 010… → +8210… (SMS Gateway 는 국제 형식)
     const d = p.phone.replace(/[^0-9+]/g, '');
-    sms = { job, label: p.label, siteId: o.siteId, text: o.text, phone: d.startsWith('+') ? d : '+82' + d.replace(/^0/, '') };
+    sms = { job, label: p.label, siteId: o.siteId, text: o.text, items: o.items || '', phone: d.startsWith('+') ? d : '+82' + d.replace(/^0/, '') };
     표시 = '';
   }
 }

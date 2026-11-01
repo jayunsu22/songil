@@ -19,7 +19,7 @@ const now = Date.now();
 sd.orders = Object.fromEntries(Object.entries(sd.orders || {}).filter(([, o]) => now - o.at < 7 * 864e5));
 let id = '';
 while (!id || sd.orders[id]) id = (Math.random().toString(36).slice(2) + '000000').slice(0, 6);
-sd.orders[id] = { siteId, name, text, people, at: now };
+sd.orders[id] = { siteId, name, text, items: s(b.items, 300), people, at: now };   // items = 앱 필름 탭 기록용 'ps170 1롤 · …'
 const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const lines = ['🎞 <b>필름 주문 · ' + esc(name || siteId) + '</b>', '── 보낼 문자 ──', esc(text), ''];
 const dash = (p) => p.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
