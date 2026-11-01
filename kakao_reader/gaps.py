@@ -12,6 +12,7 @@ import time
 
 CHECK_EVERY = 3600          # 빈칸 확인 1시간마다
 ASK_KEEP = 7 * 86400        # 물어본 뒤 답을 7일 기다림
+WATCH_KEEP = 30 * 86400     # 답을 다 받아도 시공일까지(길어야 30일) 그 방을 보며 바뀐 정보를 고쳐 넣는다 (사장님 11/1)
 ASKED_KEEP = 60 * 86400     # '물어봄' 기록 (현장당 한 번) 60일 보관
 # 못 받은 답 다시 묻기 (사장님 11/1): 마지막으로 묻거나 업체가 답한 뒤 3시간, 저녁 6시 넘으면 다음 날 9시(일·공휴일 13시) 뒤.
 # 텔레그램 없이 자동으로 남은 것만 1번부터 다시 번호를 매겨. 업체를 조르지 않게 3번까지, 그래도 없으면 사장님께 한 번 알림
@@ -355,17 +356,20 @@ def _ask_key(asks, room):
 
 
 def watch_extra(state, now):
-    """물어보고 답을 기다리는 방 (7일 지난 것은 지움) — 알릴 방(watch_rooms)에 더해 그 방의 새 글을 읽게."""
+    """물어본 현장의 업체 방 — 알릴 방(watch_rooms)에 더해 그 방의 새 글을 읽게. 답을 다 받아도 시공일까지는 본다
+    (사장님 11/1: 업체가 나중에 '비번 바꿨어요' 하면 고쳐 넣게). 시공일이 지났거나 물은 지 30일 넘은 것은 지운다."""
     asks = state.get("asks") or {}
+    today = time.strftime("%Y-%m-%d", time.localtime(now))
     for k in list(asks):
-        asks[k] = [x for x in asks[k] if now - x.get("at", 0) < ASK_KEEP]
+        asks[k] = [x for x in asks[k] if (x.get("date") or "") >= today and now - x.get("at", 0) < WATCH_KEEP]
         if not asks[k]:
             del asks[k]
     return list(asks)
 
 
 def pick_fills(items, pend, room, today):
-    """digest 결과 중 물어본 현장의 '물어본 빈칸' 값만. 물어본 현장이 하나면 AI 가 현장을 못 정해도 그 현장으로."""
+    """digest 결과 중 물어본 현장의 비번·화장실·필름과 남은 확인 질문 값만. 물어본 현장이 하나면 AI 가 현장을 못 정해도 그 현장으로.
+    이미 받은 칸(비번·화장실·필름)에 새 값이 오면 update: True — 업체가 바꾼 것 (사장님 11/1, 텔레그램 🔄 로 알림)."""
     by_id = {s["id"]: s for s in pend}
     got = {}
     for it in items or []:
@@ -376,16 +380,16 @@ def pick_fills(items, pend, room, today):
             sid = pend[0]["id"]
         miss = by_id[sid]["missing"]
         kind = it.get("kind")
-        if kind == "field" and it.get("field") in FIELDS and it["field"] in miss and str(it.get("value") or "").strip():
+        if kind == "field" and it.get("field") in FIELDS and str(it.get("value") or "").strip():
             got[(sid, it["field"])] = {"siteId": sid, "kind": "field", "field": it["field"], "value": str(it["value"]).strip(),
-                                       "room": room, "at": today}
-        elif kind == "films" and "films" in miss:
+                                       "room": room, "at": today, "update": it["field"] not in miss}
+        elif kind == "films":
             films = [{"place": str(f.get("place") or "").strip(), "code": str(f.get("code") or "").strip()}
                      for f in it.get("films") or [] if str(f.get("code") or "").strip()]
             if films:
                 prev = got.get((sid, "films"))
                 got[(sid, "films")] = {"siteId": sid, "kind": "films", "films": (prev["films"] if prev else []) + films,
-                                       "room": room, "at": today}
+                                       "room": room, "at": today, "update": "films" not in miss}
         elif kind == "check" and it.get("checkId") in {c["id"] for c in by_id[sid].get("checks") or []} \
                 and str(it.get("value") or "").strip():
             # 업체 확인 질문의 답 (11/1)
@@ -413,6 +417,46 @@ def film_confirmed_text(site, films, cfg=None):
                     tg.esc(" / ".join(("%s %s" % (x.get("place") or "", x["code"])).strip() for x in films)),
                     "수량을 표시해주시면 주문을 넣도록 하겠습니다.",
                     tg.link(url, "👉 앱에서 수량 고르기"))
+
+
+def _eul(word):
+    """받침 있으면 '을', 없으면 '를'."""
+    ch = str(word)[-1:] or "가"
+    return "을" if "가" <= ch <= "힣" and (ord(ch) - 0xAC00) % 28 else "를"
+
+
+def _ro(word):
+    """받침 없거나 ㄹ 받침이면 '로', 그 밖 받침이면 '으로' (숫자·영문 끝은 '로')."""
+    ch = str(word)[-1:] or "가"
+    if not ("가" <= ch <= "힣"):
+        # 숫자는 읽는 소리로: 영·삼·육 은 받침(으로), 일·칠·팔 은 ㄹ 받침(로), 나머지는 받침 없음(로). 영문 끝도 '로'
+        return "으로" if ch in "036" else "로"
+    j = (ord(ch) - 0xAC00) % 28
+    return "로" if j in (0, 8) else "으로"
+
+
+def film_change_text(site, films, room, cfg=None):
+    """업체가 필름 번호를 바꾸자고 할 때 — 앱은 그대로 두고 알림만 (사장님 11/1: 필름·일정 변경은 직접 바꾼다)."""
+    import tg
+    url = ((cfg or {}).get("app_url") or APP_URL) + "#site/%s/film" % site["id"]
+    v = ", ".join(("%s %s" % (x["place"], x["code"])).strip() for x in films)
+    return tg.lines("🎞 " + tg.b("필름 번호 변경 요청 · %s" % site["name"]),
+                    tg.esc("%s님이 필름을 %s%s 바꾸자고 합니다." % (room, v, _ro(v))),
+                    "앱은 그대로입니다 — 확인하고 직접 바꿔 주세요.",
+                    tg.link(url, "👉 앱에서 필름 바꾸기"))
+
+
+def changed_text(site, fills, room):
+    """업체가 이미 받은 정보를 바꿨을 때 (사장님 11/1): '류춘화님이 세대 비번을 1234로 바꿨다고 해서 앱에서도 수정했습니다.'"""
+    import tg
+    parts = []
+    for f in fills:
+        name = LABEL[f["field"]] if f["kind"] == "field" else "필름"
+        v = f["value"] if f["kind"] == "field" else ", ".join(("%s %s" % (x["place"], x["code"])).strip() for x in f["films"])
+        parts.append("%s%s %s%s" % (name, _eul(name), v, _ro(v)))
+    return tg.lines("🔄 " + tg.b("바뀐 정보 · %s" % site["name"]),
+                    tg.esc("%s님이 %s 바꿨다고 해서 앱에서도 수정했습니다." % (room, ", ".join(parts))),
+                    "(현장관리 앱을 열면 들어갑니다)")
 
 
 def filled_text(site, fills, cfg=None):
@@ -468,8 +512,16 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log, send=None):
         log("[%s] 값 찾기 실패: %s" % (key, str(e)[:150]))
         return
     fills = pick_fills((res or {}).get("items"), pend, key, today)
+    # 필름 번호를 바꾸자는 건 앱에 넣지 않고 알림만 — 사장님이 직접 바꾼다 (11/1). 비번·화장실 변경은 바로 고쳐 넣는다
+    film_changes = [f for f in fills if f["kind"] == "films" and f.get("update")]
+    fills = [f for f in fills if f not in film_changes]
+    for f in film_changes:
+        s = next(x for x in pend if x["id"] == f["siteId"])
+        notify(film_change_text(s, f["films"], key, cfg))
+        log("[%s] 필름 번호 변경 알림 (앱은 그대로): %s" % (key, s["name"]))
     if not fills:
-        log("[%s] 답에 넣을 값 없음" % key)
+        if not film_changes:
+            log("[%s] 답에 넣을 값 없음" % key)
         return
     try:
         put(fills)
@@ -479,16 +531,18 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log, send=None):
         return
     for s in list(pend):
         mine = [f for f in fills if f["siteId"] == s["id"]]
-        if not mine:
-            continue
-        notify(filled_text(s, mine, cfg))
-        log("[%s] 빈칸 %d개 넣음: %s" % (key, len(mine), s["name"]))
-        films = [x for f in mine if f["kind"] == "films" for x in f["films"]]
+        new = [f for f in mine if not f.get("update")]
+        changed = [f for f in mine if f.get("update")]
+        if new:
+            notify(filled_text(s, new, cfg))
+            log("[%s] 빈칸 %d개 넣음: %s" % (key, len(new), s["name"]))
+        if changed:
+            notify(changed_text(s, changed, key))
+            log("[%s] 바뀐 정보 %d개 고쳐 넣음: %s" % (key, len(changed), s["name"]))
+        films = [x for f in new if f["kind"] == "films" for x in f["films"]]
         if films:
             notify(film_confirmed_text(s, films, cfg))
         done = {_done_key(f) for f in mine}
         s["missing"] = [k for k in s["missing"] if k not in done]
         s["checks"] = [c for c in s.get("checks") or [] if "check:" + c["id"] not in done]
-    asks[key] = [s for s in pend if s["missing"] or s.get("checks")]
-    if not asks[key]:
-        del asks[key]
+    # 다 받은 현장도 시공일까지 남겨 둔다 — 업체가 나중에 바꾼 정보를 고쳐 넣게 (watch_extra 가 시공일 뒤 지움)

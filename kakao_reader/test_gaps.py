@@ -175,10 +175,10 @@ class AnswerTest(unittest.TestCase):
             {"siteId": "s2", "kind": "films", "films": [{"place": "방문", "code": "PS010"}, {"place": "몰딩", "code": ""}]},
         ])
         self.assertEqual(self.put[0], [{"siteId": "s2", "kind": "films", "films": [{"place": "방문", "code": "PS010"}],
-                                        "room": "봄애실장님", "at": time.strftime("%Y-%m-%d")}])
-        self.assertEqual([s["id"] for s in st["asks"]["봄애실장님"]], ["s1"])
+                                        "room": "봄애실장님", "at": time.strftime("%Y-%m-%d"), "update": False}])
+        self.assertEqual({s["id"]: s["missing"] for s in st["asks"]["봄애실장님"]}, {"s1": ["toilet"], "s2": []})
         self.run_answer(st, [{"siteId": "s1", "kind": "field", "field": "toilet", "value": "1층"}])
-        self.assertNotIn("봄애실장님", st["asks"])                                      # 다 받으면 끝
+        self.assertEqual([gaps.remaining(s) for s in st["asks"]["봄애실장님"]], [[], []])   # 다 받음 — 시공일까지는 남겨 둠
 
     def test_check_answers_and_same_numbers(self):
         # 업체 확인 질문의 답 (11/1): 물어본 질문만, 업체가 본 번호 그대로(q) AI 에 보냄, 다 받으면 끝
@@ -200,7 +200,45 @@ class AnswerTest(unittest.TestCase):
         self.assertIn("2. 방문이 상하좌우 문틀에 닿는지", self.asked[3])                 # 남은 질문이 줄어도 번호는 처음 그대로
         self.run_answer(st, [{"siteId": "s1", "kind": "check", "checkId": "xmark", "value": "확답 받음"},
                              {"siteId": "s1", "kind": "field", "field": "toilet", "value": "1층"}])
-        self.assertNotIn("봄애실장님", st["asks"])
+        left = st["asks"]["봄애실장님"][0]
+        self.assertEqual((left["missing"], left["checks"]), ([], []))
+
+    def test_changed_after_answer(self):
+        # 사장님 11/1: 다 받은 뒤 업체가 '비번 4321 변경이요' → 세대 비번을 고쳐 넣고 🔄 텔레그램
+        st = self.st(dict(SITE, missing=[], checks=[]))
+        self.run_answer(st, [{"siteId": "s1", "kind": "field", "field": "pwUnit", "value": "4321"}], room="봄애실장님")
+        self.assertEqual([(f["field"], f["value"], f["update"]) for f in self.put[0]], [("pwUnit", "4321", True)])
+        self.assertEqual(self.sent[0].splitlines(), [
+            "🔄 <b>바뀐 정보 · 그린워크1차 1104동 604호</b>",
+            "봄애실장님님이 세대 비번을 4321로 바꿨다고 해서 앱에서도 수정했습니다.",
+            "(현장관리 앱을 열면 들어갑니다)"])
+        self.assertNotIn("4321", repr(st))                                              # 비번은 state 에 안 남음
+
+    def test_film_change_only_notified(self):
+        # 사장님 11/1: 필름 번호 변경은 앱에 안 넣고 알림만 (직접 바꿈). 함께 온 비번 변경은 고쳐 넣음
+        st = self.st(dict(SITE, missing=[], checks=[]))
+        self.run_answer(st, [{"siteId": "s1", "kind": "films", "films": [{"place": "거실", "code": "PS020"}]},
+                             {"siteId": "s1", "kind": "field", "field": "pwUnit", "value": "4321"}])
+        self.assertEqual([f["kind"] for f in self.put[0]], ["field"])
+        self.assertIn("필름 번호 변경 요청", self.sent[0])
+        self.assertIn("봄애실장님님이 필름을 거실 PS020으로 바꾸자고 합니다.", self.sent[0])
+        self.assertIn("#site/s1/film", self.sent[0])
+        self.assertFalse(any("필름 넘버가 확정" in t for t in self.sent))
+        self.put.clear(); self.sent.clear()
+        self.run_answer(st, [{"siteId": "s1", "kind": "films", "films": [{"place": "거실", "code": "PS030"}]}])
+        self.assertEqual(self.put, [])                                                  # 필름만 오면 우편함에 아무것도 안 넣음
+        self.assertEqual(len(self.sent), 1)
+
+    def test_changed_text_particles(self):
+        t = gaps.changed_text({"name": "a"}, [{"kind": "field", "field": "toilet", "value": "1층 관리실"},
+                                              {"kind": "films", "films": [{"place": "거실", "code": "PS010"}]}], "류춘화")
+        self.assertIn("류춘화님이 화장실 위치를 1층 관리실로, 필름을 거실 PS010으로 바꿨다고 해서", t)
+
+    def test_watch_until_site_date(self):
+        now = time.mktime((2026, 11, 3, 10, 0, 0, 0, 0, -1))
+        st = {"asks": {"a": [dict(SITE, date="2026-11-05", at=now - 10 * 86400)],     # 10일 전에 물었어도 시공 전이면 봄
+                       "b": [dict(SITE, date="2026-11-02", at=now - 86400)]}}          # 시공일 지남
+        self.assertEqual(gaps.watch_extra(st, now), ["a"])
 
     def test_check_only_site_is_asked(self):
         sent = []
@@ -230,7 +268,7 @@ class AnswerTest(unittest.TestCase):
 
     def test_watch_extra_prunes(self):
         st = {"asks": {"봄애실장님": [dict(SITE, at=0)], "pk": [dict(SITE, at=time.time())]}}
-        self.assertEqual(gaps.watch_extra(st, time.time()), ["pk"])
+        self.assertEqual(gaps.watch_extra(st, time.time()), ["pk"])                    # 30일 넘음
         self.assertNotIn("봄애실장님", st["asks"])
 
 class FilmOrderTest(unittest.TestCase):
