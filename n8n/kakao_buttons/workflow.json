@@ -70,7 +70,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// 카톡_버튼 › 버튼정리: 사장님이 텔레그램 요약의 버튼을 누름 (카톡 읽기 3단계, 10/31).\n// 콜백 'k|번호|동작' (동작 pub=가견적 발행, ask=빈칸 묻기 시작, later=나중에, ok=확인함). 사장님(가맹점 p_001 챗ID)이 누른 것만.\n// 가견적 발행은 이 흐름의 저장 공간(staticData)에 '할 일' 로 적어 두고, 노트북이 kakao-jobs 로 가져간다. 글 내용은 적지 않는다.\nconst cq = $('버튼누름').first().json.callback_query || {};\nconst owner = ($input.first().json.fields || $input.first().json).텔레그램_챗ID;\nif (!owner || String((cq.from || {}).id) !== String(owner)) return [];\nconst [k, job, act] = String(cq.data || '').split('|');\nif (k !== 'k' || !/^[a-z0-9]{6}$/.test(job || '')) return [];\n// ask = 현장 빈칸을 업체 카톡 방에 물어보기 [시작해] (4단계, 10/31)\nconst 표시 = { pub: '⏳ 가견적 발행 중 — 노트북이 처리하면 링크가 옵니다', ask: '⏳ 업체에 묻는 중 — 노트북이 카톡을 보내면 알려 드립니다', later: '⏸ 나중에', ok: '✔ 확인함' }[act];\nif (!표시) return [];\nif (act === 'pub' || act === 'ask') {\n  const sd = $getWorkflowStaticData('global');\n  sd.jobs = (sd.jobs || []).filter((j) => Date.now() - j.at < 7 * 864e5);\n  if (!sd.jobs.some((j) => j.job === job && j.action === act)) sd.jobs.push({ job, action: act, at: Date.now(), taken: false });\n}\nconst msg = cq.message || {};\nreturn [{ json: {\n  query_id: cq.id, answer: act === 'pub' || act === 'ask' ? '받았습니다 — 노트북이 곧 처리' : '받았습니다',\n  chat_id: String((msg.chat || {}).id || owner), message_id: String(msg.message_id || ''),\n  text: (String(msg.text || '').slice(0, 3900) + '\\n\\n' + 표시).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),\n} }];\n"
+        "jsCode": "// 카톡_버튼 › 버튼정리: 사장님이 텔레그램 요약의 버튼을 누름 (카톡 읽기 3단계, 10/31).\n// 콜백 'k|번호|동작' (동작 pub=가견적 발행, ask=빈칸 묻기 시작, later=나중에, ok=확인함, o0~o2=필름 주문 담당자). 사장님(가맹점 p_001 챗ID)이 누른 것만.\n// 가견적 발행은 이 흐름의 저장 공간(staticData)에 '할 일' 로 적어 두고, 노트북이 kakao-jobs 로 가져간다. 글 내용은 적지 않는다.\n// 필름 주문(11/1)은 주문받기가 적어 둔 sd.orders[번호] 의 담당자에게 문자 → sms 를 넘겨 문자보내기(SMS Gateway)가 보낸다.\nconst cq = $('버튼누름').first().json.callback_query || {};\nconst owner = ($input.first().json.fields || $input.first().json).텔레그램_챗ID;\nif (!owner || String((cq.from || {}).id) !== String(owner)) return [];\nconst [k, job, act] = String(cq.data || '').split('|');\nif (k !== 'k' || !/^[a-z0-9]{6}$/.test(job || '')) return [];\nconst sd = $getWorkflowStaticData('global');\n// ask = 현장 빈칸을 업체 카톡 방에 물어보기 [시작해] (4단계, 10/31)\nlet 표시 = { pub: '⏳ 가견적 발행 중 — 노트북이 처리하면 링크가 옵니다', ask: '⏳ 업체에 묻는 중 — 노트북이 카톡을 보내면 알려 드립니다', later: '⏸ 나중에', ok: '✔ 확인함' }[act];\nlet sms = null;\nif (/^o[0-2]$/.test(act || '')) {\n  const o = (sd.orders || {})[job];\n  const p = o && o.people[Number(act[1])];\n  if (!p) 표시 = '❌ 주문 정보가 없습니다 (7일 지남) — 앱에서 필요량을 다시 고르거나 직접 보내 주세요';\n  else if (o.sent) 표시 = '✔ 이미 ' + o.sent + '에게 보냈습니다';\n  else {\n    // 한국 번호 010… → +8210… (SMS Gateway 는 국제 형식)\n    const d = p.phone.replace(/[^0-9+]/g, '');\n    sms = { job, label: p.label, siteId: o.siteId, text: o.text, phone: d.startsWith('+') ? d : '+82' + d.replace(/^0/, '') };\n    표시 = '';\n  }\n}\nif (표시 === undefined) return [];\nif (act === 'pub' || act === 'ask') {\n  sd.jobs = (sd.jobs || []).filter((j) => Date.now() - j.at < 7 * 864e5);\n  if (!sd.jobs.some((j) => j.job === job && j.action === act)) sd.jobs.push({ job, action: act, at: Date.now(), taken: false });\n}\nconst msg = cq.message || {};\nconst esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nreturn [{ json: {\n  query_id: cq.id, answer: act === 'pub' || act === 'ask' ? '받았습니다 — 노트북이 곧 처리' : sms ? '문자 보내는 중' : '받았습니다',\n  chat_id: String((msg.chat || {}).id || owner), message_id: String(msg.message_id || ''),\n  text: esc(String(msg.text || '').slice(0, 3800)) + (표시 ? '\\n\\n' + esc(표시) : ''), sms,\n} }];\n"
       }
     },
     {
@@ -112,9 +112,9 @@
         "resource": "message",
         "operation": "editMessageText",
         "messageType": "message",
-        "chatId": "={{ $('버튼정리').item.json.chat_id }}",
-        "messageId": "={{ $('버튼정리').item.json.message_id }}",
-        "text": "={{ $('버튼정리').item.json.text }}",
+        "chatId": "={{ $('표시').item.json.chat_id }}",
+        "messageId": "={{ $('표시').item.json.message_id }}",
+        "text": "={{ $('표시').item.json.text }}",
         "additionalFields": {
           "disable_web_page_preview": true,
           "parse_mode": "HTML"
@@ -125,6 +125,237 @@
           "id": "4iGW8eEwhNuTpFHa",
           "name": "Telegram - 견적서작성발송봇"
         }
+      }
+    },
+    {
+      "id": "si",
+      "name": "문자인가",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c",
+              "leftValue": "={{ !!$json.sms }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ss",
+      "name": "문자보내기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        200
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sms-gate.app/3rdparty/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ textMessage: { text: $json.sms.text }, phoneNumbers: [$json.sms.phone] }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "DXh5rioJUf4RGJEN",
+          "name": "SMS Gateway (사장님 폰)"
+        }
+      }
+    },
+    {
+      "id": "sr",
+      "name": "문자결과",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 카톡_버튼 › 문자결과: SMS Gateway(사장님 폰) 응답을 보고 텔레그램 글 끝에 ✅/❌ (2026-11-01).\n// 보냈으면 같은 주문을 두 번 안 보내게 sent 를 적고, 앱 우편함(site-fill)에 '필름 주문' 단계를 넘긴다.\nconst pre = $('버튼정리').first().json;\nconst r = $input.first().json || {};\nconst ok = !r.error && !!(r.id || r.state) && String(r.state || '').toLowerCase() !== 'failed';\nconst esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst sd = $getWorkflowStaticData('global');\nconst o = (sd.orders || {})[pre.sms.job];\nif (ok && o) o.sent = pre.sms.label;\nconst why = r.error ? (r.error.message || r.error.description || JSON.stringify(r.error)) : '';\nconst today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);\nreturn [{ json: Object.assign({}, pre, {\n  ok,\n  answer: ok ? '보냈습니다' : '못 보냄',\n  text: pre.text + '\\n\\n' + (ok ? '✅ ' + esc(pre.sms.label) + '에게 보냈습니다 (사장님 폰) — 앱 필름 단계는 \\'주문\\' 으로 바뀝니다'\n    : '❌ 못 보냄 — 폰의 SMS Gateway 앱이 켜져 있는지 확인하고, 위 글을 직접 보내 주세요' + (why ? '\\n(' + esc(String(why).slice(0, 200)) + ')' : '')),\n  fills: [{ siteId: pre.sms.siteId, kind: 'filmOrdered', room: pre.sms.label, at: today }],\n}) }];\n"
+      }
+    },
+    {
+      "id": "so",
+      "name": "보냄인가",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "sf",
+      "name": "주문표시",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        140
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-a6fa.up.railway.app/webhook/site-fill",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fills: $json.fills }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "sh",
+      "name": "표시",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 카톡_버튼 › 표시: 텔레그램에 답하고 글을 고칠 내용 — 문자를 보냈으면 문자결과, 아니면 버튼정리 그대로\nreturn [{ json: $('문자결과').isExecuted ? $('문자결과').first().json : $('버튼정리').first().json }];\n"
+      }
+    },
+    {
+      "id": "ow",
+      "name": "주문요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        600
+      ],
+      "webhookId": "9c4e2a7b-1d3f-4b6a-8e5c-2f7a9b0c1d2e",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "film-order",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "oa",
+      "name": "주문받기",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        600
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 카톡_버튼 › 주문받기: 현장관리 앱이 필름 줄마다 필요량을 다 고르면 POST film-order (사장님 열쇠, 2026-11-01 사장님).\n// { siteId, name, text(주문 문자), people: [{label, phone}] } 를 이 흐름의 저장 공간(staticData)에 7일 두고,\n// 텔레그램에 담당자 버튼을 띄운다 (카톡_알림 으로). 버튼 'k|번호|o0' 을 누르면 버튼정리가 사장님 폰(SMS Gateway)으로 문자를 보낸다.\n// 번호는 텔레그램·버튼에 넣지 않는다 — 여기 저장 공간에만.\nconst b = $input.first().json.body || {};\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\nconst siteId = s(b.siteId, 40), name = s(b.name, 80), text = s(b.text, 600);\nif (!siteId || !text) throw new Error('siteId·text 가 비어 있음');\nconst people = (Array.isArray(b.people) ? b.people : []).map((p) => ({ label: s(p && p.label, 24), phone: s(p && p.phone, 20).replace(/[^0-9+]/g, '') }))\n  .filter((p) => p.label && p.phone.length >= 9).slice(0, 3);\nconst sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nsd.orders = Object.fromEntries(Object.entries(sd.orders || {}).filter(([, o]) => now - o.at < 7 * 864e5));\nlet id = '';\nwhile (!id || sd.orders[id]) id = (Math.random().toString(36).slice(2) + '000000').slice(0, 6);\nsd.orders[id] = { siteId, name, text, people, at: now };\nconst esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst lines = ['🎞 <b>필름 주문 · ' + esc(name || siteId) + '</b>', '── 보낼 문자 ──', esc(text), ''];\nlines.push(people.length ? '누구에게 보낼까요? 누르면 사장님 폰에서 바로 문자가 갑니다.'\n  : '❓ 현장관리 설정 › 필름 주문처에 담당자 번호가 없습니다.');\nreturn [{ json: { text: lines.join('\\n'), html: true, buttons: [people.map((p, i) => ({ text: '💬 ' + p.label, data: 'k|' + id + '|o' + i }))] } }];\n"
+      }
+    },
+    {
+      "id": "on",
+      "name": "주문알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        600
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-notify",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "or",
+      "name": "주문응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        600
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true }) }}",
+        "options": {}
       }
     },
     {
@@ -208,7 +439,120 @@
       "main": [
         [
           {
+            "node": "문자인가",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "문자인가": {
+      "main": [
+        [
+          {
+            "node": "문자보내기",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "표시",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "문자보내기": {
+      "main": [
+        [
+          {
+            "node": "문자결과",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "문자결과": {
+      "main": [
+        [
+          {
+            "node": "보냄인가",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "보냄인가": {
+      "main": [
+        [
+          {
+            "node": "주문표시",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "표시",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "주문표시": {
+      "main": [
+        [
+          {
+            "node": "표시",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "표시": {
+      "main": [
+        [
+          {
             "node": "받았다고_답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "주문요청": {
+      "main": [
+        [
+          {
+            "node": "주문받기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "주문받기": {
+      "main": [
+        [
+          {
+            "node": "주문알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "주문알림": {
+      "main": [
+        [
+          {
+            "node": "주문응답",
             "type": "main",
             "index": 0
           }

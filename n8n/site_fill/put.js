@@ -23,7 +23,7 @@ for (const f of (Array.isArray(body.fills) ? body.fills : []).slice(0, 50)) {
     o.checkId = s(f.checkId, 40);
     o.value = s(f.value, 300);
     if (!o.checkId || !o.value) continue;
-  } else continue;
+  } else if (o.kind !== 'filmOrdered') continue;   // filmOrdered: 텔레그램 버튼으로 주문 문자를 보냄 → 앱 '필름 주문' 단계 (카톡_버튼, 11/1)
   sd.fills.push(o);
   n++;
 }
