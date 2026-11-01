@@ -717,22 +717,34 @@ def find_row(room):
 
 
 def row_by_name(img, region, room):
+    """목록 왼쪽을 세 가지(3배·4배·3배 흑백)로 읽어 room 줄을 찾는다 — 한 가지로는 '류춘화' 같은 짧은 이름을
+    자주 놓친다 (11/1 노트북: 감사 인사 보낼 방을 못 찾음). 먼저 맞는 읽기의 맨 위 줄."""
     region = (region[0], region[1], region[0] + (region[2] - region[0]) * 7 // 10, region[3])
     crop = img.crop(region)
     tmp = tempfile.mkdtemp(prefix="kakao_list_")
     try:
-        p = os.path.join(tmp, "list.png")
-        crop.resize((crop.width * 3, crop.height * 3), Image.LANCZOS).save(p)
-        lines = ocr([p]).get(p, [])
+        paths = []
+        for j, (sc, bw_) in enumerate(ROW_VARIANTS):
+            v = crop.resize((crop.width * sc, crop.height * sc), Image.LANCZOS)
+            if bw_:
+                v = v.convert("L").point(lambda x: 0 if x < 150 else 255)
+            p = os.path.join(tmp, "list%d.png" % j)
+            v.save(p)
+            paths.append(p)
+        res = ocr(paths)
     finally:
         for f in os.listdir(tmp):
             os.remove(os.path.join(tmp, f))
         os.rmdir(tmp)
-    for x, y, wd, ht, t in sorted(lines, key=lambda ln: ln[1]):
-        name = clean_name(t)
-        if name and (fuzzy_in(room, name) or same_room(room, name)):
-            return [region[0] + x // 3, region[1] + y // 3, region[0] + (x + wd) // 3, region[1] + (y + ht) // 3]
+    for p, (sc, _) in zip(paths, ROW_VARIANTS):
+        for x, y, wd, ht, t in sorted(res.get(p, []), key=lambda ln: ln[1]):
+            name = clean_name(t)
+            if name and (fuzzy_in(room, name) or same_room(room, name)):
+                return [region[0] + x // sc, region[1] + y // sc, region[0] + (x + wd) // sc, region[1] + (y + ht) // sc]
     return None
+
+
+BOX_KEEP = 600  # 방금 연 방의 줄 자리 — 10분 안에는 이름을 못 읽어도 그 자리로 다시 열어 본다 (창 제목으로 확인)
 
 
 def open_room(room, box, log, wait=4.0):
@@ -742,11 +754,17 @@ def open_room(room, box, log, wait=4.0):
     import kakao_window
     top, lst, tl, tt, ll, lt, lw = LAST["geom"]
     x = int(lw * 0.35)
+    boxes = LAST.setdefault("boxes", {})
     if box is None:
         box = find_row(room)
         if box is None:
-            log("[%s] 배지가 없어져서 목록에서 이름으로 찾았지만 못 찾음" % room)
-            return 0, None
+            old = boxes.get(_norm(room))
+            if old and time.time() - old[1] < BOX_KEEP:
+                log("[%s] 목록에서 이름을 못 읽어 방금 연 자리로 열어 봄" % room)
+                box = old[0]
+            else:
+                log("[%s] 목록에서 이름으로 찾았지만 못 찾음" % room)
+                return 0, None
     y = (box[1] + box[3]) // 2 - (lt - tt)
     before = set(kakao_window.chat_windows())
     for how in ("signal", "mouse"):
@@ -767,6 +785,7 @@ def open_room(room, box, log, wait=4.0):
             if new:
                 h, title = next(iter(new.items()))
                 if _title_ok(room, title):
+                    boxes[_norm(room)] = boxes[_norm(title)] = (box, time.time())
                     time.sleep(1.0)  # 글을 다 불러오게
                     return h, title
                 log("[채팅 목록] '%s' 을 열려다 다른 방이 열려 그냥 닫음" % room)

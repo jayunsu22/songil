@@ -202,6 +202,19 @@ class AnalyzeTest(unittest.TestCase):
         self.assertTrue(region[1] + 3 * 68 <= box[1] <= region[1] + 4 * 68, box)
         self.assertIsNone(chatlist.row_by_name(img, region, "딥트앤무크"))
 
+    def test_find_row_uses_other_readings(self):
+        # 11/1 노트북: 첫 읽기(3배)가 '류춘화' 를 '류준회' 로 읽어 감사 인사 보낼 방을 못 찾음 → 4배 읽기에서 찾는다
+        from PIL import Image
+        orig = chatlist.ocr
+        def fake(paths):
+            return {paths[0]: [(30, 30, 90, 40, "류준회")], paths[1]: [(40, 160, 120, 50, "류춘화")], paths[2]: []}
+        chatlist.ocr = fake
+        try:
+            box = chatlist.row_by_name(Image.new("RGB", (500, 400), "white"), (0, 0, 400, 400), "류춘화")
+        finally:
+            chatlist.ocr = orig
+        self.assertEqual(box, [10, 40, 40, 52])                                     # 4배 좌표를 원래 크기로
+
 
 if __name__ == "__main__":
     unittest.main()
