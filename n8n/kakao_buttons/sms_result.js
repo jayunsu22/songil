@@ -14,5 +14,7 @@ return [{ json: Object.assign({}, pre, {
   answer: ok ? '보냈습니다' : '못 보냄',
   text: pre.text + '\n\n' + (ok ? '✅ ' + esc(pre.sms.label) + '에게 보냈습니다 (사장님 폰) — 앱 필름 단계는 \'주문\' 으로 바뀝니다'
     : '❌ 못 보냄 — 폰의 SMS Gateway 앱이 켜져 있는지 확인하고, 위 글을 직접 보내 주세요' + (why ? '\n(' + esc(String(why).slice(0, 200)) + ')' : '')),
-  fills: [{ siteId: pre.sms.siteId, kind: 'filmOrdered', room: pre.sms.label, at: today }],
+  // value = 주문한 필름 (제목 줄 [현장] 은 빼고) — 앱 필름 탭에 '11/1 에이엔디·주문담당 ps170 1롤 주문' 으로 (사장님 11/1)
+  fills: [{ siteId: pre.sms.siteId, kind: 'filmOrdered', room: pre.sms.label, at: today,
+    value: pre.sms.text.split('\n').filter((l) => l.trim() && !/^\[.*\]$/.test(l.trim())).join(' · ') }],
 }) }];

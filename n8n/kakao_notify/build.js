@@ -1,25 +1,26 @@
 // 카톡_알림 n8n 흐름 JSON 을 만든다: node n8n/kakao_notify/build.js > n8n/kakao_notify/workflow.json
 // 카톡 읽기 프로그램(kakao_reader/)이 가견적 발행·실패·사진 못 저장을 POST kakao-notify { text } 로 보내면
 // 사장님 텔레그램(현장견적 봇)으로 그대로 보낸다. buttons 가 있으면 인라인 버튼(카톡_버튼 흐름이 받음). 챗ID 는 Airtable 가맹점 p_001 의 텔레그램_챗ID (현장견적_고객문의 와 같은 곳).
-// $json[key] > than 인지 (If v2)
-const cond = (key, than) => ({
-  options: { caseSensitive: true, leftValue: '', typeValidation: 'loose' },
-  conditions: [{ id: key + than, leftValue: '={{ $json.' + key + ' }}', rightValue: than, operator: { type: 'number', operation: 'gt' } }],
-  combinator: 'and',
-});
-// 텔레그램 보내기. buttons = [[글 칸, 콜백 칸], ...] 이면 한 줄짜리 인라인 버튼
-const tg = (id, name, position, buttons) => ({
-  id, name, type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position,
-  parameters: Object.assign({
-    resource: 'message', operation: 'sendMessage', chatId: '={{ $json.chat_id }}', text: '={{ $json.text }}',
-    additionalFields: { appendAttribution: false, disable_web_page_preview: true, parse_mode: 'HTML' },
-  }, buttons ? {
-    replyMarkup: 'inlineKeyboard',
-    inlineKeyboard: { rows: [{ row: { buttons: buttons.map(([t, d]) => ({
-      text: '={{ $json.' + t + ' }}', additionalFields: { callback_data: '={{ $json.' + d + ' }}' } })) } }] },
-  } : {}),
-  credentials: { telegramApi: { id: '4iGW8eEwhNuTpFHa', name: 'Telegram - 견적서작성발송봇' } },
-});
+// 텔레그램 보내기 — n 개 버튼 (n8n 텔레그램 노드는 버튼 수가 고정이라 개수마다 노드를 하나씩 만든다).
+// 세 개까지는 한 줄 [방1] [방2] [나중에], 넷부터는 두 개씩 여러 줄 (필름 주문 담당자, 11/1)
+const MAX_BUTTONS = 10;
+const tg = (id, name, position, n) => {
+  const per = n <= 3 ? 3 : 2;
+  const rows = [];
+  for (let i = 0; i < n; i += per) {
+    rows.push({ row: { buttons: Array.from({ length: Math.min(per, n - i) }, (_, j) => ({
+      text: '={{ $json.b[' + (i + j) + '].t }}', additionalFields: { callback_data: '={{ $json.b[' + (i + j) + '].d }}' } })) } });
+  }
+  return {
+    id, name, type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position,
+    parameters: Object.assign({
+      resource: 'message', operation: 'sendMessage', chatId: '={{ $json.chat_id }}', text: '={{ $json.text }}',
+      additionalFields: { appendAttribution: false, disable_web_page_preview: true, parse_mode: 'HTML' },
+    }, n ? { replyMarkup: 'inlineKeyboard', inlineKeyboard: { rows } } : {}),
+    credentials: { telegramApi: { id: '4iGW8eEwhNuTpFHa', name: 'Telegram - 견적서작성발송봇' } },
+  };
+};
+const sends = Array.from({ length: MAX_BUTTONS + 1 }, (_, n) => tg('t' + n, n ? '텔레그램_버튼' + n : '텔레그램', [880, -500 + n * 110], n));
 
 const workflow = {
   name: '카톡_알림',
@@ -56,31 +57,19 @@ const workflow = {
           "const r = $input.first().json || {};",
           "const chat = (r.fields || r).텔레그램_챗ID;",
           "if (!chat) throw new Error('가맹점 p_001 의 텔레그램_챗ID 가 비어 있음');",
-          "// buttons: [[{text, data}]] (카톡 읽기 3단계 10/31) - 여러 줄이어도 한 줄로 모아 버튼 세 개까지 (11/1: 현장 빈칸 [방1] [방2] [나중에]). data 는 텔레그램 한도 64바이트",
-          "const row = (Array.isArray(b.buttons) ? b.buttons : []).filter(Array.isArray).reduce((a, r) => a.concat(r), []).slice(0, 3)",
-          "  .filter((x) => x && x.text && x.data).map((x) => ({ t: String(x.text).slice(0, 30), d: String(x.data).slice(0, 64) }));",
-          "return [{ json: { chat_id: String(chat), text, n: row.length,",
-          "  b1t: row[0] ? row[0].t : '', b1d: row[0] ? row[0].d : '', b2t: row[1] ? row[1].t : '', b2d: row[1] ? row[1].d : '',",
-          "  b3t: row[2] ? row[2].t : '', b3d: row[2] ? row[2].d : '' } }];",
+          "// buttons: [[{text, data}]] (카톡 읽기 3단계 10/31) - 줄은 모아서 버튼 열 개까지 (11/1: 필름 주문 담당자 전부). 셋까지 한 줄, 넷부터 두 개씩. data 는 텔레그램 한도 64바이트",
+          "const b2 = (Array.isArray(b.buttons) ? b.buttons : []).filter(Array.isArray).reduce((a, r) => a.concat(r), [])",
+          "  .filter((x) => x && x.text && x.data).slice(0, " + MAX_BUTTONS + ").map((x) => ({ t: String(x.text).slice(0, 30), d: String(x.data).slice(0, 64) }));",
+          "return [{ json: { chat_id: String(chat), text, n: b2.length, b: b2 } }];",
         ].join('\n'),
       },
     },
     {
-      id: 'i1', name: '버튼있음', type: 'n8n-nodes-base.if', typeVersion: 2, position: [660, 0],
-      parameters: { conditions: cond('n', 0), options: {} },
+      // 버튼 개수(n)대로 n 번째 출구 → 그 개수의 텔레그램 노드
+      id: 'sw', name: '버튼개수', type: 'n8n-nodes-base.switch', typeVersion: 3, position: [660, 0],
+      parameters: { mode: 'expression', numberOutputs: MAX_BUTTONS + 1, output: '={{ $json.n }}', options: {} },
     },
-    {
-      id: 'i2', name: '버튼둘', type: 'n8n-nodes-base.if', typeVersion: 2, position: [880, -100],
-      parameters: { conditions: cond('n', 1), options: {} },
-    },
-    tg('t', '텔레그램', [880, 120], null),
-    tg('t1', '텔레그램_버튼1', [1100, 0], [['b1t', 'b1d']]),
-    tg('t2', '텔레그램_버튼2', [1320, -100], [['b1t', 'b1d'], ['b2t', 'b2d']]),
-    {
-      id: 'i3', name: '버튼셋', type: 'n8n-nodes-base.if', typeVersion: 2, position: [1100, -200],
-      parameters: { conditions: cond('n', 2), options: {} },
-    },
-    tg('t3', '텔레그램_버튼3', [1320, -300], [['b1t', 'b1d'], ['b2t', 'b2d'], ['b3t', 'b3d']]),
+    ...sends,
     {
       id: 'r', name: '응답', type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: [1320, 0],
       parameters: { respondWith: 'json', responseBody: '={{ JSON.stringify({ ok: true }) }}', options: {} },
@@ -89,14 +78,9 @@ const workflow = {
   connections: {
     받은알림: { main: [[{ node: '가맹점_조회', type: 'main', index: 0 }]] },
     가맹점_조회: { main: [[{ node: '글만들기', type: 'main', index: 0 }]] },
-    글만들기: { main: [[{ node: '버튼있음', type: 'main', index: 0 }]] },
-    버튼있음: { main: [[{ node: '버튼둘', type: 'main', index: 0 }], [{ node: '텔레그램', type: 'main', index: 0 }]] },
-    버튼둘: { main: [[{ node: '버튼셋', type: 'main', index: 0 }], [{ node: '텔레그램_버튼1', type: 'main', index: 0 }]] },
-    버튼셋: { main: [[{ node: '텔레그램_버튼3', type: 'main', index: 0 }], [{ node: '텔레그램_버튼2', type: 'main', index: 0 }]] },
-    텔레그램_버튼3: { main: [[{ node: '응답', type: 'main', index: 0 }]] },
-    텔레그램: { main: [[{ node: '응답', type: 'main', index: 0 }]] },
-    텔레그램_버튼1: { main: [[{ node: '응답', type: 'main', index: 0 }]] },
-    텔레그램_버튼2: { main: [[{ node: '응답', type: 'main', index: 0 }]] },
+    글만들기: { main: [[{ node: '버튼개수', type: 'main', index: 0 }]] },
+    버튼개수: { main: sends.map((t) => [{ node: t.name, type: 'main', index: 0 }]) },
+    ...Object.fromEntries(sends.map((t) => [t.name, { main: [[{ node: '응답', type: 'main', index: 0 }]] }])),
   },
   settings: { executionOrder: 'v1' },
 };

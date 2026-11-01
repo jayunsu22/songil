@@ -6,8 +6,14 @@ const b = $input.first().json.body || {};
 const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 const siteId = s(b.siteId, 40), name = s(b.name, 80), text = s(b.text, 600);
 if (!siteId || !text) throw new Error('siteId·text 가 비어 있음');
+// sendTo = 앱 필름 탭의 📨 바로 주문 (11/1 사장님, 추가 주문도) — 텔레그램 버튼 없이 바로 문자. 앱이 결과를 받아 기록한다
+if (b.sendTo && typeof b.sendTo === 'object') {
+  const d = s(b.sendTo.phone, 20).replace(/[^0-9+]/g, '');
+  if (d.length < 9) throw new Error('번호가 없음');
+  return [{ json: { direct: true, sms: { label: s(b.sendTo.label, 24), text, phone: d.startsWith('+') ? d : '+82' + d.replace(/^0/, '') } } }];
+}
 const people = (Array.isArray(b.people) ? b.people : []).map((p) => ({ label: s(p && p.label, 24), phone: s(p && p.phone, 20).replace(/[^0-9+]/g, '') }))
-  .filter((p) => p.label && p.phone.length >= 9).slice(0, 3);
+  .filter((p) => p.label && p.phone.length >= 9).slice(0, 10);   // 주문처 담당자 전부 (카톡_알림 버튼 10개까지, 11/1)
 const sd = $getWorkflowStaticData('global');
 const now = Date.now();
 sd.orders = Object.fromEntries(Object.entries(sd.orders || {}).filter(([, o]) => now - o.at < 7 * 864e5));
