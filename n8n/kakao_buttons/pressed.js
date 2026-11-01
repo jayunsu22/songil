@@ -11,8 +11,8 @@ const sd = $getWorkflowStaticData('global');
 // ask = 현장 빈칸을 업체 카톡 방에 물어보기 [시작해] (4단계, 10/31)
 let 표시 = { pub: '⏳ 가견적 발행 중 — 노트북이 처리하면 링크가 옵니다', ask: '⏳ 업체에 묻는 중 — 노트북이 카톡을 보내면 알려 드립니다', later: '⏸ 나중에', ok: '✔ 확인함' }[act];
 let sms = null, crew = null;
-// y3·n3 = 인원 모집 '네' 한 팀원 [넣기]·[안 넣기] (11/1) — 인원모집 흐름(crew-act)이 처리하고 결과 글을 돌려준다
-if (/^[yn]\d+$/.test(act || '')) { crew = { rid: job, act }; 표시 = ''; }
+// y3a·y3d1·n3 = 인원 모집 '네' 한 팀원 [모두 넣기]·[1번 날 넣기]·[안 넣기] (11/1) — 인원모집 흐름(crew-act)이 처리하고 결과 글을 돌려준다
+if (/^[yn]\d+(d\d+|a)?$/.test(act || '')) { crew = { rid: job, act }; 표시 = ''; }
 if (/^o\d$/.test(act || '')) {
   const o = (sd.orders || {})[job];
   const p = o && o.people[Number(act.slice(1))];

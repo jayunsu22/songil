@@ -1,15 +1,27 @@
-// 인원모집 공용 (2026-11-01 사장님) — 코드 노드마다 앞에 붙는다 (build.js).
-// 저장 공간 sd.recruits[번호] = { id, siteId, siteName, date, label, slots, budget, band, active, exhausted, at,
-//   people: [{ name, phone, pay, st: wait|asked|yes|in|no|timeout|skip, tries, at, reply }] }
-// 예산 규칙은 앱 share.js pickWithinBudget 와 같다 (바꾸면 둘 다). 설계 docs/superpowers/specs/2026-11-01-인원모집-design.md
+// 인원모집 공용 (2026-11-01 사장님, 11/1 여러 날 한 번에) — 코드 노드마다 앞에 붙는다 (build.js).
+// 저장 공간 sd.recruits[번호] = { id, siteId, siteName, active, stopped, at,
+//   days: [{ date, label, slots, budget, band, exhausted }],
+//   people: [{ name, phone, pay, free:[날 번호], st: wait|asked|yes|in|no|timeout|skip, asked:[날], hold:[날], in:[날], tries, at, reply }] }
+// hold = 답을 기다리거나 사장님 [넣기] 를 기다리며 자리를 잡아 둔 날. in = 넣은 날.
+// 예산 규칙은 앱 share.js pickWithinBudget·recruitMulti 와 같다 (바꾸면 둘 다). 설계 docs/superpowers/specs/2026-11-01-인원모집-design.md
 const sd = $getWorkflowStaticData('global');
 sd.recruits = sd.recruits || {};
 const now = Date.now();
 const KST = 9 * 3600e3;
 const out = { resp: { ok: true }, sms: [], notify: [], fills: [] };
-// 문자 (사장님이 정한 그대로)
-const ASK = (label) => '안녕하세요~\n' + label + ' 일정 가능하신가요?\n가능하시면 "네", 일정 안되시면 "아니요"라고 해주세요~';
-const THANKS = '네~ 감사합니다.\n주소확정되면 보내드릴께요~';
+const dom = (iso) => parseInt(String(iso).slice(8, 10), 10);
+const mon = (iso) => parseInt(String(iso).slice(5, 7), 10);
+// '11월 15일,16일,18일' · 달이 바뀌면 '11월 30일, 12월 1일'
+function datesText(isos) {
+  const g = [];
+  isos.forEach((d) => { const m = mon(d); if (!g.length || g[g.length - 1].m !== m) g.push({ m, d: [] }); g[g.length - 1].d.push(dom(d) + '일'); });
+  return g.map((x) => x.m + '월 ' + x.d.join(',')).join(', ');
+}
+// 문자 (사장님이 정한 그대로, 11/1)
+const ASK = (isos) => '안녕하세요. 김정헌실장님의\nAI 인원모집비서입니다.\n\n' + datesText(isos) + ' 구인중입니다.\n일정 되시는날을 알려주세요.\n\n' +
+  isos.map((d, i) => dom(d) + '일 ' + (i === 1 ? '불가능' : '가능')).join('\n') + '\n\n이렇게 보내주시면 됩니다.\n감사합니다.';
+const THANKS = (isos) => isos.map((d) => dom(d) + '일').join(', ') + ' 확정입니다. 감사합니다~\n주소확정되면 보내드릴께요~';
+const CLOSED = (isos) => isos.map((d) => dom(d) + '일').join(', ') + '은 마감되었어요~ 담에봐요~';
 const SORRY = '아쉽네요~ 담에봐요~';
 const GONE = '연락이 없어서 다른분께 연락드릴께요.\n담에봐요~';
 const WAIT = 2 * 3600e3, MAX_TRY = 2, OPEN = 8, CLOSE = 20;   // 2시간, 두 번까지, 문자는 오전 8시~저녁 8시
@@ -31,35 +43,46 @@ function dueAt(last) {
   }
   return t;
 }
-const pending = (r) => r.people.filter((p) => p.st === 'asked' || p.st === 'yes');
-const inCount = (r) => r.people.filter((p) => p.st === 'in').length;
+const holding = (p) => p.st === 'asked' || p.st === 'yes';
+const inOn = (r, di) => r.people.filter((p) => (p.in || []).includes(di));
+const holdOn = (r, di) => r.people.filter((p) => holding(p) && (p.hold || []).includes(di));
+const full = (r, di) => inOn(r, di).length >= r.days[di].slots;
+const openOn = (r, di) => r.days[di].slots - inOn(r, di).length - holdOn(r, di).length;
+const pending = (r) => r.people.filter((p) => holding(p) && (p.hold || []).length);
 function ask(r, p) {
   p.st = 'asked'; p.tries = (p.tries || 0) + 1; p.at = now;
-  out.sms.push({ phone: e164(p.phone), text: ASK(r.label) });
+  out.sms.push({ phone: e164(p.phone), text: ASK(p.asked.map((di) => r.days[di].date)) });
 }
-// 빈 자리(필요 − 넣음 − 답 기다림)만큼 순서대로 다음 사람에게. 예산 = 이 사람 + 남은 자리를 가장 싼 사람들로 채워도 넘지 않게
+// 그날 이 사람을 넣어도 예산 안인가 — 이 사람 + 남은 자리를 남은 후보 중 가장 싼 사람들로 채워도 넘지 않게
+function fits(r, di, p, waits) {
+  const d = r.days[di];
+  if (!d.budget) return true;
+  const open = openOn(r, di);
+  const used = inOn(r, di).concat(holdOn(r, di)).reduce((a, x) => a + x.pay, 0);
+  const fill = waits.filter((x) => x !== p && x.free.includes(di)).map((x) => x.pay).sort((a, b) => a - b).slice(0, open - 1).reduce((a, b) => a + b, 0);
+  return p.pay + fill <= d.budget - used;
+}
+// 아직 빈 날이 있으면 순서대로 다음 사람에게 — 그 사람이 되는 날(겹치지 않고 예산 안)만 묻는다
 function advance(r) {
   if (!r.active) return;
   for (let guard = 0; guard < 50; guard++) {
-    const open = r.slots - inCount(r) - pending(r).length;
-    if (open <= 0) return;
-    const used = r.people.filter((p) => ['in', 'asked', 'yes'].includes(p.st)).reduce((a, p) => a + p.pay, 0);
-    const left = r.budget ? r.budget - used : 0;
     const waits = r.people.filter((p) => p.st === 'wait');
-    let hit = null;
-    for (let i = 0; i < waits.length && !hit; i++) {
-      const fill = waits.filter((_, j) => j !== i).map((p) => p.pay).sort((a, b) => a - b).slice(0, open - 1).reduce((a, b) => a + b, 0);
-      if (!r.budget || waits[i].pay + fill <= left) hit = waits[i];
+    let hit = null, dates = [];
+    for (const p of waits) {
+      dates = r.days.map((_, di) => di).filter((di) => !r.days[di].exhausted && openOn(r, di) > 0 && p.free.includes(di) && fits(r, di, p, waits));
+      if (dates.length) { hit = p; break; }
     }
-    if (!hit) {
-      if (!pending(r).length && inCount(r) < r.slots && !r.exhausted) {
-        r.exhausted = true; r.active = false;
-        out.notify.push({ html: true, text: '👥 <b>모두 안 됨 · ' + esc(r.label) + ' ' + (r.slots - inCount(r)) + '자리</b>\n' + esc(r.siteName) +
-          '\n순서대로 다 물어봤습니다 — 밴드에서 구해 주세요.\n────\n' + esc(r.band || '') });
-      }
-      return;
-    }
+    if (!hit) break;
+    hit.asked = dates; hit.hold = dates.slice();
     ask(r, hit);
   }
+  // 물어볼 사람이 더 없는데 아직 빈 날 → 그날은 밴드로
+  r.days.forEach((d, di) => {
+    if (d.exhausted || openOn(r, di) <= 0 || holdOn(r, di).length) return;
+    d.exhausted = true;
+    out.notify.push({ html: true, text: '👥 <b>모두 안 됨 · ' + esc(d.label) + ' ' + (d.slots - inOn(r, di).length) + '자리</b>\n' + esc(r.siteName) +
+      '\n순서대로 다 물어봤습니다 — 밴드에서 구해 주세요.\n────\n' + esc(d.band || '') });
+  });
+  if (r.days.every((d, di) => full(r, di) || d.exhausted) && !pending(r).length) r.active = false;
 }
 const finish = () => [{ json: out }];
