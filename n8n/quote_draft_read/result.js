@@ -54,7 +54,11 @@ function recalcSashiFromSegment(segmentText) {
   else if (segmentText.includes('2중창') || segmentText.includes('이중창')) itemName = '샤시(2중창)';
   else if (segmentText.includes('샤시') || segmentText.includes('샷시') || segmentText.includes('창호')) itemName = '샤시(단창)';
   else return null;
-  const cleanForMatch = segmentText.replace(/2중창/g, '').replace(/이중창/g, '');
+  // 2026-11-02: '32평형대 전체샷시' 의 32 는 수량이 아니다 - 평·동·호·층·단지 숫자는 빼고 본다.
+  // 수량·길이가 안 적혀 있으면 AI 가 읽은 수량(평형 패키지의 샤시 10세트 등)을 그대로 두고 종류만 맞춘다 (keep).
+  // 예전에는 숫자가 없으면 1세트로 덮어써서 '32평 전체샤시' 가 샤시 1틀로 나왔다
+  const cleanForMatch = segmentText.replace(/2중창/g, '').replace(/이중창/g, '')
+    .replace(/\d+(\.\d+)?\s*(평형대|평형|평대|평|동|호|층|단지)/g, '');
   let mValue = 0, qtyValue = 0;
   const mMatch = cleanForMatch.match(/(\d+(\.\d+)?)\s*(m|미터)/i);
   if (mMatch) mValue = parseFloat(mMatch[1]);
@@ -66,7 +70,8 @@ function recalcSashiFromSegment(segmentText) {
   else if (qtyValue > 0) { count = qtyValue * 3; displayLabel = `${qtyValue}세트`; }
   else {
     const numMatch = cleanForMatch.match(/(\d+(\.\d+)?)/);
-    const num = numMatch ? parseFloat(numMatch[0]) : 1;
+    if (!numMatch) return { item: itemName, keep: true };
+    const num = parseFloat(numMatch[0]);
     count = num * 3; displayLabel = `${num}세트`;
   }
   return { item: itemName, count, displayLabel };
@@ -84,7 +89,7 @@ const items = (Array.isArray(out.items) ? out.items : []).map(it => {
   if (SASHI_FAMILY.includes(품목명)) {
     const seg = claimSashiSegment();
     const re = seg ? recalcSashiFromSegment(seg) : null;
-    if (re) { 품목명 = re.item; 수량 = re.count; 표시수량 = re.displayLabel; }
+    if (re) { 품목명 = re.item; if (!re.keep) { 수량 = re.count; 표시수량 = re.displayLabel; } }
   }
   if (!(수량 > 0)) 수량 = 1;
   return { 품목명, 수량, 표시수량, 구역: 구역들.includes(s(it.구역, 10)) ? s(it.구역, 10) : '', 근거: s(it.근거, 60) };
