@@ -29,6 +29,10 @@ for (const f of (Array.isArray(body.fills) ? body.fills : []).slice(0, 50)) {
     // 인원 모집 [넣기] (인원모집 흐름, 11/1) — 그날 인원에 이름
     o.date = s(f.date, 10); o.name = s(f.name, 20);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date) || !o.name) continue;
+  } else if (o.kind === 'task') {
+    // 결재함 [내가할께] (업무일정표 흐름, 11/3) — 앱 할 일로. 현장과 상관없이 받는다 (siteId '-' 이면 현장 없음)
+    o.title = s(f.title, 120); o.date = s(f.date, 10);
+    if (!o.title || !/^\d{4}-\d{2}-\d{2}$/.test(o.date)) continue;
   } else continue;   // 모르는 kind 는 버림. filmOrdered: 텔레그램 버튼으로 주문 문자를 보냄 → 앱 '필름 주문' 단계 (카톡_버튼, 11/1)
   sd.fills.push(o);
   n++;

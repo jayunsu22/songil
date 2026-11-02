@@ -25,6 +25,7 @@ import kakao_photo
 import kakao_text
 import kakao_window
 import n8n_send
+import report
 
 # 명령 프롬프트가 cp949 일 때 '—' 같은 글자로 멈추지 않게 (파이프·기록 파일로 보낼 때)
 for _s in (sys.stdout, sys.stderr):
@@ -64,6 +65,9 @@ DEFAULTS = {
     "site_gaps_url": "https://primary-production-a6fa.up.railway.app/webhook/site-gaps",  # n8n 현장관리_빈칸
     "site_fill_url": "https://primary-production-a6fa.up.railway.app/webhook/site-fill",  # 우편함 (앱이 가져가 칸에 넣음)
     "digest_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-digest",  # 현장관리 📥 카톡 정리 AI
+    # 📋 업무일정표 (사장님 11/3): 저녁 7시 n8n 이 만든 보고서 글을 이 방에 (결재 링크 포함)
+    "report_url": "https://primary-production-a6fa.up.railway.app/webhook/report",
+    "report_room": "김정헌",
 }
 
 # 방마다 '견적발행시작' 을 기다리는 글·사진 묶음 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다.
@@ -183,6 +187,10 @@ def run_once(cfg, state, dry=False):
             gaps.reask(cfg, state, time.time(), gaps.send_to_room, lambda text: notify(cfg, text), log)
             # 업체 답에 3분쯤 뒤 인사 (사장님 11/1)
             gaps.send_replies(state, time.time(), gaps.send_to_room, log)
+        # 📋 업무일정표 → 카톡 김정헌방 (사장님 11/3, 결재함)
+        report.poll(cfg, state, time.time(),
+                    lambda: n8n_send.post_json(cfg["report_url"], cfg["owner_key"], {"action": "outbox"}),
+                    gaps.send_to_room, lambda text: notify(cfg, text), log)
     if not dry:
         for job in [j for j in READY if not j["need"]]:
             READY.remove(job)
