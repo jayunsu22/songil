@@ -7,6 +7,16 @@ n8n 업무일정표 흐름이 저녁 7시에 만든 카톡 글(outbox)을 5분�
 EVERY = 300
 
 
+def send_to_room(room, text, log):
+    """김정헌 방이 이미 열려 있으면 그 창에 바로 보낸다 (가견적 링크와 같은 방법, 창은 그대로 둔다).
+    안 열려 있으면 목록에서 열어 보내고 닫는다 (gaps.send_to_room). → (방, 실패 이유 '' | 'no-room' | 'send')"""
+    import gaps
+    import kakao_window
+    if kakao_window.find_room(room)[0]:
+        return room, "" if kakao_window.send_text(room, text) else "send"
+    return gaps.send_to_room(room, text, log)
+
+
 def poll(cfg, state, now, fetch, send, notify, log):
     if now - state.get("report_at", 0) < EVERY:
         return

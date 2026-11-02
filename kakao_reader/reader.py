@@ -190,7 +190,7 @@ def run_once(cfg, state, dry=False):
         # 📋 업무일정표 → 카톡 김정헌방 (사장님 11/3, 결재함)
         report.poll(cfg, state, time.time(),
                     lambda: n8n_send.post_json(cfg["report_url"], cfg["owner_key"], {"action": "outbox"}),
-                    gaps.send_to_room, lambda text: notify(cfg, text), log)
+                    report.send_to_room, lambda text: notify(cfg, text), log)
     if not dry:
         for job in [j for j in READY if not j["need"]]:
             READY.remove(job)
