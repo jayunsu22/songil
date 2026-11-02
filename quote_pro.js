@@ -723,12 +723,41 @@ function buildAdjust() {
       o.textContent = (v > 0 ? '+' : '') + Math.round(v * 100) + '%';
       sel.appendChild(o);
     });
+    // 맨 끝 '직접입력' (2026-11-02): % 대신 금액을 적는다 - '-150,000원' 이면 총액에서 15만원을 뺀다
+    const 직접 = document.createElement('option');
+    직접.value = 'won';
+    직접.textContent = '직접입력';
+    sel.appendChild(직접);
+    // 금액 칸은 그 줄 바로 아래. '직접입력' 일 때만 보인다
+    const won칸 = document.createElement('input');
+    won칸.type = 'text'; won칸.inputMode = 'numeric'; won칸.autocomplete = 'off';
+    won칸.className = 'adj-won'; won칸.dataset.slot = sel.dataset.slot; won칸.hidden = true;
+    won칸.placeholder = '-150,000원 (빼면 앞에 -)';
+    sel.parentElement.after(won칸);
+    won칸.addEventListener('input', () => {
+      const a = state.조정[+sel.dataset.slot];
+      if (!a) return;
+      won칸.value = QuoteCalc.금액포맷(won칸.value);
+      const n = QuoteCalc.금액파싱(won칸.value);
+      a.금액 = isNaN(n) ? 0 : n;
+      refresh();
+      persist();
+    });
     sel.addEventListener('change', () => {
       const slot = +sel.dataset.slot;
-      if (state.조정[slot]) {
-        state.조정[slot].비율 = parseFloat(sel.value) || 0;
+      const a = state.조정[slot];
+      if (a) {
+        if (sel.value === 'won') {
+          // 할인이 대부분이라 '-' 를 먼저 넣어 둔다. 더하는 금액이면 지우고 쓴다
+          a.금액 = 0; a.비율 = 0;
+        } else {
+          delete a.금액;
+          a.비율 = parseFloat(sel.value) || 0;
+        }
+        syncAdjust();
         refresh();
         persist();
+        if (sel.value === 'won') won칸.focus();
       }
     });
   });
@@ -742,8 +771,15 @@ function syncAdjust() {
   });
   document.querySelectorAll('.adj-pct').forEach((sel) => {
     const a = state.조정[+sel.dataset.slot];
-    sel.value = a ? String(a.비율) : '0';
+    const 금액 = a && QuoteCalc.금액조정(a);
+    sel.value = 금액 ? 'won' : a ? String(a.비율) : '0';
     sel.disabled = !a;
+    const won칸 = document.querySelector('.adj-won[data-slot="' + sel.dataset.slot + '"]');
+    if (won칸) {
+      won칸.hidden = !금액;
+      // 지금 적고 있는 칸은 건드리지 않는다 (커서가 튄다)
+      if (금액 && document.activeElement !== won칸) won칸.value = a.금액 ? QuoteCalc.금액포맷(String(a.금액)) : '-';
+    }
   });
 }
 
@@ -955,9 +991,13 @@ function refresh() {
   });
 
   const 율 = r.조정_합계율;
+  // % 조정과 금액 조정을 따로 적는다: '합계 조정 -10% · -150,000원'
+  const 퍼합 = r.조정들.filter((a) => !QuoteCalc.금액조정(a)).reduce((s, a) => s + (a.비율 || 0), 0);
+  const 금액합 = r.조정들.filter(QuoteCalc.금액조정).reduce((s, a) => s + a.금액, 0);
+  const 조정글 = [퍼합 ? (퍼합 > 0 ? '+' : '') + Math.round(퍼합 * 1000) / 10 + '%' : '',
+    금액합 ? (금액합 > 0 ? '+' : '-') + won(Math.abs(금액합)) : ''].filter(Boolean).join(' · ');
   $('#adjSum').textContent = 조정목록().length
-    ? '합계 조정 ' + (율 > 0 ? '+' : '') + Math.round(율 * 1000) / 10 + '%'
-      + (율 === 0 ? ' (상쇄되어 그대로 나갑니다)' : '')
+    ? '합계 조정 ' + (조정글 || '0%') + (율 === 0 ? ' (상쇄되어 그대로 나갑니다)' : '')
     : '';
 
   $('#totalAmount').innerHTML = won(r.총액) +
@@ -1334,8 +1374,9 @@ function buildText() {
     L.push('소계 ' + q.result.소계.toLocaleString('ko-KR') + '원');
     // 견적서 화면과 같은 모양으로 조정 이유(항목명)를 같이 적는다.
     const 퍼 = (v) => (v > 0 ? '+' : '') + Math.round(v * 1000) / 10 + '%';
-    const 내역 = 조정목록().filter((a) => a && a.항목명 && a.비율);
-    if (내역.length) 내역.forEach((a) => L.push('조정 (' + a.항목명 + ') ' + 퍼(a.비율)));
+    const 내역 = q.result.조정들.filter((a) => a && a.항목명 && a.비율);
+    const 원 = (n) => (n > 0 ? '+' : '-') + Math.abs(n).toLocaleString('ko-KR') + '원';
+    if (내역.length) 내역.forEach((a) => L.push('조정 (' + a.항목명 + ') ' + (QuoteCalc.금액조정(a) ? 원(a.금액) : 퍼(a.비율))));
     else L.push('조정 ' + 퍼(q.result.조정_합계율));
   }
   // 만원 미만 절삭 (견적서 화면과 같은 줄). 품목을 더한 값과 합계가 왜 다른지 보이게
@@ -1454,7 +1495,8 @@ $('#doPublish').addEventListener('click', async () => {
         조정_합계율: q.result.조정_합계율,
         총액: q.result.총액,         // 만원 미만 절삭한 합계 (quote_calc 절삭)
         절삭단위: QuoteCalc.절삭단위,
-        조정_내역: 조정목록(),
+        // 금액 조정은 비율을 채워 싣는다 (견적서·다시 담기가 비율로 계산한다). 금액도 같이 실린다
+        조정_내역: q.result.조정들,
         조정내역_표시: $('#optAdj').checked,
         부가세_별도표기: $('#optVat').checked,
         메모: state.메모,

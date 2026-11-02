@@ -87,10 +87,23 @@
     return { 금액: 금액, 인건비: 인건비, 자재비: 금액 - 인건비 };
   }
 
+  /* 금액으로 적은 조정 (2026-11-02 사장님: '직접입력' 을 고르면 -150,000원 처럼 금액으로 할인).
+     조정 전 소계에 대한 비율로 바꿔 % 조정과 똑같이 줄마다 나눠 건다 - 그래야 품목 금액·인건비/자재비·
+     고객이 품목을 빼는 계산이 지금처럼 맞는다. 금액은 그대로 실어 두고 화면에는 금액으로 보여준다. */
+  function 금액조정(a) { return !!a && typeof a.금액 === 'number' && isFinite(a.금액); }
+  function 조정풀기(adjustments, 소계) {
+    return (adjustments || []).filter(Boolean).map(function (a) {
+      if (!금액조정(a)) return a;
+      return Object.assign({}, a, { 비율: 소계 ? a.금액 / 소계 : 0 });
+    });
+  }
+
   function calcQuote(items, adjustments) {
     // 전체 조정은 곱이 아니라 합. 거주중 +10%와 업자단가 -10%는 상쇄되어야 하고,
-    // 사용자가 암산으로 검산할 수 있어야 한다.
-    const 조정_합계율 = (adjustments || []).reduce(function (s, a) {
+    // 사용자가 암산으로 검산할 수 있어야 한다. 금액 조정은 조정 전 소계에 대한 비율로 바꿔 같이 더한다.
+    const 조정전소계 = (items || []).reduce(function (s, it) { return s + lineAmount(it); }, 0);
+    const 조정들 = 조정풀기(adjustments, 조정전소계);
+    const 조정_합계율 = 조정들.reduce(function (s, a) {
       return s + (a.비율 || 0);
     }, 0);
 
@@ -108,6 +121,21 @@
       });
     });
 
+    // 금액 조정이 있으면 줄마다 반올림한 어긋남(1~2원)을 금액이 가장 큰 줄에 몰아 넣어 합을 딱 맞춘다.
+    // 1,000,000 - 150,000 이 849,999 가 되면 만원 절삭에서 840,000 이 된다 - 그래서 1원도 어긋나면 안 된다.
+    // 목표 = % 조정만 건 금액(예전과 같은 줄별 반올림) + 금액 조정의 합
+    if (라인들.length && 조정들.some(금액조정)) {
+      const 퍼 = 조정들.reduce(function (s, a) { return s + (금액조정(a) ? 0 : (a.비율 || 0)); }, 0);
+      const 금액합 = 조정들.reduce(function (s, a) { return s + (금액조정(a) ? a.금액 : 0); }, 0);
+      const 목표 = 라인들.reduce(function (s, l) { return s + Math.round(l.라인금액 * (1 + 퍼)); }, 0) + Math.round(금액합);
+      const 차 = 목표 - 라인들.reduce(function (s, l) { return s + l.표시금액; }, 0);
+      if (차) {
+        let k = 0;
+        라인들.forEach(function (l, i) { if (Math.abs(l.표시금액) > Math.abs(라인들[k].표시금액)) k = i; });
+        라인들[k] = Object.assign({}, 라인들[k], { 표시금액: 라인들[k].표시금액 + 차 });
+      }
+    }
+
     // 총액은 표시금액의 합으로 구한다.
     // 소계×(1+율)로 따로 구하면 반올림 때문에 품목 금액의 합과 몇 원 어긋나고,
     // 받는 사람이 계산기를 두드리면 바로 티가 난다. 그 합에서 만원 아래만 버린다(절삭).
@@ -121,6 +149,7 @@
     return {
       소계: 라인들.reduce(function (s, l) { return s + l.라인금액; }, 0),
       조정_합계율: 조정_합계율,
+      조정들: 조정들,   // 금액 조정은 비율을 채운 것 - 발행할 때 조정_내역으로 싣는다
       라인들: 라인들,
       절삭전총액: 합,
       총액: 절삭(합),
@@ -132,5 +161,5 @@
   }
 
   return { lineAmount: lineAmount, lineWage: lineWage, calcQuote: calcQuote, 절삭: 절삭, 절삭단위: 절삭단위,
-           금액포맷: 금액포맷, 금액파싱: 금액파싱, 금액나누기: 금액나누기 };
+           금액포맷: 금액포맷, 금액파싱: 금액파싱, 금액나누기: 금액나누기, 금액조정: 금액조정 };
 });

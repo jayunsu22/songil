@@ -513,8 +513,10 @@ function renderSum() {
     const 내역 = (d.조정_내역 || []).filter((a) => a && a.항목명 && a.비율);
     if (내역.length) {
       내역.forEach((a) => {
+        // 금액으로 적은 조정은 금액으로 (-150,000원), 나머지는 % 로
+        const 값 = typeof a.금액 === 'number' ? (a.금액 > 0 ? '+' : '-') + won(Math.abs(a.금액)) : 퍼센트(a.비율);
         R.push('<div class="v-row"><span>조정 <span class="v-why">(' +
-          esc(a.항목명) + ')</span></span><span>' + 퍼센트(a.비율) + '</span></div>');
+          esc(a.항목명) + ')</span></span><span>' + 값 + '</span></div>');
       });
     } else {
       // 항목명 없이 발행된 예전 견적서. 합계율만 보여준다.
@@ -715,7 +717,7 @@ function 추가금액(p, 고른) {
   if (q && q.키 === '길이') { g.길이 = 1; m당 = true; }
   const s = QuoteAddon.선택(p, g, 표);
   if (!s) return null;
-  const l = QuoteAddon.줄만들기(표[s.표이름], s, DATA.조정_합계율 || 0, QuoteAddon.자재비찾기(DATA.라인들));
+  const l = QuoteAddon.줄만들기(표[s.표이름], s, QuoteAddon.추가율(DATA.조정_내역, DATA.조정_합계율), QuoteAddon.자재비찾기(DATA.라인들));
   return l ? { 금액: 줄금액(l), m당: m당, 줄: l } : null;
 }
 function 금액글(r) {

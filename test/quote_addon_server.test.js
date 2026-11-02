@@ -19,6 +19,9 @@ test('서버 계산 함수 = quote_addon.js', () => {
     for (const 율 of [0, -0.1, 0.15]) for (const 자 of [null, 12000]) {
       assert.deepStrictEqual(계산부.줄만들기(r, { 길이, 한쪽, 이름: 'n' }, 율, 자, 'i', 't'), M.줄만들기(r, { 길이, 한쪽, 이름: 'n' }, 율, 자, 'i', 't'));
     }
+  for (const 내역 of [[], undefined, [{ 비율: -0.1 }], [{ 비율: -0.1 }, { 비율: -0.12, 금액: -150000 }]]) for (const 합 of [0, -0.22, '0.05']) {
+    assert.strictEqual(계산부.추가율(내역, 합), M.추가율(내역, 합));
+  }
   for (const [a, b] of [[[{ 표시금액: 3871500 }], 3870000], [[{ 표시금액: 100 }], 100]]) {
     assert.strictEqual(계산부.절삭했나(a, b), M.절삭했나(a, b));
     for (const c of [true, false]) assert.strictEqual(계산부.새총액(a, [{ 표시금액: 5555 }], c), M.새총액(a, [{ 표시금액: 5555 }], c));

@@ -212,6 +212,9 @@ header {
 }
 .adj-name { flex: 1 1 auto; min-width: 0; }
 .adj-pct { flex: 0 0 92px; font-weight: 700; }
+/* 직접입력 금액 칸 (2026-11-02) - 그 조정 줄 바로 아래 */
+.adj-won { display: block; width: 100%; margin: -2px 0 10px; padding: 12px 14px; border: 2px solid var(--text, #111); border-radius: 12px;
+  font-size: 18px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; background: #fff; }
 #adjSum { font-size: 13px; color: var(--muted); margin-top: 4px; }
 
 /* ---------- 하단 고정 바 ---------- */

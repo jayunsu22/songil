@@ -27,6 +27,8 @@ const A = {
       품목설명: '', 고객추가: true, 추가일시: 일시 || '' };
   },
   절삭했나: (원래, 원래총액) => { const S = (원래 || []).reduce((s, l) => s + (Number(l.표시금액) || 0), 0); const 총 = Number(원래총액) || 0; return 총 % 10000 === 0 && S - 총 >= 0 && S - 총 < 10000; },
+  // 추가 품목에 걸 조정 비율 - 금액 조정(-150,000원)은 빼고 % 조정만 (2026-11-02)
+  추가율: (내역, 합계율) => { const L = Array.isArray(내역) ? 내역 : []; if (!L.some((a) => a && typeof a.금액 === 'number')) return Number(합계율) || 0; return L.reduce((s, a) => s + (a && typeof a.금액 !== 'number' ? (Number(a.비율) || 0) : 0), 0); },
   새총액: (원래, 추가들, 절삭) => { const n = (원래 || []).concat(추가들 || []).reduce((s, l) => s + (Number(l.표시금액) || 0), 0); return 절삭 ? Math.floor(n / 10000) * 10000 : n; },
 };
 const F = (r) => (r && r.fields) ? Object.assign({ id: r.id }, r.fields) : (r || {});
@@ -60,7 +62,7 @@ if (b.삭제) {
   const 줄 = A.표맵(행들('시공품목정보 조회'))[s.표이름];
   if (!줄) return 실패('bad_item');
   // 금액은 여기서 다시 계산한다 - 화면이 보낸 금액은 받지 않는다
-  바뀐 = A.줄만들기(줄, { 길이: s.길이, 한쪽: !!s.한쪽 && A.한쪽표.indexOf(s.표이름) >= 0, 이름: 글(s.이름) }, Number(q['조정_합계율']) || 0,
+  바뀐 = A.줄만들기(줄, { 길이: s.길이, 한쪽: !!s.한쪽 && A.한쪽표.indexOf(s.표이름) >= 0, 이름: 글(s.이름) }, A.추가율(파싱(q['조정_내역'], []), q['조정_합계율']),
     A.자재비찾기(원래), 'add' + Date.now().toString(36), 지금);
   if (!바뀐) return 실패('bad_length');
   meta.줄들.push(바뀐);
