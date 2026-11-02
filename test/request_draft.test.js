@@ -183,3 +183,13 @@ test('평형 전체 샤시: 이미 체크된 자리는 건너뛴다', () => {
   assert.strictEqual(Object.keys(r.선택).length, 7);
   assert.deepStrictEqual(r.건너뜀.map((x) => x.체크_ID), ['s_거실_샤시1']);
 });
+
+test("평형으로 물은 샤시 '30평 아파트 샤시 견적내줘' → 10틀 (n8n 이 30평의 30 을 30세트·90m 로 읽어도, 2026-11-02 23:51 실제 답)", () => {
+  const 줄 = { 품목명: '샤시(단창)', 수량: 90, 표시수량: '30세트', 구역: '', 근거: '30평 아파트 샤시 견적내줘' };
+  const r = D.체크하기([줄], 집, {}, { 평형: '30평' });
+  assert.strictEqual(Object.keys(r.선택).length, 10);
+  Object.values(r.선택).forEach((x) => assert.strictEqual(x.수량, 3));
+  assert.deepStrictEqual(r.확인필요, []);
+  // 평형에 개수까지 말했으면 그 개수 ('30평 샤시 4틀' → 4자리)
+  assert.strictEqual(Object.keys(D.체크하기([{ 품목명: '샤시(단창)', 수량: 12, 표시수량: '4세트', 구역: '', 근거: '30평 샤시 4틀' }], 집, {}, { 평형: '30평' }).선택).length, 4);
+});
