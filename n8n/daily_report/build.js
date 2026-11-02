@@ -57,7 +57,7 @@ const cron = (id, name, expr, y) => ({
 const c = (n) => [{ node: n, type: 'main', index: 0 }];
 
 const workflow = {
-  name: '업무일정표',
+  name: '업무일정표',   // n8n id 0zt1JGho9z57ECOP
   nodes: [
     {
       id: 'w1', name: '보고서요청', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, 0], webhookId: '6d2b8f41-3a7c-4e95-b1d0-7c4e2a9f5b63',
