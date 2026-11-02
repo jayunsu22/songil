@@ -458,3 +458,11 @@ body.view { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); backg
 .v-mixl.fixed { cursor: default; padding-left: 36px; }
 .v-mixl.fixed .v-mixn { font-size: 14px; }
 .v-mixwarn { padding: 6px 0 2px; font-size: 13px; font-weight: 700; color: #b91c1c; }
+
+/* 깎아 주는 조정 (업체조정가·할인, 2026-11-02 사장님: 크게 잘 보이게) */
+.v-gift { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0 6px;
+  padding: 14px 16px; border: 2px solid #ea580c; border-radius: 14px; background: #fff7ed; }
+.v-gift-n { font-size: 19px; font-weight: 900; color: #9a3412; }
+.v-gift-n small { display: block; margin-top: 2px; font-size: 13px; font-weight: 700; color: #c2410c; }
+.v-gift-v { font-size: 24px; font-weight: 900; color: #c2410c; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.v-bar-label small.v-bar-gift { display: block; margin: 2px 0 0; color: #fdba74; font-size: 12.5px; }

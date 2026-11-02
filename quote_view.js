@@ -196,6 +196,14 @@ const 총액조정 = (d) => QuoteCalc.총액조정((d || {}).조정_내역);
 // 기준 금액(남은 품목 합)에 거는 조정 - % 는 그 합의 %, 직접입력 금액은 그대로
 const 조정줄들 = (d, 기준) => 총액조정(d) ? QuoteCalc.조정계산(기준, d.조정_내역).줄들 : [];
 const 조정합 = (d, 기준) => 조정줄들(d, 기준).reduce((s, a) => s + a.조정금액, 0);
+// 조정 항목 이름. '업자단가' 는 '업체조정가' 로 바꿨다 (2026-11-02 사장님) - 그 전에 발행한 견적서도 새 이름으로
+const 조정이름 = (n) => String(n || '') === '업자단가' ? '업체조정가' : String(n || '');
+/* 깎아 주는 조정(업체조정가·할인)은 크게 (2026-11-02 사장님: 선심 쓰는 건데 잘 보여야 고마운 줄 안다).
+   더하는 조정(거주중 +10%)은 보통 줄 그대로 */
+function 할인줄(이름, 작은글, 금액) {
+  return '<div class="v-gift"><span class="v-gift-n">🎁 ' + esc(이름) + (작은글 ? '<small>' + esc(작은글) + '</small>' : '') +
+    '</span><span class="v-gift-v">-' + won(Math.abs(금액)) + '</span></div>';
+}
 const 부호 = (n) => (n > 0 ? '+' : n < 0 ? '-' : '') + Math.abs(Math.round(n)).toLocaleString('ko-KR');
 
 // 다른 견적서 주소. 품목설명(d=1)·인건비(w=1) 표시는 그대로 넘긴다
@@ -521,9 +529,10 @@ function renderSum() {
     const 퍼 = (v) => (v > 0 ? '+' : '') + Math.round(v * 1000) / 10 + '%';
     R.push('<div class="v-row"><span>' + (인건비만() ? '인건비 소계' : 한쪽만() ? '자재비 소계' : '소계') + '</span><span>' + won(품목합) + '</span></div>');
     조정줄들(d, 품목합).filter((a) => a.조정금액).forEach((a) => {
-      R.push('<div class="v-row"><span>조정 <span class="v-why">(' + esc(a.항목명) +
-        (typeof a.금액 === 'number' ? '' : ' ' + 퍼(a.비율)) + ')</span></span><span>' +
-        (a.조정금액 > 0 ? '+' : '-') + won(Math.abs(a.조정금액)) + '</span></div>');
+      const 퍼글 = typeof a.금액 === 'number' ? '' : 퍼(a.비율);
+      if (a.조정금액 < 0) { R.push(할인줄(조정이름(a.항목명), 퍼글 ? 퍼글 + ' 할인' : '', a.조정금액)); return; }
+      R.push('<div class="v-row"><span>조정 <span class="v-why">(' + esc(조정이름(a.항목명)) +
+        (퍼글 ? ' ' + 퍼글 : '') + ')</span></span><span>+' + won(a.조정금액) + '</span></div>');
     });
   }
 
@@ -541,7 +550,7 @@ function renderSum() {
         // 금액으로 적은 조정은 금액으로 (-150,000원), 나머지는 % 로
         const 값 = typeof a.금액 === 'number' ? (a.금액 > 0 ? '+' : '-') + won(Math.abs(a.금액)) : 퍼센트(a.비율);
         R.push('<div class="v-row"><span>조정 <span class="v-why">(' +
-          esc(a.항목명) + ')</span></span><span>' + 값 + '</span></div>');
+          esc(조정이름(a.항목명)) + ')</span></span><span>' + 값 + '</span></div>');
       });
     } else {
       // 항목명 없이 발행된 예전 견적서. 합계율만 보여준다.
@@ -632,8 +641,11 @@ function renderBar(총, 조정됨) {
   }
   const 뺀수 = 해제.size;
   const 바꾼수 = Object.keys(종류선택).length;
+  // 깎아 준 금액을 아래 고정 합계에도 (총액에서 조정하는 견적서)
+  const 깎음 = 총액조정(DATA) ? 조정줄들(DATA, 현재총액()).reduce((s, a) => s + (a.조정금액 < 0 ? a.조정금액 : 0), 0) : 0;
   bar.innerHTML =
     '<span class="v-bar-label">' + 합계이름() +
+      (깎음 ? '<small class="v-bar-gift">🎁 ' + won(-깎음) + ' 할인</small>' : '') +
       (뺀수 ? ' <small>' + 뺀수 + '개 뺌</small>' : '') +
       (바꾼수 ? ' <small>종류 ' + 바꾼수 + '개 바꿈</small>' : '') + '</span>' +
     '<span class="v-bar-amt">' +

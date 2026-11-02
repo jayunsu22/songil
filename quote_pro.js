@@ -764,7 +764,13 @@ function buildAdjust() {
   syncAdjust();
 }
 
+// '업자단가' 는 '업체조정가' 로 이름을 바꿨다 (2026-11-02, 에어테이블 전체조정항목). 저장함·다시 담은 견적의 예전 이름도 새 이름으로
+function 조정이름맞추기() {
+  state.조정.forEach((a) => { if (a && a.항목명 === '업자단가') a.항목명 = '업체조정가'; });
+}
+
 function syncAdjust() {
+  조정이름맞추기();
   document.querySelectorAll('.adj-name').forEach((sel) => {
     const a = state.조정[+sel.dataset.slot];
     sel.value = a ? a.항목명 : '';
@@ -1376,7 +1382,9 @@ function buildText() {
     L.push((인건비만 ? '인건비 소계 ' : '소계 ') + 소계.toLocaleString('ko-KR') + '원');
     const 퍼 = (v) => (v > 0 ? '+' : '') + Math.round(v * 1000) / 10 + '%';
     const 원 = (n) => (n > 0 ? '+' : '-') + Math.abs(n).toLocaleString('ko-KR') + '원';
-    조정줄.forEach((a) => L.push('조정 (' + a.항목명 + (QuoteCalc.금액조정(a) ? '' : ' ' + 퍼(a.비율)) + ') ' + 원(a.조정금액)));
+    // 깎아 주는 조정은 눈에 띄게 '🎁 업체조정가 (-10%) -110,200원'
+    조정줄.forEach((a) => L.push((a.조정금액 < 0 ? '🎁 ' + a.항목명 : '조정 (' + a.항목명 + ')') +
+      (QuoteCalc.금액조정(a) ? '' : ' (' + 퍼(a.비율) + ')') + ' ' + 원(a.조정금액)));
   }
   // 만원 미만 절삭 (견적서 화면과 같은 줄). 품목을 더한 값과 합계가 왜 다른지 보이게
   const 절삭액 = 인건비만 ? q.result.인건비절삭액 : q.result.절삭액;
