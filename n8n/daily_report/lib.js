@@ -6,6 +6,7 @@ const sd = $getWorkflowStaticData('global');
 sd.reports = sd.reports || {};
 sd.outbox = sd.outbox || [];
 sd.log = sd.log || {};
+sd.marks = sd.marks || {};   // [완료표시] 한 항목 { 항목id: 날짜 } — 14일 동안 다시 묻지 않는다
 const now = Date.now();
 const todayKST = () => new Date(now + 9 * 3600e3).toISOString().slice(0, 10);
 const out = { resp: { ok: true }, sms: [], notify: [], fills: [], crew: [] };
@@ -31,6 +32,8 @@ function keepRecent() {
   const dates = Object.keys(sd.reports).sort();
   dates.slice(0, Math.max(0, dates.length - 14)).forEach((d) => { delete sd.reports[d]; });
   Object.keys(sd.log).sort().slice(0, -14).forEach((d) => { delete sd.log[d]; });
+  const old = new Date(now + 9 * 3600e3 - 14 * 864e5).toISOString().slice(0, 10);
+  Object.keys(sd.marks).forEach((k) => { if (sd.marks[k] < old) delete sd.marks[k]; });
   sd.outbox = sd.outbox.filter((o) => now - (o.t || 0) < 3 * 864e5);
 }
 const finish = () => [{ json: out }];

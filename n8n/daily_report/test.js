@@ -63,4 +63,24 @@ clock = Date.parse('2026-11-04T10:00:00Z');
 run('실행', Object.assign({ 저녁7시: {} }, air, { 현장읽기: rec([Object.assign({}, site, { filmStage: 2 })]) }));
 const done = sd.reports['2026-11-05'].rep.done.map((d) => d.title);
 assert.ok(done.some((t) => t.includes('필름 발주 완료')) && done.some((t) => t.includes('인원 모집 시작')), done.join());
+
+// [완료표시] 잔금 → 우편함 done/pay + 오늘 결과 + 다음 보고서에서 빠짐 / [내가할께] → 다음 보고서에 '어제 내가할께'
+const ended = { id: 's9', name: '끝난현장', date: '2026-10-28', days: [{ date: '2026-10-28', staff: ['가A'] }] };
+const ask = { id: 's8', name: '모집현장', date: '2026-11-08', needStaff: 3, days: [{ date: '2026-11-08', staff: [] }], films: [{ code: 'x1' }], filmStage: 2, pwLobby: '1', pwUnit: '1', toilet: '1' };
+const air2 = Object.assign({}, air, { 현장읽기: rec([ended, ask]) });
+clock = Date.parse('2026-11-05T10:00:00Z');   // 11/5 19시 → 11/6 보고서
+run('실행', Object.assign({ 저녁7시: {} }, air2));
+const ids6 = sd.reports['2026-11-06'].rep.next.map((n) => n.id);
+assert.ok(ids6.includes('pay:s9') && ids6.includes('staff:s8'), ids6.join());
+o = run('요청', { 보고서요청: { body: { action: 'decide', date: '2026-11-06', id: 'pay:s9', act: 'done' } } });
+assert.deepStrictEqual(o.fills, [{ siteId: 's9', kind: 'done', what: 'pay', at: '2026-11-05', room: '결재함' }]);
+run('요청', { 보고서요청: { body: { action: 'decide', date: '2026-11-06', id: 'staff:s8', act: 'mine' } } });
+clock = Date.parse('2026-11-06T00:00:00Z');   // 9시 — 내가할께는 아무것도 안 함
+o = run('실행', Object.assign({ 아침9시: {} }, air2));
+assert.strictEqual(o.fills.length + o.sms.length + o.crew.length, 0);
+clock = Date.parse('2026-11-06T10:00:00Z');   // 11/6 19시 → 11/7 보고서 (앱에 아직 반영 안 됐어도 잔금은 빠짐)
+run('실행', Object.assign({ 저녁7시: {} }, air2));
+const r7 = sd.reports['2026-11-07'].rep;
+assert.ok(!r7.next.some((n) => n.id === 'pay:s9'));
+assert.strictEqual(r7.next.find((n) => n.id === 'staff:s8').again, true);
 console.log('daily_report ok');

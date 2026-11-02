@@ -12,10 +12,7 @@ if (which === '아침9시') {
     const d = (box.decisions || {})[it.id];
     if (!d || d.doneAt) continue;
     const site = data.sites.find((s) => s.id === it.siteId);
-    if (d.act === 'mine') {
-      out.fills.push({ siteId: it.siteId || '-', kind: 'task', title: '내가 할 일: ' + it.title, date: today, room: '결재함', at: today });
-      d.doneAt = now;
-    } else if (d.act === 'go' && it.act === 'film' && site && d.to && d.to.phone) {
+    if (d.act === 'go' && it.act === 'film' && site && d.to && d.to.phone) {
       const text = Share.filmOrderSms(site, !!data.settings.smsSiteName);
       if (!text) { out.notify.push({ html: true, text: '❗ <b>필름 주문 못 보냄</b> · ' + esc(it.title) + '\n적힌 필름 번호가 없습니다' }); continue; }
       const items = Share.filmOrderText(site).split('\n').join(' · ');
@@ -42,6 +39,9 @@ if (which === '아침9시') {
 // 저녁 7시 (또는 make) — 내일 업무일정표
 const rep = Share.dailyReport(data.sites, data.settings, data.tasks, today);
 rep.done = rep.done.concat(sd.log[today] || []).filter((x, i, a) => a.findIndex((y) => y.title === x.title && y.res === x.res) === i);
+// [완료표시] 한 일은 빼고, 오늘 보고서에서 [내가할께] 했는데 아직 남은 일은 '어제 내가할께 — 아직 안 됨' (사장님 11/3)
+const prev = (sd.reports[today] || {}).decisions || {};
+rep.next = rep.next.filter((n) => !sd.marks[n.id]).map((n) => ((prev[n.id] || {}).act === 'mine' ? Object.assign({}, n, { again: true }) : n));
 const old = sd.reports[rep.date];
 sd.reports[rep.date] = { rep, decisions: (old && old.decisions) || {}, at: now };
 keepRecent();
