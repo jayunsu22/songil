@@ -18,7 +18,17 @@ const 설명포함 = params.get('d') === '1';
    이 기능 이전에 발행한 견적서에는 그 값이 없다. 그때는 조용히 합산 견적서로
    보여준다 - 인건비를 모르는 채로 금액을 깎아 보여주면 사고다. */
 const 인건비요청 = params.get('w') === '1';
-let 인건비만 = false;   // 실제로 인건비 견적서로 그릴지. render() 에서 정한다.
+/* 자재비·인건비 체크 (사장님 2026-11-02). 품목마다 인건비·자재비를 나눠 보여주고, 합계 칸의
+   [✓자재비] [✓인건비] 체크로 체크한 몫만 합계에 넣는다. 기본은 둘 다 (w=1 이면 자재비를 끈 채로 연다).
+   둘 다 끌 수는 없다. 자재비 = 표시금액 - 인건비 몫. 인건비 몫이 없는 줄(예전 견적서·직접 넣은 줄)은
+   나눌 수 없어서 전액을 그대로 쓰고 딱지를 붙인다. */
+const 기본몫 = { 자재: !인건비요청, 인건: true };
+const 몫 = Object.assign({}, 기본몫);
+let 나눔 = false;   // 이 견적서를 나눠 보여줄 수 있는지 (한 줄이라도 인건비 몫이 있으면). render() 에서 정한다
+const 한쪽만 = () => 나눔 && !(몫.자재 && 몫.인건);
+const 인건비만 = () => 한쪽만() && 몫.인건;
+const 몫바뀜 = () => 나눔 && (몫.자재 !== 기본몫.자재 || 몫.인건 !== 기본몫.인건);
+const 합계이름 = () => !한쪽만() ? '합계' : 몫.인건 ? '인건비 합계' : '자재비 합계';
 
 /* 그 줄에 보여줄 금액. 인건비 견적서에서 나뉘어 있지 않은 줄은
    전액(자재비 포함)을 그대로 쓴다. */
@@ -40,17 +50,33 @@ function 줄다시그리기(i) {
   // 문짝만·문틀만이면 '1세트' 가 아니라 '1개' (종류에 단위가 실려 온 줄만)
   const 수량칸 = 줄.querySelector('.v-qty');
   if (수량칸) 수량칸.textContent = String(l.수량 == null ? '' : l.수량) + String(l.단위 || '');
-  줄.querySelector('.v-amt').innerHTML = won(줄금액(l)) + (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '');
+  줄.querySelector('.v-amt').innerHTML = 금액칸(l);
   줄.classList.toggle('kind-changed', 종류선택[i] != null);
+  const 쪼갬 = document.querySelector('.v-split[data-i="' + i + '"]');
+  if (쪼갬) { 쪼갬.innerHTML = 쪼갬글(l); 쪼갬.hidden = !쪼갬.innerHTML; }
   const 설명 = document.querySelector('.v-desc[data-i="' + i + '"]');
   if (설명) { 설명.textContent = l.품목설명 || ''; 설명.hidden = !l.품목설명; }
 }
 
+function 나뉨(l) { return l.인건비표시금액 != null; }
+function 자재몫(l) { return l.표시금액 - l.인건비표시금액; }
+// 그 줄에 보여줄 금액 - 체크한 몫만. 나눌 수 없는 줄은 전액
 function 줄금액(l) {
-  return (인건비만 && l.인건비표시금액 != null) ? l.인건비표시금액 : l.표시금액;
+  if (!한쪽만() || !나뉨(l)) return l.표시금액;
+  return 몫.인건 ? l.인건비표시금액 : 자재몫(l);
 }
+// 한쪽만 볼 때 나눌 수 없는 줄 - 금액에 다른 몫이 섞여 있다
 function 자재섞임(l) {
-  return 인건비만 && l.인건비표시금액 == null;
+  return 한쪽만() && !나뉨(l);
+}
+function 금액칸(l) {
+  return won(줄금액(l)) + (자재섞임(l) ? '<small class="v-mixed">' + (몫.인건 ? '자재 포함' : '인건비 포함') + '</small>' : '');
+}
+// 품목 아래 '인건비 94,000원 · 자재비 18,000원'. 뺀 몫은 줄을 긋는다. 나눌 수 없는 줄은 ''
+function 쪼갬글(l) {
+  if (!나눔 || !나뉨(l)) return '';
+  const 칸 = (이름, 금액, 켬) => '<span class="' + (켬 ? '' : 'off') + '">' + 이름 + ' ' + won(금액) + '</span>';
+  return 칸('인건비', l.인건비표시금액, 몫.인건) + 칸('자재비', 자재몫(l), 몫.자재);
 }
 
 let DATA = null;
@@ -158,7 +184,7 @@ async function 가견적받기() {
 
 // 견적서 합계 (인건비 견적서면 인건비 몫의 합을 절삭) - 가견적·실제견적 비교 표에 쓴다
 function 견적총액(d) {
-  if (!인건비만) return Number(d.총액) || 0;
+  if (!한쪽만()) return Number(d.총액) || 0;
   const n = (d.라인들 || []).reduce((s, l) => s + 줄금액(l), 0);
   return Number(d.총액) % 10000 === 0 ? 절삭(n) : n;
 }
@@ -214,9 +240,8 @@ function render() {
   const d = DATA;
   const H = [];
 
-  // 한 줄이라도 인건비 몫이 저장돼 있어야 인건비 견적서로 그린다.
-  인건비만 = 인건비요청 &&
-    (d.라인들 || []).some(function (l) { return l.인건비표시금액 != null; });
+  // 한 줄이라도 인건비 몫이 저장돼 있어야 나눠 보여준다. 없으면(예전 견적서) 조용히 합산 견적서로
+  나눔 = (d.라인들 || []).some(나뉨);
 
   // 머리말은 명함처럼 한 장의 카드로 묶는다. 업체명/연락처/블로그/1분견적 주소를
   // 한 덩어리로 보여주고, 그 아래 구분선 뒤에 이 견적서 자체의 정보를 둔다.
@@ -297,9 +322,9 @@ function render() {
         (비교 && 비교.키별[QuoteDiff.키(l)] ? '<span class="v-chgtag' + (비교.키별[QuoteDiff.키(l)].종류 === '신규' ? ' new' : '') + '">' +
           비교.키별[QuoteDiff.키(l)].종류 + '</span>' : '') + '</span>' +
       '<span class="v-qty">' + esc(l.수량) + esc(l.단위) + '</span>' +
-      '<span class="v-amt">' + won(줄금액(l)) +
-        (자재섞임(l) ? '<small class="v-mixed">자재 포함</small>' : '') + '</span>' +
+      '<span class="v-amt">' + 금액칸(l) + '</span>' +
       '</div>');
+    if (나눔 && 나뉨(l)) H.push('<div class="v-split" data-i="' + i + '">' + 쪼갬글(l) + '</div>');
     // 종류를 고를 수 있는 줄(샤시 단창/2중창/시스템). 탭을 누르면 금액·설명·합계가 바로 바뀐다
     if (l.부품칸) {
       H.push('<div class="v-parts" data-i="' + i + '">' +
@@ -472,12 +497,14 @@ function renderSum() {
   const d = DATA;
   const 품목합 = 현재총액();
   const 총 = 표시총액();
-  const 조정됨 = 해제.size > 0 || Object.keys(종류선택).length > 0;
+  const 조정됨 = 해제.size > 0 || Object.keys(종류선택).length > 0 || 몫바뀜();
   const R = [];
 
-  // 인건비 견적서에서는 소계·조정 줄을 안 쓴다. 그 소계는 자재비까지 든
-  // 금액이라 인건비 합계와 안 맞아서, 받는 쪽이 계산기를 두드리면 어긋난다.
-  if (!인건비만 && d.조정내역_표시 && d.조정_합계율 !== 0 && !조정됨) {
+  if (나눔) R.push(구성칸());
+
+  // 한쪽 몫만 볼 때는 소계·조정 줄을 안 쓴다. 그 소계는 두 몫이 다 든
+  // 금액이라 합계와 안 맞아서, 받는 쪽이 계산기를 두드리면 어긋난다.
+  if (!한쪽만() && d.조정내역_표시 && d.조정_합계율 !== 0 && !조정됨) {
     R.push('<div class="v-row"><span>소계</span><span>' + won(d.소계) + '</span></div>');
 
     // 조정 이유를 항목명까지 같이 보여준다. '조정 +5%' 만 있으면 받는 쪽이
@@ -501,7 +528,7 @@ function renderSum() {
   }
   // 실제견적서: 가견적 합계 / 실제견적 합계 / 차이
   if (BASE) R.push('<div class="v-row cmp"><span>가견적 합계</span><span>' + won(견적총액(BASE)) + '</span></div>');
-  R.push('<div class="v-row total"><span>' + (BASE ? '실제견적 합계' : 인건비만 ? '인건비 합계' : '합계') +
+  R.push('<div class="v-row total"><span>' + (BASE ? '실제견적 합계' : 합계이름()) +
     '</span><span>' + won(총) +
     (d.부가세_별도표기 ? ' <small>부가세 별도</small>' : '') + '</span></div>');
   R.push('<div class="v-basis">빈 집 · 기본 솔리드필름 기준</div>');
@@ -509,14 +536,61 @@ function renderSum() {
     const 차 = 총 - 견적총액(BASE);
     R.push('<div class="v-row cmp diff"><span>차이</span><span class="' + (차 > 0 ? 'up' : 'down') + '">' + 부호(차) + '원</span></div>');
   }
-  if (인건비만) {
+  if (인건비만()) {
     R.push('<div class="v-wagenote">자재는 시공주가 지급하는 조건입니다. ' +
       '자재비가 빠진 인건비만의 금액입니다.</div>');
+  } else if (한쪽만()) {
+    R.push('<div class="v-wagenote">시공은 따로 하는 조건입니다. 인건비가 빠진 자재비만의 금액입니다.</div>');
   }
 
   $v('#vSum').innerHTML = R.join('');
+  document.querySelectorAll('.v-mixc').forEach((cb) => cb.addEventListener('change', () => 몫바꾸기(cb)));
   renderBar(총, 조정됨);
   renderInquiry(조정됨);
+}
+
+/* 합계 칸 위의 '💰 금액 구성' - 남은 품목(뺀 것 빼고, 바꾼 종류로)의 자재비·인건비 합.
+   나눌 수 없는 줄은 따로 한 줄로 적는다 (어느 쪽을 골라도 전액이 들어간다) */
+function 구성칸() {
+  let 자재 = 0, 인건 = 0, 섞임 = 0, 섞임수 = 0;
+  DATA.라인들.forEach((x, i) => {
+    if (해제.has(i)) return;
+    const l = 실제줄(i);
+    if (나뉨(l)) { 자재 += 자재몫(l); 인건 += l.인건비표시금액; } else { 섞임 += l.표시금액; 섞임수++; }
+  });
+  const 줄 = (k, 이름, 작은, 금액) => '<label class="v-mixl' + (몫[k] ? '' : ' off') + '">' +
+    '<input type="checkbox" class="v-mixc" data-k="' + k + '"' + (몫[k] ? ' checked' : '') + '>' +
+    '<span class="v-mixn">' + 이름 + '<small>' + 작은 + '</small></span><b>' + won(금액) + '</b></label>';
+  return '<div class="v-mix"><div class="v-mixh">💰 금액 구성<small>체크한 것만 합계에 들어갑니다</small></div>' +
+    줄('자재', '자재비', '필름·부자재', 자재) + 줄('인건', '인건비', '시공', 인건) +
+    (섞임수 ? '<div class="v-mixl fixed"><span class="v-mixn">나뉘지 않은 품목 ' + 섞임수 + '개<small>자재비·인건비 함께 (늘 포함)</small></span><b>' + won(섞임) + '</b></div>' : '') +
+    '<div class="v-mixwarn" hidden>자재비·인건비 중 하나는 들어가야 합니다</div></div>';
+}
+
+// 자재비·인건비 체크를 바꾼다. 둘 다 끄려고 하면 막는다
+function 몫바꾸기(cb) {
+  const k = cb.dataset.k, 다른 = k === '자재' ? '인건' : '자재';
+  if (!cb.checked && !몫[다른]) {
+    cb.checked = true;
+    const w = $v('.v-mixwarn'); if (w) w.hidden = false;
+    return;
+  }
+  몫[k] = cb.checked;
+  금액다시쓰기();
+  renderSum();
+}
+
+// 몫이 바뀌면 모든 품목의 금액·쪼갬 줄과 종류 탭·문짝문틀 칸의 작은 금액을 다시 쓴다
+function 금액다시쓰기() {
+  DATA.라인들.forEach((x, i) => 줄다시그리기(i));
+  document.querySelectorAll('.v-segb').forEach((b) => {
+    const l = DATA.라인들[+b.dataset.i];
+    b.querySelector('small').textContent = won(줄금액(Object.assign({}, l, l.종류들[+b.dataset.k])));
+  });
+  document.querySelectorAll('.v-part').forEach((lab) => {
+    const c = lab.querySelector('.v-partc'), l = DATA.라인들[+c.dataset.i];
+    lab.querySelector('small').textContent = won(줄금액(Object.assign({}, l, l.종류들[c.dataset.p === '문짝' ? 1 : 2])));
+  });
 }
 
 /* 화면 아래에 붙어 다니는 합계. 합계 줄이 견적서 맨 아래에 있어서
@@ -532,7 +606,7 @@ function renderBar(총, 조정됨) {
   const 뺀수 = 해제.size;
   const 바꾼수 = Object.keys(종류선택).length;
   bar.innerHTML =
-    '<span class="v-bar-label">' + (인건비만 ? '인건비 합계' : '합계') +
+    '<span class="v-bar-label">' + 합계이름() +
       (뺀수 ? ' <small>' + 뺀수 + '개 뺌</small>' : '') +
       (바꾼수 ? ' <small>종류 ' + 바꾼수 + '개 바꿈</small>' : '') + '</span>' +
     '<span class="v-bar-amt">' +
@@ -588,6 +662,8 @@ async function 문의보내기() {
         }),
         남은품목: DATA.라인들.map((l, i) => ({ l: 실제줄(i), i: i })).filter((x) => !해제.has(x.i))
           .map(({ l }) => ({ 구역: l.구역, 품목명: l.품목명, 수량: l.수량, 단위: l.단위, 금액: l.표시금액 })),
+        // 고객이 자재비·인건비 중 하나만 고른 경우 '인건비만' / '자재비만'
+        금액구성: !나눔 ? '' : 몫.자재 && 몫.인건 ? '자재비+인건비' : 몫.인건 ? '인건비만' : '자재비만',
         원래_총액: DATA.총액,
         조정후_총액: 표시총액(),
       }),
