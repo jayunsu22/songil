@@ -78,7 +78,7 @@ test('가구(신발장): 한쪽/양쪽은 안 묻고 길이만 - 표 금액(문�
   assert.deepStrictEqual(s, { 표이름: '신발장', 길이: 3, 한쪽: false, 이름: '신발장' });
   assert.strictEqual(A.줄만들기(표.신발장, s, 0, null).표시금액, 62500 * 3);
   ['신발장', '수납장', '냉장고장', '붙박이장'].forEach((n) => assert.ok(!품목(n).면, n));
-  assert.deepStrictEqual(A.한쪽표, ['터닝도어', '현관문', '중문', '세탁실문', '실외기실문']);
+  assert.deepStrictEqual(A.한쪽표, ['터닝도어', '중문', '세탁실문', '실외기실문']);
 });
 
 test('조정(할인·할증)과 견적서의 필름 단가를 따른다', () => {
@@ -109,4 +109,18 @@ test('총액: 절삭 견적이면 합친 금액도 만원 아래를 버린다', 
 test('허용표: 목록의 표 이름만', () => {
   assert.ok(A.허용표.indexOf('상가샤시(양쪽시공)') >= 0);
   assert.ok(A.허용표.indexOf('문틀') < 0);
+});
+
+test('현관문: 한쪽/양쪽을 안 묻고 표 금액 그대로 — 170,000원 = 인건비 140,000 + 자재비 30,000 (2026-11-02)', () => {
+  // 표 금액이 이미 '안쪽면만' 기준이다. 예전에는 한쪽을 절반으로 쳐서 85,000원이 나왔다
+  const 현관문 = A.표맵([{ 시공_품목명: '현관문', 인건비단가: 42000, 자재비단가: 9000, 자재소모량: 3.3333333333, 견적단위: '세트' }]);
+  const p = 품목('현관문');
+  assert.strictEqual(A.다음질문(p, {}, 현관문), null);
+  const s = A.선택(p, {}, 현관문);
+  assert.strictEqual(s.한쪽, false);
+  assert.strictEqual(s.이름, '현관문');
+  const l = A.줄만들기(현관문[s.표이름], s, 0, null, 'add1');
+  assert.strictEqual(l.표시금액, 170000);
+  assert.strictEqual(l.인건비표시금액, 140000);
+  assert.strictEqual(l.표시금액 - l.인건비표시금액, 30000);
 });
