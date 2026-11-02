@@ -83,17 +83,21 @@ test('calcQuote: 조정 비율은 곱이 아니라 합으로 적용된다', () =
   assert.strictEqual(r.총액, 30000);   // 만원 아래 절삭
 });
 
-test('calcQuote: 총액은 표시금액의 합과 정확히 일치한다', () => {
-  // 반올림 때문에 소계×(1+율) 과 어긋날 수 있는 값들을 일부러 쓴다
+test('calcQuote: 조정은 총액에서 — 품목 금액은 그대로, 총액 = 소계 + 조정금액 (2026-11-02)', () => {
   const items = [
     { 구역: 'A', 품목명: 'a', 단위: '개', 인건비단가: 13333, 자재비단가: 0, 자재소모량: 1, 난이도: 1, 수량: 1 },
     { 구역: 'A', 품목명: 'b', 단위: '개', 인건비단가: 7777,  자재비단가: 0, 자재소모량: 1, 난이도: 1, 수량: 1 },
     { 구역: 'A', 품목명: 'c', 단위: '개', 인건비단가: 3333,  자재비단가: 0, 자재소모량: 1, 난이도: 1, 수량: 1 },
   ];
   const r = calcQuote(items, [{ 항목명: '거주중', 비율: 0.15 }]);
-  const sum = r.라인들.reduce((s, l) => s + l.표시금액, 0);
-  assert.strictEqual(r.절삭전총액, sum);
-  assert.strictEqual(r.총액 + r.절삭액, sum);
+  assert.deepStrictEqual(r.라인들.map((l) => l.표시금액), [13333, 7777, 3333]);   // 품목 금액은 단가 그대로
+  assert.strictEqual(r.소계, 24443);
+  assert.strictEqual(r.조정들[0].조정금액, Math.round(24443 * 0.15));          // 3,666
+  assert.strictEqual(r.조정들[0].방식, '총액');
+  assert.strictEqual(r.절삭전총액, 24443 + 3666);
+  assert.strictEqual(r.총액 + r.절삭액, r.절삭전총액);
+  assert.strictEqual(r.조정_합계율, 0);   // 품목에는 안 건다
+  assert.strictEqual(r.조정율합, 0.15);
 });
 
 test('calcQuote: 빈 목록이면 0을 돌려준다', () => {
@@ -235,13 +239,14 @@ test('lineWage: 나눠 적기 전 예전 항목은 null (0 이 아니다)', () =
   assert.strictEqual(lineWage({ 직접금액: 250000 }), null);
 });
 
-test('calcQuote: 인건비금액·인건비표시금액에 조정이 걸린다', () => {
+test('calcQuote: 인건비 줄에는 조정이 안 걸리고, 인건비 합계에서 조정한다', () => {
   const items = [{ 인건비단가: 12000, 자재비단가: 18000, 자재소모량: 2.5, 난이도: 1, 수량: 10 }];
   const r = calcQuote(items, [{ 항목명: '업자단가', 비율: -0.1 }]);
   assert.strictEqual(r.라인들[0].인건비금액, 300000);
-  assert.strictEqual(r.라인들[0].인건비표시금액, 270000);
-  assert.strictEqual(r.라인들[0].표시금액, 675000);
-  assert.strictEqual(r.인건비총액, 270000);
+  assert.strictEqual(r.라인들[0].인건비표시금액, 300000);
+  assert.strictEqual(r.라인들[0].표시금액, 750000);
+  assert.strictEqual(r.총액, 670000);          // 750,000 - 75,000 = 675,000 → 절삭
+  assert.strictEqual(r.인건비총액, 270000);    // 300,000 - 30,000
 });
 
 test('calcQuote: 나눌 수 없는 줄은 인건비총액에 전액으로 들어간다', () => {
@@ -316,8 +321,7 @@ test('금액나누기로 만든 고정 금액은 lineAmount·lineWage 가 그대
   assert.strictEqual(QC.lineWage(줄), 110294);
 });
 
-test('calcQuote: 금액 조정(-150,000원)은 조정 전 소계에 대한 비율로 바꿔 % 조정과 함께 건다 (2026-11-02)', () => {
-  // 소계 1,209,000 · 업자단가 -10% · 직접입력 -150,000원 → 1,209,000 - 120,900 - 150,000 = 938,100 → 절삭 930,000
+test('calcQuote: % 와 직접입력 금액을 총액에서 — 1,209,000 · 업자단가 -10% · -150,000원 → 938,100 → 930,000 (2026-11-02)', () => {
   const items = [
     { 직접금액: 1000000, 인건비: 800000, 수량: 1 },
     { 인건비단가: 25000, 자재비단가: 9000, 자재소모량: 5, 난이도: 1, 수량: 1 },   // 170,000
@@ -325,38 +329,34 @@ test('calcQuote: 금액 조정(-150,000원)은 조정 전 소계에 대한 비�
   ];
   const r = calcQuote(items, [{ 항목명: '업자단가', 비율: -0.1 }, { 항목명: '할인', 비율: 0, 금액: -150000 }]);
   assert.strictEqual(r.소계, 1209000);
-  assert.strictEqual(r.절삭전총액, 938100);   // 줄마다 반올림한 어긋남은 큰 줄에 몰아 넣어 딱 맞춘다
+  assert.deepStrictEqual(r.라인들.map((l) => l.표시금액), [1000000, 170000, 39000]);
+  assert.deepStrictEqual(r.조정들.map((a) => a.조정금액), [-120900, -150000]);
+  assert.strictEqual(r.조정액, -270900);
+  assert.strictEqual(r.절삭전총액, 938100);
   assert.strictEqual(r.총액, 930000);
   assert.strictEqual(r.조정들[1].금액, -150000);
-  assert.ok(Math.abs(r.조정들[1].비율 - (-150000 / 1209000)) < 1e-12);
-  assert.ok(Math.abs(r.조정_합계율 - (-0.1 - 150000 / 1209000)) < 1e-12);
-  // 인건비·자재비도 같은 비율로 줄어든다 (견적서의 인건비/자재비 나눠 보기가 맞는다)
-  const l = r.라인들[1];
-  assert.strictEqual(r.라인들.reduce((s, x) => s + x.표시금액, 0), 938100);
-  assert.strictEqual(l.인건비표시금액, Math.round(125000 * (1 + r.조정_합계율)));
+  // 인건비만: 인건비 합계 955,000 에 -10% 와 -150,000원
+  assert.strictEqual(r.인건비절삭전총액, 955000 - 95500 - 150000);
 });
 
-test('calcQuote: 금액 조정만 있으면 총액 = 소계 + 금액 (절삭 전), 빈 칸(0원)은 영향 없음', () => {
+test('calcQuote: 금액 조정만 있으면 총액 = 소계 + 금액, 빈 칸(0원)은 영향 없음, 만원 경계에서 1원도 안 어긋난다', () => {
   const items = [{ 직접금액: 500000, 인건비: 400000, 수량: 1 }, { 직접금액: 300000, 인건비: 200000, 수량: 1 }];
   assert.strictEqual(calcQuote(items, [{ 항목명: '할인', 비율: 0, 금액: -150000 }]).절삭전총액, 650000);
   assert.strictEqual(calcQuote(items, [{ 항목명: '추가', 비율: 0, 금액: 55000 }]).절삭전총액, 855000);
   assert.strictEqual(calcQuote(items, [{ 항목명: '할인', 비율: 0, 금액: 0 }]).절삭전총액, 800000);
-  assert.strictEqual(calcQuote([], [{ 항목명: '할인', 비율: 0, 금액: -150000 }]).조정_합계율, 0);   // 품목이 없으면 나눌 수 없다
+  for (const parts of [[333333, 333333, 333334], [1, 2, 999997], [123457, 654321, 222222]]) {
+    const r2 = calcQuote(parts.map((v) => ({ 직접금액: v, 인건비: 0, 수량: 1 })), [{ 항목명: '할인', 비율: 0, 금액: -150000 }]);
+    assert.strictEqual(r2.총액, 850000, parts.join());
+  }
   assert.strictEqual(QC.금액조정({ 금액: -1 }), true);
   assert.strictEqual(QC.금액조정({ 비율: -0.1 }), false);
 });
 
-test('calcQuote: 금액 조정은 1원도 안 어긋난다 — 만원 경계에서 절삭이 한 칸 내려가면 안 된다', () => {
-  // 1,102,000 - 10% - 150,000 = 841,800 (줄별 반올림만 하면 841,799)
-  const it = (w, c) => ({ 인건비단가: w, 자재비단가: 9000, 자재소모량: c, 난이도: 1, 수량: 1 });
-  const items = [it(25000, 5), it(25000, 6.5), it(40000, 10), it(25000, 6.5)];
-  const r = calcQuote(items, [{ 항목명: '업자단가', 비율: -0.1 }, { 항목명: '할인', 비율: 0, 금액: -150000 }]);
-  assert.strictEqual(r.소계, 1102000);
-  assert.strictEqual(r.절삭전총액, 841800);
-  // 경계: 품목 3개로 소계 1,000,000 을 이상한 비율로 나눠도 1,000,000 - 150,000 = 850,000 (절삭 850,000)
-  for (const parts of [[333333, 333333, 333334], [1, 2, 999997], [123457, 654321, 222222]]) {
-    const r2 = calcQuote(parts.map((v) => ({ 직접금액: v, 인건비: 0, 수량: 1 })), [{ 항목명: '할인', 비율: 0, 금액: -150000 }]);
-    assert.strictEqual(r2.절삭전총액, 850000, parts.join());
-    assert.strictEqual(r2.총액, 850000);
-  }
+test('조정계산·총액조정: 기준 금액에 % 는 반올림해 곱하고 금액은 그대로, 방식 표시로 새 견적서를 안다', () => {
+  const c = QC.조정계산(1102000, [{ 항목명: '업자단가', 비율: -0.05 }, null, { 항목명: '할인', 비율: 0, 금액: -100000 }]);
+  assert.deepStrictEqual(c.줄들.map((a) => [a.항목명, a.조정금액, a.방식]), [['업자단가', -55100, '총액'], ['할인', -100000, '총액']]);
+  assert.strictEqual(c.합, -155100);
+  assert.strictEqual(QC.총액조정(c.줄들), true);
+  assert.strictEqual(QC.총액조정([{ 항목명: '업자단가', 비율: -0.1 }]), false);   // 예전 견적서 (품목에 이미 들어 있다)
+  assert.strictEqual(QC.총액조정(undefined), false);
 });

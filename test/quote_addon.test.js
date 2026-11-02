@@ -132,3 +132,13 @@ test('추가율: 고객 추가 품목에는 % 조정만 건다 — 금액 조정
   assert.strictEqual(A.추가율([], 0.05), 0.05);          // 항목명 없이 발행한 예전 견적서
   assert.strictEqual(A.추가율(undefined, undefined), 0);
 });
+
+test('총액조정합: quote_calc 조정계산 과 같은 금액, 예전 견적서는 0 · 총액 견적서의 추가율은 0 (2026-11-02)', () => {
+  const QC = require('../quote_calc.js');
+  const 내역 = QC.조정계산(1102000, [{ 항목명: '업자단가', 비율: -0.05 }, { 항목명: '할인', 비율: 0, 금액: -100000 }]).줄들;
+  for (const 기준 of [0, 1, 1102000, 1433500, 987654]) assert.strictEqual(A.총액조정합(기준, 내역), QC.조정계산(기준, 내역).합);
+  assert.strictEqual(A.총액조정합(1102000, [{ 항목명: '업자단가', 비율: -0.1 }]), 0);
+  assert.strictEqual(A.추가율(내역, 0), 0);
+  assert.strictEqual(A.새총액([{ 표시금액: 1102000 }], [{ 표시금액: 331500 }], true, 내역), 1260000);
+  assert.strictEqual(A.절삭했나([{ 표시금액: 1102000 }], 940000, 내역), true);
+});

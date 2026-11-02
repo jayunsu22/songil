@@ -990,18 +990,18 @@ function refresh() {
     det._sum.textContent = n ? won(sum) : '';
   });
 
-  const 율 = r.조정_합계율;
-  // % 조정과 금액 조정을 따로 적는다: '합계 조정 -10% · -150,000원'
-  const 퍼합 = r.조정들.filter((a) => !QuoteCalc.금액조정(a)).reduce((s, a) => s + (a.비율 || 0), 0);
+  // 조정은 총액에서 한 번에 (품목 금액에는 안 건다): '합계 조정 -10% · -150,000원 = -270,900원'
+  const 퍼합 = r.조정율합;
   const 금액합 = r.조정들.filter(QuoteCalc.금액조정).reduce((s, a) => s + a.금액, 0);
+  const 부호원 = (n) => (n > 0 ? '+' : '-') + won(Math.abs(n));
   const 조정글 = [퍼합 ? (퍼합 > 0 ? '+' : '') + Math.round(퍼합 * 1000) / 10 + '%' : '',
-    금액합 ? (금액합 > 0 ? '+' : '-') + won(Math.abs(금액합)) : ''].filter(Boolean).join(' · ');
+    금액합 ? 부호원(금액합) : ''].filter(Boolean).join(' · ');
   $('#adjSum').textContent = 조정목록().length
-    ? '합계 조정 ' + (조정글 || '0%') + (율 === 0 ? ' (상쇄되어 그대로 나갑니다)' : '')
+    ? '합계 조정 ' + (조정글 || '0%') + (r.조정액 ? ' = 총액에서 ' + 부호원(r.조정액) : ' (상쇄되어 그대로 나갑니다)')
     : '';
 
   $('#totalAmount').innerHTML = won(r.총액) +
-    (율 !== 0 ? ' <small>조정 전 ' + won(r.소계) + '</small>' : '') +
+    (r.조정액 !== 0 ? ' <small>조정 전 ' + won(r.소계) + '</small>' : '') +
     (r.절삭액 ? ' <small>절삭 -' + won(r.절삭액) + '</small>' : '');
   $('#publishBtn').disabled = items.length === 0;
 
@@ -1368,16 +1368,15 @@ function buildText() {
   });
 
   L.push('');
-  // 인건비만 보낼 때는 소계·조정 줄을 안 쓴다. 그 소계는 자재비까지 든
-  // 금액이라 인건비 합계와 안 맞아서 받는 쪽이 계산기를 두드리면 어긋난다.
-  if (!인건비만 && $('#optAdj').checked && q.result.조정_합계율 !== 0) {
-    L.push('소계 ' + q.result.소계.toLocaleString('ko-KR') + '원');
-    // 견적서 화면과 같은 모양으로 조정 이유(항목명)를 같이 적는다.
+  // 조정은 총액에서 빼거나 더한다 - 품목 금액에 안 들어 있으니 소계·조정 줄을 늘 적는다 (그래야 합이 맞는다).
+  // 인건비만 보낼 때는 인건비 소계에 같은 조정을 건다 (% 는 인건비 소계의 %, 금액은 그대로)
+  const 조정줄 = (인건비만 ? q.result.인건비조정들 : q.result.조정들).filter((a) => a && a.조정금액);
+  if (조정줄.length) {
+    const 소계 = 인건비만 ? q.result.인건비절삭전총액 - q.result.인건비조정액 : q.result.소계;
+    L.push((인건비만 ? '인건비 소계 ' : '소계 ') + 소계.toLocaleString('ko-KR') + '원');
     const 퍼 = (v) => (v > 0 ? '+' : '') + Math.round(v * 1000) / 10 + '%';
-    const 내역 = q.result.조정들.filter((a) => a && a.항목명 && a.비율);
     const 원 = (n) => (n > 0 ? '+' : '-') + Math.abs(n).toLocaleString('ko-KR') + '원';
-    if (내역.length) 내역.forEach((a) => L.push('조정 (' + a.항목명 + ') ' + (QuoteCalc.금액조정(a) ? 원(a.금액) : 퍼(a.비율))));
-    else L.push('조정 ' + 퍼(q.result.조정_합계율));
+    조정줄.forEach((a) => L.push('조정 (' + a.항목명 + (QuoteCalc.금액조정(a) ? '' : ' ' + 퍼(a.비율)) + ') ' + 원(a.조정금액)));
   }
   // 만원 미만 절삭 (견적서 화면과 같은 줄). 품목을 더한 값과 합계가 왜 다른지 보이게
   const 절삭액 = 인건비만 ? q.result.인건비절삭액 : q.result.절삭액;
@@ -1497,7 +1496,8 @@ $('#doPublish').addEventListener('click', async () => {
         절삭단위: QuoteCalc.절삭단위,
         // 금액 조정은 비율을 채워 싣는다 (견적서·다시 담기가 비율로 계산한다). 금액도 같이 실린다
         조정_내역: q.result.조정들,
-        조정내역_표시: $('#optAdj').checked,
+        // 조정은 총액에서 거는 것이라 견적서에 늘 소계·조정 줄을 보여준다 (예전 '조정내역 표시' 선택은 뺐다)
+        조정내역_표시: true,
         부가세_별도표기: $('#optVat').checked,
         메모: state.메모,
         소비자_전달사항: state.전달사항,

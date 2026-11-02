@@ -185,9 +185,17 @@ async function 가견적받기() {
 // 견적서 합계 (인건비 견적서면 인건비 몫의 합을 절삭) - 가견적·실제견적 비교 표에 쓴다
 function 견적총액(d) {
   if (!한쪽만()) return Number(d.총액) || 0;
-  const n = (d.라인들 || []).reduce((s, l) => s + 줄금액(l), 0);
+  const n0 = (d.라인들 || []).reduce((s, l) => s + 줄금액(l), 0);
+  const n = n0 + 조정합(d, n0);
   return Number(d.총액) % 10000 === 0 ? 절삭(n) : n;
 }
+/* 조정을 총액에서 거는 견적서 (2026-11-02, 조정_내역에 방식 '총액'). 품목 금액은 단가 그대로이고
+   합계 위에 '조정 (업자단가 -5%) -60,450원' 처럼 빼거나 더한다. 그 전에 발행한 견적서는 조정이
+   품목 금액에 이미 들어 있어서 예전처럼 보여준다 (조정합 = 0). */
+const 총액조정 = (d) => QuoteCalc.총액조정((d || {}).조정_내역);
+// 기준 금액(남은 품목 합)에 거는 조정 - % 는 그 합의 %, 직접입력 금액은 그대로
+const 조정줄들 = (d, 기준) => 총액조정(d) ? QuoteCalc.조정계산(기준, d.조정_내역).줄들 : [];
+const 조정합 = (d, 기준) => 조정줄들(d, 기준).reduce((s, a) => s + a.조정금액, 0);
 const 부호 = (n) => (n > 0 ? '+' : n < 0 ? '-' : '') + Math.abs(Math.round(n)).toLocaleString('ko-KR');
 
 // 다른 견적서 주소. 품목설명(d=1)·인건비(w=1) 표시는 그대로 넘긴다
@@ -480,7 +488,8 @@ function 현재총액() {
    서버가 안 남길 수도 있어서 금액으로도 알아본다. */
 function 절삭견적() {
   if (Number(DATA.절삭단위) > 0) return true;
-  const 전체 = DATA.라인들.reduce((s, l) => s + l.표시금액, 0);
+  const 전체0 = DATA.라인들.reduce((s, l) => s + l.표시금액, 0);
+  const 전체 = 전체0 + 조정합(DATA, 전체0);
   const 총 = Number(DATA.총액);
   return 총 % 10000 === 0 && 전체 - 총 > 0 && 전체 - 총 < 10000;
 }
@@ -489,7 +498,8 @@ function 절삭(n) {
 }
 // 화면에 보일 합계 (절삭 반영)
 function 표시총액() {
-  const n = 현재총액();
+  const n0 = 현재총액();
+  const n = n0 + 조정합(DATA, n0);
   return 절삭견적() ? 절삭(n) : n;
 }
 
@@ -502,9 +512,24 @@ function renderSum() {
 
   if (나눔) R.push(구성칸());
 
+  // 총액에서 조정하는 견적서: 소계(남은 품목 합) → 조정 줄들 → (절삭) → 합계. 늘 보여준다 - 품목 금액에
+  // 조정이 안 들어 있어서 이 줄이 없으면 품목을 더한 값과 합계가 안 맞는다.
+  // 고객이 품목을 빼면 % 조정은 남은 소계로 다시 계산하고, 직접입력 금액은 그대로 둔다.
+  const 총조정 = 총액조정(d);
+  const 조정후 = 품목합 + 조정합(d, 품목합);
+  if (총조정) {
+    const 퍼 = (v) => (v > 0 ? '+' : '') + Math.round(v * 1000) / 10 + '%';
+    R.push('<div class="v-row"><span>' + (인건비만() ? '인건비 소계' : 한쪽만() ? '자재비 소계' : '소계') + '</span><span>' + won(품목합) + '</span></div>');
+    조정줄들(d, 품목합).filter((a) => a.조정금액).forEach((a) => {
+      R.push('<div class="v-row"><span>조정 <span class="v-why">(' + esc(a.항목명) +
+        (typeof a.금액 === 'number' ? '' : ' ' + 퍼(a.비율)) + ')</span></span><span>' +
+        (a.조정금액 > 0 ? '+' : '-') + won(Math.abs(a.조정금액)) + '</span></div>');
+    });
+  }
+
   // 한쪽 몫만 볼 때는 소계·조정 줄을 안 쓴다. 그 소계는 두 몫이 다 든
   // 금액이라 합계와 안 맞아서, 받는 쪽이 계산기를 두드리면 어긋난다.
-  if (!한쪽만() && d.조정내역_표시 && d.조정_합계율 !== 0 && !조정됨) {
+  if (!총조정 && !한쪽만() && d.조정내역_표시 && d.조정_합계율 !== 0 && !조정됨) {
     R.push('<div class="v-row"><span>소계</span><span>' + won(d.소계) + '</span></div>');
 
     // 조정 이유를 항목명까지 같이 보여준다. '조정 +5%' 만 있으면 받는 쪽이
@@ -525,8 +550,8 @@ function renderSum() {
     }
   }
   // 품목을 더한 값과 합계가 왜 다른지 보이게 버린 금액을 적는다
-  if (품목합 !== 총) {
-    R.push('<div class="v-row"><span>만원 미만 절삭</span><span>-' + won(품목합 - 총) + '</span></div>');
+  if (조정후 !== 총) {
+    R.push('<div class="v-row"><span>만원 미만 절삭</span><span>-' + won(조정후 - 총) + '</span></div>');
   }
   // 실제견적서: 가견적 합계 / 실제견적 합계 / 차이
   if (BASE) R.push('<div class="v-row cmp"><span>가견적 합계</span><span>' + won(견적총액(BASE)) + '</span></div>');

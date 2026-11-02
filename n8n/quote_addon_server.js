@@ -26,10 +26,12 @@ const A = {
       라인금액: 라인금액, 표시금액: Math.round(라인금액 * (1 + r)), 인건비금액: 인건비금액, 인건비표시금액: Math.round(인건비금액 * (1 + r)),
       품목설명: '', 고객추가: true, 추가일시: 일시 || '' };
   },
-  절삭했나: (원래, 원래총액) => { const S = (원래 || []).reduce((s, l) => s + (Number(l.표시금액) || 0), 0); const 총 = Number(원래총액) || 0; return 총 % 10000 === 0 && S - 총 >= 0 && S - 총 < 10000; },
-  // 추가 품목에 걸 조정 비율 - 금액 조정(-150,000원)은 빼고 % 조정만 (2026-11-02)
-  추가율: (내역, 합계율) => { const L = Array.isArray(내역) ? 내역 : []; if (!L.some((a) => a && typeof a.금액 === 'number')) return Number(합계율) || 0; return L.reduce((s, a) => s + (a && typeof a.금액 !== 'number' ? (Number(a.비율) || 0) : 0), 0); },
-  새총액: (원래, 추가들, 절삭) => { const n = (원래 || []).concat(추가들 || []).reduce((s, l) => s + (Number(l.표시금액) || 0), 0); return 절삭 ? Math.floor(n / 10000) * 10000 : n; },
+  // 조정을 총액에서 거는 견적서(조정_내역에 방식 '총액', 2026-11-02): % 는 기준×비율 반올림, 직접입력 금액은 그대로. 예전 견적서는 0
+  총액조정합: (기준, 내역) => { if (!(Array.isArray(내역) && 내역.some((a) => a && a.방식 === '총액'))) return 0; return 내역.reduce((s, a) => !a ? s : s + (typeof a.금액 === 'number' && isFinite(a.금액) ? Math.round(a.금액) : Math.round((Number(기준) || 0) * (Number(a.비율) || 0))), 0); },
+  절삭했나: (원래, 원래총액, 내역) => { const S0 = (원래 || []).reduce((s, l) => s + (Number(l.표시금액) || 0), 0); const S = S0 + A.총액조정합(S0, 내역); const 총 = Number(원래총액) || 0; return 총 % 10000 === 0 && S - 총 >= 0 && S - 총 < 10000; },
+  // 추가 품목에 걸 조정 비율 - 총액에서 조정하는 견적서는 0 (단가 그대로, 조정은 합계에서). 예전 견적서는 % 조정만
+  추가율: (내역, 합계율) => { const L = Array.isArray(내역) ? 내역 : []; if (L.some((a) => a && a.방식 === '총액')) return 0; if (!L.some((a) => a && typeof a.금액 === 'number')) return Number(합계율) || 0; return L.reduce((s, a) => s + (a && typeof a.금액 !== 'number' ? (Number(a.비율) || 0) : 0), 0); },
+  새총액: (원래, 추가들, 절삭, 내역) => { const n0 = (원래 || []).concat(추가들 || []).reduce((s, l) => s + (Number(l.표시금액) || 0), 0); const n = n0 + A.총액조정합(n0, 내역); return 절삭 ? Math.floor(n / 10000) * 10000 : n; },
 };
 const F = (r) => (r && r.fields) ? Object.assign({ id: r.id }, r.fields) : (r || {});
 const 행들 = (name) => $(name).all().map(i => i.json).filter(r => r && (r.id || r.fields)).map(F);
@@ -44,9 +46,10 @@ if (!견적.length) return 실패('not_found');
 const q = 견적[0];
 const 원래 = 파싱(q['견적_스냅샷'], []);
 let meta = 파싱(q['고객_추가품목'], null);
+const 조정내역 = 파싱(q['조정_내역'], []);
 // 처음 추가할 때 원래 총액·소계·절삭 여부를 남긴다 - 총액을 고친 뒤에는 다시 알아낼 수 없다
 if (!meta || !Array.isArray(meta.줄들)) {
-  meta = { 절삭: A.절삭했나(원래, q['총액']), 원래총액: q['총액'] || 0, 원래소계: q['소계'] || 0, 줄들: [] };
+  meta = { 절삭: A.절삭했나(원래, q['총액'], 조정내역), 원래총액: q['총액'] || 0, 원래소계: q['소계'] || 0, 줄들: [] };
 }
 const 지금 = new Date().toISOString();
 let 바뀐, 종류;
@@ -62,14 +65,14 @@ if (b.삭제) {
   const 줄 = A.표맵(행들('시공품목정보 조회'))[s.표이름];
   if (!줄) return 실패('bad_item');
   // 금액은 여기서 다시 계산한다 - 화면이 보낸 금액은 받지 않는다
-  바뀐 = A.줄만들기(줄, { 길이: s.길이, 한쪽: !!s.한쪽 && A.한쪽표.indexOf(s.표이름) >= 0, 이름: 글(s.이름) }, A.추가율(파싱(q['조정_내역'], []), q['조정_합계율']),
+  바뀐 = A.줄만들기(줄, { 길이: s.길이, 한쪽: !!s.한쪽 && A.한쪽표.indexOf(s.표이름) >= 0, 이름: 글(s.이름) }, A.추가율(조정내역, q['조정_합계율']),
     A.자재비찾기(원래), 'add' + Date.now().toString(36), 지금);
   if (!바뀐) return 실패('bad_length');
   meta.줄들.push(바뀐);
   종류 = '추가';
 }
 const 이전총액 = Number(q['총액']) || 0;
-const 총액 = A.새총액(원래, meta.줄들, meta.절삭);
+const 총액 = A.새총액(원래, meta.줄들, meta.절삭, 조정내역);
 const 소계 = (Number(meta.원래소계) || 0) + meta.줄들.reduce((s, l) => s + (l.라인금액 || 0), 0);
 
 const g = 행들('가맹점_조회')[0] || {};
