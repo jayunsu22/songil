@@ -13,7 +13,7 @@ const byId = {};
 const FIELDS = ['pwLobby', 'pwUnit', 'toilet'];
 const LABEL = { pwLobby: '공동현관 비번', pwUnit: '세대 비번', toilet: '화장실', films: '필름' };
 const squash = (v) => String(v || '').replace(/\s+/g, '').toLowerCase();
-const fills = [], picks = [], pays = [], infos = [];
+const fills = [], picks = [], pays = [], infos = [], missed = [];
 let noCode = false;
 for (const it of (Array.isArray(ai.items) ? ai.items : []).slice(0, 20)) {
   if (!it || typeof it !== 'object') continue;
@@ -49,7 +49,9 @@ for (const it of (Array.isArray(ai.items) ? ai.items : []).slice(0, 20)) {
     f.update = f.kind === 'films' ? site.known.films.length > 0 : !!site.known[f.field];
     fills.push(Object.assign({ siteId: sid, name: site.name, date: site.date, quote }, f));
   } else {
-    const list = cands.length ? cands : (pre.sites || []).filter((x) => x.date >= pre.today).slice(0, 3).map((x) => x.id);
+    // 사장님 지시는 아무 현장이나 후보로 내밀지 않고 '못 찾음' 으로 알린다
+    const list = cands.length ? cands : pre.boss ? [] : (pre.sites || []).filter((x) => x.date >= pre.today).slice(0, 3).map((x) => x.id);
+    if (!list.length && pre.boss) missed.push(Object.assign({ quote }, f));
     if (list.length) picks.push(Object.assign({ quote, cands: list.map((c) => ({ id: c, name: byId[c].name, date: byId[c].date })) }, f));
   }
 }
@@ -72,5 +74,6 @@ if (type === 'ack' || type === 'ask') {
   if (RISK.test(check)) why = '시간·금액·약속 말이 들어 있음';
   else auto = true;
 } else if (type === 'commit') why = 'AI 가 사장님 확인이 필요한 답으로 봄';
-return [{ json: { ok: !!text, fills, picks, pays, infos, noCode,
-  reply: type === 'none' ? null : { text: rtext, type, auto, why } } }];
+// 사장님 지시(boss)는 답장 없음 — 사장님 본인 메모라서
+return [{ json: { ok: !!text, fills, picks, pays, infos, missed, noCode, boss: !!pre.boss,
+  reply: type === 'none' || pre.boss ? null : { text: rtext, type, auto, why } } }];

@@ -53,4 +53,21 @@ assert.strictEqual(res({ items: [], reply: { type: 'commit', text: '그럼 그�
 assert.strictEqual(res({ items: [], reply: { type: 'none', text: '' } }).reply, null);
 r = run('결과정리', { 프롬프트: p, $input: { candidates: [{ content: { parts: [{ text: '이상한 답' }] } }] } });
 assert.deepStrictEqual([r.fills.length, r.reply], [0, null]);
+
+// 사장님 지시 (김정헌방 메모): 글에 나온 거래처 현장만, 답장 없음, 이미 적힌 비번도 새 값이면 update, 못 맞추면 missed
+const bossBody = { mode: 'boss', room: '김정헌', client: '', today: '2026-11-04',
+  messages: [{ d: '11/4', t: '07:19', who: '김정헌', text: '나디자인 다른업체현장\n세대비번 2222변경됐다' }] };
+const bp = run('프롬프트', Object.assign({ 비서요청: { body: bossBody } }, air));
+assert.deepStrictEqual(bp.sites.map((s) => s.id), ['s5'], '글에 나온 거래처(나디자인) 현장만');
+assert.ok(bp.boss && bp.prompt.includes('사장님 메모') && bp.prompt.includes('나디자인'));
+const bres = (o) => run('결과정리', { 프롬프트: Object.assign({}, p, { boss: true }), $input: gem(o) });
+r = bres({ items: [{ kind: 'field', field: 'pwUnit', value: '2222', siteId: 's2', sure: true },
+  { kind: 'field', field: 'pwLobby', value: '#77', siteId: '', sure: false, cands: [] }], reply: { type: 'ack', text: '네' } });
+assert.deepStrictEqual(r.fills.map((f) => [f.siteId, f.field, f.value]), [['s2', 'pwUnit', '2222']]);
+assert.strictEqual(r.reply, null);
+assert.strictEqual(r.picks.length, 0, '사장님 지시는 아무 현장이나 후보로 안 냄');
+assert.strictEqual(r.missed[0].value, '#77');
+// 거래처 이름이 글에 없으면 모든 업체 현장
+const bp2 = run('프롬프트', Object.assign({ 비서요청: { body: Object.assign({}, bossBody, { messages: [{ text: '은하수 세대비번 1234' }] }) } }, air));
+assert.strictEqual(bp2.sites.length, 5);
 console.log('kakao_assist ok');
