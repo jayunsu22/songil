@@ -4,7 +4,7 @@
 // 담당자 번호는 글에 보여 준다 (사장님 11/1: 누구에게 가는지 보고 고르게). 버튼 콜백에는 번호 대신 순번만.
 const b = $input.first().json.body || {};
 const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
-const siteId = s(b.siteId, 40), name = s(b.name, 80), text = s(b.text, 600);
+const siteId = s(b.siteId, 40), name = s(b.name, 80), text = s(b.text, 1500);   // 업무지시 작업자 현장 안내 문자도 이 길로 (11/4) — 길어서 1500
 if (!siteId || !text) throw new Error('siteId·text 가 비어 있음');
 // sendTo = 앱 필름 탭의 📨 바로 주문 (11/1 사장님, 추가 주문도) — 텔레그램 버튼 없이 바로 문자. 앱이 결과를 받아 기록한다
 if (b.sendTo && typeof b.sendTo === 'object') {
