@@ -10,7 +10,7 @@ const code = (id, name, file, x) => ({ id, name, type: 'n8n-nodes-base.code', ty
   parameters: { mode: 'runOnceForAllItems', jsCode: read(file) } });
 const c = (n) => [[{ node: n, type: 'main', index: 0 }]];
 const workflow = {
-  name: '카톡_대화',
+  name: '카톡_대화',   // n8n id irFJMTUqIGdvy54U
   nodes: [
     {
       id: 'w', name: '대화요청', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, 0], webhookId: '7e2d4b19-6c83-4a5f-9d17-3b8f0c6e2a51',
