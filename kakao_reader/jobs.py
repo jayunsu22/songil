@@ -56,7 +56,7 @@ def pick_by_keys(msgs, keys):
 WARNED = {"fetch": False}
 
 
-ACTION_NAME = {"pub": "가견적 발행", "ask": "업체에 빈칸 묻기"}
+ACTION_NAME = {"pub": "가견적 발행", "ask": "업체에 빈칸 묻기", "rs": "답장 보내기"}
 
 
 def poll(cfg, state, notify, log, fetch, run):

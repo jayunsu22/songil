@@ -83,4 +83,20 @@ run('실행', Object.assign({ 저녁7시: {} }, air2));
 const r7 = sd.reports['2026-11-07'].rep;
 assert.ok(!r7.next.some((n) => n.id === 'pay:s9'));
 assert.strictEqual(r7.next.find((n) => n.id === 'staff:s8').again, true);
+// 🤖 능동 비서 받은 정보함 (11/4): 어느 현장? → 고르면 우편함 / 잔금 → 완료 / 넘김
+o = run('요청', { 보고서요청: { body: { action: 'inbox_add', items: [
+  { kind: 'pick', room: '가업체', title: '공동현관 비번', quote: '공현 #0000', fills: [{ kind: 'field', field: 'pwLobby', value: '#0000' }],
+    cands: [{ id: 's1', name: '시험현장', date: '2026-11-06' }, { id: 's2', name: '다른현장', date: '2026-11-07' }] },
+  { kind: 'pay', room: '가업체', title: '잔금 넣었다고 함', quote: '잔금 넣었어요', siteId: 's9', name: '끝난현장' },
+  { kind: 'pick', room: '가업체', title: '현장 후보 없음', fills: [{ kind: 'field', field: 'pwUnit', value: '1' }], cands: [] }] } } });
+assert.strictEqual(o.resp.n, 2);
+const ib = run('요청', { 보고서요청: { body: { action: 'get' } } }).resp.inbox;
+assert.strictEqual(ib.length, 2);
+assert.ok(!('fills' in ib[0]), '비번 값은 결재함 목록에 안 나감');
+o = run('요청', { 보고서요청: { body: { action: 'inbox', id: ib[0].id, act: 'pick', siteId: 's2' } } });
+assert.deepStrictEqual(o.fills, [{ kind: 'field', field: 'pwLobby', value: '#0000', siteId: 's2', room: '가업체', at: o.fills[0].at }]);
+o = run('요청', { 보고서요청: { body: { action: 'inbox', id: ib[1].id, act: 'done' } } });
+assert.deepStrictEqual(o.fills.map((f) => [f.kind, f.what, f.siteId]), [['done', 'pay', 's9']]);
+assert.strictEqual(o.resp.inbox.length, 0);
+assert.strictEqual(run('요청', { 보고서요청: { body: { action: 'inbox', id: ib[1].id, act: 'done' } } }).resp.ok, false);
 console.log('daily_report ok');

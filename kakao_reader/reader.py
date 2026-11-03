@@ -18,6 +18,7 @@ import time
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 
+import assist
 import chatlist
 import gaps
 import jobs
@@ -68,6 +69,9 @@ DEFAULTS = {
     # 📋 업무일정표 (사장님 11/3): 저녁 7시 n8n 이 만든 보고서 글을 이 방에 (결재 링크 포함)
     "report_url": "https://primary-production-a6fa.up.railway.app/webhook/report",
     "report_room": "김정헌",
+    # 🤖 능동 비서 (사장님 11/4): 업체 방 새 글을 물어보지 않았어도 AI 가 판단 → 현장에 넣기·결재함·답장(간단한 답만 자동)
+    "assist": True,
+    "assist_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-assist",
 }
 
 # 방마다 '견적발행시작' 을 기다리는 글·사진 묶음 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다.
@@ -174,10 +178,16 @@ def run_once(cfg, state, dry=False):
                                cfg["digest_url"], cfg["owner_key"],
                                {"room": r, "today": today, "sites": sites, "messages": ms, "asked": asked}),
                            lambda fills: n8n_send.post_json(cfg["site_fill_url"], cfg["owner_key"], {"fills": fills}),
-                           lambda text: notify(cfg, text), log, gaps.send_to_room) if cfg["site_gaps"] else None)
+                           lambda text: notify(cfg, text), log, gaps.send_to_room) if cfg["site_gaps"] else None,
+                       assist=lambda room, new, msgs: assist.handle(
+                           cfg, state, room, new, msgs,
+                           lambda body: n8n_send.post_json(cfg["assist_url"], cfg["owner_key"], body),
+                           lambda fills: n8n_send.post_json(cfg["site_fill_url"], cfg["owner_key"], {"fills": fills}),
+                           lambda items: n8n_send.post_json(cfg["report_url"], cfg["owner_key"], {"action": "inbox_add", "items": items}),
+                           lambda text, buttons=None: notify(cfg, text, buttons), log) if cfg["assist"] else None)
     if cfg["auto_read"] and cfg["watch_list"] and not dry:  # 텔레그램 버튼 [가견적 발행]·[시작해] (3·4단계, 10/31)
         jobs.poll(cfg, state, lambda text: notify(cfg, text), log,
-                  lambda: n8n_send.fetch_jobs(cfg["jobs_url"], cfg["owner_key"]), {"pub": jobs.run_publish, "ask": gaps.run_ask})
+                  lambda: n8n_send.fetch_jobs(cfg["jobs_url"], cfg["owner_key"]), {"pub": jobs.run_publish, "ask": gaps.run_ask, "rs": assist.run_send})
         if cfg["site_gaps"]:
             gaps.check(cfg, state, time.time(),
                        # orders = 필름 주문 알림 (시공 5일 전, 사장님 11/1)

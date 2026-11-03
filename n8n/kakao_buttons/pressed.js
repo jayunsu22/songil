@@ -9,7 +9,9 @@ const [k, job, act] = String(cq.data || '').split('|');
 if (k !== 'k' || !/^[a-z0-9]{6}$/.test(job || '')) return [];
 const sd = $getWorkflowStaticData('global');
 // ask = 현장 빈칸을 업체 카톡 방에 물어보기 [시작해] (4단계, 10/31)
-let 표시 = { pub: '⏳ 가견적 발행 중 — 노트북이 처리하면 링크가 옵니다', ask: '⏳ 업체에 묻는 중 — 노트북이 카톡을 보내면 알려 드립니다', later: '⏸ 나중에', ok: '✔ 확인함' }[act];
+// rs·rc·rn = 능동 비서 답장 초안 [보내]·[고쳐서 보내]·[안 보냄] (11/4). rs 는 노트북이 가져가 그 업체 방에 보낸다
+let 표시 = { pub: '⏳ 가견적 발행 중 — 노트북이 처리하면 링크가 옵니다', ask: '⏳ 업체에 묻는 중 — 노트북이 카톡을 보내면 알려 드립니다', later: '⏸ 나중에', ok: '✔ 확인함',
+  rs: '⏳ 보내는 중 — 노트북이 카톡을 보내면 알려 드립니다', rc: '✏️ 아래 글을 눌러 복사 → 카톡 그 방에 붙여넣고 고쳐서 보내 주세요', rn: '🚫 안 보냄' }[act];
 let sms = null, crew = null;
 // y3a·y3d1·n3 = 인원 모집 '네' 한 팀원 [모두 넣기]·[1번 날 넣기]·[안 넣기] (11/1) — 인원모집 흐름(crew-act)이 처리하고 결과 글을 돌려준다
 if (/^[yn]\d+(d\d+|a)?$/.test(act || '')) { crew = { rid: job, act }; 표시 = ''; }
@@ -26,14 +28,16 @@ if (/^o\d$/.test(act || '')) {
   }
 }
 if (표시 === undefined) return [];
-if (act === 'pub' || act === 'ask') {
+if (act === 'pub' || act === 'ask' || act === 'rs') {
   sd.jobs = (sd.jobs || []).filter((j) => Date.now() - j.at < 7 * 864e5);
   if (!sd.jobs.some((j) => j.job === job && j.action === act)) sd.jobs.push({ job, action: act, at: Date.now(), taken: false });
 }
 const msg = cq.message || {};
 const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// 답장 초안은 노트북이 「 」 안에 넣어 보낸다 → [고쳐서 보내] 는 눌러서 복사되게 <code> 로
+const draft = (t) => { const m = String(t || '').match(/「([\s\S]*)」/); return m ? m[1] : ''; };
 return [{ json: {
-  query_id: cq.id, answer: act === 'pub' || act === 'ask' ? '받았습니다 — 노트북이 곧 처리' : sms || crew ? '처리 중' : '받았습니다', crew,
+  query_id: cq.id, answer: act === 'pub' || act === 'ask' || act === 'rs' ? '받았습니다 — 노트북이 곧 처리' : sms || crew ? '처리 중' : '받았습니다', crew,
   chat_id: String((msg.chat || {}).id || owner), message_id: String(msg.message_id || ''),
-  text: esc(String(msg.text || '').slice(0, 3800)) + (표시 ? '\n\n' + esc(표시) : ''), sms,
+  text: esc(String(msg.text || '').slice(0, 3800)) + (표시 ? '\n\n' + esc(표시) : '') + (act === 'rc' ? '\n<code>' + esc(draft(msg.text)) + '</code>' : ''), sms,
 } }];
