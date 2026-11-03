@@ -10,6 +10,8 @@
 import re
 import time
 
+import worklog
+
 APP_URL = "https://jayunsu22.github.io/sitenote/"
 REPLY_HOURS = (8, 21)   # 자동 답장은 아침 8시~저녁 9시 — 그 밖은 초안으로
 DRAFTS = {}             # 할 일 번호 → {"room", "text"}
@@ -117,6 +119,7 @@ def handle(cfg, state, room, new, msgs, call, put, inbox, notify, log, now=None,
     fills = [f for f in fills if f not in film_changes]
     for f in film_changes:
         notify(gaps.film_change_text({"id": f["siteId"], "name": f["name"]}, f["films"], room, cfg))
+        worklog.add("site", "필름 번호 변경 요청 — 직접 바꿔 주세요", room, f["siteId"], need=True)
     if fills:
         try:
             put([_mailbox(f, room, today) for f in fills])
@@ -154,6 +157,7 @@ def handle(cfg, state, room, new, msgs, call, put, inbox, notify, log, now=None,
         reply = dict(reply, why="밤이라 자동으로 안 보냄")
     job = new_reply_job(state, room, reply["text"], now)
     notify(draft_text(room, reply), reply_buttons(job))
+    worklog.add("reply", "답장 초안 기다리는 중", "%s · 텔레그램에서 [보내] 필요" % room, need=True, key="draft:" + job)
     log("[%s] 🤖 답장 초안 → 텔레그램 (%s)" % (room, reply.get("why") or ""))
 
 
@@ -169,4 +173,6 @@ def run_send(cfg, state, job, info, notify, log, send=None):
         notify("[비서] %s 방에 답장을 못 보냈습니다 (%s) — 카톡에서 직접 보내 주세요\n\n%s" % (d["room"], why, d["text"]))
     else:
         notify("✔ %s 방에 답장 보냄: %s" % (opened, d["text"].split("\n")[0]))
+        worklog.resolve("draft:" + job)
+        worklog.add("reply", "%s 방에 답장" % opened, d["text"])
     log("[%s] 🤖 초안 답장 %s" % (d["room"], "못 보냄 (%s)" % why if why else "보냄"))

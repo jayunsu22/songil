@@ -14,7 +14,11 @@ if (which === '아침9시') {
     const site = data.sites.find((s) => s.id === it.siteId);
     if (d.act === 'go' && it.act === 'film' && site && d.to && d.to.phone) {
       const text = Share.filmOrderSms(site, !!data.settings.smsSiteName);
-      if (!text) { out.notify.push({ html: true, text: '❗ <b>필름 주문 못 보냄</b> · ' + esc(it.title) + '\n적힌 필름 번호가 없습니다' }); continue; }
+      if (!text) {
+        out.notify.push({ html: true, text: '❗ <b>필름 주문 못 보냄</b> · ' + esc(it.title) + '\n적힌 필름 번호가 없습니다' });
+        out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '필름 주문 못 보냄', detail: '적힌 필름 번호가 없음', state: 'need' });
+        continue;
+      }
       const items = Share.filmOrderText(site).split('\n').join(' · ');
       out.sms.push({ phone: e164(d.to.phone), text });
       out.fills.push({ siteId: site.id, kind: 'filmOrdered', value: items, room: d.to.label, at: today });
@@ -26,9 +30,11 @@ if (which === '아침9시') {
       const m = Share.recruitMulti(site, isos, data.sites, data.settings);
       if (!m.first.length) {
         out.notify.push({ html: true, text: '❗ <b>인원 모집 못 함</b> · ' + esc(Share.titleLine(site)) + '\n예산 안에 드는 팀원이 없거나 자리가 다 찼습니다 — 밴드에서 구해 주세요' });
+        out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '인원 모집 못 함', detail: '예산 안에 드는 팀원이 없거나 자리가 다 참', state: 'need' });
       } else {
         out.crew.push({ action: 'start', siteId: site.id, siteName: Share.titleLine(site), queue: m.queue,
           days: m.days.map((x) => ({ date: x.iso, label: x.label, slots: x.slots, budget: x.budget ? x.left : 0, band: Share.buildRecruitText(site) })) });
+        out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '인원 모집 시작', detail: m.days.map((x) => x.label + ' ' + x.slots + '자리').join(', ') });
         log.push({ kind: 'crew', title: Share.titleLine(site) + ' 인원 모집 시작', res: m.days.map((x) => x.label + ' ' + x.slots + '자리').join(', ') });
       }
       d.doneAt = now;

@@ -27,6 +27,7 @@ import kakao_text
 import kakao_window
 import n8n_send
 import report
+import worklog
 
 # 명령 프롬프트가 cp949 일 때 '—' 같은 글자로 멈추지 않게 (파이프·기록 파일로 보낼 때)
 for _s in (sys.stdout, sys.stderr):
@@ -72,6 +73,7 @@ DEFAULTS = {
     # 🤖 능동 비서 (사장님 11/4): 업체 방 새 글을 물어보지 않았어도 AI 가 판단 → 현장에 넣기·결재함·답장(간단한 답만 자동)
     "assist": True,
     "assist_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-assist",
+    "work_log_url": "https://primary-production-a6fa.up.railway.app/webhook/work-log",  # 📋 업무 내역 (11/4)
 }
 
 # 방마다 '견적발행시작' 을 기다리는 글·사진 묶음 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다.
@@ -132,6 +134,7 @@ def check_room(cfg, state, room, dry):
 
 
 def run_once(cfg, state, dry=False):
+    worklog.setup(cfg)
     photo_dir = cfg["photo_dir"] or kakao_photo.default_dir()
     if state.get("photos") is None:
         state["photos"] = [kakao_photo.file_id(p) for p in kakao_photo.list_photos(photo_dir)]
@@ -196,7 +199,9 @@ def run_once(cfg, state, dry=False):
             # 못 받은 답은 2시간 뒤 남은 번호만 자동으로 다시 (사장님 11/1, 18시 넘으면 다음 날 9시)
             gaps.reask(cfg, state, time.time(), gaps.send_to_room, lambda text: notify(cfg, text), log)
             # 업체 답에 3분쯤 뒤 인사 (사장님 11/1)
-            gaps.send_replies(state, time.time(), gaps.send_to_room, log)
+            gaps.send_replies(state, time.time(), gaps.send_to_room, log,
+                              lambda room, text, why: worklog.add("reply", "%s 방에 답장" % room, text) if not why else
+                              worklog.add("reply", "%s 방에 답장 못 보냄" % room, why, need=True))
         # 📋 업무일정표 → 카톡 김정헌방 (사장님 11/3, 결재함)
         report.poll(cfg, state, time.time(),
                     lambda: n8n_send.post_json(cfg["report_url"], cfg["owner_key"], {"action": "outbox"}),

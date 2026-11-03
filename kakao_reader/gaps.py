@@ -10,6 +10,8 @@ state.json 에는 현장 id·이름·날짜·빈칸 이름만 — 비번·글 �
 import re
 import time
 
+import worklog
+
 CHECK_EVERY = 3600          # 빈칸 확인 1시간마다
 ASK_KEEP = 7 * 86400        # 물어본 뒤 답을 7일 기다림
 WATCH_KEEP = 30 * 86400     # 답을 다 받아도 시공일까지(길어야 30일) 그 방을 보며 바뀐 정보를 고쳐 넣는다 (사장님 11/1)
@@ -506,7 +508,7 @@ def queue_reply(state, room, text, now):
     q[room] = {"text": text, "due": now + REPLY_DELAY}
 
 
-def send_replies(state, now, send, log):
+def send_replies(state, now, send, log, done=None):
     """때가 된 인사를 보낸다 (한 번에 한 방). 못 보내면 버린다 — 인사 때문에 방을 계속 열지 않게."""
     q = state.get("replies") or {}
     for room, r in list(q.items()):
@@ -515,6 +517,8 @@ def send_replies(state, now, send, log):
         del q[room]
         _, why = send(room, r["text"], log)
         log("[%s] 인사 %s" % (room, "못 보냄 (%s)" % why if why else "보냄: " + r["text"].split("\n")[0]))
+        if done:
+            done(room, r["text"], why)
         return
 
 
@@ -566,6 +570,7 @@ def _answer(cfg, key, pend, msgs, digest, put, notify, log):
     for f in film_changes:
         s = next(x for x in pend if x["id"] == f["siteId"])
         notify(film_change_text(s, f["films"], key, cfg))
+        worklog.add("site", "필름 번호 변경 요청 — 직접 바꿔 주세요", key, s["id"], need=True)
         log("[%s] 필름 번호 변경 알림 (앱은 그대로): %s" % (key, s["name"]))
     if not fills:
         if not film_changes:

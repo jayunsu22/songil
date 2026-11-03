@@ -49,6 +49,9 @@ const workflow = {
     hook('w3', '우편함꺼내기요청', 'site-fill-take', '2f7b4a1d-6e3c-4b92-8a5f-0c1d2e3f4a57', 600),
     code('c3', '우편함꺼내기', 'take.js', 220, 600),
     answer('r3', '꺼내기응답', 440, 600),
+    hook('w4', '내역요청', 'work-log', '5d1c8e3f-9a27-4b6c-8f40-7e2a1b9c3d68', 900),   // 📋 업무 내역 (11/4)
+    code('c4', '내역', 'worklog.js', 220, 900),
+    answer('r4', '내역응답', 440, 900),
   ],
   connections: {
     빈칸요청: { main: [[{ node: '현장읽기', type: 'main', index: 0 }]] },
@@ -60,6 +63,8 @@ const workflow = {
     우편함넣기: { main: [[{ node: '넣기응답', type: 'main', index: 0 }]] },
     우편함꺼내기요청: { main: [[{ node: '우편함꺼내기', type: 'main', index: 0 }]] },
     우편함꺼내기: { main: [[{ node: '꺼내기응답', type: 'main', index: 0 }]] },
+    내역요청: { main: [[{ node: '내역', type: 'main', index: 0 }]] },
+    내역: { main: [[{ node: '내역응답', type: 'main', index: 0 }]] },
   },
   // 앱이 5분마다 부르고, 우편함엔 비번이 들어가므로 성공 실행은 저장하지 않는다
   settings: { executionOrder: 'v1', saveDataSuccessExecution: 'none' },

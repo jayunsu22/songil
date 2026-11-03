@@ -264,7 +264,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// 현장관리_빈칸 › 우편함넣기: 노트북이 POST site-fill (사장님 열쇠) — 업체 답에서 뽑은 칸 값을 우편함(staticData)에 둔다.\n// 현장관리 앱이 site-fill-take 로 가져가 그 기기 현장 칸에 바로 넣는다 (원본이 기기에 있어서, 10/31 사장님 '우편함').\nconst body = $input.first().json.body || {};\nconst sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nsd.fills = (sd.fills || []).filter((f) => now - f.t < 14 * 864e5);\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\nconst FIELDS = ['pwLobby', 'pwUnit', 'toilet'];\nlet n = 0;\nfor (const f of (Array.isArray(body.fills) ? body.fills : []).slice(0, 50)) {\n  if (!f || typeof f !== 'object') continue;\n  const o = { id: 'f' + now.toString(36) + n, t: now, siteId: s(f.siteId, 40), kind: f.kind, room: s(f.room, 40), at: s(f.at, 10) };\n  if (!o.siteId) continue;\n  if (o.kind === 'field') {\n    o.field = FIELDS.includes(f.field) ? f.field : '';\n    o.value = s(f.value, 300);\n    if (!o.field || !o.value) continue;\n  } else if (o.kind === 'films') {\n    o.films = (Array.isArray(f.films) ? f.films : []).map((x) => ({ place: s(x && x.place, 40), code: s(x && x.code, 30) })).filter((x) => x.code).slice(0, 30);\n    if (!o.films.length) continue;\n  } else if (o.kind === 'check') {\n    // 업체 확인 질문의 답 (2026-11-01)\n    o.checkId = s(f.checkId, 40);\n    o.value = s(f.value, 300);\n    if (!o.checkId || !o.value) continue;\n  } else if (o.kind === 'filmOrdered') {\n    o.value = s(f.value, 300);   // 주문한 필름 'ps170 1롤 · px450 30m 이상'\n  } else if (o.kind === 'crewAdd') {\n    // 인원 모집 [넣기] (인원모집 흐름, 11/1) — 그날 인원에 이름\n    o.date = s(f.date, 10); o.name = s(f.name, 20);\n    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(o.date) || !o.name) continue;\n  } else if (o.kind === 'task') {\n    // 결재함 [내가할께] (업무일정표 흐름, 11/3) — 앱 할 일로. 현장과 상관없이 받는다 (siteId '-' 이면 현장 없음)\n    o.title = s(f.title, 120); o.date = s(f.date, 10);\n    if (!o.title || !/^\\d{4}-\\d{2}-\\d{2}$/.test(o.date)) continue;\n  } else continue;   // 모르는 kind 는 버림. filmOrdered: 텔레그램 버튼으로 주문 문자를 보냄 → 앱 '필름 주문' 단계 (카톡_버튼, 11/1)\n  sd.fills.push(o);\n  n++;\n}\nreturn [{ json: { ok: true, n } }];\n"
+        "jsCode": "// 현장관리_빈칸 › 우편함넣기: 노트북이 POST site-fill (사장님 열쇠) — 업체 답에서 뽑은 칸 값을 우편함(staticData)에 둔다.\n// 현장관리 앱이 site-fill-take 로 가져가 그 기기 현장 칸에 바로 넣는다 (원본이 기기에 있어서, 10/31 사장님 '우편함').\nconst body = $input.first().json.body || {};\nconst sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nsd.fills = (sd.fills || []).filter((f) => now - f.t < 14 * 864e5);\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\nconst FIELDS = ['pwLobby', 'pwUnit', 'toilet'];\n// 📋 업무 내역 (11/4): 우편함에 들어온 일을 값 없이 적는다 — 업무내역 worklog.js 가 앱에 보여 준다\nsd.worklog = sd.worklog || [];\nconst LABEL = { pwLobby: '공동현관 비번', pwUnit: '세대 비번', toilet: '화장실' };\nconst logOf = (o, f) => {\n  const put = f.update ? ' 바꿈' : ' 넣음';\n  if (o.kind === 'field') return { kind: 'site', title: LABEL[o.field] + put, detail: o.room };\n  if (o.kind === 'films') return { kind: 'site', title: '필름 번호' + put, detail: o.room };\n  if (o.kind === 'check') return { kind: 'site', title: '업체 확인 답 받음', detail: o.room };\n  if (o.kind === 'filmOrdered') return { kind: 'crew', title: '필름 주문 문자', detail: o.room + (o.value ? ' · ' + o.value : '') };\n  if (o.kind === 'crewAdd') return { kind: 'crew', title: o.name + ' 인원 넣음', detail: o.date };\n  if (o.kind === 'task') return { kind: 'site', title: '할 일 추가', detail: o.title };\n  if (o.kind === 'done') return { kind: 'site', title: { pay: '잔금 받음', as: 'AS 완료', task: '할 일 완료' }[o.what], detail: '' };\n  return null;\n};\nconst srcOf = (o) => (o.room === '결재함' ? '결재함' : o.room === '인원 모집' ? '인원모집' : o.kind === 'filmOrdered' ? '필름 주문' : 'auto');\nlet n = 0;\nfor (const f of (Array.isArray(body.fills) ? body.fills : []).slice(0, 50)) {\n  if (!f || typeof f !== 'object') continue;\n  // 내역만 남기는 줄 — 앱 우편함에 넣지 않는다 (결재함 9시 실행 등, 11/4)\n  if (f.kind === 'log') {\n    if (s(f.title, 120)) sd.worklog.push({ id: 'l' + now.toString(36) + n, t: now, src: srcOf({ room: s(f.room, 40) }), kind: s(f.cat, 12) || 'crew', title: s(f.title, 120), detail: s(f.detail, 200), siteId: s(f.siteId, 40), state: f.state === 'need' ? 'need' : '', key: '' });\n    n++;\n    continue;\n  }\n  const o = { id: 'f' + now.toString(36) + n, t: now, siteId: s(f.siteId, 40), kind: f.kind, room: s(f.room, 40), at: s(f.at, 10) };\n  if (!o.siteId) continue;\n  if (o.kind === 'field') {\n    o.field = FIELDS.includes(f.field) ? f.field : '';\n    o.value = s(f.value, 300);\n    if (!o.field || !o.value) continue;\n  } else if (o.kind === 'films') {\n    o.films = (Array.isArray(f.films) ? f.films : []).map((x) => ({ place: s(x && x.place, 40), code: s(x && x.code, 30) })).filter((x) => x.code).slice(0, 30);\n    if (!o.films.length) continue;\n  } else if (o.kind === 'check') {\n    // 업체 확인 질문의 답 (2026-11-01)\n    o.checkId = s(f.checkId, 40);\n    o.value = s(f.value, 300);\n    if (!o.checkId || !o.value) continue;\n  } else if (o.kind === 'filmOrdered') {\n    o.value = s(f.value, 300);   // 주문한 필름 'ps170 1롤 · px450 30m 이상'\n  } else if (o.kind === 'crewAdd') {\n    // 인원 모집 [넣기] (인원모집 흐름, 11/1) — 그날 인원에 이름\n    o.date = s(f.date, 10); o.name = s(f.name, 20);\n    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(o.date) || !o.name) continue;\n  } else if (o.kind === 'task') {\n    // 결재함 [내가할께] (업무일정표 흐름, 11/3) — 앱 할 일로. 현장과 상관없이 받는다 (siteId '-' 이면 현장 없음)\n    o.title = s(f.title, 120); o.date = s(f.date, 10);\n    if (!o.title || !/^\\d{4}-\\d{2}-\\d{2}$/.test(o.date)) continue;\n  } else if (o.kind === 'done') {\n    // 결재함 [완료표시] (11/3): 잔금 받음·AS 완료·할 일 완료 → 앱 Kakao.fillPatch (11/4 고침: 전에는 여기서 버려져 앱에 안 들어갔다)\n    o.what = ['pay', 'as', 'task'].includes(f.what) ? f.what : '';\n    o.serviceId = s(f.serviceId, 60); o.taskId = s(f.taskId, 100);\n    if (!o.what) continue;\n  } else continue;   // 모르는 kind 는 버림. filmOrdered: 텔레그램 버튼으로 주문 문자를 보냄 → 앱 '필름 주문' 단계 (카톡_버튼, 11/1)\n  sd.fills.push(o);\n  const line = logOf(o, f);\n  if (line) sd.worklog.push(Object.assign({ id: 'l' + now.toString(36) + n, t: now, src: srcOf(o), siteId: o.siteId === '-' ? '' : o.siteId, state: '', key: '' }, line));\n  n++;\n}\nsd.worklog = sd.worklog.filter((x) => now - x.t < 90 * 864e5).slice(-2000);\nreturn [{ json: { ok: true, n } }];\n"
       }
     },
     {
@@ -339,6 +339,70 @@
       "position": [
         440,
         600
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "w4",
+      "name": "내역요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        900
+      ],
+      "webhookId": "5d1c8e3f-9a27-4b6c-8f40-7e2a1b9c3d68",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "work-log",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "c4",
+      "name": "내역",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        900
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 현장관리_빈칸 › 내역: 📋 업무 내역 (사장님 11/4: 진행 내역을 한곳에) — POST work-log (사장님 열쇠).\n// 우편함에 들어오는 일(필름 주문·인원·잔금·칸 넣기)은 우편함넣기가 여기 sd.worklog 에 함께 적는다. 앱 비서·노트북 답장은 add 로.\n// add { items: [{ id?, t?, src, kind, title, detail?, siteId?, state?, key? }] } / list {} → 최근 500 / resolve { id | key } → 확인함\n// 비번 값은 적지 않는다. 90일 · 2000건까지. 설계 docs/superpowers/specs/2026-11-04-업무내역-design.md\nconst body = $input.first().json.body || {};\nconst sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\nconst keep = () => { sd.worklog = (sd.worklog || []).filter((x) => now - x.t < 90 * 864e5).slice(-2000); };\nkeep();\nif (body.action === 'add') {\n  let n = 0;\n  const has = new Set(sd.worklog.map((x) => x.id));\n  for (const it of (Array.isArray(body.items) ? body.items : []).slice(0, 200)) {\n    if (!it || !s(it.title, 120)) continue;\n    const id = s(it.id, 60) || 'w' + now.toString(36) + n;\n    if (has.has(id)) continue;   // 옮기기를 다시 해도 두 번 안 들어가게\n    const t = Number(it.t) > 0 && Number(it.t) <= now ? Number(it.t) : now;\n    sd.worklog.push({ id, t, src: s(it.src, 12) || 'me', kind: s(it.kind, 12) || 'etc', title: s(it.title, 120), detail: s(it.detail, 200),\n      siteId: s(it.siteId, 40), state: it.state === 'need' ? 'need' : '', key: s(it.key, 60) });\n    has.add(id);\n    n++;\n  }\n  sd.worklog.sort((a, b) => a.t - b.t);\n  keep();\n  return [{ json: { ok: true, n } }];\n}\nif (body.action === 'resolve') {\n  const id = s(body.id, 60), key = s(body.key, 60);\n  let n = 0;\n  sd.worklog.forEach((x) => { if (x.state === 'need' && ((id && x.id === id) || (key && x.key === key))) { x.state = ''; n++; } });\n  return [{ json: { ok: true, n } }];\n}\nreturn [{ json: { ok: true, items: sd.worklog.slice(-500).reverse().map((x) => ({ id: x.id, t: x.t, src: x.src, kind: x.kind, title: x.title, detail: x.detail, siteId: x.siteId, state: x.state })) } }];\n"
+      }
+    },
+    {
+      "id": "r4",
+      "name": "내역응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        900
       ],
       "parameters": {
         "respondWith": "json",
@@ -450,6 +514,28 @@
         [
           {
             "node": "꺼내기응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "내역요청": {
+      "main": [
+        [
+          {
+            "node": "내역",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "내역": {
+      "main": [
+        [
+          {
+            "node": "내역응답",
             "type": "main",
             "index": 0
           }
