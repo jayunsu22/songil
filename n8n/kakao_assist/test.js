@@ -67,6 +67,10 @@ assert.deepStrictEqual(r.fills.map((f) => [f.siteId, f.field, f.value]), [['s2',
 assert.strictEqual(r.reply, null);
 assert.strictEqual(r.picks.length, 0, '사장님 지시는 아무 현장이나 후보로 안 냄');
 assert.strictEqual(r.missed[0].value, '#77');
+// 작업자 배정: names 정리('님' 빼기), mode, date
+r = bres({ items: [{ kind: 'staff', names: ['김정헌님'], mode: 'set', date: '', siteId: 's2', sure: true }] });
+assert.deepStrictEqual([r.fills[0].kind, r.fills[0].names, r.fills[0].mode, r.fills[0].label], ['staff', ['김정헌'], 'set', '작업자']);
+assert.strictEqual(res({ items: [{ kind: 'staff', names: ['a'], siteId: 's2', sure: true }] }).fills.length, 0, '업체 방 글로는 작업자 안 바꿈');
 // 거래처 이름이 글에 없으면 모든 업체 현장
 const bp2 = run('프롬프트', Object.assign({ 비서요청: { body: Object.assign({}, bossBody, { messages: [{ text: '은하수 세대비번 1234' }] }) } }, air));
 assert.strictEqual(bp2.sites.length, 5);

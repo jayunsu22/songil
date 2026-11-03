@@ -41,6 +41,8 @@ for (const it of $('현장읽기').all()) for (const r of (it.json.records || []
       films: (Array.isArray(s.films) ? s.films : []).filter((x) => x && str(x.code)).map((x) => (str(x.place) + ' ' + str(x.code)).trim()) },
     payDone: !!s.payDone,
   });
+  // 사장님 지시는 날짜별 작업자도 본다 ('작업자 김정헌으로 바꿔줘', 11/4)
+  if (boss) sites[sites.length - 1].known.staff = (Array.isArray(s.days) ? s.days : []).map((d) => str(d && d.date).slice(5) + ': ' + ((d && d.staff) || []).map(str).filter(Boolean).join(',')).join(' / ');
 }
 sites.sort((a, b) => Math.abs(dayN(a.date)) - Math.abs(dayN(b.date)));
 sites.splice(boss ? 60 : 30);
@@ -50,7 +52,7 @@ const recent = (Array.isArray(body.recent) ? body.recent : []).slice(-40).map(li
 const fresh = (Array.isArray(body.messages) ? body.messages : []).slice(-30).map(line);
 const bossPrompt = `너는 인테리어 필름 시공업체 "섬세한손길" 김정헌 실장(사장님)의 비서다. 오늘은 ${today} 이다.
 사장님이 자기 카톡 방에 메모를 남겼다. 업체와 통화하거나 직접 들은 현장 정보를 앱에 넣으라는 뜻일 수 있다.
-글에 현장 정보(비번·화장실·필름·잔금)가 있으면 어느 현장인지 맞춰서 뽑아라. 견적 문의를 옮겨 붙인 글, 할 일 메모, 잡담이면 아무것도 뽑지 마라.
+글에 현장 정보(비번·화장실·필름·잔금·작업자)가 있으면 어느 현장인지 맞춰서 뽑아라. 견적 문의를 옮겨 붙인 글, 할 일 메모, 잡담이면 아무것도 뽑지 마라.
 '바뀌었다'·'변경' 이면 이미 적힌 값과 달라도 새 값으로 뽑는다.
 
 [현장 목록] (id · 거래처 · 현장명 · 시공날짜 · 이미 적힌 값 · 잔금받음)
@@ -61,6 +63,9 @@ ${sites.map((s) => '- ' + s.id + ' · ' + (s.client || '거래처모름') + ' ·
   어느 비번인지 분명하지 않으면 pwUnit. '공동현관'·'공현'·'1층' 이면 pwLobby.
 - "films": 위치별 필름 번호 films:[{place:"거실", code:"LX 우드 EW123"}]. 품번 없이 이름만이면 code 에 이름, noCode:true.
 - "pay": 그 현장 잔금이 들어왔다는 메모.
+- "staff": 작업자(시공 인원) 배정. names:["김정헌"] (사람 이름만, '님'·'기사' 빼고), mode 는
+  "add"(배정·추가·넣어), "set"(~으로 바꿔·변경 — 원래 작업자를 빼고 이 사람들로), "remove"(빼·제외).
+  date 는 특정 날짜만 말했을 때 "YYYY-MM-DD", 아니면 "" (그 현장 모든 날).
 그 밖의 것(일정·AS·견적 등)은 뽑지 마라.
 
 [현장 맞추기]
@@ -68,7 +73,7 @@ ${sites.map((s) => '- ' + s.id + ' · ' + (s.client || '거래처모름') + ' ·
 - 같은 아파트가 여럿이거나 짐작이면 sure:false, cands 에 후보 id (최대 3). 맞는 게 없으면 siteId "", cands [].
 
 JSON 으로만 답하라 (reply 는 늘 none):
-{"items":[{"kind":"field","field":"pwUnit","value":"","films":[],"noCode":false,"siteId":"","sure":true,"cands":[],"quote":"근거 원문 60자 이내"}],
+{"items":[{"kind":"field","field":"pwUnit","value":"","films":[],"noCode":false,"names":[],"mode":"","date":"","siteId":"","sure":true,"cands":[],"quote":"근거 원문 60자 이내"}],
  "reply":{"type":"none","text":""}}
 
 [사장님 메모]

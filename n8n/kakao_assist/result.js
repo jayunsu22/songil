@@ -11,7 +11,7 @@ const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 const byId = {};
 (pre.sites || []).forEach((x) => { byId[x.id] = x; });
 const FIELDS = ['pwLobby', 'pwUnit', 'toilet'];
-const LABEL = { pwLobby: '공동현관 비번', pwUnit: '세대 비번', toilet: '화장실', films: '필름' };
+const LABEL = { pwLobby: '공동현관 비번', pwUnit: '세대 비번', toilet: '화장실', films: '필름', staff: '작업자' };
 const squash = (v) => String(v || '').replace(/\s+/g, '').toLowerCase();
 const fills = [], picks = [], pays = [], infos = [], missed = [];
 let noCode = false;
@@ -34,6 +34,12 @@ for (const it of (Array.isArray(ai.items) ? ai.items : []).slice(0, 20)) {
     if (!films.length) continue;
     if (it.noCode) noCode = true;
     f = { kind: 'films', films, label: LABEL.films };
+  } else if (kind === 'staff' && pre.boss) {
+    // 작업자 배정 (사장님 지시만, 11/4) — 이미 배정됐는지는 앱이 현장 날짜별 인원을 보고 판단
+    const names = (Array.isArray(it.names) ? it.names : []).map((n) => s(n, 20).replace(/(님|기사님?|씨)$/, '')).filter(Boolean).slice(0, 10);
+    const mode = ['add', 'set', 'remove'].includes(it.mode) ? it.mode : 'add';
+    if (!names.length) continue;
+    f = { kind: 'staff', names, mode, date: /^\d{4}-\d{2}-\d{2}$/.test(s(it.date, 10)) ? s(it.date, 10) : '', label: LABEL.staff };
   } else if (kind === 'pay') {
     const pid = sid || (cands.length === 1 ? cands[0] : '');
     if (pid && !byId[pid].payDone) pays.push({ siteId: pid, name: byId[pid].name, quote });
@@ -46,7 +52,7 @@ for (const it of (Array.isArray(ai.items) ? ai.items : []).slice(0, 20)) {
   if (sure) {
     const site = byId[sid];
     // 이미 받은 칸에 새 값 → update (비번·화장실은 고쳐 넣고, 필름은 알림만 — 사장님 11/1 규칙)
-    f.update = f.kind === 'films' ? site.known.films.length > 0 : !!site.known[f.field];
+    f.update = f.kind === 'films' ? site.known.films.length > 0 : f.kind === 'staff' ? true : !!site.known[f.field];
     fills.push(Object.assign({ siteId: sid, name: site.name, date: site.date, quote }, f));
   } else {
     // 사장님 지시는 아무 현장이나 후보로 내밀지 않고 '못 찾음' 으로 알린다
