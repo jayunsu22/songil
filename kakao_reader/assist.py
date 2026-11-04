@@ -14,6 +14,9 @@ import worklog
 
 APP_URL = "https://jayunsu22.github.io/sitenote/"
 REPLY_HOURS = (8, 21)   # 자동 답장은 아침 8시~저녁 9시 — 그 밖은 초안으로
+PRIVATE_CLIENT = "개인고객"
+REASK_AFTER = 3 * 3600  # [물어봐] 를 누르면 3시간 뒤 다시 묻는다
+KEY_LABEL = {"pwLobby": "공동현관 비번", "pwUnit": "세대 비번", "toilet": "화장실 위치"}
 DRAFTS = {}             # 할 일 번호 → {"room", "text"}
 
 
@@ -29,6 +32,72 @@ def client_of(cfg, room):
             if _norm(x) and (_norm(x) == r or r.startswith(_norm(x))):
                 return client
     return ""
+
+
+# ── 👤 개인고객 방 지켜보기 (사장님 11/5): 앱에서 카톡을 보낸 고객 방을 시공일까지. state 에는 현장 id·이름·날짜·칸 이름만
+def watch_room(state, room, watch, now):
+    state.setdefault("cust_watch", {})[room] = {"siteId": watch.get("siteId", ""), "name": watch.get("name", ""), "until": watch.get("until", ""),
+                                               "keys": [k for k in (watch.get("keys") or []) if k in KEY_LABEL], "at": now}
+
+
+def watch_rooms(state, now):
+    """지켜볼 고객 방 목록. 시공일이 지난 방은 뺀다."""
+    w = state.get("cust_watch") or {}
+    today = time.strftime("%Y-%m-%d", time.localtime(now))
+    for room in [r for r, x in w.items() if x.get("until") and x["until"] < today]:
+        del w[room]
+    return list(w)
+
+
+def _watch_of(state, room):
+    w = state.get("cust_watch") or {}
+    return next((v for k, v in w.items() if _norm(k) == _norm(room)), None)
+
+
+def _remaining(state, room, cw, fills, notify, now):
+    """받은 칸을 빼고, 아직 남았으면 [물어봐] 를 묻는다 (값이 온 글에만 — 고객을 조르지 않게)."""
+    got = {f.get("field") for f in fills if f.get("kind") == "field"}
+    if not got or not cw.get("keys"):
+        return
+    cw["keys"] = [k for k in cw["keys"] if k not in got]
+    if not cw["keys"]:
+        return
+    import jobs
+    import tg
+    js = {k: v for k, v in (state.get("jobs") or {}).items() if now - v.get("at", 0) < jobs.KEEP}
+    job = jobs._new_id(js)
+    js[job] = {"title": room, "kind": "다시묻기", "at": now}
+    state["jobs"] = js
+    notify(tg.lines("❓ " + tg.b("아직 못 받음 · %s" % cw.get("name", room)), tg.esc(" · ".join(KEY_LABEL[k] for k in cw["keys"])), "3시간 뒤에 다시 물어볼까요?"),
+           [[{"text": "물어봐", "data": "k|%s|ra" % job}, {"text": "내가 할게", "data": "k|%s|later" % job}]])
+
+
+def run_reask(cfg, state, job, info, notify, log):
+    """텔레그램 [물어봐] — 3시간 뒤로 잡는다 (보내는 건 reask_due)."""
+    cw = _watch_of(state, info["title"])
+    if cw:
+        cw["reask_at"] = time.time() + REASK_AFTER
+
+
+def reask_due(state, now, send, notify, log):
+    """때가 된 다시 묻기를 보낸다 (한 번에 한 방, 저녁 9시~아침 8시는 미룸)."""
+    if not REPLY_HOURS[0] <= time.localtime(now).tm_hour < REPLY_HOURS[1]:
+        return
+    for room, cw in (state.get("cust_watch") or {}).items():
+        if not cw.get("reask_at") or now < cw["reask_at"]:
+            continue
+        cw.pop("reask_at")
+        if not cw.get("keys"):
+            continue
+        text = "안녕하세요 섬세한손길입니다 🙂\n[%s]\n" % cw.get("name", "") + "\n".join("- %s 알려주세요" % KEY_LABEL[k] for k in cw["keys"])
+        _, why = send(room, text, log)
+        if why:
+            notify("[비서] '%s' 방에 다시 못 물어봤어요 (%s) — 직접 보내 주세요\n\n%s" % (room, why, text))
+            worklog.add("reply", "%s 방 다시 묻기 못 보냄" % room, why, cw.get("siteId", ""), need=True)
+        else:
+            log("[%s] 🤖 못 받은 정보 다시 물어봄" % room)
+            worklog.add("reply", "%s 방에 다시 물어봄" % room, " · ".join(KEY_LABEL[k] for k in cw["keys"]), cw.get("siteId", ""))
+        return
 
 
 def _line(m):
@@ -103,6 +172,9 @@ def handle(cfg, state, room, new, msgs, call, put, inbox, notify, log, now=None,
     body = {"room": room, "client": client_of(cfg, room), "today": time.strftime("%Y-%m-%d", time.localtime(now)),
             "messages": [_line(m) for m in new], "recent": [_line(m) for m in (msgs or [])[-40:]],
             "mine": list(cfg.get("my_names", ["김정헌"]))}
+    cw = _watch_of(state, room)
+    if cw:   # 👤 앱에서 카톡을 보낸 고객 방 — 어느 현장인지 안다
+        body["client"], body["siteId"] = PRIVATE_CLIENT, cw.get("siteId", "")
     log("[%s] 🤖 비서가 새 글 %d개 판단 중" % (room, len(new)))
     try:
         res = call(body) or {}
@@ -127,6 +199,8 @@ def handle(cfg, state, room, new, msgs, call, put, inbox, notify, log, now=None,
                 mine_f = [f for f in fills if f["siteId"] == sid]
                 notify(filled_text(mine_f[0]["name"], sid, mine_f, room, cfg))
             log("[%s] 🤖 앱에 %d개 넣음 (안 물어본 정보)" % (room, len(fills)))
+            if cw:
+                _remaining(state, room, cw, fills, notify, now)
         except Exception as e:
             log("[%s] 🤖 우편함 넣기 실패: %s" % (room, str(e)[:150]))
             notify("[비서] %s 정보를 받았지만 현장관리에 못 넣었습니다\n%s" % (room, str(e)[:200]))

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>고객 카톡 목업</title>
+<style>
+body{margin:0;background:#eef2f7;font-family:-apple-system,"Malgun Gothic",sans-serif;color:#1e293b}
+h1{font-size:20px;text-align:center;margin:18px 0 4px}
+.sub{text-align:center;color:#64748b;font-size:13px;margin-bottom:16px}
+.wrap{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;padding:0 12px 24px}
+.col{width:340px}
+.cap{font-weight:700;margin:0 0 8px;font-size:15px}
+.cap small{display:block;font-weight:400;color:#64748b;font-size:12px;margin-top:2px}
+.phone{border-radius:22px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.14);background:#f3f4f6;height:640px;display:flex;flex-direction:column}
+.bar{background:#fff;padding:13px 14px;font-weight:800;font-size:16px;display:flex;justify-content:space-between;border-bottom:1px solid #e2e8f0}
+.body{flex:1;padding:10px;overflow:hidden}
+.card{background:#fff;border-radius:14px;padding:12px;margin-bottom:9px}
+.ct{font-weight:900;font-size:15px;margin-bottom:4px}
+label{display:block;font-size:12.5px;font-weight:800;color:#475569;margin:9px 0 3px}
+.in{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px;font-size:14.5px;line-height:1.45;white-space:pre-line}
+.in.new{border:2px solid #7c3aed;background:#faf5ff}
+.tip{font-size:12px;color:#7c3aed;margin-top:3px;font-weight:700}
+.row{display:flex;gap:6px;margin-top:9px}.row b{flex:1;text-align:center;border-radius:10px;padding:9px 0;font-size:14px;background:#eef2ff;color:#312e81}
+.row b.kk{background:#fee500;color:#3c1e1e}
+.ask{background:#fff7ed;border:1.5px dashed #fdba74}
+.small{font-size:12.5px;color:#64748b;line-height:1.5}
+.btn{text-align:center;border-radius:12px;padding:11px;font-weight:900;font-size:14.5px;margin-top:9px}
+.btn.kk{background:#fee500;color:#3c1e1e}.btn.sub2{background:#e2e8f0;color:#475569}
+.st{border-radius:10px;padding:8px 10px;font-size:13px;margin-top:7px;line-height:1.45}
+.st.ok{background:#f0fdf4;border:1px solid #bbf7d0}.st.wait{background:#eef2ff;border:1px solid #c7d2fe}.st.bad{background:#fff7ed;border:1px solid #fed7aa}
+.tg{background:#dbe7f3}.tg .bar{background:#517da2;color:#fff;border:0}
+.tb{background:#fff;border-radius:12px;padding:9px 11px;font-size:13.5px;line-height:1.5;margin-bottom:5px;white-space:pre-line}
+.btns{display:flex;gap:4px;margin-bottom:11px}.btns span{flex:1;text-align:center;background:rgba(81,125,162,.85);color:#fff;border-radius:8px;padding:7px 0;font-size:12.5px}
+.note{max-width:1090px;margin:0 auto 30px;background:#fff;border-radius:14px;padding:14px 18px;font-size:13.5px;line-height:1.7}
+.note b{color:#7c3aed}
+</style></head><body>
+<h1>💬 개인고객에게 카톡으로</h1>
+<div class="sub">문자처럼 버튼으로 보내고, 답장은 비서가 읽어 앱에 넣기 · 그림 속 이름·현장·값은 모두 가짜입니다</div>
+<div class="wrap">
+
+<div class="col"><p class="cap">① 현장 고객 칸<small>카톡방 이름 한 칸과 카톡 버튼이 늘어남</small></p>
+<div class="phone"><div class="bar">← 하늘마을 3단지 305호</div><div class="body">
+<div class="card"><div class="ct">👤 고객</div>
+<label>이름</label><div class="in">이다라</div>
+<label>연락처</label><div class="in">010-0000-0002</div>
+<label>카톡방 이름 (카톡에 보이는 그대로)</label><div class="in new">이다라 고객님</div>
+<div class="tip">비워 두면 고객 이름으로 찾아요</div>
+<div class="row"><b>📞 전화</b><b>💬 문자</b></div></div>
+<div class="card ask"><div class="ct">❓ 시공 전 못 받은 정보</div><div class="small">공동현관 비번 · 세대 비번 · 화장실</div>
+<div class="row"><b>📨 문자로</b><b class="kk">💬 카톡으로</b></div></div>
+</div></div></div>
+
+<div class="col"><p class="cap">② 카톡 보내기<small>내용을 고쳐서 눌러야 나감 · 결과가 바로 바뀜</small></p>
+<div class="phone"><div class="bar">💬 이다라 고객님 방에 카톡<span>✕</span></div><div class="body">
+<div class="in" style="min-height:135px">안녕하세요 섬세한손길입니다 🙂
+[하늘마을 3단지 305호]
+- 공동현관 비번 알려주세요
+- 세대 현관 비번 알려주세요
+- 화장실 위치 알려주세요</div>
+<div class="btn kk">💬 보내기</div>
+<div class="btn sub2">닫기</div>
+<div class="st wait">💬 이다라 고객님 방에 보내는 중… (노트북이 보내면 바뀌어요)</div>
+<div class="st ok">✅ 이다라 고객님 방에 보냄 (오후 2:13)<br><span class="small">이 방 답장을 시공일까지 지켜봅니다</span></div>
+<div class="st bad">⚠️ '이다라 고객님' 방을 못 찾았어요<br><span class="small">노트북 카톡 이름과 같은지 확인해 주세요. 글은 텔레그램으로 보내 뒀어요</span></div>
+<p class="small" style="margin:8px 2px">* 세 가지 결과 중 하나가 나옵니다</p>
+</div></div></div>
+
+<div class="col"><p class="cap">③ 고객이 답하면<small>능동 비서가 읽어 앱에 넣고 알려 줌</small></p>
+<div class="phone tg"><div class="bar">🤖 현장 비서</div><div class="body">
+<div class="tb">📥 <b>하늘마을 3단지 305호</b> 앱에 넣었어요
+· 공동현관 비번 ✅
+· 화장실 ✅
+(이다라 고객님이 보내줌)</div>
+<div class="btns"><span>앱에서 보기</span></div>
+<div class="tb">❓ <b>아직 못 받음:</b> 세대 비번
+3시간 뒤에 다시 물어볼까요?</div>
+<div class="btns"><span>물어봐</span><span>내가 할게</span></div>
+<div class="tb">✍️ <b>이다라 고객님</b> 답장 초안 — 시간 얘기라 확인 필요
+「네~ 그날 오전 9시쯤 도착할 것 같아요😊」</div>
+<div class="btns"><span>보내</span><span>고쳐서 보내</span><span>안 보냄</span></div>
+</div></div></div>
+
+</div>
+<div class="note">
+<b>방 찾기:</b> 노트북 카톡 목록에 보이면 바로 열고, 안 보이면 카톡 검색으로 찾습니다. <b>이름이 정확히 같은 방일 때만</b> 보내고, 비슷한 방이 여럿이면 보내지 않고 알려 줍니다 (다른 사람에게 잘못 가지 않게).<br>
+<b>답장 지켜보기:</b> 버튼으로 카톡을 보낸 방은 시공일까지 자동으로 지켜봅니다. 끝나면 저절로 그만 봅니다. 고객 글은 비번·화장실 같은 현장 정보만 넣습니다.<br>
+<b>답장 쓰기:</b> 받았다는 간단한 답만 낮 시간에 자동으로 나가고, 시간·금액·약속은 텔레그램 초안으로 옵니다. 지금 업체방과 같은 기준입니다.<br>
+<b>필요한 것:</b> 노트북이 켜져 있어야 보내고 읽습니다. 꺼져 있으면 30분 지나 취소되고 앱에 알려 줍니다. 그래서 문자 버튼도 그대로 둡니다.<br>
+<b>먼저 확인할 일:</b> 카톡 검색으로 방을 여는 동작은 노트북 실제 카톡에서 시험해 봐야 합니다. 안 되면 "목록에 보이는 방만" 으로 줄입니다.
+</div>
+</body></html>

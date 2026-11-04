@@ -102,5 +102,82 @@ class HandleTest(unittest.TestCase):
         self.assertEqual((b.puts, b.notes), ([], []))
 
 
+class CustomerRoomTest(unittest.TestCase):
+    WATCH = {"siteId": "s1", "name": "하늘마을", "until": "2026-11-08", "keys": ["pwLobby", "pwUnit", "parking"]}
+
+    def test_watch_lasts_until_date(self):
+        st = {}
+        assist.watch_room(st, "이다라", self.WATCH, at_hour(14))
+        self.assertEqual(st["cust_watch"]["이다라"]["keys"], ["pwLobby", "pwUnit"])  # 비서가 못 넣는 칸은 안 셈
+        self.assertEqual(assist.watch_rooms(st, at_hour(14)), ["이다라"])
+        st["cust_watch"]["이다라"]["until"] = "2026-11-03"
+        self.assertEqual(assist.watch_rooms(st, at_hour(14)), [])
+
+    def test_site_hint_and_remaining(self):
+        st = {}
+        assist.watch_room(st, "가인테리어 실장님", self.WATCH, at_hour(14))
+        b = Box({"ok": True, "fills": [FILL]})
+        b.run(state=st)
+        self.assertEqual((b.calls[0]["client"], b.calls[0]["siteId"]), ("개인고객", "s1"))
+        text, buttons = b.notes[-1]
+        self.assertIn("아직 못 받음", text)
+        self.assertIn("세대 비번", text)
+        self.assertTrue(buttons[0][0]["data"].endswith("|ra"))
+        self.assertEqual(st["cust_watch"]["가인테리어 실장님"]["keys"], ["pwUnit"])
+        # 값이 없는 글에는 안 조른다
+        b2 = Box({"ok": True})
+        b2.run(state=st)
+        self.assertEqual(b2.notes, [])
+
+    def test_reask(self):
+        st = {}
+        assist.watch_room(st, "이다라", self.WATCH, at_hour(14))
+        assist.run_reask({}, st, "j", {"title": "이다라"}, None, None)
+        cw = st["cust_watch"]["이다라"]
+        sent = []
+        send = lambda r, t, log: (sent.append((r, t)), (r, ""))[1]
+        cw["reask_at"] = at_hour(15)
+        assist.reask_due(st, at_hour(14), send, lambda t: None, lambda m: None)
+        self.assertEqual(sent, [])          # 아직
+        cw["reask_at"] = at_hour(14)
+        assist.reask_due(st, at_hour(23), send, lambda t: None, lambda m: None)
+        self.assertEqual(sent, [])          # 밤엔 미룸
+        assist.reask_due(st, at_hour(14), send, lambda t: None, lambda m: None)
+        self.assertEqual(sent[0][0], "이다라")
+        self.assertIn("공동현관 비번 알려주세요", sent[0][1])
+        assist.reask_due(st, at_hour(14), send, lambda t: None, lambda m: None)
+        self.assertEqual(len(sent), 1)      # 한 번만
+
+
+class ExactSendTest(unittest.TestCase):
+    def setUp(self):
+        import chatlist
+        import kakao_window
+        self.saved = (kakao_window.find_room, kakao_window.send_text, kakao_window.close_window, chatlist.refresh_geom, chatlist.open_room, chatlist.search_open)
+        self.sent, self.closed = [], []
+        kakao_window.find_room = lambda r: (0, 0)
+        kakao_window.send_text = lambda r, t: (self.sent.append(r), True)[1]
+        kakao_window.close_window = lambda h: self.closed.append(h)
+        chatlist.refresh_geom = lambda: None
+        self.cl, self.kw = chatlist, kakao_window
+
+    def tearDown(self):
+        self.kw.find_room, self.kw.send_text, self.kw.close_window, self.cl.refresh_geom, self.cl.open_room, self.cl.search_open = self.saved
+
+    def test_similar_room_is_not_used(self):
+        import report
+        self.cl.open_room = lambda r, b, log: (7, "이다라 어머니")   # 비슷한 방
+        self.cl.search_open = lambda r, log: 0
+        self.assertEqual(report.send_exact("이다라", "글", lambda m: None), ("이다라", "no-room"))
+        self.assertEqual((self.sent, self.closed), ([], [7]))
+
+    def test_list_then_search(self):
+        import report
+        self.cl.open_room = lambda r, b, log: (0, None)
+        self.cl.search_open = lambda r, log: 9
+        self.assertEqual(report.send_exact("이다라", "글", lambda m: None), ("이다라", ""))
+        self.assertEqual((self.sent, self.closed), (["이다라"], [9]))
+
+
 if __name__ == "__main__":
     unittest.main()

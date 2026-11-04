@@ -794,6 +794,55 @@ def open_room(room, box, log, wait=4.0):
     return 0, None
 
 
+def _find_edit(top):
+    """카톡 메인 창 안의 검색 입력칸 (없으면 0)."""
+    found = []
+    P = ctypes.WINFUNCTYPE(ctypes.c_bool, w.HWND, w.LPARAM)
+
+    def each(c, _):
+        b = ctypes.create_unicode_buffer(32)
+        u.GetClassNameW(c, b, 32)
+        if b.value == "Edit":
+            found.append(c)
+        return True
+
+    u.EnumChildWindows(top, P(each), 0)
+    return found[0] if found else 0
+
+
+def search_open(room, log, wait=4.0):
+    """👤 목록에 안 보이는 방을 카톡 검색칸으로 연다 (사장님 11/5). 글은 검색칸에만 넣으므로(WM_SETTEXT) 채팅방에 잘못 들어가지 않는다.
+    제목이 room 과 정확히 같은 창만 돌려주고, 다른 방이 열리면 닫는다. → 창 | 0. 같은 이름 방이 둘이면 구분하지 못한다."""
+    import kakao_window
+    top, lst = find_chatlist()
+    edit = _find_edit(top) if top else 0
+    if not edit:
+        log("[%s] 카톡 검색칸을 못 찾음" % room)
+        return 0
+    before = set(kakao_window.chat_windows())
+    u.SendMessageW(edit, 0x000C, 0, ctypes.c_wchar_p(room))  # WM_SETTEXT
+    try:
+        time.sleep(1.0)
+        u.PostMessageW(edit, 0x100, 0x0D, 0x001C0001)
+        time.sleep(0.05)
+        u.PostMessageW(edit, 0x101, 0x0D, 0xC01C0001)
+        end = time.time() + wait
+        while time.time() < end:
+            time.sleep(0.3)
+            new = {h: t for h, t in kakao_window.chat_windows().items() if h not in before and h != top}
+            if new:
+                h, title = next(iter(new.items()))
+                if title == room:
+                    time.sleep(1.0)
+                    return h
+                log("[%s] 검색했더니 다른 방('%s')이 열려 닫음" % (room, title))
+                kakao_window.close_window(h)
+                return 0
+        return 0
+    finally:
+        u.SendMessageW(edit, 0x000C, 0, ctypes.c_wchar_p(""))
+
+
 def read_and_report(cfg, state, room, notify, log, classify, answer=None, assist=None):
     """글이 멈춘 방 하나를 열어 새 글을 읽고 닫은 뒤 분류·요약을 텔레그램으로. 실패해도 같은 배지로 다시 열지 않는다.
     answer(방, 새 글) = 현장 빈칸을 물어본 방이면 답에서 값을 뽑아 넣기 (gaps.on_answer, 4단계).

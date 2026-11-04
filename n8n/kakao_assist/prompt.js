@@ -28,6 +28,7 @@ for (const it of $('현장읽기').all()) for (const r of (it.json.records || []
   let s = {};
   try { s = JSON.parse((r.fields || {}).data || '{}'); } catch (e) { continue; }
   if (!s.id || s.hide) continue;
+  if (body.siteId && s.id !== body.siteId) continue;   // 👤 개인고객 방 (11/5): 어느 현장인지 안다
   const date = str(s.date).slice(0, 10);
   if (!date || dayN(date) < -45 || dayN(date) > 60) continue;
   const client = clients[s.clientId] || clients[(r.fields || {})['거래처id']] || '';

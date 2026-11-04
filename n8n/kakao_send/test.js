@@ -21,4 +21,7 @@ call({ action: 'add', id: 'old', client: '류춘화', text: '늦은 글' });
 sd.q.find((x) => x.id === 'old').at -= 31 * 60000;
 assert.strictEqual(call({ action: 'take' }).jobs.length, 0);
 assert.strictEqual(call({ action: 'status', ids: ['old'] }).items[0].state, 'failed');
+// 👤 개인고객 카톡: 지켜볼 현장을 같이 맡김
+assert.ok(call({ action: 'add', id: 'k9', room: '이다라', text: '안녕', watch: { siteId: 's1', name: '하늘', until: '2026-11-08', keys: ['pwUnit'] } }).ok);
+assert.deepStrictEqual(call({ action: 'take' }).jobs.find((j) => j.id === 'k9').watch, { siteId: 's1', name: '하늘', until: '2026-11-08', keys: ['pwUnit'] });
 console.log('kakao_send ok');

@@ -17,6 +17,33 @@ def send_to_room(room, text, log):
     return gaps.send_to_room(room, text, log)
 
 
+def send_exact(room, text, log):
+    """👤 개인고객 방 (11/5): 제목이 정확히 같은 방에만 보낸다. 열린 창 → 목록 → 카톡 검색. → (방, '' | 'no-room' | 'send')"""
+    import chatlist
+    import kakao_window
+    if kakao_window.find_room(room)[0]:
+        return room, "" if kakao_window.send_text(room, text) else "send"
+    h = 0
+    try:
+        chatlist.refresh_geom()
+        h, opened = chatlist.open_room(room, None, log)
+        if h and opened != room:
+            log("[%s] 목록에서 비슷한 방('%s')이 열려 닫음 — 정확히 같은 방에만 보냄" % (room, opened))
+            kakao_window.close_window(h)
+            h = 0
+    except Exception as e:
+        log("[%s] 목록에서 못 엶: %s" % (room, str(e)[:80]))
+        h = 0
+    if not h:
+        h = chatlist.search_open(room, log)
+    if not h:
+        return room, "no-room"
+    try:
+        return room, "" if kakao_window.send_text(room, text) else "send"
+    finally:
+        kakao_window.close_window(h)
+
+
 def poll(cfg, state, now, fetch, send, notify, log):
     if now - state.get("report_at", 0) < EVERY:
         return

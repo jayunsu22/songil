@@ -17,7 +17,7 @@ def room_of(cfg, job):
     return client
 
 
-def poll(cfg, state, now, call, send, notify, log):
+def poll(cfg, state, now, call, send, notify, log, send_exact=None):
     """call(body) → n8n kakao-send 답, send(room, text, log) → (연 방, 실패 이유)."""
     if now - state.get("kakao_send_at", 0) < EVERY:
         return
@@ -33,7 +33,8 @@ def poll(cfg, state, now, call, send, notify, log):
         if not room or not text:
             continue
         try:
-            opened, why = send(room, text, log)
+            # 👤 개인고객 방은 이름이 정확히 같은 방에만 (11/5)
+            opened, why = (send_exact if j.get("watch") and send_exact else send)(room, text, log)
         except Exception as e:
             opened, why = room, "send: %s" % str(e)[:80]
         reason = {"no-room": "카톡 목록에서 '%s' 방을 못 찾음 (목록 화면에 보이게 해 주세요)" % room, "send": "방은 열었는데 못 보냄"}.get(why, why)
@@ -49,3 +50,6 @@ def poll(cfg, state, now, call, send, notify, log):
         else:
             log("[비서 카톡] %s 방에 보냄" % opened)
             worklog.add("reply", "%s 방에 카톡 (비서)" % opened, text)
+            if j.get("watch"):
+                import assist
+                assist.watch_room(state, opened or room, j["watch"], now)

@@ -171,6 +171,8 @@ def run_once(cfg, state, dry=False):
     if cfg["watch_list"]:
         # 빈칸을 물어보고 답을 기다리는 업체 방(7일)은 알릴 방에 더한다 — 그 방 새 글을 읽어야 칸을 채운다
         extra = gaps.watch_extra(state, time.time()) if cfg["site_gaps"] else []
+        # 👤 앱에서 카톡을 보낸 고객 방도 시공일까지 지켜본다 (11/5)
+        extra = extra + [r for r in assist.watch_rooms(state, time.time()) if r not in extra]
         wcfg = cfg
         if extra and cfg["watch_rooms"]:
             wcfg = dict(cfg, watch_rooms=list(cfg["watch_rooms"]) + [r for r in extra if r not in cfg["watch_rooms"]])
@@ -191,7 +193,7 @@ def run_once(cfg, state, dry=False):
                            lambda text, buttons=None: notify(cfg, text, buttons), log) if cfg["assist"] else None)
     if cfg["auto_read"] and cfg["watch_list"] and not dry:  # 텔레그램 버튼 [가견적 발행]·[시작해] (3·4단계, 10/31)
         jobs.poll(cfg, state, lambda text: notify(cfg, text), log,
-                  lambda: n8n_send.fetch_jobs(cfg["jobs_url"], cfg["owner_key"]), {"pub": jobs.run_publish, "ask": gaps.run_ask, "rs": assist.run_send})
+                  lambda: n8n_send.fetch_jobs(cfg["jobs_url"], cfg["owner_key"]), {"pub": jobs.run_publish, "ask": gaps.run_ask, "rs": assist.run_send, "ra": assist.run_reask})
         if cfg["site_gaps"]:
             gaps.check(cfg, state, time.time(),
                        # orders = 필름 주문 알림 (시공 5일 전, 사장님 11/1)
@@ -208,7 +210,8 @@ def run_once(cfg, state, dry=False):
             import kakao_send
             kakao_send.poll(cfg, state, time.time(),
                             lambda body: n8n_send.post_json(cfg["kakao_send_url"], cfg["owner_key"], body, timeout=20),
-                            report.send_to_room, lambda text: notify(cfg, text), log)
+                            report.send_to_room, lambda text: notify(cfg, text), log, report.send_exact)
+            assist.reask_due(state, time.time(), report.send_exact, lambda text: notify(cfg, text), log)
         # 📋 업무일정표 → 카톡 김정헌방 (사장님 11/3, 결재함)
         report.poll(cfg, state, time.time(),
                     lambda: n8n_send.post_json(cfg["report_url"], cfg["owner_key"], {"action": "outbox"}),
@@ -315,6 +318,14 @@ def publish_job(cfg, job):
 
 def main():
     args = sys.argv[1:]
+    if "--find-room" in args:   # 👤 카톡 검색으로 방이 열리는지 시험 (보내지 않고 닫음, 11/5): python reader.py --find-room 방이름
+        name = " ".join(args[args.index("--find-room") + 1:]).strip()
+        h = chatlist.search_open(name, log)
+        print("찾음 — 3초 뒤 닫습니다" if h else "못 찾음 (제목이 정확히 같은 방이 안 열림)")
+        if h:
+            time.sleep(3)
+            kakao_window.close_window(h)
+        return
     cfg = dict(DEFAULTS, **load_json(CONFIG, {}))
     # 등록 링크(…#key=열쇠)를 통째로 넣어도 열쇠만 쓴다
     m = re.search(r"key=([^&\s]+)", cfg["owner_key"])
