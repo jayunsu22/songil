@@ -1,0 +1,151 @@
+{
+  "name": "문자_상태",
+  "nodes": [
+    {
+      "id": "w",
+      "name": "상태요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "3f6b1c2d-8e4a-4b7f-9a1c-5d2e7f8a9b0c",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sms-status",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "i",
+      "name": "아이디",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 문자_상태 › 아이디: { ids } → 한 줄에 하나 (최대 20개, 이상한 글자 빼고)\nconst b = $input.first().json.body || {};\nconst ids = (Array.isArray(b.ids) ? b.ids : []).map((v) => String(v || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64)).filter(Boolean).slice(0, 20);\nif (!ids.length) return [{ json: { id: '-' } }];\nreturn ids.map((id) => ({ json: { id } }));\n"
+      }
+    },
+    {
+      "id": "g",
+      "name": "상태보기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "DXh5rioJUf4RGJEN",
+          "name": "SMS Gateway (사장님 폰)"
+        }
+      },
+      "parameters": {
+        "method": "GET",
+        "url": "={{ \"https://api.sms-gate.app/3rdparty/v1/messages/\" + encodeURIComponent($json.id) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "r",
+      "name": "정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 문자_상태 › 정리: SMS Gateway 답 → { ok, items: [{ id, state, error }] }. 받는 사람별 상태 중 가장 늦은 것을 그 문자의 상태로\nconst ids = $('아이디').all().map((x) => x.json.id);\nconst RANK = { Failed: 0, Pending: 1, Processed: 2, Sent: 3, Delivered: 4 };\nconst items = $input.all().map((x, i) => {\n  const r = x.json || {};\n  const id = ids[i] || r.id || '';\n  if (id === '-') return null;\n  if (r.error && !r.state) return { id, state: 'Unknown', error: String(r.error.message || r.error.description || JSON.stringify(r.error)).slice(0, 120) };\n  const recs = Array.isArray(r.recipients) ? r.recipients : [];\n  const rs = recs.map((p) => p && p.state).filter((v) => v in RANK);\n  const state = rs.length ? rs.reduce((a, v) => (RANK[v] < RANK[a] ? v : a)) : String(r.state || 'Unknown');\n  const err = recs.map((p) => p && p.error).filter(Boolean).join(', ');\n  return { id, state, error: String(err).slice(0, 120) };\n}).filter(Boolean);\nreturn [{ json: { ok: true, items } }];\n"
+      }
+    },
+    {
+      "id": "o",
+      "name": "응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "상태요청": {
+      "main": [
+        [
+          {
+            "node": "아이디",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "아이디": {
+      "main": [
+        [
+          {
+            "node": "상태보기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "상태보기": {
+      "main": [
+        [
+          {
+            "node": "정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "정리": {
+      "main": [
+        [
+          {
+            "node": "응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  }
+}
