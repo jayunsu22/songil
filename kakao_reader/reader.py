@@ -23,6 +23,7 @@ import chatlist
 import gaps
 import jobs
 import kakao_photo
+import kakao_send
 import kakao_text
 import kakao_window
 import n8n_send
@@ -136,6 +137,8 @@ def check_room(cfg, state, room, dry):
 
 def run_once(cfg, state, dry=False):
     worklog.setup(cfg)
+    if cfg.get("kakao_send_url") and not dry:
+        kakao_send.sync_rooms(cfg, state, time.time(), lambda body: n8n_send.post_json(cfg["kakao_send_url"], cfg["owner_key"], body, timeout=20), log)
     photo_dir = cfg["photo_dir"] or kakao_photo.default_dir()
     if state.get("photos") is None:
         state["photos"] = [kakao_photo.file_id(p) for p in kakao_photo.list_photos(photo_dir)]
@@ -173,6 +176,8 @@ def run_once(cfg, state, dry=False):
         extra = gaps.watch_extra(state, time.time()) if cfg["site_gaps"] else []
         # 👤 앱에서 카톡을 보낸 고객 방도 시공일까지 지켜본다 (11/5)
         extra = extra + [r for r in assist.watch_rooms(state, time.time()) if r not in extra]
+        # 💬 앱 고정값에 적은 카톡방도 지켜본다 (11/5)
+        extra = extra + [r for r in kakao_send.app_rooms(state) if r not in extra]
         wcfg = cfg
         if extra and cfg["watch_rooms"]:
             wcfg = dict(cfg, watch_rooms=list(cfg["watch_rooms"]) + [r for r in extra if r not in cfg["watch_rooms"]])
@@ -207,7 +212,6 @@ def run_once(cfg, state, dry=False):
                               worklog.add("reply", "%s 방에 답장 못 보냄" % room, why, need=True))
         # 💬 앱 🤖 비서가 맡긴 카톡 → 그 업체 방에 (사장님 11/4)
         if cfg.get("kakao_send_url"):
-            import kakao_send
             kakao_send.poll(cfg, state, time.time(),
                             lambda body: n8n_send.post_json(cfg["kakao_send_url"], cfg["owner_key"], body, timeout=20),
                             report.send_to_room, lambda text: notify(cfg, text), log, report.send_exact)

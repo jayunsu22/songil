@@ -67,6 +67,7 @@ JSON 으로만 답하라: {"say":"사장님께 할 말","actions":[{"tool":"..."
 팀원 team (phone = 번호 있음): ${clip(JSON.stringify(ctx.team || []), 6000)}
 업체 연락처 contacts (client = 거래처, kind = 업체/발주처, phone = 번호 있음): ${clip(JSON.stringify(ctx.contacts || []), 8000)}
 카톡 보낼 수 있는 거래처 kakaoClients: ${clip(JSON.stringify(ctx.kakaoClients || []), 3000)}
+거래처에 연결된 카톡방 kakaoRooms (한 거래처에 방이 여럿이면 사장님 말에 맞는 방을 send_kakao 의 room 에 글자 그대로, 모르겠으면 chips 로 되묻는다): ${clip(JSON.stringify(ctx.kakaoRooms || []), 4000)}
 연락처가 없는 거래처 noContact: ${clip(JSON.stringify(ctx.noContact || []), 2000)}
 다가오는 일 todo: ${clip(JSON.stringify(ctx.todo || []), 8000)}
 안 끝난 할 일 tasks: ${clip(JSON.stringify(ctx.tasks || []), 4000)}

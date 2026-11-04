@@ -17,6 +17,38 @@ def room_of(cfg, job):
     return client
 
 
+ROOMS_EVERY = 3600
+
+
+def merged_rooms(own, app):
+    """노트북 config client_rooms + 앱에 적은 방. 설정의 방이 먼저."""
+    out = {}
+    for src in (own or {}, app or {}):
+        for client, rooms in src.items():
+            lst = out.setdefault(client, [])
+            for r in ([rooms] if isinstance(rooms, str) else list(rooms or [])):
+                if str(r).strip() and r not in lst:
+                    lst.append(r)
+    return out
+
+
+def sync_rooms(cfg, state, now, call, log):
+    """💬 앱에 적은 카톡방을 받아 오고, 노트북 설정의 방을 앱에 알려 준다 (11/5, 한 시간에 한 번). → cfg["client_rooms"] 를 합친 것으로."""
+    own = cfg.setdefault("_own_rooms", dict(cfg.get("client_rooms") or {}))
+    if now - state.get("rooms_at", 0) >= ROOMS_EVERY:
+        state["rooms_at"] = now
+        try:
+            state["app_rooms"] = (call({"action": "rooms", "side": "laptop", "rooms": merged_rooms(own, None)}) or {}).get("rooms") or {}
+        except Exception as e:
+            log("[카톡방] 앱과 맞추기 실패: %s" % str(e)[:100])
+    cfg["client_rooms"] = merged_rooms(own, state.get("app_rooms"))
+
+
+def app_rooms(state):
+    """앱에 적은 방 이름들 — 지켜볼 방에 더한다."""
+    return [r for v in (state.get("app_rooms") or {}).values() for r in (v if isinstance(v, list) else [v])]
+
+
 def poll(cfg, state, now, call, send, notify, log, send_exact=None):
     """call(body) → n8n kakao-send 답, send(room, text, log) → (연 방, 실패 이유)."""
     if now - state.get("kakao_send_at", 0) < EVERY:

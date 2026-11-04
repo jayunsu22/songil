@@ -31,6 +31,18 @@ if (act === 'result') {
   if (x) { x.state = b.ok ? 'sent' : 'failed'; x.why = s(b.why, 200); x.sentRoom = s(b.room, 60); x.text = ''; x.done = now; }
   return [{ json: { ok: !!x } }];
 }
+// 💬 카톡방 알려 주기 (11/5): 앱에 적은 방 ↔ 노트북 config client_rooms. side 가 자기 것을 두고 상대 것을 받아 간다. { rooms: { 거래처: [방] } }
+if (act === 'rooms') {
+  const side = b.side === 'laptop' ? 'laptop' : 'app';
+  const out = {};
+  Object.entries(b.rooms && typeof b.rooms === 'object' ? b.rooms : {}).slice(0, 300).forEach(([k, v]) => {
+    const list = (Array.isArray(v) ? v : [v]).map((x) => s(x, 60)).filter(Boolean).slice(0, 10);
+    if (s(k, 60) && list.length) out[s(k, 60)] = list;
+  });
+  sd.rooms = sd.rooms || {};
+  sd.rooms[side] = out;
+  return [{ json: { ok: true, rooms: sd.rooms[side === 'app' ? 'laptop' : 'app'] || {} } }];
+}
 if (act === 'status') {
   const ids = (Array.isArray(b.ids) ? b.ids : []).map(clean).filter(Boolean).slice(0, 30);
   const items = ids.map((id) => {
