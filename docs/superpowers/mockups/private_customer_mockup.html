@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>개인고객 목업</title>
+<style>
+body{margin:0;background:#eef2f7;font-family:-apple-system,"Malgun Gothic",sans-serif;color:#1e293b}
+h1{font-size:20px;text-align:center;margin:18px 0 4px}
+.sub{text-align:center;color:#64748b;font-size:13px;margin-bottom:16px}
+.wrap{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;padding:0 12px 24px}
+.col{width:340px}
+.cap{font-weight:700;margin:0 0 8px;font-size:15px}
+.cap small{display:block;font-weight:400;color:#64748b;font-size:12px;margin-top:2px}
+.phone{border-radius:22px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.14);background:#f3f4f6;height:650px;display:flex;flex-direction:column;position:relative}
+.bar{background:#fff;padding:13px 14px;font-weight:800;font-size:16px;display:flex;justify-content:space-between}
+.tabs{display:flex;background:#e5e7eb;font-weight:800;font-size:13.5px;overflow:hidden}
+.tabs span{padding:10px 12px;white-space:nowrap;color:#475569;background:#fff7ed;border-bottom:3px solid #ea580c}
+.tabs span.t2{background:#ccfbf1;border-color:#0d9488}
+.tabs span.on{background:#7c3aed;color:#fff;border-color:#7c3aed}
+.body{flex:1;padding:10px;overflow:hidden}
+.search{background:#fff;border-radius:12px;padding:10px 12px;color:#94a3b8;font-size:14px;margin-bottom:8px;border:1px solid #e2e8f0}
+.chips{display:flex;gap:5px;margin-bottom:10px}
+.chips b{background:#fff;border:1.5px solid #cbd5e1;border-radius:99px;padding:4px 10px;font-size:12px;color:#475569}
+.chips b.on{background:#7c3aed;border-color:#7c3aed;color:#fff}
+.site{background:#ede9fe;border-radius:16px;padding:12px 13px;margin-bottom:9px}
+.site.g{background:#d1fae5}.site.y{background:#fef3c7}
+.who{font-weight:900;font-size:16.5px}
+.where{font-size:14px;font-weight:700;margin-top:2px}
+.meta{font-size:13px;color:#475569;margin-top:5px}
+.src{display:inline-block;font-size:11.5px;font-weight:800;border-radius:7px;padding:1px 7px;margin-left:5px;background:#fff;color:#7c3aed;vertical-align:middle}
+.fold{background:#fff;border-radius:12px;padding:11px 12px;font-size:13.5px;font-weight:800;color:#64748b}
+.fab{position:absolute;right:12px;bottom:12px;background:#2563eb;color:#fff;font-weight:900;border-radius:99px;padding:11px 17px;font-size:15px}
+label{display:block;font-size:12.5px;font-weight:800;color:#475569;margin:9px 0 3px}
+.in{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px;font-size:14.5px}
+.in.ph{color:#94a3b8}
+.pick{display:flex;gap:5px}.pick b{flex:1;text-align:center;background:#fff;border:2px solid #cbd5e1;border-radius:10px;padding:8px 0;font-size:13.5px;color:#475569}
+.pick b.on{border-color:#7c3aed;color:#7c3aed;background:#f5f3ff}
+.hit{background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.5;margin-top:6px}
+.save{background:#7c3aed;color:#fff;text-align:center;border-radius:12px;padding:12px;font-weight:900;margin-top:12px}
+.card{background:#fff;border-radius:14px;padding:11px 12px;margin-bottom:9px}
+.ct{font-weight:900;font-size:14.5px;margin-bottom:6px}
+.row{display:flex;gap:6px;margin-top:7px}.row b{flex:1;text-align:center;border-radius:10px;padding:8px 0;font-size:13.5px;background:#eef2ff;color:#312e81}
+.ask{background:#fff7ed;border:1.5px dashed #fdba74}
+.small{font-size:12.5px;color:#64748b;line-height:1.5}
+.note{max-width:1090px;margin:0 auto 30px;background:#fff;border-radius:14px;padding:14px 18px;font-size:13.5px;line-height:1.7}
+.note b{color:#7c3aed}
+</style></head><body>
+<h1>👤 개인고객 — 탭 하나에 모으기</h1>
+<div class="sub">블로그·소개로 온 1회성 고객 · 그림 속 이름·현장·번호는 모두 가짜입니다</div>
+<div class="wrap">
+
+<div class="col"><p class="cap">① 개인고객 탭<small>고객 이름이 먼저 보이고, 끝난 현장은 접어 둠</small></p>
+<div class="phone"><div class="bar">거래처별 현장관리<span>⚙</span></div>
+<div class="tabs"><span>가나디자인</span><span class="t2">다라실장님</span><span class="on">👤 개인고객</span></div>
+<div class="body">
+<div class="search">🔍 이름·전화번호·아파트로 찾기</div>
+<div class="chips"><b class="on">진행 3</b><b>끝남 12</b><b>블로그</b><b>소개</b></div>
+<div class="site"><div class="who">김가나 고객님<span class="src">블로그</span></div><div class="where">푸른숲 102동 1201호</div><div class="meta">📅 11/12 (2일) · 👤 2명 · 010-0000-0001</div></div>
+<div class="site g"><div class="who">이다라 고객님<span class="src">소개 · 박마바</span></div><div class="where">하늘마을 3단지 305호</div><div class="meta">📅 11/20 (1일) · 👤 1명 · 010-0000-0002</div></div>
+<div class="site y"><div class="who">최사아 고객님<span class="src">블로그</span></div><div class="where">은하수 7단지 802호</div><div class="meta">📅 날짜 미정 · 견적 보냄 · 010-0000-0003</div></div>
+<div class="fold">▶ 끝난 현장 12곳</div>
+</div><div class="fab">＋ 고객</div></div></div>
+
+<div class="col"><p class="cap">② 새 고객 넣기<small>몇 칸만 쓰고, 다시 온 고객이면 알려 줌</small></p>
+<div class="phone"><div class="bar">＋ 새 고객<span>✕</span></div>
+<div class="body">
+<label>고객 이름</label><div class="in">이다라</div>
+<label>연락처</label><div class="in">010-0000-0002</div>
+<div class="hit">🔁 <b>전에 시공한 고객이에요</b><br>은하수 7단지 802호 · 2026/03 · 방문 AS 1번<br>→ 지난 현장 보기</div>
+<label>어디서 왔나요?</label><div class="pick"><b>블로그</b><b class="on">소개</b><b>기타</b></div>
+<label>누구 소개인가요? (선택)</label><div class="in">박마바</div>
+<label>현장 (아파트·동호수)</label><div class="in">하늘마을 3단지 305호</div>
+<div class="save">이 고객 현장 만들기</div>
+<p class="small" style="margin:9px 2px 0">비번·필름·날짜 같은 나머지 칸은 거래처 현장과 똑같습니다.</p>
+</div></div></div>
+
+<div class="col"><p class="cap">③ 현장 화면·비서<small>업체방 대신 고객에게 문자로</small></p>
+<div class="phone"><div class="bar">← 이다라 고객님<span>⋯</span></div>
+<div class="body">
+<div class="card"><div class="ct">👤 고객</div><div>이다라 · 010-0000-0002<span class="src">소개 · 박마바</span></div><div class="row"><b>📞 전화</b><b>💬 문자</b></div></div>
+<div class="card ask"><div class="ct">❓ 시공 1주 전, 못 받은 정보</div><div class="small">공동현관 비번 · 세대 비번 · 화장실</div><div class="row"><b style="background:#fde68a;color:#78350f">📨 문자로 물어보기</b></div></div>
+<div class="card"><div class="ct">🤖 비서에게 말로도</div><div class="small">"이다라 고객님 공동현관 비번 1234로 바뀜"<br>"다음 주 개인고객 현장 뭐 있어?"</div></div>
+<div class="card"><div class="ct">💰 정산 내역</div><div class="small">거래처 현장과 똑같이 현장별로 · 부가세 표시는 견적마다 선택</div></div>
+</div></div></div>
+
+</div>
+<div class="note">
+<b>바뀌는 것:</b> "개인고객" 탭의 현장만 고객 이름·연락처·경로 칸이 보이고, 이름이 제일 먼저 보입니다. 다른 거래처 화면은 그대로입니다.<br>
+<b>끝난 현장:</b> 시공이 끝나고 잔금까지 받으면 "끝남"으로 접힙니다. 지우지 않으니 나중에 AS로 연락이 오면 전화번호로 찾을 수 있습니다.<br>
+<b>업체방 알림:</b> 개인고객 현장은 "카톡 방 없음" 알림을 띄우지 않습니다. 노트북이 업체방에 묻는 대신 시공 1주 전 [문자로 물어보기] 버튼이 나옵니다. 문자는 사장님이 눌러야 나갑니다.<br>
+<b>그대로 되는 것:</b> 일정·필름 주문·인원 모집·결재함·비서·정산. 지금도 거래처 안의 현장 단위로 돌아가서 그대로 씁니다.<br>
+<b>이미 있는 현장:</b> 거래처로 등록한 개인고객이 있으면 나중에 개인고객 탭으로 옮기는 버튼도 같이 만듭니다.
+</div>
+</body></html>
