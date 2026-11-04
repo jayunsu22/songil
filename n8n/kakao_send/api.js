@@ -9,6 +9,8 @@ const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 const sd = $getWorkflowStaticData('global');
 const now = Date.now();
 sd.q = (sd.q || []).filter((x) => now - x.at < 2 * 864e5);       // 2일 지난 건 버린다
+// 30분 넘게 안 가져간 건 보내지 않는다 — 노트북이 꺼져 있다 켜지면 지난 카톡이 한꺼번에 늦게 나가지 않게 (사장님 11/4)
+sd.q.forEach((x) => { if (x.state === 'wait' && now - x.at > 30 * 60000) { x.state = 'failed'; x.why = '노트북이 30분 안에 못 가져가서 안 보냈어요'; x.text = ''; x.done = now; } });
 const clean = (v) => s(v, 40).replace(/[^A-Za-z0-9_-]/g, '');
 const act = s(b.action, 10);
 if (act === 'add') {

@@ -16,4 +16,9 @@ call({ action: 'result', id: 'k1', ok: true, room: '류춘화' });
 const st = call({ action: 'status', ids: ['k1', 'zz'] }).items;
 assert.deepStrictEqual([st[0].state, st[0].room, st[1].state], ['sent', '류춘화', 'unknown']);
 assert.strictEqual(sd.q[0].text, '', '보낸 뒤 글은 지움');
+// 30분 지난 건 안 줌
+call({ action: 'add', id: 'old', client: '류춘화', text: '늦은 글' });
+sd.q.find((x) => x.id === 'old').at -= 31 * 60000;
+assert.strictEqual(call({ action: 'take' }).jobs.length, 0);
+assert.strictEqual(call({ action: 'status', ids: ['old'] }).items[0].state, 'failed');
 console.log('kakao_send ok');
