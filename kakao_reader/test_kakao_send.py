@@ -56,6 +56,13 @@ class RoomsTest(unittest.TestCase):
         kakao_send.sync_rooms(cfg, st, 10000 + 3600, call, lambda m: None)
         self.assertEqual(calls[1]["rooms"], {"봄애": ["봄애실장님"]})
 
+    def test_removed_room(self):
+        cfg = {"client_rooms": {"봄애": ["봄애실장님", "봄애대리님"]}, "exclude_rooms": ["가족"]}
+        call = lambda b: {"rooms": {}, "off": {"봄애": ["봄애실장님"]}}
+        kakao_send.sync_rooms(cfg, {}, 10000, call, lambda m: None)
+        self.assertEqual(cfg["client_rooms"], {"봄애": ["봄애대리님"]})
+        self.assertEqual(cfg["exclude_rooms"], ["가족", "봄애실장님"])
+
     def test_fail_keeps_going(self):
         cfg = {"client_rooms": {"봄애": ["봄애실장님"]}}
 

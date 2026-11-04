@@ -20,14 +20,15 @@ def room_of(cfg, job):
 ROOMS_EVERY = 3600
 
 
-def merged_rooms(own, app):
-    """노트북 config client_rooms + 앱에 적은 방. 설정의 방이 먼저."""
+def merged_rooms(own, app, off=None):
+    """노트북 config client_rooms + 앱에 적은 방. 설정의 방이 먼저. off = 앱에서 ✕ 로 뺀 방은 뺀다."""
+    gone = {r for v in (off or {}).values() for r in (v if isinstance(v, list) else [v])}
     out = {}
     for src in (own or {}, app or {}):
         for client, rooms in src.items():
             lst = out.setdefault(client, [])
             for r in ([rooms] if isinstance(rooms, str) else list(rooms or [])):
-                if str(r).strip() and r not in lst:
+                if str(r).strip() and r not in lst and r not in gone:
                     lst.append(r)
     return out
 
@@ -38,10 +39,15 @@ def sync_rooms(cfg, state, now, call, log):
     if now - state.get("rooms_at", 0) >= ROOMS_EVERY:
         state["rooms_at"] = now
         try:
-            state["app_rooms"] = (call({"action": "rooms", "side": "laptop", "rooms": merged_rooms(own, None)}) or {}).get("rooms") or {}
+            res = call({"action": "rooms", "side": "laptop", "rooms": merged_rooms(own, None)}) or {}
+            state["app_rooms"], state["app_rooms_off"] = res.get("rooms") or {}, res.get("off") or {}
         except Exception as e:
             log("[카톡방] 앱과 맞추기 실패: %s" % str(e)[:100])
-    cfg["client_rooms"] = merged_rooms(own, state.get("app_rooms"))
+    off = state.get("app_rooms_off") or {}
+    cfg["client_rooms"] = merged_rooms(own, state.get("app_rooms"), off)
+    # ✕ 로 뺀 방은 지켜보지 않는다 — watch_rooms 에 있어도
+    base = cfg.setdefault("_own_exclude", list(cfg.get("exclude_rooms") or []))
+    cfg["exclude_rooms"] = base + [r for v in off.values() for r in (v if isinstance(v, list) else [v]) if r not in base]
 
 
 def app_rooms(state):

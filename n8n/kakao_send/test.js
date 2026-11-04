@@ -28,4 +28,6 @@ assert.deepStrictEqual(call({ action: 'take' }).jobs.find((j) => j.id === 'k9').
 assert.deepStrictEqual(call({ action: 'rooms', side: 'app', rooms: { 봄애: ['봄애실장님'] } }).rooms, {});
 assert.deepStrictEqual(call({ action: 'rooms', side: 'laptop', rooms: { 가나: '가나실장님', 빈: [] } }).rooms, { 봄애: ['봄애실장님'] });
 assert.deepStrictEqual(call({ action: 'rooms', side: 'app', rooms: {} }).rooms, { 가나: ['가나실장님'] });
+call({ action: 'rooms', side: 'app', rooms: {}, off: { 가나: ['가나실장님'] } });
+assert.deepStrictEqual(call({ action: 'rooms', side: 'laptop', rooms: { 가나: ['가나실장님'] } }).off, { 가나: ['가나실장님'] });
 console.log('kakao_send ok');

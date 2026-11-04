@@ -41,7 +41,16 @@ if (act === 'rooms') {
   });
   sd.rooms = sd.rooms || {};
   sd.rooms[side] = out;
-  return [{ json: { ok: true, rooms: sd.rooms[side === 'app' ? 'laptop' : 'app'] || {} } }];
+  // off = 앱에서 ✕ 로 뺀 방 { 거래처: [방] } — 노트북 설정에 있어도 안 쓴다
+  if (side === 'app') {
+    const off = {};
+    Object.entries(b.off && typeof b.off === 'object' ? b.off : {}).slice(0, 300).forEach(([k, v]) => {
+      const list = (Array.isArray(v) ? v : [v]).map((x) => s(x, 60)).filter(Boolean).slice(0, 20);
+      if (s(k, 60) && list.length) off[s(k, 60)] = list;
+    });
+    sd.rooms.off = off;
+  }
+  return [{ json: { ok: true, rooms: sd.rooms[side === 'app' ? 'laptop' : 'app'] || {}, off: side === 'laptop' ? (sd.rooms.off || {}) : undefined } }];
 }
 if (act === 'status') {
   const ids = (Array.isArray(b.ids) ? b.ids : []).map(clean).filter(Boolean).slice(0, 30);
