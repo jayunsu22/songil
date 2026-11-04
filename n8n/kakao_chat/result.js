@@ -5,7 +5,7 @@ try { text = r.candidates[0].content.parts.map((p) => p.text || '').join(''); } 
 let ai = null;
 try { ai = JSON.parse(String(text).replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch (e) { ai = null; }
 if (!ai || typeof ai !== 'object') return [{ json: { ok: false, error: text ? 'AI 답을 읽지 못함' : 'AI 답 없음' } }];
-const TOOLS = ['set_field', 'set_films', 'mark_paid', 'set_staff', 'send_site_info', 'send_text', 'save_phone', 'add_task', 'undo', 'find_sites'];
+const TOOLS = ['set_field', 'set_films', 'mark_paid', 'set_staff', 'send_site_info', 'send_text', 'save_phone', 'add_task', 'undo', 'find_sites', 'send_kakao'];
 const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 const actions = (Array.isArray(ai.actions) ? ai.actions : []).filter((a) => a && TOOLS.includes(a.tool)).slice(0, 8);
 const chips = (Array.isArray(ai.chips) ? ai.chips : []).map((c) => s(c, 40)).filter(Boolean).slice(0, 5);

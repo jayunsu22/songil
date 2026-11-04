@@ -74,6 +74,7 @@ DEFAULTS = {
     "assist": True,
     "assist_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-assist",
     "work_log_url": "https://primary-production-a6fa.up.railway.app/webhook/work-log",  # 📋 업무 내역 (11/4)
+    "kakao_send_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-send",  # 💬 앱 비서가 맡긴 카톡 보내기 (11/4)
 }
 
 # 방마다 '견적발행시작' 을 기다리는 글·사진 묶음 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다.
@@ -202,6 +203,12 @@ def run_once(cfg, state, dry=False):
             gaps.send_replies(state, time.time(), gaps.send_to_room, log,
                               lambda room, text, why: worklog.add("reply", "%s 방에 답장" % room, text) if not why else
                               worklog.add("reply", "%s 방에 답장 못 보냄" % room, why, need=True))
+        # 💬 앱 🤖 비서가 맡긴 카톡 → 그 업체 방에 (사장님 11/4)
+        if cfg.get("kakao_send_url"):
+            import kakao_send
+            kakao_send.poll(cfg, state, time.time(),
+                            lambda body: n8n_send.post_json(cfg["kakao_send_url"], cfg["owner_key"], body, timeout=20),
+                            report.send_to_room, lambda text: notify(cfg, text), log)
         # 📋 업무일정표 → 카톡 김정헌방 (사장님 11/3, 결재함)
         report.poll(cfg, state, time.time(),
                     lambda: n8n_send.post_json(cfg["report_url"], cfg["owner_key"], {"action": "outbox"}),

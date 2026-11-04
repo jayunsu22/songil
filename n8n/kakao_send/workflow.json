@@ -1,0 +1,88 @@
+{
+  "name": "카톡_보내기",
+  "nodes": [
+    {
+      "id": "w",
+      "name": "요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "5a9e3c71-4d2b-4f8e-b6a1-7c0d2e9f3a48",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kakao-send",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "p",
+      "name": "처리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 카톡_보내기 › 처리: 앱 🤖 비서가 시킨 카톡을 노트북(카톡 읽기)이 보내게 맡기는 우편함 (사장님 11/4: '문자는 가는데 왜 카톡은 안 돼').\n// POST kakao-send (사장님 열쇠) body:\n//   { action: 'add', id, room, client, text }   ← 앱: 보낼 카톡 맡기기\n//   { action: 'take' }                          ← 노트북: 맡긴 것 가져가기 (가져가면 글은 여기서 지움)\n//   { action: 'result', id, ok, why, room }     ← 노트북: 보냈는지 알리기\n//   { action: 'status', ids: [...] }            ← 앱: 보냈는지 보기 → items [{ id, state: wait|taken|sent|failed, why, room, at }]\nconst b = $input.first().json.body || {};\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\nconst sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nsd.q = (sd.q || []).filter((x) => now - x.at < 2 * 864e5);       // 2일 지난 건 버린다\nconst clean = (v) => s(v, 40).replace(/[^A-Za-z0-9_-]/g, '');\nconst act = s(b.action, 10);\nif (act === 'add') {\n  const id = clean(b.id), text = s(b.text, 1500), room = s(b.room, 60), client = s(b.client, 60);\n  if (!id || !text || !(room || client)) return [{ json: { ok: false, error: '방·글이 비어 있음' } }];\n  if (!sd.q.some((x) => x.id === id)) sd.q.push({ id, room, client, text, state: 'wait', at: now });\n  return [{ json: { ok: true, id } }];\n}\nif (act === 'take') {\n  const out = sd.q.filter((x) => x.state === 'wait').map((x) => ({ id: x.id, room: x.room, client: x.client, text: x.text }));\n  sd.q.forEach((x) => { if (x.state === 'wait') { x.state = 'taken'; x.taken = now; } });\n  return [{ json: { ok: true, jobs: out } }];\n}\nif (act === 'result') {\n  const x = sd.q.find((y) => y.id === clean(b.id));\n  if (x) { x.state = b.ok ? 'sent' : 'failed'; x.why = s(b.why, 200); x.sentRoom = s(b.room, 60); x.text = ''; x.done = now; }\n  return [{ json: { ok: !!x } }];\n}\nif (act === 'status') {\n  const ids = (Array.isArray(b.ids) ? b.ids : []).map(clean).filter(Boolean).slice(0, 30);\n  const items = ids.map((id) => {\n    const x = sd.q.find((y) => y.id === id);\n    if (!x) return { id, state: 'unknown' };\n    // 노트북이 10분 넘게 안 가져가면 꺼져 있는 것\n    return { id, state: x.state, why: x.why || '', room: x.sentRoom || x.room || x.client, at: x.done || x.taken || x.at, stale: x.state === 'wait' && now - x.at > 10 * 60000 };\n  });\n  return [{ json: { ok: true, items } }];\n}\nreturn [{ json: { ok: false, error: 'action 은 add·take·result·status' } }];\n"
+      }
+    },
+    {
+      "id": "o",
+      "name": "응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "요청": {
+      "main": [
+        [
+          {
+            "node": "처리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "처리": {
+      "main": [
+        [
+          {
+            "node": "응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  }
+}
