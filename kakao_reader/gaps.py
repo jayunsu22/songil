@@ -277,13 +277,15 @@ def run_ask(cfg, state, job, info, notify, log):
     site, room = info["site"], info["title"]
     text = question(site)
     opened, why = send_to_room(room, text, log)
+    if why:   # 못 물었으면 '이미 알림' 을 지워 다음 확인 때 다시 알린다 (11/5: 이종수실장님 — 60일 동안 안 왔을 것)
+        ((state.get("gaps") or {}).get("asked") or {}).pop(site["id"], None)
     if why == "no-room":
         notify("[현장] 업체에 못 물음 · %s\n카톡 목록에서 방을 못 찾았습니다 (목록 화면에 보이게 해 주세요). 손으로 보내려면:\n%s" % (room, text))
-        return
+        return opened, why
     if why:
         notify("[현장] 업체에 못 물음 · %s\n입력칸에 쓰던 글이 있거나 보내기가 안 됐습니다. 손으로 보내려면:\n%s" % (opened, text))
         log("[%s] 빈칸 질문 보내기 실패" % opened)
-        return
+        return opened, why
     asks = state.setdefault("asks", {})
     lst = [x for x in asks.get(opened, []) if x["id"] != site["id"]]
     # q = 보낸 질문 그대로 — 답이 일부만 와서 남은 질문이 줄어도, 업체가 본 번호로 맞추게 (비번 같은 값은 없음)
@@ -294,6 +296,7 @@ def run_ask(cfg, state, job, info, notify, log):
     log("[%s] 빈칸 질문 보냄: %s" % (opened, site["name"]))
     import tg
     notify(tg.lines("🏠 " + tg.b("업체에 물었습니다 · %s" % opened), tg.esc(site["name"]), "답이 오면 현장관리 칸에 넣고 알려 드립니다."))
+    return opened, ""
 
 
 def reask_at(last, cfg=None):

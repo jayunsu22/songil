@@ -72,7 +72,12 @@ def poll(cfg, state, now, call, send, notify, log, send_exact=None):
             continue
         try:
             # 👤 개인고객 방은 이름이 정확히 같은 방에만 (11/5)
-            opened, why = (send_exact if j.get("watch") and send_exact else send)(room, text, log)
+            if j.get("ask"):
+                # 업체에 빈칸 묻기 — 텔레그램 [시작해] 와 같은 길 (번호 매긴 질문, 답 읽기, 다시 묻기)
+                import gaps
+                opened, why = gaps.run_ask(cfg, state, j.get("id"), {"title": room, "site": j["ask"]}, notify, log)
+            else:
+                opened, why = (send_exact if j.get("watch") and send_exact else send)(room, text, log)
         except Exception as e:
             opened, why = room, "send: %s" % str(e)[:80]
         reason = {"no-room": "카톡 목록에서 '%s' 방을 못 찾음 (목록 화면에 보이게 해 주세요)" % room, "send": "방은 열었는데 못 보냄"}.get(why, why)
@@ -83,7 +88,8 @@ def poll(cfg, state, now, call, send, notify, log, send_exact=None):
         import worklog
         if why:
             log("[비서 카톡] %s 방에 못 보냄 (%s)" % (room, why))
-            notify("[비서] '%s' 방에 카톡을 못 보냈어요 (%s) — 직접 보내 주세요\n\n%s" % (room, reason, text))
+            if not j.get("ask"):   # 묻기 실패는 run_ask 가 이미 알렸다
+                notify("[비서] '%s' 방에 카톡을 못 보냈어요 (%s) — 직접 보내 주세요\n\n%s" % (room, reason, text))
             worklog.add("reply", "%s 방 카톡 못 보냄" % room, reason, need=True)
         else:
             log("[비서 카톡] %s 방에 보냄" % opened)

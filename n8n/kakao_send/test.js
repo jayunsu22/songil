@@ -24,6 +24,9 @@ assert.strictEqual(call({ action: 'status', ids: ['old'] }).items[0].state, 'fai
 // 👤 개인고객 카톡: 지켜볼 현장을 같이 맡김
 assert.ok(call({ action: 'add', id: 'k9', room: '이다라', text: '안녕', watch: { siteId: 's1', name: '하늘', until: '2026-11-08', keys: ['pwUnit'] } }).ok);
 assert.deepStrictEqual(call({ action: 'take' }).jobs.find((j) => j.id === 'k9').watch, { siteId: 's1', name: '하늘', until: '2026-11-08', keys: ['pwUnit'] });
+// 빈칸 묻기: 물어볼 현장을 같이 맡김
+assert.ok(call({ action: 'add', id: 'k8', client: '가', text: '빈칸', ask: { id: 's1', client: '가', name: '하늘', date: '2026-11-12', missing: ['pwUnit'], checks: [{ id: 'door', text: '문', ok: false }] } }).ok);
+assert.deepStrictEqual(call({ action: 'take' }).jobs.find((j) => j.id === 'k8').ask.missing, ['pwUnit']);
 // 💬 카톡방: 앱 ↔ 노트북
 assert.deepStrictEqual(call({ action: 'rooms', side: 'app', rooms: { 봄애: ['봄애실장님'] } }).rooms, {});
 assert.deepStrictEqual(call({ action: 'rooms', side: 'laptop', rooms: { 가나: '가나실장님', 빈: [] } }).rooms, { 봄애: ['봄애실장님'] });

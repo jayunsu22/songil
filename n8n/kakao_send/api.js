@@ -18,11 +18,15 @@ if (act === 'add') {
   if (!id || !text || !(room || client)) return [{ json: { ok: false, error: '방·글이 비어 있음' } }];
   // watch = 👤 개인고객 카톡 (11/5): 보낸 뒤 그 방 답장을 시공일까지 지켜본다 { siteId, name, until, keys }
   const w = b.watch && typeof b.watch === 'object' ? { siteId: s(b.watch.siteId, 40), name: s(b.watch.name, 80), until: s(b.watch.until, 10), keys: (Array.isArray(b.watch.keys) ? b.watch.keys : []).map((k) => s(k, 12)).slice(0, 6) } : null;
-  if (!sd.q.some((x) => x.id === id)) sd.q.push({ id, room, client, text, watch: w, state: 'wait', at: now });
+  // ask = 업체에 빈칸 묻기 (11/5): 노트북이 번호 매긴 질문으로 보내고 답을 기다린다 { id, client, name, date, missing, checks }
+  const ask = b.ask && typeof b.ask === 'object' ? { id: s(b.ask.id, 40), client: s(b.ask.client, 60), name: s(b.ask.name, 120), date: s(b.ask.date, 10),
+    missing: (Array.isArray(b.ask.missing) ? b.ask.missing : []).map((k) => s(k, 12)).slice(0, 6),
+    checks: (Array.isArray(b.ask.checks) ? b.ask.checks : []).slice(0, 20).map((c) => ({ id: s(c && c.id, 40), text: s(c && c.text, 200), ok: !!(c && c.ok) })) } : null;
+  if (!sd.q.some((x) => x.id === id)) sd.q.push({ id, room, client, text, watch: w, ask, state: 'wait', at: now });
   return [{ json: { ok: true, id } }];
 }
 if (act === 'take') {
-  const out = sd.q.filter((x) => x.state === 'wait').map((x) => ({ id: x.id, room: x.room, client: x.client, text: x.text, watch: x.watch || null }));
+  const out = sd.q.filter((x) => x.state === 'wait').map((x) => ({ id: x.id, room: x.room, client: x.client, text: x.text, watch: x.watch || null, ask: x.ask || null }));
   sd.q.forEach((x) => { if (x.state === 'wait') { x.state = 'taken'; x.taken = now; } });
   return [{ json: { ok: true, jobs: out } }];
 }

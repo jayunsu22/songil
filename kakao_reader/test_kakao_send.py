@@ -41,6 +41,43 @@ class KakaoSendTest(unittest.TestCase):
         self.assertEqual(len([c for c in calls if c["action"] == "take"]), 1, "30초 안에는 다시 안 가져감")
 
 
+class AskJobTest(unittest.TestCase):
+    def test_ask_job_uses_numbered_question(self):
+        import gaps
+        orig = gaps.send_to_room
+        sent = []
+        gaps.send_to_room = lambda r, t, log: (sent.append((r, t)), (r, ""))[1]
+        try:
+            ask = {"id": "s1", "client": "가", "name": "하늘", "date": "2026-11-12", "missing": ["pwUnit"],
+                   "checks": [{"id": "door", "text": "문 닿는지", "ok": False}]}
+            calls, st = [], {"gaps": {"asked": {}}}
+
+            def call(b):
+                calls.append(b)
+                return {"jobs": [{"id": "k1", "room": "가방", "client": "가", "text": "빈칸", "ask": ask}]} if b["action"] == "take" else {}
+            kakao_send.poll({}, st, 1000, call, None, lambda *a: None, lambda m: None)
+            self.assertIn("문 닿는지", sent[0][1])
+            self.assertIn("세대 비번", sent[0][1])
+            self.assertEqual(st["asks"]["가방"][0]["id"], "s1")
+            self.assertTrue([c for c in calls if c["action"] == "result"][0]["ok"])
+        finally:
+            gaps.send_to_room = orig
+
+    def test_failed_ask_clears_asked(self):
+        import gaps
+        orig = gaps.send_to_room
+        gaps.send_to_room = lambda r, t, log: (r, "no-room")
+        try:
+            st = {"gaps": {"asked": {"s1": {"at": 1}}}}
+            notes = []
+            r = gaps.run_ask({}, st, "j", {"title": "가방", "site": {"id": "s1", "name": "하늘", "date": "2026-11-12", "missing": ["pwUnit"]}}, notes.append, lambda m: None)
+            self.assertEqual(r, ("가방", "no-room"))
+            self.assertEqual(st["gaps"]["asked"], {})
+            self.assertEqual(len(notes), 1)
+        finally:
+            gaps.send_to_room = orig
+
+
 class RoomsTest(unittest.TestCase):
     def test_merge_and_sync(self):
         cfg = {"client_rooms": {"봄애": "봄애실장님"}}
