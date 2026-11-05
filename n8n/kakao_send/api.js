@@ -17,7 +17,7 @@ if (act === 'add') {
   const id = clean(b.id), text = s(b.text, 1500), room = s(b.room, 60), client = s(b.client, 60);
   if (!id || !text || !(room || client)) return [{ json: { ok: false, error: '방·글이 비어 있음' } }];
   // watch = 👤 개인고객 카톡 (11/5): 보낸 뒤 그 방 답장을 시공일까지 지켜본다 { siteId, name, until, keys }
-  const w = b.watch && typeof b.watch === 'object' ? { siteId: s(b.watch.siteId, 40), name: s(b.watch.name, 80), until: s(b.watch.until, 10), keys: (Array.isArray(b.watch.keys) ? b.watch.keys : []).map((k) => s(k, 12)).slice(0, 6) } : null;
+  const w = b.watch && typeof b.watch === 'object' ? { ...(b.watch.vendor ? { vendor: true } : {}), siteId: s(b.watch.siteId, 40), name: s(b.watch.name, 80), until: s(b.watch.until, 10), keys: (Array.isArray(b.watch.keys) ? b.watch.keys : []).map((k) => s(k, 12)).slice(0, 6) } : null;
   // ask = 업체에 빈칸 묻기 (11/5): 노트북이 번호 매긴 질문으로 보내고 답을 기다린다 { id, client, name, date, missing, checks }
   const ask = b.ask && typeof b.ask === 'object' ? { id: s(b.ask.id, 40), client: s(b.ask.client, 60), name: s(b.ask.name, 120), date: s(b.ask.date, 10),
     missing: (Array.isArray(b.ask.missing) ? b.ask.missing : []).map((k) => s(k, 12)).slice(0, 6),

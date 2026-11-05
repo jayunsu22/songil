@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>안부 인사 목업</title>
+<style>
+  :root { --ink:#1e293b; --sub:#64748b; --line:#e2e8f0; --bg:#f1f5f9; --pri:#2563eb; --yel:#facc15; --ok:#16a34a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif; font-size:15px; line-height:1.5; }
+  .wrap { max-width:420px; margin:0 auto; padding:16px; }
+  .note { font-size:13px; color:var(--sub); margin:18px 2px 8px; font-weight:700; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px; }
+  .report { display:flex; gap:12px; align-items:flex-start; }
+  .tile { width:44px; height:44px; flex:none; display:grid; place-items:center; font-size:22px; border-radius:12px; background:#fef9c3; }
+  .kind { font-size:12px; font-weight:700; color:var(--sub); }
+  .name { font-weight:800; font-size:16px; }
+  .res { font-size:13px; color:var(--sub); }
+  .open { display:block; width:100%; margin-top:10px; padding:10px; border:0; border-radius:10px; background:var(--pri); color:#fff; font-weight:800; font-size:15px; }
+  .head { display:flex; justify-content:space-between; align-items:baseline; margin:0 2px 8px; }
+  .head b { font-size:18px; }
+  .head button { border:0; background:none; color:var(--pri); font-weight:700; font-size:14px; padding:4px; }
+  .row { display:flex; gap:12px; align-items:flex-start; cursor:pointer; }
+  .row input { width:22px; height:22px; margin:2px 0 0; accent-color:var(--pri); flex:none; }
+  .who { font-weight:800; }
+  .meta { font-size:13px; color:var(--sub); }
+  .tag { display:inline-block; font-size:12px; font-weight:700; padding:1px 8px; border-radius:99px; background:#e0f2fe; color:#075985; margin-top:4px; }
+  .tag.sms { background:#ede9fe; color:#5b21b6; }
+  .tag.warn { background:#fee2e2; color:#991b1b; }
+  .card.off { opacity:.55; }
+  textarea { width:100%; min-height:104px; padding:10px; border:1px solid var(--line); border-radius:10px; font:inherit; color:inherit; resize:vertical; }
+  .hint { font-size:12px; color:var(--sub); margin-top:4px; }
+  .send { width:100%; padding:14px; border:0; border-radius:12px; background:var(--yel); color:#1e293b; font-weight:800; font-size:16px; }
+  .send:disabled { opacity:.5; }
+  .done { display:none; background:#dcfce7; border:1px solid #86efac; border-radius:12px; padding:12px; margin-top:10px; font-weight:700; color:#166534; }
+  .bubble { background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px; }
+  .chip { margin-top:8px; border:1px solid #bbf7d0; background:#f0fdf4; border-radius:10px; padding:8px 10px; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="note">① 매주 월요일 오후 5시, 결재함 업무일정표에 한 장</div>
+  <div class="card">
+    <div class="report">
+      <div class="tile">👋</div>
+      <div>
+        <div class="kind">안부 인사</div>
+        <div class="name">연락 뜸한 업체 3곳</div>
+        <div class="res">마지막 현장 후 2주 넘었고, 잡힌 현장이 없는 곳</div>
+      </div>
+    </div>
+    <button class="open" type="button">목록 보기</button>
+  </div>
+
+  <div class="note">② 목록 — 체크한 곳에만 보냅니다 (기본은 모두 꺼짐)</div>
+  <div class="head"><b>👋 안부 인사</b><button type="button" id="all">모두 체크</button></div>
+
+  <div class="card off"><label class="row"><input type="checkbox" class="pick">
+    <div><div class="who">가나인테리어 · 가실장님</div>
+      <div class="meta">마지막 현장 하늘마을 305호 · 10/18 (18일 전)</div>
+      <span class="tag">💬 카톡 · 가나인테리어 실장님 방</span></div></label></div>
+
+  <div class="card off"><label class="row"><input type="checkbox" class="pick">
+    <div><div class="who">다라디자인 · 라대리님</div>
+      <div class="meta">마지막 현장 구름아파트 1201호 · 10/9 (27일 전)</div>
+      <span class="tag sms">📨 문자 · 카톡방 없음</span>
+      <span class="tag warn">지난 안부 10/6</span></div></label></div>
+
+  <div class="card off"><label class="row"><input type="checkbox" class="pick">
+    <div><div class="who">마바건설 · 사소장님</div>
+      <div class="meta">마지막 현장 숲속마을 102동 · 9/21 (45일 전)</div>
+      <span class="tag">💬 카톡 · 마바건설 소장님 방</span></div></label></div>
+
+  <div class="note">보낼 글 — 고치면 이번에 보낼 글에 적용 ({이름} 은 담당자 이름으로 바뀜)</div>
+  <textarea id="msg">안녕하세요 {이름}님 😊 섬세한손길 김정헌입니다.
+요즘 잘 지내시죠? 날이 많이 쌀쌀해졌어요.
+필름 시공 필요한 현장 있으시면 편하게 연락 주세요!</textarea>
+  <div class="hint">상대가 일하는 낮 시간에 한 곳씩 나갑니다. 밤이면 다음 날 아침으로 미룹니다.</div>
+
+  <div style="margin-top:12px"><button class="send" id="send" type="button" disabled>체크한 곳이 없어요</button></div>
+  <div class="done" id="done">✅ 맡겼어요 — 보내지면 비서 대화에 카드로 떠요</div>
+
+  <div class="note">③ 🤖 비서 대화 — 답이 오면 지금처럼 원문이 뜹니다</div>
+  <div class="bubble">💬 가실장님이 답했어요<br>「네 사장님~ 다음 주에 현장 하나 여쭤볼게요」
+    <div class="chip">📌 할 일로 넣음: 다음 주 현장 문의 확인</div></div>
+</div>
+<script>
+  var picks = [].slice.call(document.querySelectorAll('.pick')), send = document.getElementById('send');
+  function paint() {
+    var n = picks.filter(function (p) { p.closest('.card').classList.toggle('off', !p.checked); return p.checked; }).length;
+    send.disabled = !n; send.textContent = n ? '체크한 ' + n + '곳에 안부 보내기' : '체크한 곳이 없어요';
+  }
+  picks.forEach(function (p) { p.onchange = paint; });
+  document.getElementById('all').onclick = function () { var on = picks.some(function (p) { return !p.checked; }); picks.forEach(function (p) { p.checked = on; }); this.textContent = on ? '모두 끄기' : '모두 체크'; paint(); };
+  send.onclick = function () { document.getElementById('done').style.display = 'block'; };
+</script>
+</body>
+</html>
