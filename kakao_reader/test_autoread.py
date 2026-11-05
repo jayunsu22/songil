@@ -75,6 +75,7 @@ class WentBackTest(unittest.TestCase):
         self.assertFalse(chatlist.went_back("어제", "오전 8:18"))
 
     def test_misread_keeps_old_time_and_no_new(self):
+        from PIL import Image
         orig = chatlist.ocr
         out = {"t": "오전 8:18"}
         chatlist.ocr = lambda paths: {p: [(80 * sc, 10 * sc, 30 * sc, 18 * sc, "류춘화"), (330 * sc, 12 * sc, 60 * sc, 14 * sc, out["t"])]
