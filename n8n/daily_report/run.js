@@ -63,6 +63,32 @@ if (which === '아침9시') {
         log.push({ kind: 'crew', title: Share.titleLine(site) + ' 인원 모집 시작', res: m.days.map((x) => x.label + ' ' + x.slots + '자리').join(', ') });
       }
       d.doneAt = now;
+    } else if (d.act === 'go' && it.kind === 'ask' && site) {
+      // ❓ 출입정보 질문 (사장님 11/5): 결재함에서 고른 사람에게 카톡/문자로 번호 질문 (빈칸 + 업체 확인 질문)
+      d.doneAt = now;
+      const q = Share.askQuestion(site, data.settings), to = d.to || {};
+      if (!q) {   // 그 사이 앱에서 다 받음
+        out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 안 함 — 이미 다 받음', detail: Share.titleLine(site) });
+        continue;
+      }
+      const items = Share.siteAskItems(site, data.settings);
+      if (to.via === 'sms') {
+        const phone = Share.phoneDigits(to.phone);
+        if (phone.length < 9) {
+          out.notify.push({ html: true, text: '❗ <b>출입정보 질문 못 보냄</b> · ' + esc(it.title) + '\n' + esc(to.name || '담당자') + ' 번호가 없습니다' });
+          out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 못 보냄', detail: (to.name || '담당자') + ' 번호 없음', state: 'need' });
+          continue;
+        }
+        out.sms.push({ phone: e164(phone), text: q });
+        // 답 문자가 오면 AI 가 읽어 비번·화장실·필름 칸에 (문자_답장, fill)
+        out.watch.push({ phone, name: to.name || '담당자', siteId: site.id, siteName: Share.titleLine(site), client: to.client || '', fill: true, keys: items.missing });
+      } else {
+        // 카톡: 노트북(카톡 읽기)이 그 방에 보내고 답을 7일 기다린다 (gaps.run_ask 와 같은 길). 방 = 담당자 카톡방 → 노트북의 거래처 방
+        out.kakao.push({ action: 'add', id: 'ask' + site.id.replace(/[^A-Za-z0-9]/g, '') + today.replace(/-/g, ''), room: to.kakaoRoom || '', client: to.client || '', text: q, ttl: 600,
+          ask: { id: site.id, name: Share.titleLine(site), client: to.client || '', date: site.date, missing: items.missing, checks: items.checks.map((c) => ({ id: c.id, text: c.text, ok: !!c.ok })) } });
+      }
+      out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 ' + (to.via === 'sms' ? '문자 보냄' : '카톡 맡김'), detail: Share.titleLine(site) + ' → ' + (to.name || '담당자') });
+      log.push({ kind: 'ask', title: Share.titleLine(site) + ' 출입정보 질문', res: (to.name || '담당자') + ' · ' + (to.via === 'sms' ? '문자' : '카톡') });
     } else if (d.act === 'go' && it.act === 'review' && site) {
       // 👤 개인고객 시공 후 안부·후기 문자 (사장님 11/5, 결재함에서 [진행해] 한 것만)
       const cust = Share.privateCustomer(site), phone = Share.phoneDigits(cust.phone);

@@ -93,6 +93,9 @@ const workflow = {
     // 보낸 번호의 답을 🤖 비서 대화에 (문자_답장, 11/5)
     split('s5', '답장기억목록', 1540, 1000, "const w = $input.first().json.watch || []; return w.length ? [{ json: { action: 'watch', items: w } }] : [];"),
     post('h5', '답장기억', 1760, 1000, BASE + 'sms-reply', OWNER, '={{ JSON.stringify($json) }}'),
+    // ❓ 출입정보 질문 카톡 → 노트북에 맡기기 (카톡_보내기, 11/5)
+    split('s6', '카톡목록', 1540, 1150, "return ($input.first().json.kakao || []).map((x) => ({ json: x }));"),
+    post('h6', '카톡맡기기', 1760, 1150, BASE + 'kakao-send', OWNER, '={{ JSON.stringify($json) }}'),
   ],
   connections: {
     보고서요청: { main: [c('요청')] },
@@ -105,13 +108,14 @@ const workflow = {
     설정읽기: { main: [c('할일읽기')] },
     할일읽기: { main: [c('앱코드받기')] },
     앱코드받기: { main: [c('실행')] },
-    실행: { main: [[...c('요청이었나'), ...c('문자목록'), ...c('알림목록'), ...c('우편목록'), ...c('모집목록'), ...c('답장기억목록')]] },
+    실행: { main: [[...c('요청이었나'), ...c('문자목록'), ...c('알림목록'), ...c('우편목록'), ...c('모집목록'), ...c('답장기억목록'), ...c('카톡목록')]] },
     요청이었나: { main: [c('만들기응답'), []] },
     문자목록: { main: [c('문자보내기')] },
     알림목록: { main: [c('알림보내기')] },
     우편목록: { main: [c('우편넣기')] },
     모집목록: { main: [c('모집시작')] },
     답장기억목록: { main: [c('답장기억')] },
+    카톡목록: { main: [c('카톡맡기기')] },
   },
   settings: { executionOrder: 'v1', timezone: 'Asia/Seoul', saveDataSuccessExecution: 'all' },
 };

@@ -9,7 +9,7 @@ sd.log = sd.log || {};
 sd.marks = sd.marks || {};   // [완료표시] 한 항목 { 항목id: 날짜 } — 14일 동안 다시 묻지 않는다
 const now = Date.now();
 const todayKST = () => new Date(now + 9 * 3600e3).toISOString().slice(0, 10);
-const out = { resp: { ok: true }, sms: [], notify: [], fills: [], crew: [], watch: [] };
+const out = { resp: { ok: true }, sms: [], notify: [], fills: [], crew: [], watch: [], kakao: [] };   // kakao = 노트북이 보낼 카톡 (카톡_보내기, 11/5)
 const APP_URL = 'https://jayunsu22.github.io/sitenote/';
 const e164 = (p) => { const d = String(p || '').replace(/[^0-9+]/g, ''); return d.startsWith('+') ? d : '+82' + d.replace(/^0/, ''); };
 const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

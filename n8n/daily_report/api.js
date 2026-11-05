@@ -79,7 +79,14 @@ if (b.action === 'decide') {
       if (sd.log[day]) sd.log[day] = sd.log[day].filter((x) => !(x.title === it.title + ' — 완료' && x.res === '결재함 완료표시'));
     }
   }
-  else box.decisions[id] = { act, at: now, to: b.to && b.to.phone ? { label: s(b.to.label, 60), phone: s(b.to.phone, 20).replace(/[^0-9+]/g, '') } : null };
+  else {
+    // to: 필름 = 주문처 담당자 { label, phone } · ❓ 출입정보 질문 = { name, via: kakao|sms, phone, kakaoRoom, client } (11/5 — 카톡은 번호 없어도 됨)
+    const t = b.to && typeof b.to === 'object' ? b.to : null;
+    const via = t && (t.via === 'kakao' || t.via === 'sms') ? t.via : '';
+    const phone = t ? s(t.phone, 20).replace(/[^0-9+]/g, '') : '';
+    box.decisions[id] = { act, at: now, to: t && (phone || via === 'kakao') ? Object.assign({ label: s(t.label, 60), phone },
+      via ? { via, name: s(t.name, 40), kakaoRoom: s(t.kakaoRoom, 60), client: s(t.client, 60) } : {}) : null };
+  }
   // [완료표시] (사장님 11/3) — 이미 끝났다 → 바로 앱 기록에 반영(우편함) + 오늘 결과에 + 다시 묻지 않음(marks)
   if (act === 'done') {
     const it = box.rep.next.find((n) => n.id === id);

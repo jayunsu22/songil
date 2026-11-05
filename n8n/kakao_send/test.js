@@ -33,4 +33,9 @@ assert.deepStrictEqual(call({ action: 'rooms', side: 'laptop', rooms: { 가나: 
 assert.deepStrictEqual(call({ action: 'rooms', side: 'app', rooms: {} }).rooms, { 가나: ['가나실장님'] });
 call({ action: 'rooms', side: 'app', rooms: {}, off: { 가나: ['가나실장님'] } });
 assert.deepStrictEqual(call({ action: 'rooms', side: 'laptop', rooms: { 가나: ['가나실장님'] } }).off, { 가나: ['가나실장님'] });
+// ttl 600 (9시 출입정보 질문) 은 3시간 지나도 버리지 않음
+call({ action: 'add', id: 'ask1', client: '블라블라', text: '질문', ttl: 600, ask: { id: 'a1', missing: ['toilet'], checks: [] } });
+sd.q.find((x) => x.id === 'ask1').at -= 3 * 3600e3;
+const tk = call({ action: 'take' }).jobs;
+assert.deepStrictEqual([tk.length, tk[0].ask.id], [1, 'a1']);
 console.log('kakao_send ok');
