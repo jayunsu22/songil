@@ -102,6 +102,8 @@ def run_publish(cfg, state, job, info, notify, log):
     title = info["title"]
     chatlist.refresh_geom()
     h, opened = chatlist.open_room(title, None, log)
+    if not h:   # 목록 화면 밖으로 밀린 방 — 카톡 검색으로 (11/5)
+        h, opened = chatlist.search_open(title, log), title
     if not h:
         notify("[카톡] 가견적 발행 못 함 · %s\n목록에서 방을 못 찾았습니다 (목록 화면에 보이게 해 주세요)." % title)
         return

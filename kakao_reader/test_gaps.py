@@ -437,3 +437,32 @@ class ReaskTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SendToRoomSearchTest(unittest.TestCase):
+    """목록 화면 밖으로 밀린 방은 카톡 검색으로 (11/5: 이종수실장님 방)."""
+
+    def setUp(self):
+        import chatlist
+        import kakao_window
+        self.cl, self.kw = chatlist, kakao_window
+        self.saved = (chatlist.refresh_geom, chatlist.open_room, chatlist.search_open, kakao_window.send_text, kakao_window.close_window)
+        self.sent, self.closed = [], []
+        chatlist.refresh_geom = lambda: None
+        kakao_window.send_text = lambda r, t: (self.sent.append(r), True)[1]
+        kakao_window.close_window = lambda h: self.closed.append(h)
+
+    def tearDown(self):
+        self.cl.refresh_geom, self.cl.open_room, self.cl.search_open, self.kw.send_text, self.kw.close_window = self.saved
+
+    def test_search_when_not_in_list(self):
+        self.cl.open_room = lambda r, b, log: (0, None)
+        self.cl.search_open = lambda r, log: 9
+        self.assertEqual(gaps.send_to_room("이종수실장님", "글", lambda m: None), ("이종수실장님", ""))
+        self.assertEqual((self.sent, self.closed), (["이종수실장님"], [9]))
+
+    def test_not_found_anywhere(self):
+        self.cl.open_room = lambda r, b, log: (0, None)
+        self.cl.search_open = lambda r, log: 0
+        self.assertEqual(gaps.send_to_room("없는방", "글", lambda m: None), ("없는방", "no-room"))
+        self.assertEqual(self.sent, [])

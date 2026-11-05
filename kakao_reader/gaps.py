@@ -104,6 +104,9 @@ def send_to_room(room, text, log):
     chatlist.refresh_geom()
     h, opened = chatlist.open_room(room, None, log)
     if not h:
+        # 목록 화면 밖으로 밀린 방 — 카톡 검색으로 (11/5: 이종수실장님 방을 못 찾음). 이름이 정확히 같은 방만 열린다
+        h, opened = chatlist.search_open(room, log), room
+    if not h:
         return room, "no-room"
     try:
         ok = kakao_window.send_text(opened, text)
