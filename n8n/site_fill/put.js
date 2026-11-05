@@ -17,6 +17,7 @@ const logOf = (o, f) => {
   if (o.kind === 'filmOrdered') return { kind: 'crew', title: '필름 주문 문자', detail: o.room + (o.value ? ' · ' + o.value : '') };
   if (o.kind === 'crewAdd') return { kind: 'crew', title: o.name + ' 인원 넣음', detail: o.date };
   if (o.kind === 'task') return { kind: 'site', title: '할 일 추가', detail: o.title };
+  if (o.kind === 'filmVendor') return { kind: 'site', title: '필름 업체가 가져옴으로 표시', detail: o.room };
   if (o.kind === 'done') return { kind: 'site', title: { pay: '잔금 받음', as: 'AS 완료', task: '할 일 완료' }[o.what], detail: '' };
   return null;
 };
@@ -54,6 +55,9 @@ for (const f of (Array.isArray(body.fills) ? body.fills : []).slice(0, 50)) {
     // 결재함 [내가할께] (업무일정표 흐름, 11/3) — 앱 할 일로. 현장과 상관없이 받는다 (siteId '-' 이면 현장 없음)
     o.title = s(f.title, 120); o.date = s(f.date, 10);
     if (!o.title || !/^\d{4}-\d{2}-\d{2}$/.test(o.date)) continue;
+    if (f.vendor) o.vendor = true;   // 업체가 부탁한 일 (11/5)
+  } else if (o.kind === 'filmVendor') {
+    // 🚚 업체가 필름을 가져다줌 (11/5)
   } else if (o.kind === 'done') {
     // 결재함 [완료표시] (11/3): 잔금 받음·AS 완료·할 일 완료 → 앱 Kakao.fillPatch (11/4 고침: 전에는 여기서 버려져 앱에 안 들어갔다)
     o.what = ['pay', 'as', 'task'].includes(f.what) ? f.what : '';

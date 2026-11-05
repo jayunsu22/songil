@@ -90,9 +90,11 @@ class HandleTest(unittest.TestCase):
         self.assertEqual((b.queued, b.notes), ([], []))
 
     def test_asked_room_is_left_to_gaps(self):
-        b = Box({"ok": True})
+        # 물어본 방: AI 에게 묻지만(업체 부탁·🚚) 칸·답장은 on_answer 몫
+        b = Box({"ok": True, "fills": [FILL], "reply": {"text": "네~", "type": "ack", "auto": True}})
         b.run(state={"asks": {"가인테리어 실장님": [{"id": "s1"}]}})
-        self.assertEqual(b.calls, [])
+        self.assertEqual((b.puts, b.queued, b.notes), ([], [], []))
+        b = Box({"ok": True})
         b.run(cfg=dict(CFG, assist=False))
         self.assertEqual(b.calls, [])
 
@@ -173,6 +175,36 @@ class FeedTest(unittest.TestCase):
         assist.watch_room(st, "가인테리어 실장님", {"siteId": "s1", "name": "하늘", "until": "2026-11-08", "keys": ["pwUnit"]}, at_hour(14))
         Box({"ok": True}).run(state=st)
         self.assertEqual(self.sent[0][5], ["세대 비번"])
+
+
+class ExtrasTest(unittest.TestCase):
+    """업체 부탁 → 할 일, 🚚 → 현장 표시 (11/5). 물어본 방에서도 이것만은 본다."""
+    def setUp(self):
+        self.feed = []
+        self.saved = assist.worklog.feed
+        assist.worklog.feed = lambda *a: self.feed.append(a)
+
+    def tearDown(self):
+        assist.worklog.feed = self.saved
+
+    RES = {"ok": True, "fills": [FILL], "tasks": [{"siteId": "s1", "name": "하늘", "title": "계산서 발행"}],
+           "filmVendors": [{"siteId": "s1", "name": "하늘"}], "reply": {"text": "네~", "type": "ack", "auto": True}}
+
+    def test_goes_to_mailbox_and_chat(self):
+        b = Box(self.RES)
+        b.run()
+        kinds = [x["kind"] for batch in b.puts for x in batch]
+        self.assertEqual(kinds.count("task"), 1)
+        self.assertEqual(kinds.count("filmVendor"), 1)
+        task = next(x for batch in b.puts for x in batch if x["kind"] == "task")
+        self.assertEqual((task["title"], task["vendor"]), ("계산서 발행 · 가인테리어 실장님", True))
+        self.assertIn("📌 할 일로 넣음: 계산서 발행", self.feed[0][4])
+
+    def test_asked_room_only_extras(self):
+        b = Box(self.RES)
+        b.run(state={"asks": {"가인테리어 실장님": [{"id": "s1"}]}})
+        kinds = [x["kind"] for batch in b.puts for x in batch]
+        self.assertEqual(sorted(kinds), ["filmVendor", "task"], "칸은 on_answer 가 맡음")
 
 
 class ExactSendTest(unittest.TestCase):

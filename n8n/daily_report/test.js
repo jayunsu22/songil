@@ -26,7 +26,7 @@ const SHARE = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'n8n_거래
 const air = { 현장읽기: rec([site]), 설정읽기: rec([settings]), 할일읽기: rec([]), 앱코드받기: { data: SHARE } };
 
 // 저녁 7시 — 보고서 + 카톡 글
-let o = run('실행', Object.assign({ 저녁7시: {} }, air));
+let o = run('실행', Object.assign({ 오후5시: {} }, air));
 assert.strictEqual(o.resp.date, '2026-11-04');
 const ids = sd.reports['2026-11-04'].rep.next.map((n) => n.id);
 assert.ok(ids.includes('film:s1') && ids.includes('staff:s1'), ids.join());
@@ -60,7 +60,7 @@ assert.strictEqual(o.resp.ok, false);
 
 // 그날 저녁 보고서의 '오늘 결과' 에 9시에 한 일
 clock = Date.parse('2026-11-04T10:00:00Z');
-run('실행', Object.assign({ 저녁7시: {} }, air, { 현장읽기: rec([Object.assign({}, site, { filmStage: 2 })]) }));
+run('실행', Object.assign({ 오후5시: {} }, air, { 현장읽기: rec([Object.assign({}, site, { filmStage: 2 })]) }));
 const done = sd.reports['2026-11-05'].rep.done.map((d) => d.title);
 assert.ok(done.some((t) => t.includes('필름 발주 완료')) && done.some((t) => t.includes('인원 모집 시작')), done.join());
 
@@ -69,7 +69,7 @@ const ended = { id: 's9', name: '끝난현장', date: '2026-10-28', days: [{ dat
 const ask = { id: 's8', name: '모집현장', date: '2026-11-08', needStaff: 3, days: [{ date: '2026-11-08', staff: [] }], films: [{ code: 'x1' }], filmStage: 2, pwLobby: '1', pwUnit: '1', toilet: '1' };
 const air2 = Object.assign({}, air, { 현장읽기: rec([ended, ask]) });
 clock = Date.parse('2026-11-05T10:00:00Z');   // 11/5 19시 → 11/6 보고서
-run('실행', Object.assign({ 저녁7시: {} }, air2));
+run('실행', Object.assign({ 오후5시: {} }, air2));
 const ids6 = sd.reports['2026-11-06'].rep.next.map((n) => n.id);
 assert.ok(ids6.includes('pay:s9') && ids6.includes('staff:s8'), ids6.join());
 o = run('요청', { 보고서요청: { body: { action: 'decide', date: '2026-11-06', id: 'pay:s9', act: 'done' } } });
@@ -79,7 +79,7 @@ clock = Date.parse('2026-11-06T00:00:00Z');   // 9시 — 내가할께는 아무
 o = run('실행', Object.assign({ 아침9시: {} }, air2));
 assert.strictEqual(o.fills.length + o.sms.length + o.crew.length, 0);
 clock = Date.parse('2026-11-06T10:00:00Z');   // 11/6 19시 → 11/7 보고서 (앱에 아직 반영 안 됐어도 잔금은 빠짐)
-run('실행', Object.assign({ 저녁7시: {} }, air2));
+run('실행', Object.assign({ 오후5시: {} }, air2));
 const r7 = sd.reports['2026-11-07'].rep;
 assert.ok(!r7.next.some((n) => n.id === 'pay:s9'));
 assert.strictEqual(r7.next.find((n) => n.id === 'staff:s8').again, true);
@@ -99,4 +99,16 @@ o = run('요청', { 보고서요청: { body: { action: 'inbox', id: ib[1].id, ac
 assert.deepStrictEqual(o.fills.map((f) => [f.kind, f.what, f.siteId]), [['done', 'pay', 's9']]);
 assert.strictEqual(o.resp.inbox.length, 0);
 assert.strictEqual(run('요청', { 보고서요청: { body: { action: 'inbox', id: ib[1].id, act: 'done' } } }).resp.ok, false);
+// 낮 12시 — 내일 작업자 안내 (11/5)
+{
+  clock = Date.parse('2026-11-05T03:00:00Z');
+  const noon = { 낮12시: {}, 현장읽기: rec([{ id: 'n1', name: '가람마을', date: '2026-11-06', pwLobby: '#0000', days: [{ date: '2026-11-06', staff: ['마바', '김정헌', '사아'] }] }]),
+    설정읽기: rec([{ people: { 마바: { phone: '010-1111-2222' } } }]), 할일읽기: rec([]), 앱코드받기: air.앱코드받기 };
+  const r1 = run('실행', noon);
+  assert.deepStrictEqual(r1.sms.map((x) => x.phone), ['+821011112222'], '번호 있는 작업자만, 사장님 본인은 빼고');
+  assert.ok(r1.sms[0].text.includes('#0000'));
+  assert.strictEqual(r1.watch[0].fill, false);
+  assert.ok(r1.notify[0].text.includes('연락처 없어 못 보냄: 사아'));
+  assert.strictEqual(run('실행', noon).sms.length, 0, '같은 안내는 한 번만');
+}
 console.log('daily_report ok');

@@ -42,6 +42,7 @@ for (const it of $('현장읽기').all()) for (const r of (it.json.records || []
       films: (Array.isArray(s.films) ? s.films : []).filter((x) => x && str(x.code)).map((x) => (str(x.place) + ' ' + str(x.code)).trim()) },
     payDone: !!s.payDone,
   });
+  sites[sites.length - 1].known.filmVendor = !!s.filmVendor;
   // 사장님 지시는 날짜별 작업자도 본다 ('작업자 김정헌으로 바꿔줘', 11/4)
   if (boss) sites[sites.length - 1].known.staff = (Array.isArray(s.days) ? s.days : []).map((d) => str(d && d.date).slice(5) + ': ' + ((d && d.staff) || []).map(str).filter(Boolean).join(',')).join(' / ');
 }
@@ -90,6 +91,8 @@ ${sites.map((s) => '- ' + s.id + ' · ' + s.name + ' · ' + s.date + ' · ' + JS
 - "field": field 는 pwLobby(공동현관 비번), pwUnit(세대 현관 비번), toilet(작업자가 쓸 화장실 위치) 중 하나. value 는 대화에 적힌 그대로 (* # 포함).
   어느 비번인지 분명하지 않은 비번 변경은 pwUnit. '공동현관'·'공현'·'1층' 이면 pwLobby.
 - "films": 위치별 필름 번호 films:[{place:"거실", code:"LX 우드 EW123"}]. 품번이 없이 이름만 오면 code 에 이름을 적고 noCode:true.
+- "filmVendor": 업체가 필름을 직접 가져오거나 현장으로 보내 준다고 한 것 (우리가 주문할 필요 없음). 묻는 말이면 뽑지 마라. siteId 필수.
+- "request": 업체가 사장님께 해 달라고 부탁한 일 — 계산서 발행, 사진 보내기, 서류, 견적서 보내기 등. value 는 할 일 한 줄 (예 "계산서 발행"). 칸에 넣을 정보·일정 얘기는 여기 넣지 마라.
 - "pay": 업체가 잔금(대금)을 보냈다·넣었다고 한 것. 끝난 현장 중 잔금안받음인 현장.
 - "schedule": 시공일·시간 변경, 다른 공정 얘기. value 한 줄 요약.
 - "as": AS(하자 보수) 요청. value 한 줄 요약.

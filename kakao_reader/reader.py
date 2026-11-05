@@ -137,6 +137,8 @@ def check_room(cfg, state, room, dry):
 
 def run_once(cfg, state, dry=False):
     worklog.setup(cfg)
+    if not dry:
+        worklog.beat()
     if cfg.get("kakao_send_url") and not dry:
         kakao_send.sync_rooms(cfg, state, time.time(), lambda body: n8n_send.post_json(cfg["kakao_send_url"], cfg["owner_key"], body, timeout=20), log)
     photo_dir = cfg["photo_dir"] or kakao_photo.default_dir()

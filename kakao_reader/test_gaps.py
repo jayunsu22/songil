@@ -294,6 +294,41 @@ class FilmOrderTest(unittest.TestCase):
         gaps.check({}, {}, at_hour(10), lambda: [], lambda t, b=None: sent.append(t) or True, lambda m: None)   # 옛 모양(목록)도 됨
 
 
+class UrgentAndFilmCheckTest(unittest.TestCase):
+    NOW = time.mktime(time.strptime("2026-11-05 10:00", "%Y-%m-%d %H:%M"))
+
+    def entry(self, **kw):
+        return dict({"id": "s1", "name": "하늘마을", "date": "2026-11-07", "at": self.NOW - 86400, "items": [["pwUnit", 1]], "missing": ["pwUnit"], "checks": []}, **kw)
+
+    def test_urgent_once_within_two_days(self):
+        sent = []
+        st = {"asks": {"봄애실장님": [self.entry()]}}
+        gaps.urgent_asks(st, self.NOW, sent.append, lambda m: None)
+        gaps.urgent_asks(st, self.NOW, sent.append, lambda m: None)
+        self.assertEqual(len(sent), 1)
+        self.assertIn("D-2", sent[0])
+
+    def test_not_urgent_when_far_or_just_asked(self):
+        sent = []
+        st = {"asks": {"a": [self.entry(date="2026-11-12"), self.entry(at=self.NOW - 60)]}}
+        gaps.urgent_asks(st, self.NOW, sent.append, lambda m: None)
+        self.assertEqual(sent, [])
+
+    def test_film_check_once_and_watches_room(self):
+        sent = []
+        def send(room, text, log):
+            sent.append((room, text))
+            return room, ""
+        cfg = {"client_rooms": {"봄애": "봄애실장님"}}
+        st, g = {}, {}
+        item = [{"id": "s1", "client": "봄애", "name": "하늘마을", "date": "2026-11-06"}]
+        gaps.film_checks(cfg, st, g, self.NOW, item, send, lambda m: None)
+        gaps.film_checks(cfg, st, g, self.NOW, item, send, lambda m: None)
+        self.assertEqual(len(sent), 1)
+        self.assertIn("가져다주시는", sent[0][1])
+        self.assertTrue(st["cust_watch"]["봄애실장님"]["vendor"])
+
+
 class ReaskTest(unittest.TestCase):
     """못 받은 답 다시 묻기 (사장님 11/1): 3시간 뒤, 18시 넘으면 다음 날 9시(일·공휴일 13시), 남은 것만 1번부터, 3번까지."""
 

@@ -37,7 +37,7 @@ def client_of(cfg, room):
 # ── 👤 개인고객 방 지켜보기 (사장님 11/5): 앱에서 카톡을 보낸 고객 방을 시공일까지. state 에는 현장 id·이름·날짜·칸 이름만
 def watch_room(state, room, watch, now):
     state.setdefault("cust_watch", {})[room] = {"siteId": watch.get("siteId", ""), "name": watch.get("name", ""), "until": watch.get("until", ""),
-                                               "keys": [k for k in (watch.get("keys") or []) if k in KEY_LABEL], "at": now}
+                                               "keys": [k for k in (watch.get("keys") or []) if k in KEY_LABEL], "at": now, "vendor": bool(watch.get("vendor"))}
 
 
 def watch_rooms(state, now):
@@ -113,6 +113,26 @@ def _mailbox(f, room, today):
     return o
 
 
+def _extras(res, room, today, put, notify, log):
+    """📌 업체가 부탁한 일 → 앱 할 일, 🚚 필름 업체가 가져옴 → 현장 표시 (사장님 11/5). 비서 대화에 띄울 줄을 돌려준다."""
+    import tg
+    tasks, fvs = res.get("tasks") or [], res.get("filmVendors") or []
+    if not tasks and not fvs:
+        return []
+    box = [{"siteId": x["siteId"], "kind": "filmVendor", "room": room, "at": today} for x in fvs]
+    box += [{"siteId": t.get("siteId") or "-", "kind": "task", "room": room, "at": today, "date": today, "vendor": True,
+             "title": "%s · %s" % (t["title"], room)} for t in tasks]
+    try:
+        put(box)
+    except Exception as e:
+        log("[%s] 🤖 할 일·표시 넣기 실패: %s" % (room, str(e)[:150]))
+        return ["할 일·표시를 못 넣었어요 — 글을 보고 직접 챙겨 주세요"]
+    lines = ["🚚 필름 업체가 가져옴으로 표시 — 주문 알림 안 함" for _ in fvs] + ["📌 할 일로 넣음: %s" % t["title"] for t in tasks]
+    notify(tg.lines("📌 " + tg.b(room), *[tg.esc(x) for x in lines]))
+    log("[%s] 🤖 %s" % (room, " / ".join(lines)))
+    return lines
+
+
 def _value(f):
     if f["kind"] == "field":
         return f["value"]
@@ -166,14 +186,13 @@ def handle(cfg, state, room, new, msgs, call, put, inbox, notify, log, now=None,
         return
     asks = state.get("asks") or {}
     k = gaps._ask_key(asks, room)
-    if k and asks[k]:
-        return   # 비서가 물어본 방 — gaps.on_answer 가 맡음
+    asked = bool(k and asks[k])   # 비서가 물어본 방 — 칸은 gaps.on_answer 가 맡고, 여기서는 업체 부탁·🚚 만 본다 (11/5)
     mine = {_norm(x) for x in cfg.get("my_names", ["김정헌"])}
     body = {"room": room, "client": client_of(cfg, room), "today": time.strftime("%Y-%m-%d", time.localtime(now)),
             "messages": [_line(m) for m in new], "recent": [_line(m) for m in (msgs or [])[-40:]],
             "mine": list(cfg.get("my_names", ["김정헌"]))}
     cw = _watch_of(state, room)
-    if cw:   # 👤 앱에서 카톡을 보낸 고객 방 — 어느 현장인지 안다
+    if cw and not cw.get("vendor"):   # 👤 앱에서 카톡을 보낸 고객 방 — 어느 현장인지 안다 (🚚 확인으로 지켜보는 업체 방은 현장이 여럿이라 뺀다)
         body["client"], body["siteId"] = PRIVATE_CLIENT, cw.get("siteId", "")
     log("[%s] 🤖 비서가 새 글 %d개 판단 중" % (room, len(new)))
     try:
@@ -185,6 +204,12 @@ def handle(cfg, state, room, new, msgs, call, put, inbox, notify, log, now=None,
         log("[%s] 🤖 비서: AI 답 없음" % room)
         return
     today = body["today"]
+    extra = _extras(res, room, today, put, notify, log)
+    if asked:
+        if extra:
+            first = (res.get("filmVendors") or res.get("tasks") or [{}])[0]
+            worklog.feed(room, first.get("siteId", ""), first.get("name", ""), new, extra, [])
+        return
     fills = res.get("fills") or []
     # 필름 번호를 바꾸자는 건 앱에 넣지 않고 알림만 (사장님 11/1)
     film_changes = [f for f in fills if f["kind"] == "films" and f.get("update")]
@@ -217,12 +242,12 @@ def handle(cfg, state, room, new, msgs, call, put, inbox, notify, log, now=None,
         except Exception as e:
             log("[%s] 🤖 결재함 올리기 실패: %s" % (room, str(e)[:150]))
     # 🤖 앱 비서 대화에 — 지켜보던 고객 방이거나, 넣고 올린 게 있을 때만 (잡담까지 띄우지 않게)
-    if cw or fills or film_changes or picks or pays:
-        put_lines = [("%s%s" % (f["label"], " 바꿈" if f.get("update") else " 넣음")) for f in fills]
+    if cw or fills or film_changes or picks or pays or extra:
+        put_lines = extra + [("%s%s" % (f["label"], " 바꿈" if f.get("update") else " 넣음")) for f in fills]
         put_lines += ["필름 번호 변경 요청 — 직접 바꿔 주세요"] * bool(film_changes)
         put_lines += ["%s — 어느 현장인지 결재함에서 골라 주세요" % p["label"] for p in picks]
         put_lines += ["잔금 넣었다고 함 — 결재함에서 완료표시"] * bool(pays)
-        first = (fills or film_changes or [{}])[0]
+        first = (fills or film_changes or res.get("filmVendors") or res.get("tasks") or [{}])[0]
         worklog.feed(room, (cw or {}).get("siteId") or first.get("siteId", ""), (cw or {}).get("name") or first.get("name", ""), new, put_lines,
                      [KEY_LABEL[k] for k in (cw or {}).get("keys", [])])
     reply = res.get("reply")

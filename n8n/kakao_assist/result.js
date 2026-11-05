@@ -13,7 +13,7 @@ const byId = {};
 const FIELDS = ['pwLobby', 'pwUnit', 'toilet'];
 const LABEL = { pwLobby: '공동현관 비번', pwUnit: '세대 비번', toilet: '화장실', films: '필름', staff: '작업자' };
 const squash = (v) => String(v || '').replace(/\s+/g, '').toLowerCase();
-const fills = [], picks = [], pays = [], infos = [], missed = [];
+const fills = [], picks = [], pays = [], infos = [], missed = [], tasks = [], filmVendors = [];
 let noCode = false;
 for (const it of (Array.isArray(ai.items) ? ai.items : []).slice(0, 20)) {
   if (!it || typeof it !== 'object') continue;
@@ -40,6 +40,15 @@ for (const it of (Array.isArray(ai.items) ? ai.items : []).slice(0, 20)) {
     const mode = ['add', 'set', 'remove'].includes(it.mode) ? it.mode : 'add';
     if (!names.length) continue;
     f = { kind: 'staff', names, mode, date: /^\d{4}-\d{2}-\d{2}$/.test(s(it.date, 10)) ? s(it.date, 10) : '', label: LABEL.staff };
+  } else if (kind === 'filmVendor' && !pre.boss) {
+    // 🚚 업체가 필름을 가져다줌 (11/5) — 현장이 확실할 때만
+    if (sure && !byId[sid].known.filmVendor) filmVendors.push({ siteId: sid, name: byId[sid].name, quote });
+    continue;
+  } else if (kind === 'request' && !pre.boss) {
+    // 📌 업체가 부탁한 일 (11/5) → 앱 할 일
+    const value = s(it.value, 80);
+    if (value) tasks.push({ siteId: sure ? sid : '', name: sure ? byId[sid].name : '', title: value, quote });
+    continue;
   } else if (kind === 'pay') {
     const pid = sid || (cands.length === 1 ? cands[0] : '');
     if (pid && !byId[pid].payDone) pays.push({ siteId: pid, name: byId[pid].name, quote });
@@ -81,5 +90,5 @@ if (type === 'ack' || type === 'ask') {
   else auto = true;
 } else if (type === 'commit') why = 'AI 가 사장님 확인이 필요한 답으로 봄';
 // 사장님 지시(boss)는 답장 없음 — 사장님 본인 메모라서
-return [{ json: { ok: !!text, fills, picks, pays, infos, missed, noCode, boss: !!pre.boss,
+return [{ json: { ok: !!text, fills, picks, pays, infos, missed, tasks, filmVendors, noCode, boss: !!pre.boss,
   reply: type === 'none' || pre.boss ? null : { text: rtext, type, auto, why } } }];

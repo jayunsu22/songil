@@ -34,3 +34,16 @@ def feed(room, site_id, site_name, msgs, lines, left):
     """🤖 앱 비서 대화에 띄울 업체 답·처리 결과 (11/5). 글 원문은 n8n 에 7일만, 칸 값은 lines 에 안 적는다."""
     text = "\n".join(str(m.get("text") or "") for m in (msgs or []))[-600:]
     _post({"action": "feed_add", "items": [{"kind": "kakao", "from": room, "siteId": site_id, "siteName": site_name, "text": text, "lines": lines, "left": left}]})
+
+
+_beat_at = [0]
+
+
+def beat(now=None):
+    """🟢 노트북이 살아 있다는 신호 (사장님 11/5) — 5분에 한 번. 끊기면 n8n 이 텔레그램으로 알린다."""
+    import time
+    t = now or time.time()
+    if t - _beat_at[0] < 300:
+        return
+    _beat_at[0] = t
+    _post({"action": "beat"})

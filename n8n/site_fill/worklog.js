@@ -25,6 +25,8 @@ if (body.action === 'add') {
   keep();
   return [{ json: { ok: true, n } }];
 }
+// 🟢 노트북 신호 (11/5) — 노트북이 5분마다 보낸다. 끊기면 노트북확인(laptop.js)이 텔레그램으로
+if (body.action === 'beat') { sd.beat = { at: now }; return [{ json: { ok: true } }]; }
 // 🤖 비서 대화에 띄울 답장·처리 결과 (11/5) — 업체·고객 글 원문이 들어 있어 7일만 둔다. feed_add { items } / feed_list { after } → after 뒤 것
 sd.feed = (sd.feed || []).filter((x) => now - x.t < 7 * 864e5).slice(-200);
 if (body.action === 'feed_add') {
@@ -37,7 +39,7 @@ if (body.action === 'feed_add') {
 }
 if (body.action === 'feed_list') {
   const after = Number(body.after) || 0;
-  return [{ json: { ok: true, now, items: sd.feed.filter((x) => x.t > after) } }];
+  return [{ json: { ok: true, now, beat: (sd.beat && sd.beat.at) || 0, items: sd.feed.filter((x) => x.t > after) } }];
 }
 if (body.action === 'resolve') {
   const id = s(body.id, 60), key = s(body.key, 60);

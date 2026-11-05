@@ -234,7 +234,33 @@ def sync_checks(state, site):
                                for c in e.get("checks") or []]
 
 
-def check(cfg, state, now, fetch, notify, log):
+def film_checks(cfg, state, g, now, items, send, log):
+    """🚚 업체가 필름을 가져다주는 현장 — 시공 전날 그 방에 한 번 묻는다 (사장님 11/5). 답은 🤖 비서 대화에 뜨게 방을 지켜본다."""
+    import assist
+    told = {k: v for k, v in (g.get("film_checked") or {}).items() if now - v.get("at", 0) < ASKED_KEEP}
+    g["film_checked"] = told
+    for o in items or []:
+        if not o.get("id") or o["id"] in told:
+            continue
+        told[o["id"]] = {"at": now}
+        rooms = rooms_for(cfg, o.get("client"))
+        if not rooms:
+            log("[필름] %s 방 짝이 없어 도착 확인을 못 함" % o.get("client"))
+            worklog.add("reply", "필름 도착 확인 못 함 — 카톡 방 없음", o.get("name", ""), o["id"], need=True)
+            continue
+        text = "안녕하세요 섬세한손길입니다 🙂\n[%s]\n내일 시공인데 필름은 현장으로 가져다주시는 것 맞을까요?" % o.get("name", "")
+        opened, why = send(rooms[0], text, log)
+        if why:
+            log("[필름] %s 도착 확인 못 보냄 (%s)" % (rooms[0], why))
+            worklog.add("reply", "필름 도착 확인 못 보냄", rooms[0], o["id"], need=True)
+        else:
+            assist.watch_room(state, opened or rooms[0], {"siteId": o["id"], "name": o.get("name", ""), "until": o.get("date", ""), "vendor": True}, now)
+            log("[필름] %s 방에 도착 확인: %s" % (opened, o.get("name")))
+            worklog.add("reply", "%s 방에 필름 도착 확인" % (opened or rooms[0]), o.get("name", ""), o["id"])
+        return   # 한 번에 한 방
+
+
+def check(cfg, state, now, fetch, notify, log, send=None):
     """reader.py 가 확인할 때마다 부른다. 1시간마다·알림 시간(in_hours)에만 빈칸 현장을 가져와 처음 보는 현장만 텔레그램으로."""
     import jobs
     g = state.setdefault("gaps", {"at": 0, "asked": {}})
@@ -249,6 +275,7 @@ def check(cfg, state, now, fetch, notify, log):
     sites = (data.get("sites") or []) if isinstance(data, dict) else data
     if isinstance(data, dict):
         film_orders(cfg, g, now, data.get("orders") or [], notify, log)
+        film_checks(cfg, state, g, now, data.get("filmChecks") or [], send or send_to_room, log)
     asked = {k: v for k, v in (g.get("asked") or {}).items() if now - v.get("at", 0) < ASKED_KEEP}
     g["asked"] = asked
     for raw in sites:
@@ -340,10 +367,35 @@ def reask_text(entry):
     return "\n".join(lines + ["%d. %s" % (i, _ask_phrase(t)) for i, (_, t) in enumerate(remaining(entry), 1)])
 
 
+def urgent_asks(state, now, notify, log):
+    """현장이 이틀 안인데 아직 못 받은 답 — 사장님께 '전화해 보세요' 한 번 (사장님 11/5). 다시 묻기를 다 썼어도 알린다."""
+    import tg
+    if not 8 <= time.localtime(now).tm_hour < 20:
+        return
+    today = time.strftime("%Y-%m-%d", time.localtime(now))
+    base = time.mktime(time.strptime(today, "%Y-%m-%d"))
+    for room, lst in (state.get("asks") or {}).items():
+        for e in lst:
+            if e.get("urgent") or "items" not in e or now - e.get("at", now) < 3 * 3600 or not remaining(e):
+                continue
+            try:
+                left = int(round((time.mktime(time.strptime(e.get("date") or "", "%Y-%m-%d")) - base) / 86400))
+            except ValueError:
+                continue
+            if not 0 <= left <= 2:
+                continue
+            e["urgent"] = True
+            notify(tg.lines("📞 " + tg.b("전화해 보셔야 해요 · %s" % e["name"]),
+                            tg.esc("%s 시공 (D-%d) — %s 방에서 아직 못 받은 것:" % (md(e["date"]), left, room)),
+                            *[tg.esc("%d. %s" % nt) for nt in remaining(e)]))
+            log("[%s] %s — 현장 임박, 사장님께 전화 알림" % (room, e["name"]))
+
+
 def reask(cfg, state, now, send, notify, log):
     """물어본 현장에 못 받은 답이 남았으면 때가 됐을 때 남은 번호만 업체 방에 다시 보낸다 (한 번에 한 현장).
     send(방, 글, log) → (연 방, 실패 이유). 3번 다시 물어도 안 오면 사장님께 텔레그램 한 번."""
     import tg
+    urgent_asks(state, now, notify, log)
     today = time.strftime("%Y-%m-%d", time.localtime(now))
     for room, lst in (state.get("asks") or {}).items():
         for e in lst:

@@ -1,5 +1,5 @@
 // 업무일정표 n8n 흐름 JSON 을 만든다: node n8n/daily_report/build.js > n8n/daily_report/workflow.json
-// 저녁 7시 내일 업무일정표 → 카톡 김정헌방(노트북이 outbox 를 가져가 보냄) · 앱 결재함(report) · 오전 9시 결재한 일 하기.
+// 오후 5시 내일 업무일정표 (11/5 저녁 7시에서 당김) · 낮 12시 내일 작업자 안내 문자 → 카톡 김정헌방(노트북이 outbox 를 가져가 보냄) · 앱 결재함(report) · 오전 9시 결재한 일 하기.
 // 코드 노드 = 앱 share.js(현장관리 저장소, 옆 폴더) + lib.js + 각 파일. 설계 docs/superpowers/specs/2026-11-03-결재함-design.md · 시험 node n8n/daily_report/test.js
 const fs = require('fs');
 const path = require('path');
@@ -67,7 +67,8 @@ const workflow = {
     code('c1', '요청', 'api.js', 220, 0, false),
     iff('i1', '만들기인가', 440, 0, '={{ !!$json.make }}'),
     respond('r1', '요청응답', 660, 100),
-    cron('t1', '저녁7시', '0 19 * * *', 300),
+    cron('t1', '오후5시', '0 17 * * *', 300),
+    cron('t3', '낮12시', '0 12 * * *', 375),
     cron('t2', '아침9시', '0 9 * * *', 450),
     airRead('a1', '현장읽기', '현장', "AND(NOT({삭제}), IS_AFTER(DATETIME_PARSE({시작날짜}), DATEADD(TODAY(), -40, 'days')))", 660, 300),
     airRead('a2', '설정읽기', '설정', 'NOT({삭제})', 880, 300),
@@ -89,23 +90,28 @@ const workflow = {
     post('h3', '우편넣기', 1760, 700, BASE + 'site-fill', OWNER, '={{ JSON.stringify({ fills: $json.fills }) }}'),
     split('s4', '모집목록', 1540, 850, "return ($input.first().json.crew || []).map((x) => ({ json: x }));"),
     post('h4', '모집시작', 1760, 850, BASE + 'crew-recruit', OWNER, '={{ JSON.stringify($json) }}'),
+    // 보낸 번호의 답을 🤖 비서 대화에 (문자_답장, 11/5)
+    split('s5', '답장기억목록', 1540, 1000, "const w = $input.first().json.watch || []; return w.length ? [{ json: { action: 'watch', items: w } }] : [];"),
+    post('h5', '답장기억', 1760, 1000, BASE + 'sms-reply', OWNER, '={{ JSON.stringify($json) }}'),
   ],
   connections: {
     보고서요청: { main: [c('요청')] },
     요청: { main: [[...c('만들기인가'), ...c('우편목록')]] },   // [완료표시] 는 바로 우편함으로
     만들기인가: { main: [c('현장읽기'), c('요청응답')] },
-    저녁7시: { main: [c('현장읽기')] },
+    오후5시: { main: [c('현장읽기')] },
+    낮12시: { main: [c('현장읽기')] },
     아침9시: { main: [c('현장읽기')] },
     현장읽기: { main: [c('설정읽기')] },
     설정읽기: { main: [c('할일읽기')] },
     할일읽기: { main: [c('앱코드받기')] },
     앱코드받기: { main: [c('실행')] },
-    실행: { main: [[...c('요청이었나'), ...c('문자목록'), ...c('알림목록'), ...c('우편목록'), ...c('모집목록')]] },
+    실행: { main: [[...c('요청이었나'), ...c('문자목록'), ...c('알림목록'), ...c('우편목록'), ...c('모집목록'), ...c('답장기억목록')]] },
     요청이었나: { main: [c('만들기응답'), []] },
     문자목록: { main: [c('문자보내기')] },
     알림목록: { main: [c('알림보내기')] },
     우편목록: { main: [c('우편넣기')] },
     모집목록: { main: [c('모집시작')] },
+    답장기억목록: { main: [c('답장기억')] },
   },
   settings: { executionOrder: 'v1', timezone: 'Asia/Seoul', saveDataSuccessExecution: 'all' },
 };

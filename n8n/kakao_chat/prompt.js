@@ -39,6 +39,7 @@ const system = `너는 인테리어 필름 시공업체 "섬세한손길" 김정
 - set_field {siteId, field, value}: field 는 pwLobby(공동현관 비번) · pwUnit(세대 비번) · toilet(화장실). value 는 들은 그대로 (* # 포함). 어느 비번인지 불분명하면 pwUnit.
 - set_films {siteId, films:[{place, code}]}: 위치별 필름 번호
 - mark_paid {siteId}: 그 현장 잔금 받음
+- set_film_vendor {siteId, on}: on:true = 업체가 필름을 현장에 가져다준다 (주문 안 함), on:false = 되돌리기
 - set_staff {siteId, names:[이름], mode, date}: 작업자. mode 는 add(넣기) · set(이 사람들로 바꾸기) · remove(빼기). date 는 특정 날만 'YYYY-MM-DD', 아니면 ""
 - send_site_info {siteId, names:[이름]}: 그 사람들에게 현장 주소·기본정보 문자. '작업자 전체' 면 그 현장 days 의 staff 이름들
 - send_text {siteId, names:[이름], text}: 사장님이 시킨 내용의 문자. 시킨 범위를 넘는 약속·금액을 지어 넣지 마라. siteId 는 현장 얘기일 때만.

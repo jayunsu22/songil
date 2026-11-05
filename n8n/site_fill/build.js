@@ -52,6 +52,12 @@ const workflow = {
     hook('w4', '내역요청', 'work-log', '5d1c8e3f-9a27-4b6c-8f40-7e2a1b9c3d68', 900),   // 📋 업무 내역 (11/4)
     code('c4', '내역', 'worklog.js', 220, 900),
     answer('r4', '내역응답', 440, 900),
+    // 🟢 노트북 멈춤 알림 (11/5) — 내역과 같은 저장 공간을 봐서 이 흐름에
+    { id: 't1', name: '10분마다', type: 'n8n-nodes-base.scheduleTrigger', typeVersion: 1.2, position: [0, 1200], parameters: { rule: { interval: [{ field: 'cronExpression', expression: '*/10 * * * *' }] } } },
+    code('c5', '노트북확인', 'laptop.js', 220, 1200),
+    { id: 'h1', name: '노트북알림', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [440, 1200], continueOnFail: true, credentials: KEY,
+      parameters: { method: 'POST', url: 'https://primary-production-a6fa.up.railway.app/webhook/kakao-notify', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+        sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json) }}', options: { timeout: 30000 } } },
   ],
   connections: {
     빈칸요청: { main: [[{ node: '현장읽기', type: 'main', index: 0 }]] },
@@ -65,6 +71,8 @@ const workflow = {
     우편함꺼내기: { main: [[{ node: '꺼내기응답', type: 'main', index: 0 }]] },
     내역요청: { main: [[{ node: '내역', type: 'main', index: 0 }]] },
     내역: { main: [[{ node: '내역응답', type: 'main', index: 0 }]] },
+    '10분마다': { main: [[{ node: '노트북확인', type: 'main', index: 0 }]] },
+    노트북확인: { main: [[{ node: '노트북알림', type: 'main', index: 0 }]] },
   },
   // 앱이 5분마다 부르고, 우편함엔 비번이 들어가므로 성공 실행은 저장하지 않는다
   settings: { executionOrder: 'v1', saveDataSuccessExecution: 'none' },

@@ -40,7 +40,8 @@ const orderFilms = (films) => {
   });
   return order.map((k) => ({ code: seen[k].code, qty: seen[k].qty.join(' + ') }));
 };
-const out = [], orders = [];
+const out = [], orders = [], filmChecks = [];
+const tomorrow = new Date(Date.parse(today + 'T00:00:00Z') + 864e5).toISOString().slice(0, 10);
 for (const it of $('현장읽기').all()) for (const r of (it.json.records || [])) {
   let s = {};
   try { s = JSON.parse((r.fields || {}).data || '{}'); } catch (e) { continue; }
@@ -54,6 +55,8 @@ for (const it of $('현장읽기').all()) for (const r of (it.json.records || []
   const client = clients[s.clientId] || clients[(r.fields || {})['거래처id']] || '';
   const stage = parseInt(s.filmStage, 10) || 0;
   if (orderDays && date <= orderUntil && stage < 2) orders.push({ id: s.id, client, name, date, stage, films: orderFilms(s.films) });
+  // 🚚 업체가 필름을 가져다주는 현장 — 전날 그 방에 한 번 확인 (11/5). 이미 받았으면(수령) 안 물음
+  if (s.filmVendor && date === tomorrow && stage < 3 && client) filmChecks.push({ id: s.id, client, name, date });
   if (date > until) continue;
   const missing = ['pwLobby', 'pwUnit', 'toilet'].filter((k) => !str(s[k]));
   if (!(Array.isArray(s.films) && s.films.some((x) => x && str(x.code)))) missing.push('films');
@@ -65,4 +68,4 @@ for (const it of $('현장읽기').all()) for (const r of (it.json.records || []
 }
 const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
 out.sort(byDate); orders.sort(byDate);
-return [{ json: { today, until, sites: out, orders } }];
+return [{ json: { today, until, sites: out, orders, filmChecks } }];
