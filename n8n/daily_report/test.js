@@ -58,6 +58,33 @@ assert.strictEqual(run('실행', Object.assign({ 아침9시: {} }, air)).sms.len
 o = run('요청', { 보고서요청: { body: { action: 'decide', date: '2026-11-04', id: 'film:s1', act: 'later' } } });
 assert.strictEqual(o.resp.ok, false);
 
+// [되돌리기] (11/5): 완료표시를 취소하면 우편함으로 앱 기록도 되돌리고, 결과에서도 뺀다
+(function () {
+  const keep = JSON.stringify(sd);
+  sd.reports['2026-11-09'] = { rep: { date: '2026-11-09', today: '2026-11-08', done: [], next: [{ id: 'film:u1', kind: 'film', title: '필름 주문: 되돌림', res: '', siteId: 'u1', act: 'film' }] }, decisions: {}, at: 0 };
+  let u = run('요청', { 보고서요청: { body: { action: 'decide', date: '2026-11-09', id: 'film:u1', act: 'done' } } });
+  assert.strictEqual(u.fills[0].kind, 'filmOrdered');
+  const day = u.fills[0].at;
+  u = run('요청', { 보고서요청: { body: { action: 'decide', date: '2026-11-09', id: 'film:u1', act: '' } } });
+  assert.deepStrictEqual([u.fills[0].kind, u.fills[0].what, u.fills[0].siteId, u.fills[0].at], ['undo', 'film', 'u1', day]);
+  assert.ok(!(sd.log[day] || []).some((x) => x.title === '필름 주문: 되돌림 — 완료'));
+  assert.ok(!sd.marks['film:u1']);
+  // 결재만 하고 완료가 아니었으면 되돌릴 것이 없다
+  run('요청', { 보고서요청: { body: { action: 'decide', date: '2026-11-09', id: 'film:u1', act: 'later' } } });
+  assert.strictEqual(run('요청', { 보고서요청: { body: { action: 'decide', date: '2026-11-09', id: 'film:u1', act: '' } } }).fills.length, 0);
+  Object.keys(sd).forEach((k) => delete sd[k]); Object.assign(sd, JSON.parse(keep));
+})();
+// 결재 뒤 앱에서 이미 주문했으면 9시에 또 보내지 않는다 (11/5)
+(function () {
+  const keep = JSON.stringify(sd), at = clock;
+  clock = Date.parse('2026-11-09T00:00:00Z');
+  sd.reports['2026-11-09'] = { rep: { date: '2026-11-09', today: '2026-11-08', done: [], next: [{ id: 'film:s1', kind: 'film', title: '필름', res: '', siteId: 's1', act: 'film' }] }, decisions: { 'film:s1': { act: 'go', at: 0, to: { label: '가', phone: '01000000009' } } }, at: 0 };
+  const g = run('실행', Object.assign({ 아침9시: {} }, air, { 현장읽기: rec([Object.assign({}, site, { filmStage: 2 })]) }));
+  assert.strictEqual(g.sms.length, 0);
+  clock = at;
+  Object.keys(sd).forEach((k) => delete sd[k]); Object.assign(sd, JSON.parse(keep));
+})();
+
 // 그날 저녁 보고서의 '오늘 결과' 에 9시에 한 일
 clock = Date.parse('2026-11-04T10:00:00Z');
 run('실행', Object.assign({ 오후5시: {} }, air, { 현장읽기: rec([Object.assign({}, site, { filmStage: 2 })]) }));

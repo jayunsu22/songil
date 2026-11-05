@@ -35,6 +35,8 @@ if (which === '아침9시') {
     const d = (box.decisions || {})[it.id];
     if (!d || d.doneAt) continue;
     const site = data.sites.find((s) => s.id === it.siteId);
+    // 결재 뒤에 앱에서 이미 끝낸 일은 다시 하지 않는다 (11/5, 결재함에 CLEAR 로 보이는 일)
+    if (d.act === 'go' && site && ((it.act === 'film' && Share.filmStageOf(site) >= 2) || (it.act === 'crew' && Share.staffStatus(site).short <= 0))) { d.doneAt = now; continue; }
     if (d.act === 'go' && it.act === 'film' && site && d.to && d.to.phone) {
       const text = Share.filmOrderSms(site, !!data.settings.smsSiteName);
       if (!text) {

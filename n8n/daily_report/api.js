@@ -68,7 +68,17 @@ if (b.action === 'decide') {
   const act = ['go', 'later', 'mine', 'done'].includes(b.act) ? b.act : '';
   const was = box.decisions[id];
   if (was && was.doneAt) { out.resp = { ok: false, error: '이미 처리했습니다' }; return finish(); }
-  if (!act) { delete box.decisions[id]; delete sd.marks[id]; }
+  if (!act) {
+    delete box.decisions[id]; delete sd.marks[id];
+    // [되돌리기] (11/5) — 완료표시로 앱·결과에 넣은 것도 되돌린다
+    const it = box.rep.next.find((n) => n.id === id);
+    if (was && was.act === 'done' && ['pay', 'as', 'task', 'film'].includes(it.kind)) {
+      const day = new Date(was.at + 9 * 3600e3).toISOString().slice(0, 10);
+      const p = id.split(':');
+      out.fills.push({ siteId: it.siteId || '-', kind: 'undo', what: it.kind, serviceId: p[2] || '', taskId: p.slice(1).join(':'), at: day, room: '결재함' });
+      if (sd.log[day]) sd.log[day] = sd.log[day].filter((x) => !(x.title === it.title + ' — 완료' && x.res === '결재함 완료표시'));
+    }
+  }
   else box.decisions[id] = { act, at: now, to: b.to && b.to.phone ? { label: s(b.to.label, 60), phone: s(b.to.phone, 20).replace(/[^0-9+]/g, '') } : null };
   // [완료표시] (사장님 11/3) — 이미 끝났다 → 바로 앱 기록에 반영(우편함) + 오늘 결과에 + 다시 묻지 않음(marks)
   if (act === 'done') {

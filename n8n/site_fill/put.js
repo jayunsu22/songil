@@ -19,6 +19,7 @@ const logOf = (o, f) => {
   if (o.kind === 'task') return { kind: 'site', title: '할 일 추가', detail: o.title };
   if (o.kind === 'filmVendor') return { kind: 'site', title: '필름 업체가 가져옴으로 표시', detail: o.room };
   if (o.kind === 'done') return { kind: 'site', title: { pay: '잔금 받음', as: 'AS 완료', task: '할 일 완료' }[o.what], detail: '' };
+  if (o.kind === 'undo') return { kind: 'site', title: { pay: '잔금 받음 취소', as: 'AS 완료 취소', task: '할 일 완료 취소', film: '필름 직접 주문 취소' }[o.what], detail: '결재함 되돌리기' };
   return null;
 };
 const srcOf = (o) => (o.room === '결재함' ? '결재함' : o.room === '인원 모집' ? '인원모집' : o.kind === 'filmOrdered' ? '필름 주문' : 'auto');
@@ -61,6 +62,11 @@ for (const f of (Array.isArray(body.fills) ? body.fills : []).slice(0, 50)) {
   } else if (o.kind === 'done') {
     // 결재함 [완료표시] (11/3): 잔금 받음·AS 완료·할 일 완료 → 앱 Kakao.fillPatch (11/4 고침: 전에는 여기서 버려져 앱에 안 들어갔다)
     o.what = ['pay', 'as', 'task'].includes(f.what) ? f.what : '';
+    o.serviceId = s(f.serviceId, 60); o.taskId = s(f.taskId, 100);
+    if (!o.what) continue;
+  } else if (o.kind === 'undo') {
+    // 결재함 [되돌리기] (11/5): 완료표시로 넣은 것을 앱에서 되돌린다 → 앱 Kakao.fillPatch
+    o.what = ['pay', 'as', 'task', 'film'].includes(f.what) ? f.what : '';
     o.serviceId = s(f.serviceId, 60); o.taskId = s(f.taskId, 100);
     if (!o.what) continue;
   } else continue;   // 모르는 kind 는 버림. filmOrdered: 텔레그램 버튼으로 주문 문자를 보냄 → 앱 '필름 주문' 단계 (카톡_버튼, 11/1)
