@@ -208,7 +208,9 @@ def run_once(cfg, state, dry=False):
             gaps.check(cfg, state, time.time(),
                        # orders = 필름 주문 알림 (시공 5일 전, 사장님 11/1)
                        lambda: n8n_send.post_json(cfg["site_gaps_url"], cfg["owner_key"], {"days": 7, "orderDays": gaps.ORDER_DAYS}),
-                       lambda text, buttons=None: notify(cfg, text, buttons), log)
+                       lambda text, buttons=None: notify(cfg, text, buttons), log,
+                       # 📋 결재함에서 묻기로 한 현장은 [시작해] 대신 알림만 (11/6)
+                       plan=lambda: n8n_send.post_json(cfg["report_url"], cfg["owner_key"], {"action": "askPlan"}, timeout=20))
             # 못 받은 답은 2시간 뒤 남은 번호만 자동으로 다시 (사장님 11/1, 18시 넘으면 다음 날 9시)
             gaps.reask(cfg, state, time.time(), gaps.send_to_room, lambda text: notify(cfg, text), log)
             # 업체 답에 3분쯤 뒤 인사 (사장님 11/1)

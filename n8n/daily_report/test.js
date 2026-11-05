@@ -118,6 +118,30 @@ assert.strictEqual(o.resp.ok, false);
   Object.keys(sd).forEach((k) => delete sd[k]); Object.assign(sd, JSON.parse(keep));
 })();
 
+// ❓ 결재함 ↔ 노트북 (11/6): askPlan 에 [진행해] 한 현장, 9시에 보내면 asked(결재함), 노트북이 먼저 물었으면 9시에 안 보냄
+(function () {
+  const keep = JSON.stringify(sd), at = clock;
+  clock = Date.parse('2026-11-09T00:00:00Z');
+  const empty = Object.assign({}, site, { id: 'a2', name: '보현', date: '2026-11-15', pwLobby: '' });
+  sd.reports['2026-11-09'] = { rep: { date: '2026-11-09', today: '2026-11-08', done: [], next: [{ id: 'ask:a2', kind: 'ask', title: '보현 출입정보 질문', res: '', siteId: 'a2', act: 'ask' }] },
+    decisions: { 'ask:a2': { act: 'go', at: 0, to: { name: '실장님', via: 'sms', phone: '01091596012' } } }, at: 0 };
+  let r = run('요청', { 보고서요청: { body: { action: 'askPlan' } } });
+  assert.deepStrictEqual([r.resp.plans.a2.who, r.resp.plans.a2.via], ['실장님', 'sms']);
+  let g = run('실행', Object.assign({ 아침9시: {} }, air, { 현장읽기: rec([empty]) }));
+  assert.strictEqual(g.sms.length, 1);
+  assert.strictEqual(sd.asked.a2.by, '결재함');
+  r = run('요청', { 보고서요청: { body: { action: 'askPlan' } } });
+  assert.ok(!r.resp.plans.a2 && r.resp.asked.a2, '보낸 뒤엔 plan 이 아니라 asked');
+  // 노트북이 먼저 물었으면 9시에 안 보냄
+  delete sd.asked.a2; sd.reports['2026-11-09'].decisions['ask:a2'].doneAt = 0;
+  run('요청', { 보고서요청: { body: { action: 'asked', siteId: 'a2', by: '노트북', via: 'kakao', who: '블라블라 실장님' } } });
+  g = run('실행', Object.assign({ 아침9시: {} }, air, { 현장읽기: rec([empty]) }));
+  assert.strictEqual(g.sms.length, 0);
+  assert.ok(g.fills.some((f) => /노트북이 이미 물음/.test(f.title)));
+  clock = at;
+  Object.keys(sd).forEach((k) => delete sd[k]); Object.assign(sd, JSON.parse(keep));
+})();
+
 // 그날 저녁 보고서의 '오늘 결과' 에 9시에 한 일
 clock = Date.parse('2026-11-04T10:00:00Z');
 run('실행', Object.assign({ 오후5시: {} }, air, { 현장읽기: rec([Object.assign({}, site, { filmStage: 2 })]) }));

@@ -76,6 +76,30 @@ class CheckTest(unittest.TestCase):
         self.sent.append((text, buttons))
         return True
 
+    def test_approval_plan_replaces_start_button(self):
+        # 📋 결재함에서 [진행해] 한 현장은 [시작해] 대신 '결재함에서 묻기로 함' 한 번 (11/6)
+        st = {}
+        plan = lambda: {"plans": {SITE["id"]: {"date": "2026-11-06", "who": "실장님", "via": "sms"}}, "asked": {}}
+        gaps.check(CFG, st, at_hour(9), self.fetch, self.notify, lambda m: None, plan=plan)
+        texts = [t for t, b in self.sent]
+        self.assertIn("결재함에서 묻기로 함", texts[0])
+        self.assertIn("실장님 · 📨 문자", texts[0])
+        self.assertIsNone(self.sent[0][1], "버튼 없음")
+        self.assertIn("투나여행", texts[1])                                   # 다른 현장은 그대로
+        gaps.check(CFG, st, at_hour(11), self.fetch, self.notify, lambda m: None, plan=plan)
+        self.assertEqual(len(self.sent), 2, "한 번만")
+
+    def test_run_ask_tells_approval_box(self):
+        told = []
+        orig_post, orig_send = gaps.tell_asked, gaps.send_to_room
+        gaps.tell_asked = lambda cfg, sid, via, who: told.append((sid, via, who))
+        gaps.send_to_room = lambda room, text, log: (room, "")
+        try:
+            gaps.run_ask(CFG, {}, "j1", {"title": "봄애실장님", "site": dict(SITE, missing=["toilet"], checks=[])}, lambda *a, **k: True, lambda m: None)
+        finally:
+            gaps.tell_asked, gaps.send_to_room = orig_post, orig_send
+        self.assertEqual(told, [(SITE["id"], "kakao", "봄애실장님")])
+
     def test_once_per_site_and_hours(self):
         st = {}
         gaps.check(CFG, st, at_hour(7), self.fetch, self.notify, lambda m: None)

@@ -260,7 +260,38 @@ def film_checks(cfg, state, g, now, items, send, log):
         return   # 한 번에 한 방
 
 
-def check(cfg, state, now, fetch, notify, log, send=None):
+PLAN_VIA = {"sms": "📨 문자", "kakao": "💬 카톡"}
+
+
+def plan_text(site, p):
+    """결재함에서 묻기로 한 현장 — [시작해] 대신 이 알림 한 번 (사장님 11/6: 노트북에도 알려줘야 안 헷갈림)."""
+    import tg
+    who = " · ".join(x for x in (p.get("who"), PLAN_VIA.get(p.get("via"), "")) if x)
+    when = "%s 9시" % md(p.get("date") or "") if p.get("date") else "9시"
+    return tg.lines("📋 " + tg.b("결재함에서 묻기로 함 · %s" % site["name"]),
+                    tg.esc("→ %s (%s에 보냄)" % (who or "담당자", when)),
+                    tg.esc("노트북은 따로 묻지 않습니다. 답이 오면 앱 칸에 들어갑니다."))
+
+
+def done_text(site, a):
+    import tg
+    who = " · ".join(x for x in (a.get("who"), PLAN_VIA.get(a.get("via"), "")) if x)
+    return tg.lines("📋 " + tg.b("결재함에서 이미 물음 · %s" % site["name"]), tg.esc("→ %s — 노트북은 따로 묻지 않습니다." % (who or "담당자")))
+
+
+def tell_asked(cfg, site_id, via, who):
+    """노트북이 업체에 물었다고 결재함(업무일정표)에 알린다 — 결재함 카드에 '이미 물어봄', 9시에 또 안 보냄 (11/6). 실패해도 묻기는 그대로."""
+    url, key = cfg.get("report_url"), cfg.get("owner_key")
+    if not url or not key:
+        return
+    try:
+        import n8n_send
+        n8n_send.post_json(url, key, {"action": "asked", "siteId": site_id, "by": "노트북", "via": via, "who": who}, timeout=15)
+    except Exception:
+        pass
+
+
+def check(cfg, state, now, fetch, notify, log, send=None, plan=None):
     """reader.py 가 확인할 때마다 부른다. 1시간마다·알림 시간(in_hours)에만 빈칸 현장을 가져와 처음 보는 현장만 텔레그램으로."""
     import jobs
     g = state.setdefault("gaps", {"at": 0, "asked": {}})
@@ -278,10 +309,24 @@ def check(cfg, state, now, fetch, notify, log, send=None):
         film_checks(cfg, state, g, now, data.get("filmChecks") or [], send or send_to_room, log)
     asked = {k: v for k, v in (g.get("asked") or {}).items() if now - v.get("at", 0) < ASKED_KEEP}
     g["asked"] = asked
+    # 결재함에서 [진행해] 한 현장·이미 물은 현장 (11/6) — 이 현장엔 [시작해] 를 띄우지 않고 '결재함에서 묻기로 함' 을 한 번
+    plans, done = {}, {}
+    if plan:
+        try:
+            pd = plan() or {}
+            plans, done = pd.get("plans") or {}, pd.get("asked") or {}
+        except Exception as e:
+            log("[현장] 결재함 묻기 계획 못 읽음: %s" % str(e)[:100])
     for raw in sites:
         site = _site(raw)
         sync_checks(state, site)
         if site["id"] in asked or not (site["missing"] or site["checks"]):
+            continue
+        if site["id"] in plans or (site["id"] in done and done[site["id"]].get("by") == "결재함"):
+            p = plans.get(site["id"])
+            if notify(plan_text(site, p) if p else done_text(site, done[site["id"]])):
+                asked[site["id"]] = {"at": now, "by": "결재함"}
+                log("[현장] 결재함이 묻기로 함: %s" % site["name"])
             continue
         rooms = rooms_for(cfg, site["client"])
         room = ", ".join(rooms)
@@ -321,6 +366,7 @@ def run_ask(cfg, state, job, info, notify, log):
     lst.append(dict(site, at=now, q=text, items=item_numbers(site), last=now, tries=0))
     asks[opened] = lst
     log("[%s] 빈칸 질문 보냄: %s" % (opened, site["name"]))
+    tell_asked(cfg, site["id"], "kakao", opened)   # 결재함에 '이미 물어봄' (11/6)
     import tg
     notify(tg.lines("🏠 " + tg.b("업체에 물었습니다 · %s" % opened), tg.esc(site["name"]), "답이 오면 현장관리 칸에 넣고 알려 드립니다."))
     return opened, ""

@@ -67,6 +67,11 @@ if (which === '아침9시') {
       // ❓ 출입정보 질문 (사장님 11/5): 결재함에서 고른 사람에게 카톡/문자로 번호 질문 (빈칸 + 업체 확인 질문)
       d.doneAt = now;
       const q = Share.askQuestion(site, data.settings), to = d.to || {};
+      const was = sd.asked[site.id];
+      if (was && now - was.at < ASK_FRESH && was.by !== '결재함') {   // 그 사이 노트북이 이미 물음 (텔레그램 [시작해]·비서) — 두 번 안 묻는다
+        out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 안 함 — 노트북이 이미 물음', detail: Share.titleLine(site) + (was.who ? ' · ' + was.who : '') });
+        continue;
+      }
       if (!q) {   // 그 사이 앱에서 다 받음
         out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 안 함 — 이미 다 받음', detail: Share.titleLine(site) });
         continue;
@@ -87,6 +92,7 @@ if (which === '아침9시') {
         out.kakao.push({ action: 'add', id: 'ask' + site.id.replace(/[^A-Za-z0-9]/g, '') + today.replace(/-/g, ''), room: to.kakaoRoom || '', client: to.client || '', text: q, ttl: 600,
           ask: { id: site.id, name: Share.titleLine(site), client: to.client || '', date: site.date, missing: items.missing, checks: items.checks.map((c) => ({ id: c.id, text: c.text, ok: !!c.ok })) } });
       }
+      sd.asked[site.id] = { at: now, by: '결재함', via: to.via === 'sms' ? 'sms' : 'kakao', who: to.name || '' };   // 노트북이 [시작해] 를 또 안 띄우게
       out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 ' + (to.via === 'sms' ? '문자 보냄' : '카톡 맡김'), detail: Share.titleLine(site) + ' → ' + (to.name || '담당자') });
       log.push({ kind: 'ask', title: Share.titleLine(site) + ' 출입정보 질문', res: (to.name || '담당자') + ' · ' + (to.via === 'sms' ? '문자' : '카톡') });
     } else if (d.act === 'go' && it.act === 'review' && site) {

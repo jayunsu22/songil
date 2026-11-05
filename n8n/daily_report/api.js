@@ -10,6 +10,27 @@ if (b.action === 'outbox') {
   sd.outbox = [];
   return finish();
 }
+// ❓ 노트북 → 결재함: 노트북(텔레그램 [시작해]·비서·결재함 카톡)이 업체에 물었다 { siteId, by, via, who } (11/6)
+if (b.action === 'asked') {
+  const id = s(b.siteId, 40);
+  if (id) sd.asked[id] = { at: Date.now(), by: s(b.by, 20) || '노트북', via: s(b.via, 10), who: s(b.who, 60) };
+  out.resp = { ok: !!id };
+  return finish();
+}
+// ❓ 결재함 → 노트북: 결재함에서 [진행해] 해 9시에 물을 현장(아직 안 보냄)과 이미 물은 현장 — 노트북은 이 현장에 [시작해] 알림을 안 띄운다
+if (b.action === 'askPlan') {
+  const plans = {};
+  Object.keys(sd.reports).forEach((date) => {
+    const x = sd.reports[date];
+    (x.rep.next || []).forEach((n) => {
+      const d = (x.decisions || {})[n.id];
+      if (n.kind !== 'ask' || !d || d.act !== 'go' || d.doneAt || !n.siteId) return;
+      plans[n.siteId] = { date, who: (d.to && d.to.name) || '', via: (d.to && d.to.via) || '', title: n.title };
+    });
+  });
+  out.resp = { ok: true, plans, asked: sd.asked };
+  return finish();
+}
 if (b.action === 'list') {
   out.resp = { ok: true, reports: Object.keys(sd.reports).sort().reverse().map((d) => {
     const x = sd.reports[d];
@@ -100,5 +121,5 @@ if (b.action === 'decide') {
     (sd.log[today] = sd.log[today] || []).push({ kind: it.kind, title: it.title + ' — 완료', res: '결재함 완료표시' });
   }
 }
-out.resp = { ok: true, date, rep: box.rep, decisions: box.decisions, reports: Object.keys(sd.reports).sort().reverse(), inbox: inboxView() };
+out.resp = { ok: true, date, rep: box.rep, decisions: box.decisions, reports: Object.keys(sd.reports).sort().reverse(), inbox: inboxView(), asked: sd.asked };
 return finish();
