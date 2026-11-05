@@ -794,20 +794,9 @@ def open_room(room, box, log, wait=4.0):
     return 0, None
 
 
-def _find_edit(top):
-    """카톡 메인 창 안의 검색 입력칸 (없으면 0)."""
-    found = []
-    P = ctypes.WINFUNCTYPE(ctypes.c_bool, w.HWND, w.LPARAM)
-
-    def each(c, _):
-        b = ctypes.create_unicode_buffer(32)
-        u.GetClassNameW(c, b, 32)
-        if b.value == "Edit":
-            found.append(c)
-        return True
-
-    u.EnumChildWindows(top, P(each), 0)
-    return found[0] if found else 0
+def _find_edit(lst):
+    """채팅 목록 칸과 같은 탭에 있는 검색 입력칸 (없으면 0). 메인 창의 첫 Edit 는 친구 탭 것이라 쓰면 안 된다 (11/5 --find-room 못 찾음)."""
+    return u.FindWindowExW(u.GetParent(lst), 0, "Edit", None) if lst else 0
 
 
 def search_open(room, log, wait=4.0):
@@ -815,14 +804,14 @@ def search_open(room, log, wait=4.0):
     제목이 room 과 정확히 같은 창만 돌려주고, 다른 방이 열리면 닫는다. → 창 | 0. 같은 이름 방이 둘이면 구분하지 못한다."""
     import kakao_window
     top, lst = find_chatlist()
-    edit = _find_edit(top) if top else 0
+    edit = _find_edit(lst)
     if not edit:
         log("[%s] 카톡 검색칸을 못 찾음" % room)
         return 0
     before = set(kakao_window.chat_windows())
     u.SendMessageW(edit, 0x000C, 0, ctypes.c_wchar_p(room))  # WM_SETTEXT
     try:
-        time.sleep(1.0)
+        time.sleep(1.5)   # 검색 결과가 뜰 때까지
         u.PostMessageW(edit, 0x100, 0x0D, 0x001C0001)
         time.sleep(0.05)
         u.PostMessageW(edit, 0x101, 0x0D, 0xC01C0001)
