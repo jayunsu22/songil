@@ -13,7 +13,8 @@ for (const x of Object.values(sd.recruits).sort((a, b) => b.at - a.at)) {
   const i = x.people.findIndex((p) => tail(p.phone) === from && ['asked', 'yes', 'timeout'].includes(p.st));
   if (i >= 0) { r = x; idx = i; break; }
 }
-if (!r) return finish();
+// 모집 답이 아니면 문자_답장 흐름으로 — 앱 비서가 보낸 문자의 답이면 거기서 처리, 아니면 거기서 버린다 (11/5)
+if (!r) { out.forward = { action: 'in', from: pl.sender || pl.phoneNumber || pl.phone || '', msg }; return finish(); }
 const p = r.people[idx];
 p.reply = msg.slice(0, 200);
 const NO = /(불가|아니|아뇨|안\s*돼|안\s*되|못\s*(해|가|할|함)|어렵|힘들|선약|ㄴㄴ|\bx\b|no\b)/i;

@@ -28,3 +28,9 @@ def add(kind, title, detail="", site_id="", need=False, key=""):
 
 def resolve(key):
     _post({"action": "resolve", "key": key})
+
+
+def feed(room, site_id, site_name, msgs, lines, left):
+    """🤖 앱 비서 대화에 띄울 업체 답·처리 결과 (11/5). 글 원문은 n8n 에 7일만, 칸 값은 lines 에 안 적는다."""
+    text = "\n".join(str(m.get("text") or "") for m in (msgs or []))[-600:]
+    _post({"action": "feed_add", "items": [{"kind": "kakao", "from": room, "siteId": site_id, "siteName": site_name, "text": text, "lines": lines, "left": left}]})

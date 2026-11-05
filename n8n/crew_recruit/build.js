@@ -61,6 +61,9 @@ const workflow = {
     post('h2', '알림보내기', 920, 300, BASE + 'kakao-notify', OWNER, '={{ JSON.stringify($json) }}'),
     split('s3', '우편목록', 700, 500, "const f = $input.first().json.fills || []; return f.length ? [{ json: { fills: f } }] : [];"),
     post('h3', '우편넣기', 920, 500, BASE + 'site-fill', OWNER, '={{ JSON.stringify({ fills: $json.fills }) }}'),
+    // 모집 답이 아닌 문자 → 문자_답장 (11/5)
+    split('s4', '넘길문자', 700, 700, "const f = $input.first().json.forward; return f ? [{ json: f }] : [];"),
+    post('h5', '문자넘기기', 920, 700, BASE + 'sms-reply', OWNER, '={{ JSON.stringify($json) }}'),
     // 처음 한 번: SMS Gateway 에 '받은 문자 → 이 흐름' 웹훅 등록 (POST crew-sms-hook, 사장님 열쇠)
     hook('w4', '답장주소등록요청', 'crew-sms-hook', '3f8a2d6b-9c1e-4b57-a0d3-7e2f1a9b8c60', 800, true),
     post('h4', '답장주소등록', 220, 800, 'https://api.sms-gate.app/3rdparty/v1/webhooks', SMS,
@@ -78,12 +81,13 @@ const workflow = {
     문자목록: { main: [[{ node: '문자보내기', type: 'main', index: 0 }]] },
     알림목록: { main: [[{ node: '알림보내기', type: 'main', index: 0 }]] },
     우편목록: { main: [[{ node: '우편넣기', type: 'main', index: 0 }]] },
+    넘길문자: { main: [[{ node: '문자넘기기', type: 'main', index: 0 }]] },
     답장주소등록요청: { main: [[{ node: '답장주소등록', type: 'main', index: 0 }]] },
     답장주소등록: { main: [[{ node: '등록응답', type: 'main', index: 0 }]] },
   },
   settings: { executionOrder: 'v1', saveDataSuccessExecution: 'all' },
 };
-const fan = ['문자목록', '알림목록', '우편목록'].map((n) => ({ node: n, type: 'main', index: 0 }));
+const fan = ['문자목록', '알림목록', '우편목록', '넘길문자'].map((n) => ({ node: n, type: 'main', index: 0 }));
 const resp = { 모집: '모집응답', 답장: '답장응답', 버튼: '버튼응답' };
 SOURCES.forEach((s) => { workflow.connections[s] = { main: [(resp[s] ? [{ node: resp[s], type: 'main', index: 0 }] : []).concat(fan)] }; });
 workflow.nodes.forEach((n) => { if (!n.credentials) delete n.credentials; });

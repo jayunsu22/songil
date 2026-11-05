@@ -1,0 +1,365 @@
+{
+  "name": "문자_답장",
+  "nodes": [
+    {
+      "id": "w",
+      "name": "요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "2c7f9e14-3b6a-4d58-a1e7-8f4b0d6c2e93",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sms-reply",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "p",
+      "name": "처리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 문자_답장 › 처리: 앱 🤖 비서가 보낸 문자의 답장 (사장님 11/5: 문자도 카톡처럼 답장을 띄우고 처리 결과를). POST sms-reply (사장님 열쇠)\n// { action: 'watch', items: [{ phone, name, siteId, siteName, client, fill, keys }] } ← 앱: 문자를 보낸 번호를 14일 기억\n// { action: 'in', from, msg } ← 인원모집 흐름: 사장님 폰이 받은 문자 중 모집 답이 아닌 것. 기억한 번호의 답만 본다 — 다른 문자는 그냥 버린다\n// 설계 docs/superpowers/specs/2026-11-05-답장띄우기-design.md\nconst b = $input.first().json.body || {};\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\nconst tail = (p) => String(p || '').replace(/[^0-9]/g, '').slice(-8);\nconst sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nsd.watch = Object.fromEntries(Object.entries(sd.watch || {}).filter(([, w]) => now - w.at < 14 * 864e5));\nif (b.action === 'watch') {\n  let n = 0;\n  (Array.isArray(b.items) ? b.items : []).slice(0, 30).forEach((it) => {\n    const k = tail(it && it.phone);\n    if (k.length < 8) return;\n    sd.watch[k] = { at: now, name: s(it.name, 40), siteId: s(it.siteId, 40), siteName: s(it.siteName, 120), client: s(it.client, 60), fill: !!it.fill,\n      keys: (Array.isArray(it.keys) ? it.keys : []).map((x) => s(x, 12)).slice(0, 6) };\n    n++;\n  });\n  return [{ json: { resp: { ok: true, n }, go: false } }];\n}\nif (b.action === 'in') {\n  const w = sd.watch[tail(b.from)], msg = s(b.msg, 1000);\n  if (!w || !msg) return [{ json: { resp: { ok: true, known: false }, go: false } }];\n  const ai = w.fill && !!w.siteId && w.siteId !== '-';\n  const today = new Date(now + 9 * 3600e3).toISOString().slice(0, 10);\n  return [{ json: { resp: { ok: true, known: true }, go: true, ai, msg, tailKey: tail(b.from), w, today,\n    body: { room: w.name, client: w.client, siteId: w.siteId, today, mine: ['김정헌'], recent: [], messages: [{ d: today, t: '', who: w.name, text: msg }] } } }];\n}\nreturn [{ json: { resp: { ok: false, error: 'action 은 watch·in' }, go: false } }];\n"
+      }
+    },
+    {
+      "id": "o",
+      "name": "응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        -120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.resp) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "g",
+      "name": "답장만",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        60
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.first().json.go ? $input.all() : [];"
+      }
+    },
+    {
+      "id": "i",
+      "name": "AI물을까",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ic",
+              "leftValue": "={{ !!$json.ai }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a",
+      "name": "비서판단",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-assist",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "r",
+      "name": "정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        60
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 문자_답장 › 정리: AI 판단(카톡_비서)으로 칸에 넣을 것·남은 것을 고르고 → 우편함·비서 대화(feed)·텔레그램. 문자 답장 자동 회신은 하지 않는다\nconst p = $('처리').first().json;\nconst r = p.ai ? ($input.first().json || {}) : {};\nconst sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nconst LABEL = { pwLobby: '공동현관 비번', pwUnit: '세대 비번', toilet: '화장실 위치', films: '필름 번호' };\nconst put = (f) => f.update ? ' 바꿈' : ' 넣음';\nconst fills = [], lines = [], got = new Set();\n(Array.isArray(r.fills) ? r.fills : []).forEach((f) => {\n  if (f.kind === 'films' && f.update) { lines.push('필름 번호 변경 요청 — 직접 바꿔 주세요'); return; }   // 필름 변경은 사장님이 (11/1)\n  const o = { siteId: f.siteId, kind: f.kind, room: p.w.name, at: p.today };\n  if (f.kind === 'field') { o.field = f.field; o.value = f.value; got.add(f.field); lines.push(LABEL[f.field] + put(f)); }\n  else { o.films = f.films; got.add('films'); lines.push(LABEL.films + put(f) + ' → 수량을 골라 주세요'); }\n  fills.push(o);\n});\n(Array.isArray(r.picks) ? r.picks : []).forEach((x) => lines.push((x.label || '내용') + ' — 확실치 않아 안 넣었어요. 글을 보고 직접 넣어 주세요'));\n(Array.isArray(r.pays) ? r.pays : []).forEach(() => lines.push('잔금 넣었다고 함 — 확인되면 결재함에서 완료표시'));\n(Array.isArray(r.infos) ? r.infos : []).forEach((x) => lines.push(String(x.value || '').slice(0, 120)));\nconst w = (sd.watch || {})[p.tailKey];\nif (w) w.keys = (w.keys || []).filter((k) => !got.has(k));\nconst left = ((w && w.keys) || []).filter((k) => LABEL[k]).map((k) => LABEL[k]);\nconst feed = { id: 's' + now.toString(36), t: now, kind: 'sms', from: p.w.name, siteId: p.w.siteId === '-' ? '' : p.w.siteId, siteName: p.w.siteName, text: p.msg.slice(0, 500), lines, left };\nconst esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst notify = { html: true, text: '💬 <b>문자 답장 · ' + esc(p.w.name) + '</b>' + (p.w.siteName ? '\\n' + esc(p.w.siteName) : '') +\n  (lines.length ? '\\n' + lines.map((l) => '✅ ' + esc(l)).join('\\n') : '') + (left.length ? '\\n❓ 아직 못 받음: ' + esc(left.join(' · ')) : '') + '\\n(앱 🤖 비서에서 보기)' };\nreturn [{ json: { fills, feed, notify } }];\n"
+      }
+    },
+    {
+      "id": "s1",
+      "name": "우편목록",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -60
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const f = $input.first().json.fills || []; return f.length ? [{ json: { fills: f } }] : [];"
+      }
+    },
+    {
+      "id": "h1",
+      "name": "우편넣기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        -60
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-a6fa.up.railway.app/webhook/site-fill",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fills: $json.fills }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "h2",
+      "name": "비서대화",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        60
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-a6fa.up.railway.app/webhook/work-log",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ action: \"feed_add\", items: [$json.feed] }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "h3",
+      "name": "알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        180
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-notify",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.notify) }}",
+        "options": {
+          "timeout": 60000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "요청": {
+      "main": [
+        [
+          {
+            "node": "처리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "처리": {
+      "main": [
+        [
+          {
+            "node": "응답",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "답장만",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "답장만": {
+      "main": [
+        [
+          {
+            "node": "AI물을까",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI물을까": {
+      "main": [
+        [
+          {
+            "node": "비서판단",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "비서판단": {
+      "main": [
+        [
+          {
+            "node": "정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "정리": {
+      "main": [
+        [
+          {
+            "node": "우편목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "비서대화",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "우편목록": {
+      "main": [
+        [
+          {
+            "node": "우편넣기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  }
+}

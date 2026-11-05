@@ -105,4 +105,9 @@ assert.strictEqual(o.sms[1].phone, '+821000000001');
 // 밤(21시)에는 시계가 문자를 안 보낸다
 clock = Date.parse('2026-11-03T12:00:00Z');
 o = run('clock.js'); assert.strictEqual(o.sms.length, 0);
+// 모집 답이 아닌 문자는 문자_답장으로 넘긴다 (11/5), 모집 답은 안 넘긴다
+o = run('reply.js', '답장받음', { payload: { message: '공현 0000', sender: '+821077776666' } });
+assert.deepStrictEqual(o.forward, { action: 'in', from: '+821077776666', msg: '공현 0000' });
+const wfj = JSON.parse(require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'build.js')]).toString());
+assert.ok(wfj.connections['답장'].main[0].some((c) => c.node === '넘길문자'), '답장 → 넘길문자 연결');
 console.log('crew_recruit ok');

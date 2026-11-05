@@ -84,7 +84,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// 인원모집 공용 (2026-11-01 사장님, 11/1 여러 날 한 번에) — 코드 노드마다 앞에 붙는다 (build.js).\n// 저장 공간 sd.recruits[번호] = { id, siteId, siteName, active, stopped, at,\n//   days: [{ date, label, slots, budget, band, exhausted }],\n//   people: [{ name, phone, pay, free:[날 번호], st: wait|asked|yes|in|no|timeout|skip, asked:[날], hold:[날], in:[날], tries, at, reply }] }\n// hold = 답을 기다리거나 사장님 [넣기] 를 기다리며 자리를 잡아 둔 날. in = 넣은 날.\n// 예산 규칙은 앱 share.js pickWithinBudget·recruitMulti 와 같다 (바꾸면 둘 다). 설계 docs/superpowers/specs/2026-11-01-인원모집-design.md\nconst sd = $getWorkflowStaticData('global');\nsd.recruits = sd.recruits || {};\nconst now = Date.now();\nconst KST = 9 * 3600e3;\nconst out = { resp: { ok: true }, sms: [], notify: [], fills: [] };\nconst dom = (iso) => parseInt(String(iso).slice(8, 10), 10);\nconst mon = (iso) => parseInt(String(iso).slice(5, 7), 10);\n// '11월 15일,16일,18일' · 달이 바뀌면 '11월 30일, 12월 1일'\nfunction datesText(isos) {\n  const g = [];\n  isos.forEach((d) => { const m = mon(d); if (!g.length || g[g.length - 1].m !== m) g.push({ m, d: [] }); g[g.length - 1].d.push(dom(d) + '일'); });\n  return g.map((x) => x.m + '월 ' + x.d.join(',')).join(', ');\n}\n// 문자 (사장님이 정한 그대로, 11/1)\nconst ASK = (isos) => '안녕하세요. 김정헌실장님의\\nAI 인원모집비서입니다.\\n\\n' + datesText(isos) + ' 구인중입니다.\\n일정 되시는날을 알려주세요.\\n\\n' +\n  isos.map((d, i) => dom(d) + '일 ' + (i === 1 ? '불가능' : '가능')).join('\\n') + '\\n\\n이렇게 보내주시면 됩니다.\\n감사합니다.';\nconst THANKS = (isos) => isos.map((d) => dom(d) + '일').join(', ') + ' 확정입니다. 감사합니다~\\n주소확정되면 보내드릴께요~';\nconst CLOSED = (isos) => isos.map((d) => dom(d) + '일').join(', ') + '은 마감되었어요~ 담에봐요~';\nconst SORRY = '아쉽네요~ 담에봐요~';\nconst GONE = '연락이 없어서 다른분께 연락드릴께요.\\n담에봐요~';\nconst WAIT = 2 * 3600e3, MAX_TRY = 2, OPEN = 8, CLOSE = 20;   // 2시간, 두 번까지, 문자는 오전 8시~저녁 8시\nconst e164 = (p) => { const d = String(p || '').replace(/[^0-9+]/g, ''); return d.startsWith('+') ? d : '+82' + d.replace(/^0/, ''); };\nconst tail = (p) => String(p || '').replace(/[^0-9]/g, '').slice(-8);\nconst esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst hourKST = (t) => new Date(t + KST).getUTCHours();\nconst todayKST = () => new Date(now + KST).toISOString().slice(0, 10);\n// last 부터 8~20시만 세어 2시간이 되는 때 (밤에 걸리면 다음 날 8시부터 다시 센다)\nfunction dueAt(last) {\n  let t = last, left = WAIT;\n  for (let i = 0; i < 60 && left > 0; i++) {\n    const d = new Date(t + KST), h = d.getUTCHours();\n    const day = (n, hh) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + n, hh) - KST;\n    if (h < OPEN) { t = day(0, OPEN); continue; }\n    if (h >= CLOSE) { t = day(1, OPEN); continue; }\n    const step = Math.min(left, day(0, CLOSE) - t);\n    t += step; left -= step;\n  }\n  return t;\n}\nconst holding = (p) => p.st === 'asked' || p.st === 'yes';\nconst inOn = (r, di) => r.people.filter((p) => (p.in || []).includes(di));\nconst holdOn = (r, di) => r.people.filter((p) => holding(p) && (p.hold || []).includes(di));\nconst full = (r, di) => inOn(r, di).length >= r.days[di].slots;\nconst openOn = (r, di) => r.days[di].slots - inOn(r, di).length - holdOn(r, di).length;\nconst pending = (r) => r.people.filter((p) => holding(p) && (p.hold || []).length);\nfunction ask(r, p) {\n  p.st = 'asked'; p.tries = (p.tries || 0) + 1; p.at = now;\n  out.sms.push({ phone: e164(p.phone), text: ASK(p.asked.map((di) => r.days[di].date)) });\n}\n// 그날 이 사람을 넣어도 예산 안인가 — 이 사람 + 남은 자리를 남은 후보 중 가장 싼 사람들로 채워도 넘지 않게\nfunction fits(r, di, p, waits) {\n  const d = r.days[di];\n  if (!d.budget) return true;\n  const open = openOn(r, di);\n  const used = inOn(r, di).concat(holdOn(r, di)).reduce((a, x) => a + x.pay, 0);\n  const fill = waits.filter((x) => x !== p && x.free.includes(di)).map((x) => x.pay).sort((a, b) => a - b).slice(0, open - 1).reduce((a, b) => a + b, 0);\n  return p.pay + fill <= d.budget - used;\n}\n// 아직 빈 날이 있으면 순서대로 다음 사람에게 — 그 사람이 되는 날(겹치지 않고 예산 안)만 묻는다\nfunction advance(r) {\n  if (!r.active) return;\n  for (let guard = 0; guard < 50; guard++) {\n    const waits = r.people.filter((p) => p.st === 'wait');\n    let hit = null, dates = [];\n    for (const p of waits) {\n      dates = r.days.map((_, di) => di).filter((di) => !r.days[di].exhausted && openOn(r, di) > 0 && p.free.includes(di) && fits(r, di, p, waits));\n      if (dates.length) { hit = p; break; }\n    }\n    if (!hit) break;\n    hit.asked = dates; hit.hold = dates.slice();\n    ask(r, hit);\n  }\n  // 물어볼 사람이 더 없는데 아직 빈 날 → 그날은 밴드로\n  r.days.forEach((d, di) => {\n    if (d.exhausted || openOn(r, di) <= 0 || holdOn(r, di).length) return;\n    d.exhausted = true;\n    out.notify.push({ html: true, text: '👥 <b>모두 안 됨 · ' + esc(d.label) + ' ' + (d.slots - inOn(r, di).length) + '자리</b>\\n' + esc(r.siteName) +\n      '\\n순서대로 다 물어봤습니다 — 밴드에서 구해 주세요.\\n────\\n' + esc(d.band || '') });\n  });\n  if (r.days.every((d, di) => full(r, di) || d.exhausted) && !pending(r).length) r.active = false;\n}\nconst finish = () => [{ json: out }];\n\n// 인원모집 › 답장: SMS Gateway(사장님 폰)가 받은 문자를 POST sms-in-… (sms:received). 모집 중에 물어본 번호의 답만 본다 —\n// 다른 문자(가족·업체)는 그냥 지나간다. '15일 가능 16일 불가능' 처럼 날마다 읽는다.\n// 다 안 됨 → '아쉽네요' + 다음 사람 / 되는 날 있음·못 읽음 → 텔레그램 [15일 넣기]…[모두 넣기][안 넣기]\nconst body = $('답장받음').first().json.body || {};\nconst pl = body.payload || body;\nconst msg = String(pl.message || pl.text || '').trim();\nconst from = tail(pl.sender || pl.phoneNumber || pl.phone || '');\nif (!msg || !from) return finish();\n// 그 번호를 물어본 모집 — 최근 것부터\nlet r = null, idx = -1;\nfor (const x of Object.values(sd.recruits).sort((a, b) => b.at - a.at)) {\n  if (!Array.isArray(x.days)) continue;\n  const i = x.people.findIndex((p) => tail(p.phone) === from && ['asked', 'yes', 'timeout'].includes(p.st));\n  if (i >= 0) { r = x; idx = i; break; }\n}\nif (!r) return finish();\nconst p = r.people[idx];\np.reply = msg.slice(0, 200);\nconst NO = /(불가|아니|아뇨|안\\s*돼|안\\s*되|못\\s*(해|가|할|함)|어렵|힘들|선약|ㄴㄴ|\\bx\\b|no\\b)/i;\nconst YES = /(가능|네|넵|넹|예|옙|응|ㅇㅇ|ㅇㅋ|ㅇ|오케|ok|좋아|됩니다|될것|돼요|되요|돼|되|갈께|갈게|콜|o\\b)/i;\nconst word = (t) => (NO.test(t) ? 'no' : YES.test(t) ? 'yes' : '');\n// 날짜마다: '15일 가능 16 안돼요' — 숫자 다음부터 다음 숫자 앞까지가 그날 답\nconst ans = {};   // 날 번호 → yes|no\nconst re = /(\\d{1,2})\\s*일?/g;\nconst marks = [];\nlet m;\nwhile ((m = re.exec(msg))) {\n  const n = parseInt(m[1], 10), di = p.asked.find((x) => dom(r.days[x].date) === n);\n  if (di != null) marks.push({ di, at: m.index, end: re.lastIndex });   // 물어본 날 숫자만 ('2시부터' 는 지나감)\n}\n// 뒤에서부터 — '15일 16일 가능' 처럼 말이 없는 날은 다음 날의 답을 따른다\nlet next = '';\nfor (let i = marks.length - 1; i >= 0; i--) {\n  const w = word(msg.slice(marks[i].end, i + 1 < marks.length ? marks[i + 1].at : msg.length)) || next;\n  if (w) ans[marks[i].di] = w;\n  next = w;\n}\nconst said = Object.keys(ans).length;\nif (!said) { const w = word(msg); if (w) p.asked.forEach((di) => { ans[di] = w; }); }   // '네' · '다 가능' · '아니요'\nelse if (Object.values(ans).includes('yes')) p.asked.forEach((di) => { if (!ans[di] && !marks.some((k) => k.di === di)) ans[di] = 'no'; });   // '15일만 가능' — 말 안 한 날은 안 됨\nconst yes = p.asked.filter((di) => ans[di] === 'yes');\nconst no = p.asked.filter((di) => ans[di] === 'no');\nconst unk = p.asked.filter((di) => !ans[di]);   // 못 읽은 날 — 사장님이 정한다\nconst ds = (list) => list.map((di) => dom(r.days[di].date) + '일').join(' · ');\nconst head = esc(p.name) + '(' + p.pay + ')';\nif (no.length === p.asked.length) {\n  p.st = 'no'; p.hold = []; p.at = now;\n  out.sms.push({ phone: e164(p.phone), text: SORRY });\n  advance(r);\n  return finish();\n}\n// 되는 날·못 읽은 날만 잡아 둔다 — 이미 잡아 둔 날이거나 아직 빈 자리가 있는 날\nconst was = p.hold || [];\np.hold = [];\nconst keep = yes.concat(unk).filter((di) => was.includes(di) || (!r.stopped && openOn(r, di) > 0));\np.hold = keep;\nconst closed = yes.filter((di) => !keep.includes(di));\np.st = keep.length ? 'yes' : 'no'; p.at = now;   // 사장님이 정할 때까지 시계를 멈춘다\nif (!keep.length) {\n  // 되는 날이 다 찼다 (늦게 온 답) — 마감 문자, 못 읽은 답이면 사장님께 알림만\n  if (closed.length) out.sms.push({ phone: e164(p.phone), text: CLOSED(closed.map((di) => r.days[di].date)) });\n  out.notify.push({ html: true, text: '👤 <b>' + head + ' 답장</b> (' + (closed.length ? ds(closed) + ' 마감 — 마감 문자 보냄' : '모집 끝 — 넣으려면 앱에서 직접') + ')\\n' +\n    esc(r.siteName) + '\\n💬 \"' + esc(p.reply) + '\"' });\n  advance(r);\n  return finish();\n}\nconst btn = (lab, a) => ({ text: lab, data: 'k|' + r.id + '|' + a });\nconst rows = [];\nconst per = keep.map((di) => btn(dom(r.days[di].date) + '일 넣기', 'y' + idx + 'd' + di));\nif (keep.length === 1) rows.push([btn('✅ ' + dom(r.days[keep[0]].date) + '일 넣기', 'y' + idx + 'a'), btn('안 넣기', 'n' + idx)]);\nelse {\n  for (let i = 0; i < per.length; i += 3) rows.push(per.slice(i, i + 3));\n  rows.push([btn('✅ 모두 넣기', 'y' + idx + 'a'), btn('안 넣기', 'n' + idx)]);\n}\nout.notify.push({ html: true, buttons: rows,\n  text: '👥 <b>인원 모집 답장</b> · ' + esc(r.siteName) + '\\n👤 <b>' + head + '</b>\\n' +\n    (yes.length ? '✅ 가능: ' + ds(yes) + '\\n' : '') + (no.length ? '❌ 불가: ' + ds(no) + '\\n' : '') +\n    (unk.length ? '❔ 못 읽음: ' + ds(unk) + ' — 답을 봐 주세요\\n' : '') + (closed.length ? '⛔ 이미 마감: ' + ds(closed) + '\\n' : '') +\n    '💬 \"' + esc(p.reply) + '\"' });\nadvance(r);   // '불가' 한 날은 다음 사람에게\nreturn finish();\n"
+        "jsCode": "// 인원모집 공용 (2026-11-01 사장님, 11/1 여러 날 한 번에) — 코드 노드마다 앞에 붙는다 (build.js).\n// 저장 공간 sd.recruits[번호] = { id, siteId, siteName, active, stopped, at,\n//   days: [{ date, label, slots, budget, band, exhausted }],\n//   people: [{ name, phone, pay, free:[날 번호], st: wait|asked|yes|in|no|timeout|skip, asked:[날], hold:[날], in:[날], tries, at, reply }] }\n// hold = 답을 기다리거나 사장님 [넣기] 를 기다리며 자리를 잡아 둔 날. in = 넣은 날.\n// 예산 규칙은 앱 share.js pickWithinBudget·recruitMulti 와 같다 (바꾸면 둘 다). 설계 docs/superpowers/specs/2026-11-01-인원모집-design.md\nconst sd = $getWorkflowStaticData('global');\nsd.recruits = sd.recruits || {};\nconst now = Date.now();\nconst KST = 9 * 3600e3;\nconst out = { resp: { ok: true }, sms: [], notify: [], fills: [] };\nconst dom = (iso) => parseInt(String(iso).slice(8, 10), 10);\nconst mon = (iso) => parseInt(String(iso).slice(5, 7), 10);\n// '11월 15일,16일,18일' · 달이 바뀌면 '11월 30일, 12월 1일'\nfunction datesText(isos) {\n  const g = [];\n  isos.forEach((d) => { const m = mon(d); if (!g.length || g[g.length - 1].m !== m) g.push({ m, d: [] }); g[g.length - 1].d.push(dom(d) + '일'); });\n  return g.map((x) => x.m + '월 ' + x.d.join(',')).join(', ');\n}\n// 문자 (사장님이 정한 그대로, 11/1)\nconst ASK = (isos) => '안녕하세요. 김정헌실장님의\\nAI 인원모집비서입니다.\\n\\n' + datesText(isos) + ' 구인중입니다.\\n일정 되시는날을 알려주세요.\\n\\n' +\n  isos.map((d, i) => dom(d) + '일 ' + (i === 1 ? '불가능' : '가능')).join('\\n') + '\\n\\n이렇게 보내주시면 됩니다.\\n감사합니다.';\nconst THANKS = (isos) => isos.map((d) => dom(d) + '일').join(', ') + ' 확정입니다. 감사합니다~\\n주소확정되면 보내드릴께요~';\nconst CLOSED = (isos) => isos.map((d) => dom(d) + '일').join(', ') + '은 마감되었어요~ 담에봐요~';\nconst SORRY = '아쉽네요~ 담에봐요~';\nconst GONE = '연락이 없어서 다른분께 연락드릴께요.\\n담에봐요~';\nconst WAIT = 2 * 3600e3, MAX_TRY = 2, OPEN = 8, CLOSE = 20;   // 2시간, 두 번까지, 문자는 오전 8시~저녁 8시\nconst e164 = (p) => { const d = String(p || '').replace(/[^0-9+]/g, ''); return d.startsWith('+') ? d : '+82' + d.replace(/^0/, ''); };\nconst tail = (p) => String(p || '').replace(/[^0-9]/g, '').slice(-8);\nconst esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst hourKST = (t) => new Date(t + KST).getUTCHours();\nconst todayKST = () => new Date(now + KST).toISOString().slice(0, 10);\n// last 부터 8~20시만 세어 2시간이 되는 때 (밤에 걸리면 다음 날 8시부터 다시 센다)\nfunction dueAt(last) {\n  let t = last, left = WAIT;\n  for (let i = 0; i < 60 && left > 0; i++) {\n    const d = new Date(t + KST), h = d.getUTCHours();\n    const day = (n, hh) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + n, hh) - KST;\n    if (h < OPEN) { t = day(0, OPEN); continue; }\n    if (h >= CLOSE) { t = day(1, OPEN); continue; }\n    const step = Math.min(left, day(0, CLOSE) - t);\n    t += step; left -= step;\n  }\n  return t;\n}\nconst holding = (p) => p.st === 'asked' || p.st === 'yes';\nconst inOn = (r, di) => r.people.filter((p) => (p.in || []).includes(di));\nconst holdOn = (r, di) => r.people.filter((p) => holding(p) && (p.hold || []).includes(di));\nconst full = (r, di) => inOn(r, di).length >= r.days[di].slots;\nconst openOn = (r, di) => r.days[di].slots - inOn(r, di).length - holdOn(r, di).length;\nconst pending = (r) => r.people.filter((p) => holding(p) && (p.hold || []).length);\nfunction ask(r, p) {\n  p.st = 'asked'; p.tries = (p.tries || 0) + 1; p.at = now;\n  out.sms.push({ phone: e164(p.phone), text: ASK(p.asked.map((di) => r.days[di].date)) });\n}\n// 그날 이 사람을 넣어도 예산 안인가 — 이 사람 + 남은 자리를 남은 후보 중 가장 싼 사람들로 채워도 넘지 않게\nfunction fits(r, di, p, waits) {\n  const d = r.days[di];\n  if (!d.budget) return true;\n  const open = openOn(r, di);\n  const used = inOn(r, di).concat(holdOn(r, di)).reduce((a, x) => a + x.pay, 0);\n  const fill = waits.filter((x) => x !== p && x.free.includes(di)).map((x) => x.pay).sort((a, b) => a - b).slice(0, open - 1).reduce((a, b) => a + b, 0);\n  return p.pay + fill <= d.budget - used;\n}\n// 아직 빈 날이 있으면 순서대로 다음 사람에게 — 그 사람이 되는 날(겹치지 않고 예산 안)만 묻는다\nfunction advance(r) {\n  if (!r.active) return;\n  for (let guard = 0; guard < 50; guard++) {\n    const waits = r.people.filter((p) => p.st === 'wait');\n    let hit = null, dates = [];\n    for (const p of waits) {\n      dates = r.days.map((_, di) => di).filter((di) => !r.days[di].exhausted && openOn(r, di) > 0 && p.free.includes(di) && fits(r, di, p, waits));\n      if (dates.length) { hit = p; break; }\n    }\n    if (!hit) break;\n    hit.asked = dates; hit.hold = dates.slice();\n    ask(r, hit);\n  }\n  // 물어볼 사람이 더 없는데 아직 빈 날 → 그날은 밴드로\n  r.days.forEach((d, di) => {\n    if (d.exhausted || openOn(r, di) <= 0 || holdOn(r, di).length) return;\n    d.exhausted = true;\n    out.notify.push({ html: true, text: '👥 <b>모두 안 됨 · ' + esc(d.label) + ' ' + (d.slots - inOn(r, di).length) + '자리</b>\\n' + esc(r.siteName) +\n      '\\n순서대로 다 물어봤습니다 — 밴드에서 구해 주세요.\\n────\\n' + esc(d.band || '') });\n  });\n  if (r.days.every((d, di) => full(r, di) || d.exhausted) && !pending(r).length) r.active = false;\n}\nconst finish = () => [{ json: out }];\n\n// 인원모집 › 답장: SMS Gateway(사장님 폰)가 받은 문자를 POST sms-in-… (sms:received). 모집 중에 물어본 번호의 답만 본다 —\n// 다른 문자(가족·업체)는 그냥 지나간다. '15일 가능 16일 불가능' 처럼 날마다 읽는다.\n// 다 안 됨 → '아쉽네요' + 다음 사람 / 되는 날 있음·못 읽음 → 텔레그램 [15일 넣기]…[모두 넣기][안 넣기]\nconst body = $('답장받음').first().json.body || {};\nconst pl = body.payload || body;\nconst msg = String(pl.message || pl.text || '').trim();\nconst from = tail(pl.sender || pl.phoneNumber || pl.phone || '');\nif (!msg || !from) return finish();\n// 그 번호를 물어본 모집 — 최근 것부터\nlet r = null, idx = -1;\nfor (const x of Object.values(sd.recruits).sort((a, b) => b.at - a.at)) {\n  if (!Array.isArray(x.days)) continue;\n  const i = x.people.findIndex((p) => tail(p.phone) === from && ['asked', 'yes', 'timeout'].includes(p.st));\n  if (i >= 0) { r = x; idx = i; break; }\n}\n// 모집 답이 아니면 문자_답장 흐름으로 — 앱 비서가 보낸 문자의 답이면 거기서 처리, 아니면 거기서 버린다 (11/5)\nif (!r) { out.forward = { action: 'in', from: pl.sender || pl.phoneNumber || pl.phone || '', msg }; return finish(); }\nconst p = r.people[idx];\np.reply = msg.slice(0, 200);\nconst NO = /(불가|아니|아뇨|안\\s*돼|안\\s*되|못\\s*(해|가|할|함)|어렵|힘들|선약|ㄴㄴ|\\bx\\b|no\\b)/i;\nconst YES = /(가능|네|넵|넹|예|옙|응|ㅇㅇ|ㅇㅋ|ㅇ|오케|ok|좋아|됩니다|될것|돼요|되요|돼|되|갈께|갈게|콜|o\\b)/i;\nconst word = (t) => (NO.test(t) ? 'no' : YES.test(t) ? 'yes' : '');\n// 날짜마다: '15일 가능 16 안돼요' — 숫자 다음부터 다음 숫자 앞까지가 그날 답\nconst ans = {};   // 날 번호 → yes|no\nconst re = /(\\d{1,2})\\s*일?/g;\nconst marks = [];\nlet m;\nwhile ((m = re.exec(msg))) {\n  const n = parseInt(m[1], 10), di = p.asked.find((x) => dom(r.days[x].date) === n);\n  if (di != null) marks.push({ di, at: m.index, end: re.lastIndex });   // 물어본 날 숫자만 ('2시부터' 는 지나감)\n}\n// 뒤에서부터 — '15일 16일 가능' 처럼 말이 없는 날은 다음 날의 답을 따른다\nlet next = '';\nfor (let i = marks.length - 1; i >= 0; i--) {\n  const w = word(msg.slice(marks[i].end, i + 1 < marks.length ? marks[i + 1].at : msg.length)) || next;\n  if (w) ans[marks[i].di] = w;\n  next = w;\n}\nconst said = Object.keys(ans).length;\nif (!said) { const w = word(msg); if (w) p.asked.forEach((di) => { ans[di] = w; }); }   // '네' · '다 가능' · '아니요'\nelse if (Object.values(ans).includes('yes')) p.asked.forEach((di) => { if (!ans[di] && !marks.some((k) => k.di === di)) ans[di] = 'no'; });   // '15일만 가능' — 말 안 한 날은 안 됨\nconst yes = p.asked.filter((di) => ans[di] === 'yes');\nconst no = p.asked.filter((di) => ans[di] === 'no');\nconst unk = p.asked.filter((di) => !ans[di]);   // 못 읽은 날 — 사장님이 정한다\nconst ds = (list) => list.map((di) => dom(r.days[di].date) + '일').join(' · ');\nconst head = esc(p.name) + '(' + p.pay + ')';\nif (no.length === p.asked.length) {\n  p.st = 'no'; p.hold = []; p.at = now;\n  out.sms.push({ phone: e164(p.phone), text: SORRY });\n  advance(r);\n  return finish();\n}\n// 되는 날·못 읽은 날만 잡아 둔다 — 이미 잡아 둔 날이거나 아직 빈 자리가 있는 날\nconst was = p.hold || [];\np.hold = [];\nconst keep = yes.concat(unk).filter((di) => was.includes(di) || (!r.stopped && openOn(r, di) > 0));\np.hold = keep;\nconst closed = yes.filter((di) => !keep.includes(di));\np.st = keep.length ? 'yes' : 'no'; p.at = now;   // 사장님이 정할 때까지 시계를 멈춘다\nif (!keep.length) {\n  // 되는 날이 다 찼다 (늦게 온 답) — 마감 문자, 못 읽은 답이면 사장님께 알림만\n  if (closed.length) out.sms.push({ phone: e164(p.phone), text: CLOSED(closed.map((di) => r.days[di].date)) });\n  out.notify.push({ html: true, text: '👤 <b>' + head + ' 답장</b> (' + (closed.length ? ds(closed) + ' 마감 — 마감 문자 보냄' : '모집 끝 — 넣으려면 앱에서 직접') + ')\\n' +\n    esc(r.siteName) + '\\n💬 \"' + esc(p.reply) + '\"' });\n  advance(r);\n  return finish();\n}\nconst btn = (lab, a) => ({ text: lab, data: 'k|' + r.id + '|' + a });\nconst rows = [];\nconst per = keep.map((di) => btn(dom(r.days[di].date) + '일 넣기', 'y' + idx + 'd' + di));\nif (keep.length === 1) rows.push([btn('✅ ' + dom(r.days[keep[0]].date) + '일 넣기', 'y' + idx + 'a'), btn('안 넣기', 'n' + idx)]);\nelse {\n  for (let i = 0; i < per.length; i += 3) rows.push(per.slice(i, i + 3));\n  rows.push([btn('✅ 모두 넣기', 'y' + idx + 'a'), btn('안 넣기', 'n' + idx)]);\n}\nout.notify.push({ html: true, buttons: rows,\n  text: '👥 <b>인원 모집 답장</b> · ' + esc(r.siteName) + '\\n👤 <b>' + head + '</b>\\n' +\n    (yes.length ? '✅ 가능: ' + ds(yes) + '\\n' : '') + (no.length ? '❌ 불가: ' + ds(no) + '\\n' : '') +\n    (unk.length ? '❔ 못 읽음: ' + ds(unk) + ' — 답을 봐 주세요\\n' : '') + (closed.length ? '⛔ 이미 마감: ' + ds(closed) + '\\n' : '') +\n    '💬 \"' + esc(p.reply) + '\"' });\nadvance(r);   // '불가' 한 날은 다음 사람에게\nreturn finish();\n"
       }
     },
     {
@@ -321,6 +321,49 @@
       }
     },
     {
+      "id": "s4",
+      "name": "넘길문자",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        700
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const f = $input.first().json.forward; return f ? [{ json: f }] : [];"
+      }
+    },
+    {
+      "id": "h5",
+      "name": "문자넘기기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        700
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-a6fa.up.railway.app/webhook/sms-reply",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
       "id": "w4",
       "name": "답장주소등록요청",
       "type": "n8n-nodes-base.webhook",
@@ -469,6 +512,17 @@
         ]
       ]
     },
+    "넘길문자": {
+      "main": [
+        [
+          {
+            "node": "문자넘기기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "답장주소등록요청": {
       "main": [
         [
@@ -513,6 +567,11 @@
             "node": "우편목록",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "넘길문자",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -537,6 +596,11 @@
           },
           {
             "node": "우편목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "넘길문자",
             "type": "main",
             "index": 0
           }
@@ -565,6 +629,11 @@
             "node": "우편목록",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "넘길문자",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -584,6 +653,11 @@
           },
           {
             "node": "우편목록",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "넘길문자",
             "type": "main",
             "index": 0
           }

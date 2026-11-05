@@ -216,6 +216,15 @@ def handle(cfg, state, room, new, msgs, call, put, inbox, notify, log, now=None,
             log("[%s] 🤖 결재함에 %d개 올림" % (room, len(items)))
         except Exception as e:
             log("[%s] 🤖 결재함 올리기 실패: %s" % (room, str(e)[:150]))
+    # 🤖 앱 비서 대화에 — 지켜보던 고객 방이거나, 넣고 올린 게 있을 때만 (잡담까지 띄우지 않게)
+    if cw or fills or film_changes or picks or pays:
+        put_lines = [("%s%s" % (f["label"], " 바꿈" if f.get("update") else " 넣음")) for f in fills]
+        put_lines += ["필름 번호 변경 요청 — 직접 바꿔 주세요"] * bool(film_changes)
+        put_lines += ["%s — 어느 현장인지 결재함에서 골라 주세요" % p["label"] for p in picks]
+        put_lines += ["잔금 넣었다고 함 — 결재함에서 완료표시"] * bool(pays)
+        first = (fills or film_changes or [{}])[0]
+        worklog.feed(room, (cw or {}).get("siteId") or first.get("siteId", ""), (cw or {}).get("name") or first.get("name", ""), new, put_lines,
+                     [KEY_LABEL[k] for k in (cw or {}).get("keys", [])])
     reply = res.get("reply")
     if not reply or not reply.get("text"):
         return

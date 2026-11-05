@@ -25,6 +25,20 @@ if (body.action === 'add') {
   keep();
   return [{ json: { ok: true, n } }];
 }
+// 🤖 비서 대화에 띄울 답장·처리 결과 (11/5) — 업체·고객 글 원문이 들어 있어 7일만 둔다. feed_add { items } / feed_list { after } → after 뒤 것
+sd.feed = (sd.feed || []).filter((x) => now - x.t < 7 * 864e5).slice(-200);
+if (body.action === 'feed_add') {
+  (Array.isArray(body.items) ? body.items : []).slice(0, 20).forEach((it, i) => {
+    if (!it) return;
+    const list = (v) => (Array.isArray(v) ? v : []).map((x) => s(x, 160)).filter(Boolean).slice(0, 12);
+    sd.feed.push({ id: s(it.id, 40) || 'f' + now.toString(36) + i, t: now, kind: s(it.kind, 8), from: s(it.from, 60), siteId: s(it.siteId, 40), siteName: s(it.siteName, 120), text: s(it.text, 600), lines: list(it.lines), left: list(it.left) });
+  });
+  return [{ json: { ok: true } }];
+}
+if (body.action === 'feed_list') {
+  const after = Number(body.after) || 0;
+  return [{ json: { ok: true, now, items: sd.feed.filter((x) => x.t > after) } }];
+}
 if (body.action === 'resolve') {
   const id = s(body.id, 60), key = s(body.key, 60);
   let n = 0;

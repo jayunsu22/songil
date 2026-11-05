@@ -149,6 +149,32 @@ class CustomerRoomTest(unittest.TestCase):
         self.assertEqual(len(sent), 1)      # 한 번만
 
 
+class FeedTest(unittest.TestCase):
+    def setUp(self):
+        self.sent = []
+        self.saved = assist.worklog.feed
+        assist.worklog.feed = lambda *a: self.sent.append(a)
+
+    def tearDown(self):
+        assist.worklog.feed = self.saved
+
+    def test_fill_goes_to_chat_without_value(self):
+        Box({"ok": True, "fills": [FILL]}).run()
+        room, site, name, msgs, lines, left = self.sent[0]
+        self.assertEqual((room, site, name, lines), ("가인테리어 실장님", "s1", "하늘마을 3단지", ["공동현관 비번 넣음"]))
+        self.assertNotIn("*1234#", " ".join(lines))
+
+    def test_small_talk_stays_out(self):
+        Box({"ok": True, "reply": {"text": "네~", "type": "ack", "auto": True}}).run()
+        self.assertEqual(self.sent, [])
+
+    def test_watched_customer_room_always_shows(self):
+        st = {}
+        assist.watch_room(st, "가인테리어 실장님", {"siteId": "s1", "name": "하늘", "until": "2026-11-08", "keys": ["pwUnit"]}, at_hour(14))
+        Box({"ok": True}).run(state=st)
+        self.assertEqual(self.sent[0][5], ["세대 비번"])
+
+
 class ExactSendTest(unittest.TestCase):
     def setUp(self):
         import chatlist

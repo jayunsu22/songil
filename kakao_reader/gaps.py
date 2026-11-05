@@ -554,6 +554,18 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log, send=None):
         _reply(state, key, pend, kind, now)
 
 
+def _fill_line(f):
+    if f["kind"] == "check":
+        return "업체 확인 답 받음"
+    name = LABEL[f["field"]] if f["kind"] == "field" else "필름 번호"
+    return name + (" 바꿈" if f.get("update") else " 넣음") + (" → 수량을 골라 주세요" if f["kind"] == "films" else "")
+
+
+def _left_labels(site, done):
+    return [LABEL[k] for k in site.get("missing") or [] if k not in done] + \
+           [re.sub(r"\s*\(.*?\)", "", check_text(c, site))[:24] for c in site.get("checks") or []]
+
+
 def _answer(cfg, key, pend, msgs, digest, put, notify, log):
     """값을 뽑아 넣고 알린다. 돌려줌: 'change' / 'got' / '' (인사 고르기용)."""
     today = time.strftime("%Y-%m-%d")
@@ -581,6 +593,8 @@ def _answer(cfg, key, pend, msgs, digest, put, notify, log):
     if not fills:
         if not film_changes:
             log("[%s] 답에 넣을 값 없음" % key)
+        worklog.feed(key, pend[0]["id"], pend[0]["name"], msgs, ["필름 번호 변경 요청 — 직접 바꿔 주세요"] if film_changes else [],
+                     _left_labels(pend[0], set()))
         return "change" if film_changes else ""
     try:
         put(fills)
@@ -604,5 +618,7 @@ def _answer(cfg, key, pend, msgs, digest, put, notify, log):
         done = {_done_key(f) for f in mine}
         s["missing"] = [k for k in s["missing"] if k not in done]
         s["checks"] = [c for c in s.get("checks") or [] if "check:" + c["id"] not in done]
+        if mine:
+            worklog.feed(key, s["id"], s["name"], msgs, [_fill_line(f) for f in mine], _left_labels(s, set()))
     # 다 받은 현장도 시공일까지 남겨 둔다 — 업체가 나중에 바꾼 정보를 고쳐 넣게 (watch_extra 가 시공일 뒤 지움)
     return "change" if film_changes or any(f.get("update") for f in fills) else "got"

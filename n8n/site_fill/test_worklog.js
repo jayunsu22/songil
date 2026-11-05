@@ -38,4 +38,9 @@ assert.strictEqual(run('worklog.js', {}).items[1].state, '');
 // 90일 지나면 사라짐
 sd.worklog.push({ id: 'old', t: Date.now() - 91 * 864e5, title: '옛날' });
 assert.ok(!run('worklog.js', {}).items.some((x) => x.id === 'old'));
+// 비서 대화 알림함
+run('worklog.js', { action: 'feed_add', items: [{ kind: 'kakao', from: '가실장', siteId: 's1', text: '공현 #0', lines: ['공동현관 비번 넣음'], left: ['화장실'] }] });
+let fd = run('worklog.js', { action: 'feed_list', after: 0 });
+assert.deepStrictEqual([fd.items.length, fd.items[0].from, fd.items[0].left], [1, '가실장', ['화장실']]);
+assert.strictEqual(run('worklog.js', { action: 'feed_list', after: fd.now + 1 }).items.length, 0);
 console.log('worklog ok');
