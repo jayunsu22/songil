@@ -649,10 +649,29 @@ def check_rows(cfg, state, log, t):
     for room, tm in times.items():
         # 새 글이면 시간은 늘 '오전/오후 h:mm' 이다. '오후 6:25 → 어제' 는 자정이 지나 바뀐 것뿐 (11/1 노트북)
         if room in old and old[room] != tm and re.search(r"\d:\d", tm):
+            # 글이 새로 오면 시간은 앞으로만 간다. 뒤로 가면 잘못 읽은 것 (11/5: 오전 8:18 → 3:18) — 기억은 전 값 그대로
+            if went_back(old[room], tm):
+                state["rows"][room] = old[room]
+                continue
             cur = badges.get(room)
             if cur is None or cur.get("since") is None:
                 badges[room] = dict(cur or {"n": None, "fp": None}, box=None, gone=True, since=t, told=False)
                 log("[%s] 목록의 시간이 바뀜 (%s → %s) — 새 글로 봄" % (room, old[room], tm))
+
+
+def _minutes(tm):
+    m = re.search(r"(오전|오후)\s*(\d{1,2}):(\d{2})", str(tm))
+    if not m:
+        return None
+    return (int(m.group(2)) % 12 + (12 if m.group(1) == "오후" else 0)) * 60 + int(m.group(3))
+
+
+def went_back(old, new):
+    """목록 시간이 뒤로 갔나. 밤늦게 → 새벽은 자정을 넘긴 것이라 뒤로 간 게 아니다."""
+    a, b = _minutes(old), _minutes(new)
+    if a is None or b is None or b >= a:
+        return False
+    return not (a >= 20 * 60 and b <= 6 * 60)
 
 
 def wait_seconds(state, cfg, t):
@@ -841,8 +860,14 @@ def read_and_report(cfg, state, room, notify, log, classify, answer=None, assist
     cur = state["badges"][room]
     cur["since"] = None
     LAST["sig"] = None  # 방을 열면 목록이 바뀐다 → 다음 확인 때 새로 본다
-    log("[%s] 글이 멈춤 → 방 열기" % room)
-    h, title = open_room(room, cur["box"], log)
+    # 이미 열려 있는 창은 그대로 읽는다 — 목록에서 또 열면 새 창이 안 생겨 '못 열었음' 이 되고 마우스까지 움직인다 (11/5)
+    was_open = kakao_window.find_room(room)[0]
+    if was_open:
+        h, title = was_open, room
+        log("[%s] 글이 멈춤 → 이미 열린 창에서 읽기" % room)
+    else:
+        log("[%s] 글이 멈춤 → 방 열기" % room)
+        h, title = open_room(room, cur["box"], log)
     if not h:
         log("[채팅 목록] '%s' 방을 못 열었음 — 새 글 알림만" % room)
         notify(message([(room, cur.get("n"), cur.get("n"))]) + "\n(방을 못 열어서 요약 없음)")
@@ -851,7 +876,8 @@ def read_and_report(cfg, state, room, notify, log, classify, answer=None, assist
     try:
         text = kakao_window.copy_room_text(title)
     finally:
-        kakao_window.close_window(h)
+        if not was_open:
+            kakao_window.close_window(h)
     if not text:
         log("[%s] 글 복사 실패" % title)
         notify(message([(title, cur.get("n"), cur.get("n"))]) + "\n(글을 못 읽어서 요약 없음)")

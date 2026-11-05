@@ -65,6 +65,38 @@ class RowsTest(unittest.TestCase):
             chatlist.ocr = orig
 
 
+class WentBackTest(unittest.TestCase):
+    def test_misread_time(self):
+        self.assertTrue(chatlist.went_back("오전 8:18", "오전 3:18"))      # 11/5 잘못 읽음
+        self.assertFalse(chatlist.went_back("오전 3:18", "오전 8:18"))
+        self.assertFalse(chatlist.went_back("오전 11:50", "오후 12:05"))
+        self.assertTrue(chatlist.went_back("오후 12:05", "오전 11:50"))
+        self.assertFalse(chatlist.went_back("오후 11:50", "오전 12:05"))   # 자정 넘김
+        self.assertFalse(chatlist.went_back("어제", "오전 8:18"))
+
+    def test_misread_keeps_old_time_and_no_new(self):
+        orig = chatlist.ocr
+        out = {"t": "오전 8:18"}
+        chatlist.ocr = lambda paths: {p: [(80 * sc, 10 * sc, 30 * sc, 18 * sc, "류춘화"), (330 * sc, 12 * sc, 60 * sc, 14 * sc, out["t"])]
+                                      for p, (sc, _) in zip(paths, chatlist.ROW_VARIANTS)}
+        try:
+            cfg = {"watch_rooms": ["류춘화"]}
+            st = {}
+            chatlist.LAST.update(img=Image.new("RGB", (500, 300), "white"), region=(0, 0, 400, 300), rows_sig=None)
+            chatlist.check_rows(cfg, st, lambda m: None, 100)
+            out["t"] = "오전 3:18"
+            chatlist.LAST.update(img=Image.new("RGB", (500, 300), "gray"))
+            chatlist.check_rows(cfg, st, lambda m: None, 200)
+            self.assertNotIn("류춘화", st.get("badges", {}))
+            self.assertEqual(st["rows"]["류춘화"], "오전 8:18")
+            out["t"] = "오전 8:18"                                      # 다시 제대로 읽어도 새 글 아님
+            chatlist.LAST.update(img=Image.new("RGB", (500, 300), "white"))
+            chatlist.check_rows(cfg, st, lambda m: None, 300)
+            self.assertNotIn("류춘화", st.get("badges", {}))
+        finally:
+            chatlist.ocr = orig
+
+
 class ParseTimeTest(unittest.TestCase):
     def test_forms(self):
         P = chatlist.parse_time

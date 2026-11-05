@@ -178,6 +178,9 @@ def run_once(cfg, state, dry=False):
         extra = extra + [r for r in assist.watch_rooms(state, time.time()) if r not in extra]
         # 💬 앱 고정값에 적은 카톡방도 지켜본다 (11/5)
         extra = extra + [r for r in kakao_send.app_rooms(state) if r not in extra]
+        # 사장님 자기 방(김정헌)은 지켜보지 않는다 — 고객 카톡방 시험으로 들어가도 (11/5)
+        own = set(cfg.get("rooms") or []) | set(cfg.get("quote_rooms") or []) | {cfg.get("report_room")}
+        extra = [r for r in extra if r not in own]
         wcfg = cfg
         if extra and cfg["watch_rooms"]:
             wcfg = dict(cfg, watch_rooms=list(cfg["watch_rooms"]) + [r for r in extra if r not in cfg["watch_rooms"]])
