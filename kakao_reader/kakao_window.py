@@ -16,6 +16,13 @@ k.GlobalUnlock.argtypes = [ctypes.c_void_p]
 k.GlobalAlloc.restype = ctypes.c_void_p
 u.GetClipboardData.restype = ctypes.c_void_p
 u.SetClipboardData.argtypes = [w.UINT, ctypes.c_void_p]
+u.GetAsyncKeyState.restype = ctypes.c_short
+u.OpenInputDesktop.restype = ctypes.c_void_p
+u.SwitchDesktop.argtypes = [ctypes.c_void_p]
+u.CloseDesktop.argtypes = [ctypes.c_void_p]
+k.OpenProcess.restype = ctypes.c_void_p
+k.QueryFullProcessImageNameW.argtypes = [ctypes.c_void_p, w.DWORD, w.LPWSTR, ctypes.POINTER(w.DWORD)]
+k.CloseHandle.argtypes = [ctypes.c_void_p]
 
 CF_UNICODETEXT = 13
 WM_KEYDOWN, WM_KEYUP = 0x100, 0x101
@@ -78,11 +85,49 @@ def _post_key(hwnd, vk):
     u.PostMessageW(hwnd, WM_KEYUP, vk, 0)
 
 
-def copy_room_text(room, wait=0.6):
-    """방 채팅창의 글 전체(창에 불러온 만큼)를 돌려준다. 창이 없으면 None."""
-    h, lst = find_room(room)
-    if not lst:
-        return None
+last_fail = ""   # 마지막 복사 실패 이유 (사장님 11/6: '글 복사 실패' 만으로는 원인을 알 수 없었다)
+
+
+def _clipboard_holder():
+    """지금 클립보드를 잡고 있는 프로그램 이름 (없거나 모르면 '')."""
+    try:
+        hwnd = u.GetOpenClipboardWindow()
+        if not hwnd:
+            return ""
+        pid = w.DWORD()
+        u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        hp = k.OpenProcess(0x1000, False, pid.value)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not hp:
+            return "pid %d" % pid.value
+        try:
+            buf = ctypes.create_unicode_buffer(260)
+            n = w.DWORD(260)
+            if k.QueryFullProcessImageNameW(hp, 0, buf, ctypes.byref(n)):
+                return buf.value.replace("/", "\\").split("\\")[-1]
+            return "pid %d" % pid.value
+        finally:
+            k.CloseHandle(hp)
+    except Exception:
+        return ""
+
+
+def _screen_locked():
+    """입력 화면을 쓸 수 없으면(잠금 화면 등) True."""
+    try:
+        d = u.OpenInputDesktop(0, False, 0x0100)  # DESKTOP_SWITCHDESKTOP
+        if not d:
+            return True
+        try:
+            return not u.SwitchDesktop(d)
+        finally:
+            u.CloseDesktop(d)
+    except Exception:
+        return False
+
+
+def _copy_once(room, h, lst, wait):
+    """복사 한 번. 돌려주는 값 (글, 실패 이유). 글을 못 얻으면 글은 None."""
+    why = []
     if u.GetForegroundWindow() == h:
         # 채팅창이 맨 앞이면 키가 입력칸으로 가서 복사가 안 된다 (사진 저장 뒤에 이렇게 남음)
         # → 바탕화면을 앞으로 해 두고 복사한다.
@@ -90,31 +135,70 @@ def copy_room_text(room, wait=0.6):
         u.keybd_event(0x12, 0, 2, 0)
         u.SetForegroundWindow(u.GetShellWindow())
         time.sleep(0.3)
+        if u.GetForegroundWindow() == h:
+            why.append("카톡 창이 맨 앞에서 안 비켜남")
     before = get_clipboard_text()
-    marker = "⁣kakao-reader⁣"
+    marker = "\u2063kakao-reader\u2063"
     set_clipboard_text(marker)
+    if get_clipboard_text() != marker:
+        # 표시를 못 넣었으면 다른 글을 이 방 글로 잘못 읽을 수 있다 → 복사하지 않는다
+        holder = _clipboard_holder()
+        why.append("클립보드를 못 씀" + (" (사용 중: %s)" % holder if holder else ""))
+        return None, why
     # 카톡은 Ctrl 눌림을 실제 키보드 상태로 본다 → 아주 잠깐 Ctrl 을 누른다.
     u.keybd_event(VK_CONTROL, 0, 0, 0)
+    ctrl_ok = True
     try:
         _post_key(lst, ord("A"))
+        ctrl_ok = bool(u.GetAsyncKeyState(VK_CONTROL) & 0x8000)
         time.sleep(0.2)
         _post_key(lst, ord("C"))
     finally:
         u.keybd_event(VK_CONTROL, 0, 2, 0)
     text = None
+    last = marker
     end = time.time() + wait + 2
     time.sleep(wait)
     while time.time() < end:
-        t = get_clipboard_text()
-        if t and t != marker:
-            text = t
+        last = get_clipboard_text()
+        if last and last != marker:
+            text = last
             break
         time.sleep(0.2)
+    if text is None:
+        if not ctrl_ok:
+            why.append("Ctrl 입력이 안 먹음")
+        if _screen_locked():
+            why.append("화면 잠김")
+        if last is None:
+            holder = _clipboard_holder()
+            why.append("복사 뒤 클립보드를 못 읽음" + (" (사용 중: %s)" % holder if holder else ""))
+        elif not why:
+            why.append("카톡이 복사에 반응 안 함")
     set_clipboard_text(before)
     # Ctrl+A 로 전체 선택된 채로 두면 사진을 눌러도 뷰어가 안 열린다 → 목록 왼쪽 위 빈 곳을 한 번 눌러 선택을 푼다
     lp = (3 << 16) | 3
     u.PostMessageW(lst, 0x201, 1, lp)  # WM_LBUTTONDOWN
     u.PostMessageW(lst, 0x202, 0, lp)  # WM_LBUTTONUP
+    return text, why
+
+
+def copy_room_text(room, wait=0.6, retry_wait=1.0):
+    """방 채팅창의 글 전체(창에 불러온 만큼)를 돌려준다. 창이 없거나 복사를 못 하면 None.
+    못 하면 잠깐 뒤 한 번 더 해 보고, 그래도 안 되면 이유를 last_fail 에 남긴다 (11/6)."""
+    global last_fail
+    last_fail = ""
+    h, lst = find_room(room)
+    if not lst:
+        if h:
+            last_fail = "카톡 창에서 글 목록을 못 찾음"
+        return None
+    text, why = _copy_once(room, h, lst, wait)
+    if text is None:
+        time.sleep(retry_wait)
+        text, why = _copy_once(room, h, lst, wait)
+    if text is None:
+        last_fail = " · ".join(why) or "이유 모름"
     return text
 
 

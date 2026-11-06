@@ -120,7 +120,8 @@ def check_room(cfg, state, room, dry):
     text = kakao_window.copy_room_text(room)
     if text is None:
         if kakao_window.find_room(room)[0]:
-            log("[%s] 글 복사 실패 — 다음 확인 때 다시" % room)
+            why = getattr(kakao_window, "last_fail", "")
+            log("[%s] 글 복사 실패%s — 다음 확인 때 다시" % (room, " (%s)" % why if why else ""))
         else:
             log("[%s] 채팅창이 열려 있지 않음 — 카톡에서 그 방 창을 열어 두세요" % room)
         return None
