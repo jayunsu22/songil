@@ -34,6 +34,15 @@ const airRead = (id, name, table, formula, x, y) => ({
   },
 });
 
+const iff = (id, name, x, y, expr) => ({
+  id, name, type: 'n8n-nodes-base.if', typeVersion: 2, position: [x, y],
+  parameters: { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'loose' },
+    conditions: [{ id: id + 'c', leftValue: expr, rightValue: true, operator: { type: 'boolean', operation: 'true', singleValue: true } }], combinator: 'and' }, options: {} },
+});
+// ⏰ 정시 업무보고 폰 알림 (11/7) — 견적 앱의 웹푸시 발송 함수(Netlify send-push, 같은 VAPID)를 그대로 쓴다
+const PUSH_URL = 'https://songil.netlify.app/.netlify/functions/send-push';
+const PUSH_TOKEN = 'songil_secret_2025';   // send-push 의 x-secret-token (songil netlify/functions/send-push.js 와 같은 값)
+
 const workflow = {
   name: '현장관리_빈칸',
   nodes: [
@@ -58,6 +67,17 @@ const workflow = {
     { id: 'h1', name: '노트북알림', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [440, 1200], continueOnFail: true, credentials: KEY,
       parameters: { method: 'POST', url: 'https://primary-production-a6fa.up.railway.app/webhook/kakao-notify', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
         sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json) }}', options: { timeout: 30000 } } },
+    // ⏰ 정시 업무보고 (11/7) — 매시 정각에 돌고, 한국 시간·설정을 보고 보낼지 정한다 (report.js). 앱 🔔 설정은 hourly-report
+    { id: 't2', name: '매시정각', type: 'n8n-nodes-base.scheduleTrigger', typeVersion: 1.2, position: [0, 1500], parameters: { rule: { interval: [{ field: 'cronExpression', expression: '0 * * * *' }] } } },
+    hook('w5', '보고요청', 'hourly-report', '7b2e9c41-5d8a-4f3b-a6e1-0c9d8e7f6a52', 1650),
+    code('c6', '정시보고', 'report.js', 220, 1550),
+    iff('i6', '요청이었나', 440, 1450, "={{ $('보고요청').isExecuted }}"),
+    { id: 'r6', name: '보고응답', type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: [660, 1450],
+      parameters: { respondWith: 'json', responseBody: '={{ JSON.stringify($json.resp) }}', options: CORS } },
+    { id: 's6', name: '알림목록', type: 'n8n-nodes-base.code', typeVersion: 2, position: [440, 1650], parameters: { mode: 'runOnceForAllItems', jsCode: "return ($input.first().json.push || []).map((x) => ({ json: x }));" } },
+    { id: 'h6', name: '폰알림보내기', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [660, 1650], continueOnFail: true,
+      parameters: { method: 'POST', url: PUSH_URL, sendHeaders: true, headerParameters: { parameters: [{ name: 'x-secret-token', value: PUSH_TOKEN }] },
+        sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json) }}', options: { timeout: 30000 } } },
   ],
   connections: {
     빈칸요청: { main: [[{ node: '현장읽기', type: 'main', index: 0 }]] },
@@ -73,6 +93,11 @@ const workflow = {
     내역: { main: [[{ node: '내역응답', type: 'main', index: 0 }]] },
     '10분마다': { main: [[{ node: '노트북확인', type: 'main', index: 0 }]] },
     노트북확인: { main: [[{ node: '노트북알림', type: 'main', index: 0 }]] },
+    매시정각: { main: [[{ node: '정시보고', type: 'main', index: 0 }]] },
+    보고요청: { main: [[{ node: '정시보고', type: 'main', index: 0 }]] },
+    정시보고: { main: [[{ node: '요청이었나', type: 'main', index: 0 }, { node: '알림목록', type: 'main', index: 0 }]] },
+    요청이었나: { main: [[{ node: '보고응답', type: 'main', index: 0 }], []] },
+    알림목록: { main: [[{ node: '폰알림보내기', type: 'main', index: 0 }]] },
   },
   // 앱이 5분마다 부르고, 우편함엔 비번이 들어가므로 성공 실행은 저장하지 않는다
   settings: { executionOrder: 'v1', saveDataSuccessExecution: 'none' },

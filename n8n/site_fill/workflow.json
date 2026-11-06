@@ -200,7 +200,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// 현장관리_빈칸 › 빈칸고르기: 노트북이 POST site-gaps (사장님 열쇠) 로 부른다 (카톡 '비서' 4단계, 10/31).\r\n// 현장관리 백업(Airtable)에서 오늘~days 일 안에 시작하고 A(공동현관·세대 비번·화장실)·B(필름 번호) 중 빈칸이 있거나\r\n// 아직 답을 못 받은 업체 확인 질문(checks)이 있는 현장만.\r\n// 비번 같은 값은 돌려주지 않는다 (빈칸 이름만).\r\nconst body = $('빈칸요청').first().json.body || {};\r\nconst seoul = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);\r\nconst today = /^\\d{4}-\\d{2}-\\d{2}$/.test(body.today || '') ? body.today : seoul;\r\nconst days = Math.min(Math.max(parseInt(body.days, 10) || 7, 0), 30);\r\nconst until = new Date(Date.parse(today + 'T00:00:00Z') + days * 864e5).toISOString().slice(0, 10);\r\nconst str = (v) => String(v == null ? '' : v).trim();\r\nconst clients = {};\r\nfor (const it of $('거래처읽기').all()) for (const r of (it.json.records || [])) {\r\n  const f = r.fields || {};\r\n  if (f.id) clients[f.id] = str(f['이름']);\r\n}\r\n// 업체 확인 질문 (2026-11-01) — 앱 설정(설정 표 data.checks). 앱에서 한 번도 안 고쳤으면 백업에 없으니 앱과 같은 기본 질문\r\nconst DEFAULT_CHECKS = [\r\n  { id: 'door', text: '방문이 상하좌우 문틀에 닿는지 (닿으면 목수님 조정 부탁드려요)', ok: false },\r\n  { id: 'overlap', text: '{날짜}에 겹치는 다른 공정', ok: false },\r\n  { id: 'xmark', text: '현관문 부속교환할 부분에 마카펜으로 X 표시 부탁드려요', ok: true },\r\n];\r\nlet checks = null;\r\nfor (const it of $('설정읽기').all()) for (const r of (it.json.records || [])) {\r\n  try { const d = JSON.parse((r.fields || {}).data || '{}'); if (Array.isArray(d.checks)) checks = d.checks; } catch (e) { /* 다음 줄 */ }\r\n}\r\nchecks = (checks || DEFAULT_CHECKS).filter((c) => c && str(c.id) && str(c.text) && !c.off).map((c) => ({ id: str(c.id), text: str(c.text), ok: !!c.ok }));\r\n// 답을 받았거나 '이 현장은 안 물음'(skip, 11/1) 이면 묻지 않는다\r\nconst answered = (s, id) => { const a = (s.checks || {})[id]; return !!(a && typeof a === 'object' && a.skip) || !!str(a && typeof a === 'object' ? a.v : a); };\r\n// 필름 주문 알림 (사장님 11/1) — 시공 orderDays(5)일 안이고 필름 단계가 아직 '필름 주문'(2) 전인 현장. 재고 없음·판매 중지까지 생각해 5일 전\r\nconst orderDays = Math.min(Math.max(parseInt(body.orderDays, 10) || 0, 0), 30);\r\nconst orderUntil = new Date(Date.parse(today + 'T00:00:00Z') + orderDays * 864e5).toISOString().slice(0, 10);\r\nconst last = until > orderUntil ? until : orderUntil;\r\n// 주문 문자와 같은 모양 — 같은 번호는 한 번, 필요량은 ' + ' 로 (앱 Share.filmOrderText)\r\nconst orderFilms = (films) => {\r\n  const seen = {}, order = [];\r\n  (Array.isArray(films) ? films : []).filter((x) => x && str(x.code)).forEach((x) => {\r\n    const k = str(x.code).replace(/\\s+/g, ' ').toLowerCase();\r\n    if (!seen[k]) { seen[k] = { code: str(x.code), qty: [] }; order.push(k); }\r\n    if (str(x.qty) && !seen[k].qty.includes(str(x.qty))) seen[k].qty.push(str(x.qty));\r\n  });\r\n  return order.map((k) => ({ code: seen[k].code, qty: seen[k].qty.join(' + ') }));\r\n};\r\nconst out = [], orders = [], filmChecks = [];\r\nconst tomorrow = new Date(Date.parse(today + 'T00:00:00Z') + 864e5).toISOString().slice(0, 10);\r\nfor (const it of $('현장읽기').all()) for (const r of (it.json.records || [])) {\r\n  let s = {};\r\n  try { s = JSON.parse((r.fields || {}).data || '{}'); } catch (e) { continue; }\r\n  if (!s.id || s.hide) continue;\r\n  const date = str(s.date).slice(0, 10);\r\n  if (!date || date < today || date > last) continue;\r\n  const name0 = str(s.name);\r\n  const squash = (v) => v.replace(/\\s+/g, '');\r\n  const extra = [str(s.unit), str(s.size)].filter((v) => v && squash(name0).indexOf(squash(v)) === -1);\r\n  const name = [name0].concat(extra).filter(Boolean).join(' ') || '(이름없음)';\r\n  const client = clients[s.clientId] || clients[(r.fields || {})['거래처id']] || '';\r\n  const stage = parseInt(s.filmStage, 10) || 0;\r\n  if (orderDays && date <= orderUntil && stage < 2) orders.push({ id: s.id, client, name, date, stage, films: orderFilms(s.films) });\r\n  // 🚚 업체가 필름을 가져다주는 현장 — 전날 그 방에 한 번 확인 (11/5). 이미 받았으면(수령) 안 물음\r\n  if (s.filmVendor && date === tomorrow && stage < 3 && client) filmChecks.push({ id: s.id, client, name, date });\r\n  if (date > until) continue;\r\n  const missing = ['pwLobby', 'pwUnit', 'toilet'].filter((k) => !str(s[k]));\r\n  if (!(Array.isArray(s.films) && s.films.some((x) => x && str(x.code)))) missing.push('films');\r\n  const ask = checks.filter((c) => !answered(s, c.id));\r\n  if (!missing.length && !ask.length) continue;\r\n  // 👤 개인고객 (11/5): 업체방이 없다 — '카톡 방 없음' 알림 대신 앱 현장 화면의 [문자로 물어보기]\r\n  if (client.replace(/\\s+/g, '') === '개인고객') continue;\r\n  out.push({ id: s.id, client, name, date, missing, checks: ask });\r\n}\r\nconst byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);\r\nout.sort(byDate); orders.sort(byDate);\r\nreturn [{ json: { today, until, sites: out, orders, filmChecks } }];\r\n"
+        "jsCode": "// 현장관리_빈칸 › 빈칸고르기: 노트북이 POST site-gaps (사장님 열쇠) 로 부른다 (카톡 '비서' 4단계, 10/31).\n// 현장관리 백업(Airtable)에서 오늘~days 일 안에 시작하고 A(공동현관·세대 비번·화장실)·B(필름 번호) 중 빈칸이 있거나\n// 아직 답을 못 받은 업체 확인 질문(checks)이 있는 현장만.\n// 비번 같은 값은 돌려주지 않는다 (빈칸 이름만).\nconst body = $('빈칸요청').first().json.body || {};\nconst seoul = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);\nconst today = /^\\d{4}-\\d{2}-\\d{2}$/.test(body.today || '') ? body.today : seoul;\nconst days = Math.min(Math.max(parseInt(body.days, 10) || 7, 0), 30);\nconst until = new Date(Date.parse(today + 'T00:00:00Z') + days * 864e5).toISOString().slice(0, 10);\nconst str = (v) => String(v == null ? '' : v).trim();\nconst clients = {};\nfor (const it of $('거래처읽기').all()) for (const r of (it.json.records || [])) {\n  const f = r.fields || {};\n  if (f.id) clients[f.id] = str(f['이름']);\n}\n// 업체 확인 질문 (2026-11-01) — 앱 설정(설정 표 data.checks). 앱에서 한 번도 안 고쳤으면 백업에 없으니 앱과 같은 기본 질문\nconst DEFAULT_CHECKS = [\n  { id: 'door', text: '방문이 상하좌우 문틀에 닿는지 (닿으면 목수님 조정 부탁드려요)', ok: false },\n  { id: 'overlap', text: '{날짜}에 겹치는 다른 공정', ok: false },\n  { id: 'xmark', text: '현관문 부속교환할 부분에 마카펜으로 X 표시 부탁드려요', ok: true },\n];\nlet checks = null;\nfor (const it of $('설정읽기').all()) for (const r of (it.json.records || [])) {\n  try { const d = JSON.parse((r.fields || {}).data || '{}'); if (Array.isArray(d.checks)) checks = d.checks; } catch (e) { /* 다음 줄 */ }\n}\nchecks = (checks || DEFAULT_CHECKS).filter((c) => c && str(c.id) && str(c.text) && !c.off).map((c) => ({ id: str(c.id), text: str(c.text), ok: !!c.ok }));\n// 답을 받았거나 '이 현장은 안 물음'(skip, 11/1) 이면 묻지 않는다\nconst answered = (s, id) => { const a = (s.checks || {})[id]; return !!(a && typeof a === 'object' && a.skip) || !!str(a && typeof a === 'object' ? a.v : a); };\n// 필름 주문 알림 (사장님 11/1) — 시공 orderDays(5)일 안이고 필름 단계가 아직 '필름 주문'(2) 전인 현장. 재고 없음·판매 중지까지 생각해 5일 전\nconst orderDays = Math.min(Math.max(parseInt(body.orderDays, 10) || 0, 0), 30);\nconst orderUntil = new Date(Date.parse(today + 'T00:00:00Z') + orderDays * 864e5).toISOString().slice(0, 10);\nconst last = until > orderUntil ? until : orderUntil;\n// 주문 문자와 같은 모양 — 같은 번호는 한 번, 필요량은 ' + ' 로 (앱 Share.filmOrderText)\nconst orderFilms = (films) => {\n  const seen = {}, order = [];\n  (Array.isArray(films) ? films : []).filter((x) => x && str(x.code)).forEach((x) => {\n    const k = str(x.code).replace(/\\s+/g, ' ').toLowerCase();\n    if (!seen[k]) { seen[k] = { code: str(x.code), qty: [] }; order.push(k); }\n    if (str(x.qty) && !seen[k].qty.includes(str(x.qty))) seen[k].qty.push(str(x.qty));\n  });\n  return order.map((k) => ({ code: seen[k].code, qty: seen[k].qty.join(' + ') }));\n};\nconst out = [], orders = [], filmChecks = [];\nconst tomorrow = new Date(Date.parse(today + 'T00:00:00Z') + 864e5).toISOString().slice(0, 10);\nfor (const it of $('현장읽기').all()) for (const r of (it.json.records || [])) {\n  let s = {};\n  try { s = JSON.parse((r.fields || {}).data || '{}'); } catch (e) { continue; }\n  if (!s.id || s.hide) continue;\n  const date = str(s.date).slice(0, 10);\n  if (!date || date < today || date > last) continue;\n  const name0 = str(s.name);\n  const squash = (v) => v.replace(/\\s+/g, '');\n  const extra = [str(s.unit), str(s.size)].filter((v) => v && squash(name0).indexOf(squash(v)) === -1);\n  const name = [name0].concat(extra).filter(Boolean).join(' ') || '(이름없음)';\n  const client = clients[s.clientId] || clients[(r.fields || {})['거래처id']] || '';\n  const stage = parseInt(s.filmStage, 10) || 0;\n  if (orderDays && date <= orderUntil && stage < 2) orders.push({ id: s.id, client, name, date, stage, films: orderFilms(s.films) });\n  // 🚚 업체가 필름을 가져다주는 현장 — 전날 그 방에 한 번 확인 (11/5). 이미 받았으면(수령) 안 물음\n  if (s.filmVendor && date === tomorrow && stage < 3 && client) filmChecks.push({ id: s.id, client, name, date });\n  if (date > until) continue;\n  const missing = ['pwLobby', 'pwUnit', 'toilet'].filter((k) => !str(s[k]));\n  if (!(Array.isArray(s.films) && s.films.some((x) => x && str(x.code)))) missing.push('films');\n  const ask = checks.filter((c) => !answered(s, c.id));\n  if (!missing.length && !ask.length) continue;\n  // 👤 개인고객 (11/5): 업체방이 없다 — '카톡 방 없음' 알림 대신 앱 현장 화면의 [문자로 물어보기]\n  if (client.replace(/\\s+/g, '') === '개인고객') continue;\n  out.push({ id: s.id, client, name, date, missing, checks: ask });\n}\nconst byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);\nout.sort(byDate); orders.sort(byDate);\nreturn [{ json: { today, until, sites: out, orders, filmChecks } }];\n"
       }
     },
     {
@@ -481,6 +481,167 @@
           "timeout": 30000
         }
       }
+    },
+    {
+      "id": "t2",
+      "name": "매시정각",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        1500
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "w5",
+      "name": "보고요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1650
+      ],
+      "webhookId": "7b2e9c41-5d8a-4f3b-a6e1-0c9d8e7f6a52",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hourly-report",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "c6",
+      "name": "정시보고",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        1550
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 현장관리_빈칸 › 정시보고: ⏰ 업무비서 정시 업무보고 (사장님 11/7: 매일 8시~17시 정시마다 지난 1시간 일을 폰 알림으로).\n// 내역(sd.worklog)·답장(sd.feed)과 같은 저장 공간이라 이 흐름에 둔다. 두 길로 온다:\n//  · 매시 정각 (정시 노드) — 한국 시간으로 설정한 시간(기본 8~17시)·요일이면 지난 1시간을 모아 비서 대화에 카드, 폰에 알림\n//  · POST hourly-report (사장님 열쇠, 앱 🔔 설정): { action: 'sub', subscription } 이 폰 알림 받기 / 'unsub' { endpoint } /\n//    'cfg' { cfg? } 설정 읽기·바꾸기 / 'test' 지금 지난 1시간으로 한 번 보내 보기\n// → { resp, push: [{ subscription, title, message, url }] } — push 는 다음 노드가 Netlify send-push 로 보낸다 (견적 앱과 같은 VAPID).\n// 설계 docs/superpowers/specs/2026-11-07-정시보고-design.md\nconst sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\nconst APP = 'https://jayunsu22.github.io/sitenote/index.html#order';\nsd.pushSubs = (sd.pushSubs || []).filter((x) => x && x.sub && x.sub.endpoint).slice(-5);\nconst DEF = { on: true, from: 8, to: 17, empty: false, sat: true, sun: false };\nconst cfg = Object.assign({}, DEF, sd.reportCfg || {});\nlet body = null;\ntry { body = $('보고요청').first().json.body || {}; } catch (e) { body = null; }   // 정각에 돌면 요청이 없다\n\n// 한국 시간\nconst kst = (t) => new Date(t + 9 * 3600e3);\nconst hourName = (h) => (h < 12 ? '오전 ' + h : h === 12 ? '낮 12' : '오후 ' + (h - 12)) + '시';\nconst hm = (t) => { const d = kst(t); return d.getUTCHours() + ':' + String(d.getUTCMinutes()).padStart(2, '0'); };\n\nfunction build(end) {\n  const start = end - 3600e3;\n  const inWin = (t) => t >= start && t < end;\n  const log = (sd.worklog || []).filter((x) => inWin(x.t));\n  const done = log.filter((x) => x.state !== 'need').map((x) => ({ t: x.t, title: s(x.title, 120), detail: s(x.detail, 120) }));\n  const need = log.filter((x) => x.state === 'need').map((x) => ({ t: x.t, title: s(x.title, 120), detail: s(x.detail, 120) }));\n  const replies = (sd.feed || []).filter((x) => inWin(x.t) && (x.kind === 'sms' || x.kind === 'kakao' || !x.kind) && x.from)\n    .map((x) => ({ t: x.t, from: s(x.from, 40), site: s(x.siteName, 60), lines: (x.lines || []).slice(0, 4) }));\n  const h = kst(end).getUTCHours(), ph = kst(start).getUTCHours();\n  return { start, end, hour: h, title: '⏰ ' + hourName(h) + ' 업무보고 (' + ph + '시~' + h + '시)', done, need, replies, n: done.length + need.length + replies.length };\n}\n// 폰 알림 글 — 첫 줄 요약, 그 아래 항목 (펼치면 보인다)\nfunction message(r) {\n  const head = ['처리 ' + r.done.length + '건', '받은 답장 ' + r.replies.length + '건', r.need.length ? '확인 필요 ' + r.need.length + '건' : '확인 필요 없음'].join(' · ');\n  const lines = r.done.slice(0, 3).map((x) => '✅ ' + x.title)\n    .concat(r.replies.slice(0, 2).map((x) => '💬 ' + x.from + ' 답장' + (x.site ? ' · ' + x.site : '')))\n    .concat(r.need.slice(0, 2).map((x) => '⚠️ ' + x.title));\n  const more = r.n - lines.length;\n  return [head].concat(lines, more > 0 ? ['… 외 ' + more + '건'] : []).join('\\n');\n}\n// 비서 대화 카드 (알림함 feed — 앱이 30초마다 가져가 대화에 붙인다)\nfunction feedItem(r, quiet) {\n  sd.feed = sd.feed || [];\n  const id = 'rep' + Math.floor(r.end / 3600e3);\n  if (sd.feed.some((x) => x.id === id)) return;\n  sd.feed.push({ id, t: now, kind: 'report', title: r.title, quiet: !!quiet, start: r.start, end: r.end,\n    done: r.done.slice(0, 20), replies: r.replies.slice(0, 10), need: r.need.slice(0, 10) });\n}\nfunction pushes(r) {\n  return sd.pushSubs.map((x) => ({ subscription: x.sub, title: r.title, message: message(r), url: APP }));\n}\n\nif (body) {\n  const act = s(body.action, 10);\n  if (act === 'sub') {\n    const sub = typeof body.subscription === 'string' ? JSON.parse(body.subscription) : body.subscription;\n    if (!sub || !sub.endpoint) return [{ json: { resp: { ok: false, error: '구독 정보가 없음' }, push: [] } }];\n    sd.pushSubs = sd.pushSubs.filter((x) => x.sub.endpoint !== sub.endpoint).concat([{ sub, at: now, device: s(body.device, 40) }]).slice(-5);\n    return [{ json: { resp: { ok: true, n: sd.pushSubs.length, cfg }, push: [] } }];\n  }\n  if (act === 'unsub') {\n    sd.pushSubs = sd.pushSubs.filter((x) => x.sub.endpoint !== s(body.endpoint, 1000));\n    return [{ json: { resp: { ok: true, n: sd.pushSubs.length }, push: [] } }];\n  }\n  if (act === 'cfg') {\n    if (body.cfg && typeof body.cfg === 'object') {\n      const c = body.cfg, hr = (v, d) => Math.min(23, Math.max(0, Number.isFinite(+v) ? Math.round(+v) : d));\n      sd.reportCfg = { on: c.on !== false, from: hr(c.from, cfg.from), to: hr(c.to, cfg.to), empty: !!c.empty, sat: c.sat !== false, sun: !!c.sun };\n      if (sd.reportCfg.to < sd.reportCfg.from) sd.reportCfg.to = sd.reportCfg.from;\n    }\n    return [{ json: { resp: { ok: true, cfg: Object.assign({}, DEF, sd.reportCfg || {}), n: sd.pushSubs.length }, push: [] } }];\n  }\n  if (act === 'test') {\n    const r = build(now);\n    if (!sd.pushSubs.length) return [{ json: { resp: { ok: false, error: '이 폰이 알림 받기에 등록되지 않음' }, push: [] } }];\n    return [{ json: { resp: { ok: true, n: r.n }, push: pushes(Object.assign({}, r, { title: '🔔 시험 · ' + r.title })) } }];\n  }\n  return [{ json: { resp: { ok: false, error: 'action 은 sub·unsub·cfg·test' }, push: [] } }];\n}\n\n// 매시 정각 — 설정한 시간·요일만\nconst k = kst(now), h = k.getUTCHours(), dow = k.getUTCDay();\nif (!cfg.on || h < cfg.from || h > cfg.to || (dow === 6 && !cfg.sat) || (dow === 0 && !cfg.sun)) return [{ json: { resp: { ok: true, skip: true }, push: [] } }];\nconst end = Math.floor(now / 3600e3) * 3600e3;   // 정각에 맞춤 (몇 초 늦게 돌아도 9:00~10:00)\nconst r = build(end);\nif (!r.n) {\n  feedItem(r, true);   // 대화에 회색 한 줄만\n  return [{ json: { resp: { ok: true, empty: true }, push: cfg.empty ? pushes(Object.assign({}, r, { done: [], need: [], replies: [] })) : [] } }];\n}\nfeedItem(r, false);\nreturn [{ json: { resp: { ok: true, n: r.n }, push: pushes(r) } }];\n"
+      }
+    },
+    {
+      "id": "i6",
+      "name": "요청이었나",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1450
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "i6c",
+              "leftValue": "={{ $('보고요청').isExecuted }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "r6",
+      "name": "보고응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        1450
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.resp) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "s6",
+      "name": "알림목록",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1650
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return ($input.first().json.push || []).map((x) => ({ json: x }));"
+      }
+    },
+    {
+      "id": "h6",
+      "name": "폰알림보내기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        1650
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://songil.netlify.app/.netlify/functions/send-push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-secret-token",
+              "value": "songil_secret_2025"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
     }
   ],
   "connections": {
@@ -621,6 +782,67 @@
         [
           {
             "node": "노트북알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "매시정각": {
+      "main": [
+        [
+          {
+            "node": "정시보고",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "보고요청": {
+      "main": [
+        [
+          {
+            "node": "정시보고",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "정시보고": {
+      "main": [
+        [
+          {
+            "node": "요청이었나",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "알림목록",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "요청이었나": {
+      "main": [
+        [
+          {
+            "node": "보고응답",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "알림목록": {
+      "main": [
+        [
+          {
+            "node": "폰알림보내기",
             "type": "main",
             "index": 0
           }
