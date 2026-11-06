@@ -116,8 +116,8 @@ def send_to_room(room, text, log):
 
 
 def question(site):
-    """업체 카톡 방에 보낼 질문 — 번호를 매겨 번호로 짧게 답하게 (사장님 11/1: 질문이 많으면 답하기·정리하기 어렵다)."""
-    lines = [GREETING, "%s (%s 시공) 확인 부탁드려요." % (site["name"], md(site["date"])), "번호로 짧게 답 주시면 됩니다 🙏"]
+    """업체 카톡 방에 보낼 질문 — 번호를 매겨 묻는다 (사장님 11/1: 질문이 많으면 답하기·정리하기 어렵다. 11/6: 안내 한 줄은 뺐다)."""
+    lines = [GREETING, "%s (%s 시공) 확인 부탁드려요." % (site["name"], md(site["date"]))]
     return "\n".join(lines + ["%d. %s" % (n, t) for n, t in numbered(site)])
 
 

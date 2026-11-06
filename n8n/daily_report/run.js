@@ -3,6 +3,9 @@ let which = '';
 for (const n of ['오후5시', '낮12시', '아침9시']) { try { if ($(n).isExecuted) which = n; } catch (e) { /* 없음 */ } }
 const data = backup();
 const today = todayKST();
+let req = {};
+try { req = $('보고서요청').first().json.body || {}; } catch (e) { req = {}; }
+const sendNow = !which && req.action === 'decide';   // 오늘 ❓ 카드를 9시 뒤에 [진행해] (api.js askNow)
 if (which === '낮12시') {
   // 내일 일하는 작업자에게 현장 안내 (사장님 11/5: 전날 낮 12시, 결재 없이). 같은 현장을 이어서 하는 날은 안 보낸다 (Share.workerNotices)
   sd.workerSent = sd.workerSent || {};
@@ -26,13 +29,20 @@ if (which === '낮12시') {
   }
   return finish();
 }
-if (which === '아침9시') {
+if (which === '아침9시' || sendNow) {
   // 오늘 날짜 보고서의 결재 — [진행해] 필름은 고른 담당자에게 주문 문자, 인원 모집은 여러 날 모집 시작, [내가할께]는 앱 할 일로
-  const box = sd.reports[today];
+  const box = sd.reports[sendNow ? req.date : today];
   if (!box) return finish();
   const log = sd.log[today] = sd.log[today] || [];
+  box.decisions = box.decisions || {};
   for (const it of box.rep.next) {
-    const d = (box.decisions || {})[it.id];
+    if (sendNow && it.id !== req.id) continue;
+    // ❓ 출입정보 질문은 결재 없이 9시에 자동 (사장님 11/6). 연기·내가·완료를 눌러 두면 안 나간다
+    if (which === '아침9시' && it.kind === 'ask' && !box.decisions[it.id]) {
+      const auto = data.sites.find((s) => s.id === it.siteId);
+      if (auto && !auto.hide) box.decisions[it.id] = { act: 'go', at: now, to: null, auto: true };
+    }
+    const d = box.decisions[it.id];
     if (!d || d.doneAt) continue;
     const site = data.sites.find((s) => s.id === it.siteId);
     // 결재 뒤에 앱에서 이미 끝낸 일은 다시 하지 않는다 (11/5, 결재함에 CLEAR 로 보이는 일)
@@ -66,7 +76,9 @@ if (which === '아침9시') {
     } else if (d.act === 'go' && it.kind === 'ask' && site) {
       // ❓ 출입정보 질문 (사장님 11/5): 결재함에서 고른 사람에게 카톡/문자로 번호 질문 (빈칸 + 업체 확인 질문)
       d.doneAt = now;
-      const q = Share.askQuestion(site, data.settings), to = d.to || {};
+      const q = Share.askQuestion(site, data.settings);
+      // 고른 사람, 없으면 정해 둔 질문 담당 (거래처 담당자·현장 발주처 담당자)
+      const to = d.to || Share.askTarget(site, data.clients.find((c) => c.id === site.clientId)) || {};
       const was = sd.asked[site.id];
       if (was && now - was.at < ASK_FRESH && was.by !== '결재함') {   // 그 사이 노트북이 이미 물음 (텔레그램 [시작해]·비서) — 두 번 안 묻는다
         out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 안 함 — 노트북이 이미 물음', detail: Share.titleLine(site) + (was.who ? ' · ' + was.who : '') });
@@ -74,6 +86,11 @@ if (which === '아침9시') {
       }
       if (!q) {   // 그 사이 앱에서 다 받음
         out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 안 함 — 이미 다 받음', detail: Share.titleLine(site) });
+        continue;
+      }
+      if (!to.via) {   // 물어볼 담당자가 없음
+        out.notify.push({ html: true, text: '❗ <b>출입정보 질문 못 보냄</b> · ' + esc(it.title) + '\n물어볼 담당자가 없습니다 — 거래처 담당자를 적어 주세요' });
+        out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 못 보냄', detail: '담당자 없음', state: 'need' });
         continue;
       }
       const items = Share.siteAskItems(site, data.settings);
@@ -109,11 +126,13 @@ if (which === '아침9시') {
       log.push({ kind: 'review', title: Share.titleLine(site) + ' 고객 후기 문자', res: cust.name || '고객' });
     }
   }
+  if (sendNow) {
+    out.resp = { ok: true, date: req.date, rep: box.rep, decisions: box.decisions, reports: Object.keys(sd.reports).sort().reverse(),
+      inbox: (sd.inbox || []).map((x) => ({ id: x.id, kind: x.kind, room: x.room, title: x.title, quote: x.quote, cands: x.cands || [], siteId: x.siteId || '', name: x.name || '' })), asked: sd.asked };
+  }
   return finish();
 }
 // 오후 5시 (또는 make) — 내일 업무일정표. make { base: 'YYYY-MM-DD' } 면 그날 결과 + 다음 날 예정 (샘플 '어제 결과·오늘 할 일', 11/3)
-let req = {};
-try { req = $('보고서요청').first().json.body || {}; } catch (e) { req = {}; }
 const base = /^\d{4}-\d{2}-\d{2}$/.test(req.base || '') ? req.base : today;
 const rep = Share.dailyReport(data.sites, data.settings, data.tasks, base);
 rep.done = rep.done.concat(sd.log[base] || []).filter((x, i, a) => a.findIndex((y) => y.title === x.title && y.res === x.res) === i);

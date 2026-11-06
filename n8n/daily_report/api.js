@@ -24,8 +24,10 @@ if (b.action === 'askPlan') {
     const x = sd.reports[date];
     (x.rep.next || []).forEach((n) => {
       const d = (x.decisions || {})[n.id];
-      if (n.kind !== 'ask' || !d || d.act !== 'go' || d.doneAt || !n.siteId) return;
-      plans[n.siteId] = { date, who: (d.to && d.to.name) || '', via: (d.to && d.to.via) || '', title: n.title };
+      if (n.kind !== 'ask' || !n.siteId) return;
+      // 결재 안 한 카드도 9시에 자동으로 나간다 (11/6) — 오늘·앞으로의 보고서만
+      if (d ? (d.act !== 'go' || d.doneAt) : date < todayKST()) return;
+      plans[n.siteId] = { date, who: (d && d.to && d.to.name) || '', via: (d && d.to && d.to.via) || '', title: n.title };
     });
   });
   out.resp = { ok: true, plans, asked: sd.asked };
@@ -89,6 +91,10 @@ if (b.action === 'decide') {
   const act = ['go', 'later', 'mine', 'done'].includes(b.act) ? b.act : '';
   const was = box.decisions[id];
   if (was && was.doneAt) { out.resp = { ok: false, error: '이미 처리했습니다' }; return finish(); }
+  // ❓ 오늘 카드를 9시 뒤에 [진행해] → 다음 9시를 기다리지 않고 바로 보낸다 (11/6). 밤에는 안 보낸다
+  const hourKST = new Date(now + 9 * 3600e3).getUTCHours();
+  const askNow = act === 'go' && date === todayKST() && hourKST >= 9 && box.rep.next.find((n) => n.id === id).kind === 'ask';
+  if (askNow && hourKST >= 20) { out.resp = { ok: false, error: '밤에는 안 보내요 — 내일 아침 9시 이후에 눌러 주세요' }; return finish(); }
   if (!act) {
     delete box.decisions[id]; delete sd.marks[id];
     // [되돌리기] (11/5) — 완료표시로 앱·결과에 넣은 것도 되돌린다
@@ -120,6 +126,7 @@ if (b.action === 'decide') {
     sd.marks[id] = today;
     (sd.log[today] = sd.log[today] || []).push({ kind: it.kind, title: it.title + ' — 완료', res: '결재함 완료표시' });
   }
+  if (askNow) { out.make = true; return finish(); }   // 실행(run.js)이 보내고 응답한다
 }
 out.resp = { ok: true, date, rep: box.rep, decisions: box.decisions, reports: Object.keys(sd.reports).sort().reverse(), inbox: inboxView(), asked: sd.asked };
 return finish();

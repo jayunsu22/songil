@@ -29,7 +29,7 @@ function rows(node) {
 }
 function backup() {
   const settings = rows('설정읽기')[0] || {};
-  return { sites: rows('현장읽기').filter((s) => s && s.id), settings, tasks: rows('할일읽기').filter((t) => t && t.id) };
+  return { sites: rows('현장읽기').filter((s) => s && s.id), settings, tasks: rows('할일읽기').filter((t) => t && t.id), clients: rows('거래처읽기').filter((c) => c && c.id) };
 }
 function keepRecent() {
   const dates = Object.keys(sd.reports).sort();

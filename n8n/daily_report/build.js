@@ -73,6 +73,7 @@ const workflow = {
     airRead('a1', '현장읽기', '현장', "AND(NOT({삭제}), IS_AFTER(DATETIME_PARSE({시작날짜}), DATEADD(TODAY(), -40, 'days')))", 660, 300),
     airRead('a2', '설정읽기', '설정', 'NOT({삭제})', 880, 300),
     airRead('a3', '할일읽기', '할일', 'NOT({삭제})', 1100, 300),
+    airRead('a4', '거래처읽기', '거래처', 'NOT({삭제})', 1210, 300),
     {
       id: 'g1', name: '앱코드받기', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1210, 450], executeOnce: true,
       parameters: { method: 'GET', url: SHARE_URL, sendQuery: true, queryParameters: { parameters: [{ name: 't', value: '={{ Date.now() }}' }] },
@@ -106,7 +107,8 @@ const workflow = {
     아침9시: { main: [c('현장읽기')] },
     현장읽기: { main: [c('설정읽기')] },
     설정읽기: { main: [c('할일읽기')] },
-    할일읽기: { main: [c('앱코드받기')] },
+    할일읽기: { main: [c('거래처읽기')] },
+    거래처읽기: { main: [c('앱코드받기')] },
     앱코드받기: { main: [c('실행')] },
     실행: { main: [[...c('요청이었나'), ...c('문자목록'), ...c('알림목록'), ...c('우편목록'), ...c('모집목록'), ...c('답장기억목록'), ...c('카톡목록')]] },
     요청이었나: { main: [c('만들기응답'), []] },

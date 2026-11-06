@@ -21,10 +21,10 @@ class TextTest(unittest.TestCase):
     def test_question(self):
         # 번호를 매겨 번호로 답하게 (11/1) — 빈칸 먼저, 그다음 업체 확인 질문, {날짜} 는 시공날짜
         self.assertEqual(gaps.question(dict(SITE, checks=CHECKS)),
-                         "안녕하세요. 실장님~\n그린워크1차 1104동 604호 (11/25 시공) 확인 부탁드려요.\n번호로 짧게 답 주시면 됩니다 🙏\n"
+                         "안녕하세요. 실장님~\n그린워크1차 1104동 604호 (11/25 시공) 확인 부탁드려요.\n"
                          "1. 공동현관 비번\n2. 세대 비번\n3. 화장실 위치\n4. 필름 번호 (위치별)\n"
                          "5. 방문이 상하좌우 문틀에 닿는지\n6. 11/25에 겹치는 다른 공정\n7. 현관문 X 표시 부탁드려요")
-        self.assertEqual(gaps.question(dict(SITE, missing=[], checks=CHECKS[1:2])).splitlines()[3:], ["1. 11/25에 겹치는 다른 공정"])
+        self.assertEqual(gaps.question(dict(SITE, missing=[], checks=CHECKS[1:2])).splitlines()[2:], ["1. 11/25에 겹치는 다른 공정"])
 
     def test_ask_text(self):
         self.assertEqual(gaps.ask_text(SITE, "업체(봄애실장님 방)에 물어볼까요?"),

@@ -99,7 +99,7 @@ assert.strictEqual(o.resp.ok, false);
   clock = Date.parse('2026-11-09T00:00:00Z');
   const empty = Object.assign({}, site, { id: 'a1', name: '보현나이스 802호', date: '2026-11-15', pwLobby: '', toilet: '' });
   const mk = (to) => { sd.reports['2026-11-09'] = { rep: { date: '2026-11-09', today: '2026-11-08', done: [], next: [{ id: 'ask:a1', kind: 'ask', title: '보현 출입정보 질문', res: '', siteId: 'a1', act: 'ask' }] }, decisions: { 'ask:a1': { act: 'go', at: 0, to } }, at: 0 }; };
-  mk({ name: '대표님', phone: '010-8956-2670', via: 'sms', client: '블라블라' });
+  mk({ name: '대표님', phone: '010-0000-0021', via: 'sms', client: '블라블라' });
   let g = run('실행', Object.assign({ 아침9시: {} }, air, { 현장읽기: rec([empty]) }));
   assert.strictEqual(g.sms.length, 1);
   assert.ok(g.sms[0].text.includes('1. 공동현관 비번') && g.sms[0].text.includes('확인 부탁드려요'), g.sms[0].text);
@@ -110,10 +110,53 @@ assert.strictEqual(o.resp.ok, false);
   assert.strictEqual(g.sms.length, 0);
   assert.deepStrictEqual([g.kakao[0].room, g.kakao[0].ask.missing, g.kakao[0].ttl], ['블라블라 실장님', ['pwLobby', 'toilet'], 600]);
   assert.ok(g.kakao[0].ask.checks.length >= 1);
-  mk({ name: '대표님', phone: '01089562670', via: 'sms' });
+  mk({ name: '대표님', phone: '01000000021', via: 'sms' });
   const full = Object.assign({}, empty, { pwLobby: '1', toilet: '1', checks: { door: { v: '네' }, overlap: { v: '없음' }, xmark: { v: '확답 받음' } } });
   g = run('실행', Object.assign({ 아침9시: {} }, air, { 현장읽기: rec([full]) }));
   assert.strictEqual(g.sms.length + g.kakao.length, 0, '이미 다 받았으면 안 보냄');
+  clock = at;
+  Object.keys(sd).forEach((k) => delete sd[k]); Object.assign(sd, JSON.parse(keep));
+})();
+
+// ❓ 출입정보 질문 자동 (11/6): 결재 안 해도 9시에 정해 둔 담당자에게, 연기·내가·완료면 안 나감, 9시 뒤 [진행해] 는 바로, 밤에는 거절
+(function () {
+  const keep = JSON.stringify(sd), at = clock;
+  clock = Date.parse('2026-11-09T00:00:00Z');
+  const empty = Object.assign({}, site, { id: 'a3', clientId: 'c3', name: '보현', date: '2026-11-15', pwLobby: '' });
+  const client = { id: 'c3', name: '블라블라', contacts: [{ name: '대표님', phone: '01000000021' }, { name: '실장님', phone: '01000000022', ask: true }] };
+  const air3 = Object.assign({}, air, { 현장읽기: rec([empty]), 거래처읽기: rec([client]) });
+  const mk = (decisions, date) => { sd.reports[date || '2026-11-09'] = { rep: { date: date || '2026-11-09', today: '2026-11-08', done: [], next: [{ id: 'ask:a3', kind: 'ask', title: '보현 출입정보 질문', res: '', siteId: 'a3', act: 'ask' }] }, decisions: decisions || {}, at: 0 }; delete (sd.asked || {}).a3; };
+  mk();
+  assert.ok(run('요청', { 보고서요청: { body: { action: 'askPlan' } } }).resp.plans.a3, '결재 안 한 카드도 노트북에 알림');
+  let g = run('실행', Object.assign({ 아침9시: {} }, air3));
+  assert.deepStrictEqual(g.sms.map((x) => x.phone), ['+821000000022'], '정해 둔 담당자에게');
+  assert.ok(!g.sms[0].text.includes('번호로 짧게'), '안내 한 줄 없음');
+  assert.ok(g.sms[0].text.includes('1. 공동현관 비번'));
+  assert.ok(sd.reports['2026-11-09'].decisions['ask:a3'].doneAt && sd.asked.a3);
+  assert.strictEqual(run('실행', Object.assign({ 아침9시: {} }, air3)).sms.length, 0, '두 번 안 보냄');
+  for (const act of ['later', 'mine', 'done']) {
+    mk({ 'ask:a3': { act, at: 0, to: null } });
+    assert.strictEqual(run('실행', Object.assign({ 아침9시: {} }, air3)).sms.length, 0, act);
+  }
+  mk();
+  g = run('실행', Object.assign({ 아침9시: {} }, air3, { 거래처읽기: rec([]) }));
+  assert.strictEqual(g.sms.length + g.kakao.length, 0);
+  assert.ok(g.notify[0].text.includes('담당자가 없습니다'));
+  // 9시 뒤 [진행해] (오늘 카드) — 실행으로 넘겨 바로 보냄. 지난 카드·내일 카드는 안 넘김
+  clock = Date.parse('2026-11-09T01:00:00Z');
+  mk();
+  const body = { action: 'decide', date: '2026-11-09', id: 'ask:a3', act: 'go', to: { label: 'x', name: '대표님', via: 'sms', phone: '01000000021' } };
+  assert.strictEqual(run('요청', { 보고서요청: { body } }).make, true);
+  g = run('실행', Object.assign({ 보고서요청: { body } }, air3));
+  assert.deepStrictEqual(g.sms.map((x) => x.phone), ['+821000000021'], '고른 사람에게');
+  assert.ok(g.resp.ok && g.resp.rep && g.resp.decisions['ask:a3'].doneAt, '앱이 그릴 응답');
+  mk(null, '2026-11-10');
+  assert.ok(!run('요청', { 보고서요청: { body: Object.assign({}, body, { date: '2026-11-10' }) } }).make, '내일 카드는 9시를 기다림');
+  clock = Date.parse('2026-11-09T12:00:00Z');   // 한국 21시
+  mk();
+  const night = run('요청', { 보고서요청: { body } });
+  assert.strictEqual(night.resp.ok, false);
+  assert.ok(!sd.reports['2026-11-09'].decisions['ask:a3'], '밤에는 결재도 안 남김');
   clock = at;
   Object.keys(sd).forEach((k) => delete sd[k]); Object.assign(sd, JSON.parse(keep));
 })();
@@ -124,7 +167,7 @@ assert.strictEqual(o.resp.ok, false);
   clock = Date.parse('2026-11-09T00:00:00Z');
   const empty = Object.assign({}, site, { id: 'a2', name: '보현', date: '2026-11-15', pwLobby: '' });
   sd.reports['2026-11-09'] = { rep: { date: '2026-11-09', today: '2026-11-08', done: [], next: [{ id: 'ask:a2', kind: 'ask', title: '보현 출입정보 질문', res: '', siteId: 'a2', act: 'ask' }] },
-    decisions: { 'ask:a2': { act: 'go', at: 0, to: { name: '실장님', via: 'sms', phone: '01091596012' } } }, at: 0 };
+    decisions: { 'ask:a2': { act: 'go', at: 0, to: { name: '실장님', via: 'sms', phone: '01000000022' } } }, at: 0 };
   let r = run('요청', { 보고서요청: { body: { action: 'askPlan' } } });
   assert.deepStrictEqual([r.resp.plans.a2.who, r.resp.plans.a2.via], ['실장님', 'sms']);
   let g = run('실행', Object.assign({ 아침9시: {} }, air, { 현장읽기: rec([empty]) }));
