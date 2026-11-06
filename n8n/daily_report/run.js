@@ -140,7 +140,25 @@ rep.done = rep.done.concat(sd.log[base] || []).filter((x, i, a) => a.findIndex((
 const prev = (sd.reports[base] || {}).decisions || {};
 rep.next = rep.next.filter((n) => !sd.marks[n.id]).map((n) => ((prev[n.id] || {}).act === 'mine' ? Object.assign({}, n, { again: true }) : n));
 const old = sd.reports[rep.date];
-sd.reports[rep.date] = { rep, decisions: (old && old.decisions) || {}, at: now };
+// ⏸ 멈춘 ❓ 출입정보 카드 (사장님 11/6): 다 받거나 완료·진행해 할 때까지 날마다 다시 올린다. 멈춘 채로 올라와 9시에 나가지 않는다
+const carried = {}, lastAsk = {};
+Object.keys(sd.reports).filter((k) => k < rep.date).sort().forEach((k) => {
+  const x = sd.reports[k];
+  (x.rep.next || []).forEach((n) => { if (n.kind === 'ask' && n.siteId) lastAsk[n.siteId] = (x.decisions || {})[n.id] || null; });
+});
+const ASK_SHORT = { pwLobby: '공동현관', pwUnit: '세대 비번', toilet: '화장실', films: '필름 번호' };
+Object.keys(lastAsk).forEach((siteId) => {
+  const was = lastAsk[siteId], id = 'ask:' + siteId;
+  if (!was || was.act !== 'later' || sd.marks[id]) return;
+  const site = data.sites.find((s) => s.id === siteId);
+  if (!site || site.hide || !site.date || site.date < rep.date) return;
+  const items = Share.siteAskItems(site, data.settings);
+  if (!items.missing.length && !items.checks.length) return;
+  carried[id] = { act: 'later', at: was.at, to: null, carried: true };
+  if (!rep.next.some((n) => n.id === id)) rep.next.push({ id, kind: 'ask', title: Share.titleLine(site) + ' 출입정보 질문', siteId, act: 'ask',
+    res: items.missing.map((k) => ASK_SHORT[k]).concat(items.checks.length ? ['확인 질문 ' + items.checks.length + '개'] : []).join('·') });
+});
+sd.reports[rep.date] = { rep, decisions: Object.assign(carried, (old && old.decisions) || {}), at: now };
 keepRecent();
 const text = Share.dailyReportKakao(rep, APP_URL + '#approve/' + rep.date);
 sd.outbox.push({ id: 'r' + now.toString(36), t: now, text });

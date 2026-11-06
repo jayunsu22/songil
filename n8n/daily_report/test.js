@@ -164,6 +164,45 @@ assert.strictEqual(o.resp.ok, false);
   Object.keys(sd).forEach((k) => delete sd[k]); Object.assign(sd, JSON.parse(keep));
 })();
 
+// ⏸ 멈춘 출입정보 카드 (11/6): 받거나 완료할 때까지 날마다 멈춘 채로 다시, 진행해·완료·다 받음이면 안 올림
+(function () {
+  const keep = JSON.stringify(sd), at = clock;
+  Object.keys(sd.reports).forEach((k) => delete sd.reports[k]);
+  const empty = Object.assign({}, site, { id: 'a4', clientId: 'c4', name: '멈춘현장', date: '2026-11-20', needStaff: 0, pwLobby: '', days: [{ date: '2026-11-20', staff: ['가A'] }], filmStage: 2 });
+  const air4 = Object.assign({}, air, { 현장읽기: rec([empty]), 거래처읽기: rec([{ id: 'c4', name: '업체', contacts: [{ name: '실장님', phone: '01000000022', ask: true }] }]) });
+  const card = { id: 'ask:a4', kind: 'ask', title: '멈춘현장 출입정보 질문', res: '공동현관', siteId: 'a4', act: 'ask' };
+  sd.reports['2026-11-13'] = { rep: { date: '2026-11-13', today: '2026-11-12', done: [], next: [card] }, decisions: { 'ask:a4': { act: 'later', at: 5, to: null } }, at: 0 };
+  clock = Date.parse('2026-11-13T08:00:00Z');   // 11/13 17시 → 11/14 보고서
+  run('실행', Object.assign({ 오후5시: {} }, air4));
+  let box = sd.reports['2026-11-14'];
+  assert.ok(box.rep.next.some((n) => n.id === 'ask:a4'), '다음 보고서에 다시');
+  assert.strictEqual(box.decisions['ask:a4'].act, 'later', '멈춘 채로');
+  clock = Date.parse('2026-11-14T00:00:00Z');   // 9시 — 멈춘 카드는 안 나감
+  let g = run('실행', Object.assign({ 아침9시: {} }, air4));
+  assert.strictEqual(g.sms.length + g.kakao.length, 0);
+  clock = Date.parse('2026-11-14T08:00:00Z');   // 다음 날도 이어짐
+  run('실행', Object.assign({ 오후5시: {} }, air4));
+  assert.strictEqual(sd.reports['2026-11-15'].decisions['ask:a4'].act, 'later');
+  // 멈춤을 풀면 다음 9시에 자동으로
+  run('요청', { 보고서요청: { body: { action: 'decide', date: '2026-11-15', id: 'ask:a4', act: '' } } });
+  clock = Date.parse('2026-11-15T00:00:00Z');
+  g = run('실행', Object.assign({ 아침9시: {} }, air4));
+  assert.strictEqual(g.sms.length, 1, '풀면 9시에 나감');
+  // 나간 뒤에는 다시 안 올림
+  clock = Date.parse('2026-11-15T08:00:00Z');
+  run('실행', Object.assign({ 오후5시: {} }, air4));
+  assert.ok(!sd.reports['2026-11-16'].rep.next.some((n) => n.id === 'ask:a4'));
+  // 다 받았으면 안 올림
+  sd.reports['2026-11-16'].rep.next.push(card);
+  sd.reports['2026-11-16'].decisions['ask:a4'] = { act: 'later', at: 6, to: null };
+  const full = Object.assign({}, empty, { pwLobby: '1', pwUnit: '1', toilet: '1', checks: { door: { v: '네' }, overlap: { v: '없음' }, xmark: { v: '확답 받음' } } });
+  clock = Date.parse('2026-11-16T08:00:00Z');
+  run('실행', Object.assign({ 오후5시: {} }, air4, { 현장읽기: rec([full]) }));
+  assert.ok(!sd.reports['2026-11-17'].rep.next.some((n) => n.id === 'ask:a4'));
+  clock = at;
+  Object.keys(sd).forEach((k) => delete sd[k]); Object.assign(sd, JSON.parse(keep));
+})();
+
 // ❓ 결재함 ↔ 노트북 (11/6): askPlan 에 [진행해] 한 현장, 9시에 보내면 asked(결재함), 노트북이 먼저 물었으면 9시에 안 보냄
 (function () {
   const keep = JSON.stringify(sd), at = clock;
