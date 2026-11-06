@@ -67,10 +67,10 @@ const workflow = {
     // 처음 한 번: SMS Gateway 에 '받은 문자 → 이 흐름' 웹훅 등록 (POST crew-sms-hook, 사장님 열쇠)
     hook('w4', '답장주소등록요청', 'crew-sms-hook', '3f8a2d6b-9c1e-4b57-a0d3-7e2f1a9b8c60', 800, true),
     post('h4', '답장주소등록', 220, 800, 'https://api.sms-gate.app/3rdparty/v1/webhooks', SMS,
-      "={{ JSON.stringify({ url: '" + BASE + SMS_IN + "', event: 'sms:received' }) }}"),
+      "={{ JSON.stringify({ url: '" + BASE + SMS_IN + "', event: ($json.body && $json.body.event) || 'sms:received' }) }}"),   // 장문 문자: event 'mms:downloaded'·'mms:received' 도 (11/6)
     {
       id: 'r4', name: '등록응답', type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: [440, 800],
-      parameters: { respondWith: 'json', responseBody: '={{ JSON.stringify($json) }}', options: {} },
+      parameters: { respondWith: 'json', responseBody: '={{ JSON.stringify($json) }}', options: { responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin', value: '*' }] } } },
     },
   ],
   connections: {

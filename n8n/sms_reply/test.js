@@ -16,7 +16,7 @@ let p = api({ action: 'in', from: '+821012345678', msg: '공현 #0000 입니다'
 assert.deepStrictEqual([p.go, p.ai, p.body.siteId], [true, true, 's1']);
 let r = result(p, { fills: [{ siteId: 's1', kind: 'field', field: 'pwLobby', value: '#0000', update: false }, { siteId: 's1', kind: 'films', films: [{ code: 'a' }], update: true }] });
 assert.deepStrictEqual(r.fills.map((f) => [f.siteId, f.field, f.value, f.room]), [['s1', 'pwLobby', '#0000', '이다라']]);
-assert.deepStrictEqual(r.feed.lines, ['공동현관 비번 넣음', '필름 번호 변경 요청 — 직접 바꿔 주세요']);
+assert.deepStrictEqual(r.feed.lines.filter((l) => l !== '감사 문자 보냄'), ['공동현관 비번 넣음', '필름 번호 변경 요청 — 직접 바꿔 주세요']);
 assert.deepStrictEqual(r.feed.left, ['세대 비번']);
 assert.strictEqual(r.feed.text, '공현 #0000 입니다');
 assert.ok(!r.notify.text.includes('#0000'), '텔레그램에는 값 없이');
@@ -27,4 +27,28 @@ p = api({ action: 'in', from: '01011112222', msg: '네 감사합니다' });
 assert.strictEqual(p.ai, false);
 r = result(p, p);
 assert.deepStrictEqual([r.fills.length, r.feed.siteId, r.feed.text], [0, '', '네 감사합니다']);
+// 결재함 번호 질문의 답 (11/6): kakao-digest 로, 업체 확인 답까지, 칸에 넣으면 감사 문자, 텔레그램엔 값 없이
+const RealNow = Date.now;
+Date.now = () => Date.parse('2026-11-06T01:30:00Z');   // 한국 10시 30분
+api({ action: 'watch', items: [{ phone: '010-3333-4444', name: '실장님', siteId: 's2', siteName: '보현', client: '블라', fill: true, keys: ['pwLobby', 'pwUnit', 'toilet'],
+  ask: { q: '1. 공동현관 비번', date: '2026-11-13', checks: [{ id: 'door', text: '문틀 (확답)', ok: true }, { id: 'overlap', text: '겹치는 공정', ok: false }] } }] });
+p = api({ action: 'in', from: '+821033334444', msg: '1. 없음 2. 0000' });
+assert.deepStrictEqual([p.go, p.ai, p.digest, p.body.sites[0].checks.length, p.body.asked], [true, true, true, 2, '1. 공동현관 비번']);
+r = result(p, { items: [{ kind: 'field', field: 'pwUnit', value: '0000' }, { kind: 'check', checkId: 'door', value: '문 제거' }, { kind: 'check', checkId: '모름', value: 'x' }, { siteId: '다른현장', kind: 'field', field: 'toilet', value: 'x' }] });
+assert.deepStrictEqual(r.fills.map((f) => [f.kind, f.field || f.checkId, f.value]), [['field', 'pwUnit', '0000'], ['check', 'door', '문 제거']]);
+assert.deepStrictEqual(r.sms.map((x) => x.phone), ['+821033334444']);
+assert.ok(r.notify.text.includes('감사 문자 보냄') && !r.notify.text.includes('0000'));
+assert.deepStrictEqual(r.feed.left, ['공동현관 비번', '화장실 위치', '겹치는 공정']);
+// 또 답해도 감사 문자는 6시간에 한 번, 값이 없으면 안 보냄
+p = api({ action: 'in', from: '01033334444', msg: '1. 없음' });
+r = result(p, { items: [{ kind: 'field', field: 'pwLobby', value: '없음' }] });
+assert.deepStrictEqual(r.sms, []);
+p = api({ action: 'in', from: '01011112222', msg: '네' });
+assert.deepStrictEqual(result(p, p).sms, []);
+// 글을 못 읽은 장문 문자는 알려만 준다
+p = api({ action: 'in', from: '01033334444', unread: true });
+assert.deepStrictEqual([p.go, p.ai], [true, false]);
+r = result(p, p);
+assert.ok(r.notify.text.includes('글을 못 읽은 장문 문자'));
+Date.now = RealNow;
 console.log('sms_reply ok');

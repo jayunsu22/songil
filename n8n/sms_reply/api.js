@@ -15,16 +15,24 @@ if (b.action === 'watch') {
     if (k.length < 8) return;
     sd.watch[k] = { at: now, name: s(it.name, 40), siteId: s(it.siteId, 40), siteName: s(it.siteName, 120), client: s(it.client, 60), fill: !!it.fill,
       keys: (Array.isArray(it.keys) ? it.keys : []).map((x) => s(x, 12)).slice(0, 6) };
+    // 결재함 출입정보 질문 (11/6): 번호 질문의 답은 카톡과 같은 kakao-digest 로 — 업체 확인 답까지 칸에 넣는다
+    if (it.ask && s(it.ask.q, 1500)) sd.watch[k].ask = { q: s(it.ask.q, 1500), date: s(it.ask.date, 10),
+      checks: (Array.isArray(it.ask.checks) ? it.ask.checks : []).map((c) => ({ id: s(c && c.id, 40), text: s(c && c.text, 200), ok: !!(c && c.ok) })).filter((c) => c.id).slice(0, 12) };
     n++;
   });
   return [{ json: { resp: { ok: true, n }, go: false } }];
 }
 if (b.action === 'in') {
-  const w = sd.watch[tail(b.from)], msg = s(b.msg, 1000);
+  const w = sd.watch[tail(b.from)];
+  const msg = b.unread ? '(글을 못 읽은 장문 문자 — 폰에서 확인해 주세요)' : s(b.msg, 1000);
   if (!w || !msg) return [{ json: { resp: { ok: true, known: false }, go: false } }];
-  const ai = w.fill && !!w.siteId && w.siteId !== '-';
+  const ai = !b.unread && w.fill && !!w.siteId && w.siteId !== '-';
   const today = new Date(now + 9 * 3600e3).toISOString().slice(0, 10);
-  return [{ json: { resp: { ok: true, known: true }, go: true, ai, msg, tailKey: tail(b.from), w, today,
-    body: { room: w.name, client: w.client, siteId: w.siteId, today, mine: ['김정헌'], recent: [], messages: [{ d: today, t: '', who: w.name, text: msg }] } } }];
+  const line = { d: today, t: '', who: w.name, text: msg };
+  const digest = !!(ai && w.ask);
+  const body = digest
+    ? { room: w.name, today, asked: w.ask.q, messages: [line], sites: [{ id: w.siteId, name: w.siteName, date: w.ask.date, known: {}, checks: w.ask.checks }] }
+    : { room: w.name, client: w.client, siteId: w.siteId, today, mine: ['김정헌'], recent: [], messages: [line] };
+  return [{ json: { resp: { ok: true, known: true }, go: true, ai, digest, unread: !!b.unread, from: s(b.from, 30), msg, tailKey: tail(b.from), w, today, body } }];
 }
 return [{ json: { resp: { ok: false, error: 'action 은 watch·in' }, go: false } }];

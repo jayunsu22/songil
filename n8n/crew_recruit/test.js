@@ -108,6 +108,23 @@ o = run('clock.js'); assert.strictEqual(o.sms.length, 0);
 // 모집 답이 아닌 문자는 문자_답장으로 넘긴다 (11/5), 모집 답은 안 넘긴다
 o = run('reply.js', '답장받음', { payload: { message: '공현 0000', sender: '+821077776666' } });
 assert.deepStrictEqual(o.forward, { action: 'in', from: '+821077776666', msg: '공현 0000' });
+// 장문 문자(MMS, 11/6): 글은 mms:downloaded 의 body, 같은 건은 한 번만
+o = run('reply.js', '답장받음', { event: 'mms:received', deviceId: 'd', payload: { messageId: 'x', sender: '+821077776666', size: 1 } });
+assert.ok(!o.forward && sd.mmsWait['77776666']);
+o = run('reply.js', '답장받음', { event: 'mms:downloaded', deviceId: 'd', payload: { messageId: 'm1', body: '1. 없습니다', sender: '+821077776666' } });
+assert.deepStrictEqual(o.forward, { action: 'in', from: '+821077776666', msg: '1. 없습니다' });
+assert.ok(!sd.mmsWait['77776666'], '글이 오면 기다림 끝');
+o = run('reply.js', '답장받음', { event: 'mms:downloaded', deviceId: 'd', payload: { messageId: 'm1', body: '1. 없습니다', sender: '+821077776666' } });
+assert.ok(!o.forward, '같은 MMS 는 한 번만');
+o = run('reply.js', '답장받음', { event: 'mms:downloaded', deviceId: 'd', payload: { messageId: 'm2', body: null, sender: '+821077776666' } });
+assert.deepStrictEqual(o.forward, { action: 'in', from: '+821077776666', unread: true }, '글을 못 읽은 MMS');
+// 글이 안 오면 10분 뒤 시계가 넘긴다
+run('reply.js', '답장받음', { event: 'mms:received', deviceId: 'd', payload: { messageId: 'y', sender: '+821055554444' } });
+assert.ok(!run('clock.js').forward);
+clock += 11 * 60e3;
+assert.deepStrictEqual(run('clock.js').forward, { action: 'in', from: '+821055554444', unread: true });
+assert.ok(!run('clock.js').forward, '한 번만');
 const wfj = JSON.parse(require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'build.js')]).toString());
 assert.ok(wfj.connections['답장'].main[0].some((c) => c.node === '넘길문자'), '답장 → 넘길문자 연결');
+assert.ok(wfj.connections['시계'].main[0].some((c) => c.node === '넘길문자'), '시계 → 넘길문자 연결');
 console.log('crew_recruit ok');

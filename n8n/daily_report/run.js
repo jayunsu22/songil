@@ -103,7 +103,8 @@ if (which === '아침9시' || sendNow) {
         }
         out.sms.push({ phone: e164(phone), text: q });
         // 답 문자가 오면 AI 가 읽어 비번·화장실·필름 칸에 (문자_답장, fill)
-        out.watch.push({ phone, name: to.name || '담당자', siteId: site.id, siteName: Share.titleLine(site), client: to.client || '', fill: true, keys: items.missing });
+        out.watch.push({ phone, name: to.name || '담당자', siteId: site.id, siteName: Share.titleLine(site), client: to.client || '', fill: true, keys: items.missing,
+          ask: { q, date: site.date, checks: items.checks.map((c) => ({ id: c.id, text: Share.checkText(c, site), ok: !!c.ok })) } });
       } else {
         // 카톡: 노트북(카톡 읽기)이 그 방에 보내고 답을 7일 기다린다 (gaps.run_ask 와 같은 길). 방 = 담당자 카톡방 → 노트북의 거래처 방
         out.kakao.push({ action: 'add', id: 'ask' + site.id.replace(/[^A-Za-z0-9]/g, '') + today.replace(/-/g, ''), room: to.kakaoRoom || '', client: to.client || '', text: q, ttl: 600,

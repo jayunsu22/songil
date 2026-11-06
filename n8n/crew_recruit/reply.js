@@ -3,7 +3,24 @@
 // 다 안 됨 → '아쉽네요' + 다음 사람 / 되는 날 있음·못 읽음 → 텔레그램 [15일 넣기]…[모두 넣기][안 넣기]
 const body = $('답장받음').first().json.body || {};
 const pl = body.payload || body;
-const msg = String(pl.message || pl.text || '').trim();
+const ev = String(body.event || '');
+// 장문 문자는 MMS 로 온다 (11/6) — 글은 mms:downloaded 의 body. mms:received 에는 글이 없어 기다렸다가, 10분 안에 글이 안 오면 시계가 알린다
+sd.mmsWait = sd.mmsWait || {};
+if (ev === 'mms:received') {
+  const k = tail(pl.sender);
+  if (k) sd.mmsWait[k] = { from: pl.sender, at: now };
+  return finish();
+}
+if (ev === 'mms:downloaded') {
+  delete sd.mmsWait[tail(pl.sender)];
+  // 재전송·중복 등록으로 같은 MMS 가 또 와도 한 번만
+  sd.mmsSeen = (sd.mmsSeen || []).filter((x) => now - x.at < 864e5);
+  const seen = String(body.deviceId || '') + '|' + String(pl.messageId || '');
+  if (pl.messageId && sd.mmsSeen.some((x) => x.k === seen)) return finish();
+  if (pl.messageId) sd.mmsSeen.push({ k: seen, at: now });
+  if (!String(pl.body || '').trim()) { out.forward = { action: 'in', from: pl.sender || '', unread: true }; return finish(); }
+}
+const msg = String(pl.message || pl.text || pl.body || '').trim();
 const from = tail(pl.sender || pl.phoneNumber || pl.phone || '');
 if (!msg || !from) return finish();
 // 그 번호를 물어본 모집 — 최근 것부터
