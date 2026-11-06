@@ -152,6 +152,29 @@ class ReportTest(unittest.TestCase):
         self.assertFalse(chatlist._title_ok("류춘화", "엄마"))
         self.assertFalse(chatlist._title_ok("류춘화", None))
 
+    def test_group_room_is_not_the_person(self):
+        # 단톡방 이름에 업체 사람 이름이 들어 있어도 그 사람 방이 아니다 (사장님 11/6: 이재규·양미희 단톡방을 류춘화 방으로 읽음)
+        group = "이재규, 박한규, 박미선, 류춘화, 양미희, ..."
+        self.assertFalse(chatlist.watched(group, ["류춘화"]))
+        self.assertFalse(chatlist._title_ok("류춘화", group))
+        self.assertIsNone(chatlist.known_name([group], ["류춘화"]))
+        self.assertFalse(chatlist.watched("이재규. 박한규. 류춘화", ["류춘화"]))    # OCR 이 쉼표를 점으로
+        # 단톡방을 일부러 적어 두면 본다, 이름 끝의 쉼표 찌꺼기는 단톡방이 아니다
+        self.assertTrue(chatlist.watched(group, ["이재규, 박한규"]))
+        self.assertTrue(chatlist.watched(chatlist.clean_name("류춘화 ' ,"), ["류춘화"]))
+        # 쉼표 없는 이름은 그대로
+        self.assertTrue(chatlist.watched("한솔인테리어 김실장", ["한솔"]))
+        self.assertTrue(chatlist.watched("삼산미래타운3단지(2", ["삼산미래타운"]))
+
+    def test_row_times_skips_group_row(self):
+        # 단톡방 줄이 위에 있어도 개인 방 줄의 시간을 읽는다
+        lines = [
+            (60, 10, 200, 18, "이재규, 박한규, 박미선, 류춘화, 양미희"), (330, 12, 60, 14, "오후 2:30"),
+            (60, 80, 60, 18, "류춘화"), (330, 82, 60, 14, "오전 9:15"),
+        ]
+        self.assertEqual(chatlist.row_times(lines, ["류춘화"], 400), {"류춘화": "오전 9:15"})
+        self.assertEqual(chatlist.row_times(lines[:2], ["류춘화"], 400), {})
+
 
 class CheckFlowTest(unittest.TestCase):
     """check(): 처음엔 기억만, 배지가 생기면 since, 조용하면 read_and_report 한 번."""

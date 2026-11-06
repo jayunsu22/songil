@@ -123,8 +123,16 @@ def _ratio(a, b):
     return difflib.SequenceMatcher(None, a, b).ratio()
 
 
+def is_group(name):
+    """여러 명 단톡방 이름인가 ('이재규, 박한규, 류춘화, …'). OCR 이 쉼표를 점으로 읽기도 한다. 끝의 쉼표는 아이콘 찌꺼기."""
+    return bool(re.search(r"[\w)]\s*[,，]\s*[\w(]|[가-힣]{2,4}\s*\.\s*[가-힣]{2,4}", name or ""))
+
+
 def fuzzy_in(word, name):
-    """word 가 name 안에 들어 있나 — 자모로 80% 이상 같은 토막이 있으면 (OCR 이 한두 자모 틀려도)."""
+    """word 가 name 안에 들어 있나 — 자모로 80% 이상 같은 토막이 있으면 (OCR 이 한두 자모 틀려도).
+    단톡방 이름에 사람 이름이 들어 있어도 그 사람 방이 아니다 (사장님 11/6). 단톡방을 일부러 적어 두면 본다."""
+    if is_group(name) and not is_group(word):
+        return False
     w, n = _jamo(word), _jamo(name)
     if not w or not n:
         return False
