@@ -138,6 +138,9 @@ assert.strictEqual(o.resp.ok, false);
     mk({ 'ask:a3': { act, at: 0, to: null } });
     assert.strictEqual(run('실행', Object.assign({ 아침9시: {} }, air3)).sms.length, 0, act);
   }
+  // ⏸ 멈춤(later) 은 askPlan 에서도 빠지고, 뒤에 [진행해] 를 누르면 나간다
+  mk({ 'ask:a3': { act: 'later', at: 0, to: null } });
+  assert.ok(!run('요청', { 보고서요청: { body: { action: 'askPlan' } } }).resp.plans.a3);
   mk();
   g = run('실행', Object.assign({ 아침9시: {} }, air3, { 거래처읽기: rec([]) }));
   assert.strictEqual(g.sms.length + g.kakao.length, 0);

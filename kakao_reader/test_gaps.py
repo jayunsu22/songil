@@ -89,6 +89,25 @@ class CheckTest(unittest.TestCase):
         gaps.check(CFG, st, at_hour(11), self.fetch, self.notify, lambda m: None, plan=plan)
         self.assertEqual(len(self.sent), 2, "한 번만")
 
+    def test_pause_brings_start_button_back(self):
+        # 묻기로 함을 알린 뒤 결재함에서 ⏸ 멈춤 → 계획에서 빠지면 [시작해] 가 온다 (11/6)
+        st = {}
+        plan = lambda: {"plans": {SITE["id"]: {"date": "2026-11-06"}}, "asked": {}}
+        gaps.check(CFG, st, at_hour(9), self.fetch, self.notify, lambda m: None, plan=plan)
+        self.sent.clear()
+        gaps.check(CFG, st, at_hour(11), self.fetch, self.notify, lambda m: None, plan=lambda: {"plans": {}, "asked": {}})
+        self.assertEqual(len(self.sent), 1)
+        self.assertIsNotNone(self.sent[0][1], "[시작해] 버튼")
+        # 계획을 못 읽었을 때는 그대로 둔다
+        st = {}
+        self.sent.clear()
+        gaps.check(CFG, st, at_hour(9), self.fetch, self.notify, lambda m: None, plan=plan)
+        def boom():
+            raise OSError("x")
+        self.sent.clear()
+        gaps.check(CFG, st, at_hour(11), self.fetch, self.notify, lambda m: None, plan=boom)
+        self.assertEqual(self.sent, [])
+
     def test_run_ask_tells_approval_box(self):
         told = []
         orig_post, orig_send = gaps.tell_asked, gaps.send_to_room

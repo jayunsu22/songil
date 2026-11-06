@@ -315,6 +315,9 @@ def check(cfg, state, now, fetch, notify, log, send=None, plan=None):
         try:
             pd = plan() or {}
             plans, done = pd.get("plans") or {}, pd.get("asked") or {}
+            # '결재함이 묻기로 함' 을 알린 뒤 ⏸ 멈춤을 눌렀으면 다시 [시작해] 로 (11/6)
+            for sid in [k for k, v in asked.items() if v.get("by") == "결재함" and k not in plans and k not in done]:
+                del asked[sid]
         except Exception as e:
             log("[현장] 결재함 묻기 계획 못 읽음: %s" % str(e)[:100])
     for raw in sites:
