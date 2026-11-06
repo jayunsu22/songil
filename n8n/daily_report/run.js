@@ -46,7 +46,7 @@ if (which === '아침9시' || sendNow) {
     if (!d || d.doneAt) continue;
     const site = data.sites.find((s) => s.id === it.siteId);
     // 결재 뒤에 앱에서 이미 끝낸 일은 다시 하지 않는다 (11/5, 결재함에 CLEAR 로 보이는 일)
-    if (d.act === 'go' && site && ((it.act === 'film' && Share.filmStageOf(site) >= 2) || (it.act === 'crew' && Share.staffStatus(site).short <= 0))) { d.doneAt = now; continue; }
+    if (d.act === 'go' && site && ((it.act === 'film' && Share.filmStageOf(site) >= 2) || (it.act === 'crew' && Share.recruitShort(site) <= 0))) { d.doneAt = now; continue; }
     if (d.act === 'go' && it.act === 'film' && site && d.to && d.to.phone) {
       const text = Share.filmOrderSms(site, !!data.settings.smsSiteName);
       if (!text) {
@@ -64,11 +64,11 @@ if (which === '아침9시' || sendNow) {
       const isos = (site.days || []).map((x) => String(x.date || '')).filter(Share.isIsoDate).filter((x) => x >= today);
       const m = Share.recruitMulti(site, isos, data.sites, data.settings);
       if (!m.first.length) {
-        out.notify.push({ html: true, text: '❗ <b>인원 모집 못 함</b> · ' + esc(Share.titleLine(site)) + '\n예산 안에 드는 팀원이 없거나 자리가 다 찼습니다 — 밴드에서 구해 주세요' });
-        out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '인원 모집 못 함', detail: '예산 안에 드는 팀원이 없거나 자리가 다 참', state: 'need' });
+        out.notify.push({ html: true, text: '❗ <b>인원 모집 못 함</b> · ' + esc(Share.titleLine(site)) + '\n문자 보낼 사람을 아직 안 골랐거나 자리가 다 찼습니다 — 설정 › 팀원에서 고르거나 직접 구해 주세요' });
+        out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '인원 모집 못 함', detail: '문자 보낼 사람이 없거나 자리가 다 참', state: 'need' });
       } else {
         out.crew.push({ action: 'start', siteId: site.id, siteName: Share.titleLine(site), queue: m.queue,
-          days: m.days.map((x) => ({ date: x.iso, label: x.label, slots: x.slots, budget: x.budget ? x.left : 0, band: Share.buildRecruitText(site) })) });
+          days: m.days.map((x) => ({ date: x.iso, label: x.label, slots: x.slots, budget: 0, band: Share.buildRecruitText(site) })) });
         out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '인원 모집 시작', detail: m.days.map((x) => x.label + ' ' + x.slots + '자리').join(', ') });
         log.push({ kind: 'crew', title: Share.titleLine(site) + ' 인원 모집 시작', res: m.days.map((x) => x.label + ' ' + x.slots + '자리').join(', ') });
       }

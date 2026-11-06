@@ -39,7 +39,7 @@ const r = sd.recruits[id] = {
     const ds = Array.isArray(q && q.dates) ? q.dates : days.map((d) => d.date);
     return { name: s(q && q.name, 20), phone: s(q && q.phone, 20).replace(/[^0-9+]/g, ''), pay: parseInt(q && q.pay, 10) || 0, st: 'wait',
       free: days.map((d, di) => (ds.includes(d.date) ? di : -1)).filter((di) => di >= 0) };
-  }).filter((p) => p.name && p.phone.length >= 9 && p.pay > 0 && p.free.length),
+  }).filter((p) => p.name && p.phone.length >= 9 && p.free.length),
 };
 advance(r);
 out.resp = { ok: true, id, sent: out.sms.length };
