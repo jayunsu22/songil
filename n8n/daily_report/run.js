@@ -10,10 +10,16 @@ if (which === '낮12시') {
   // 내일 일하는 작업자에게 현장 안내 (사장님 11/5: 전날 낮 12시, 결재 없이). 같은 현장을 이어서 하는 날은 안 보낸다 (Share.workerNotices)
   sd.workerSent = sd.workerSent || {};
   Object.keys(sd.workerSent).forEach((k) => { if (now - sd.workerSent[k] > 14 * 864e5) delete sd.workerSent[k]; });
-  const sent = [], noPhone = [], thin = {};
+  const sent = [], noPhone = [], thin = {}, pickup = [];
   for (const w of Share.workerNotices(data.sites, data.settings, today)) {
     const k = w.siteId + '|' + w.date + '|' + w.name;
     if (sd.workerSent[k]) continue;
+    if (w.pickup) {   // 🚗 사장님 차로 같이 가는 사람 (11/8) — 문자 대신 사장님께 전화하라고만
+      sd.workerSent[k] = now;
+      pickup.push(w.name + ' · ' + w.title);
+      out.fills.push({ siteId: w.siteId, kind: 'log', room: '작업자 안내', title: w.name + '님은 픽업 — 전화로 만날 시간·장소 정하세요', detail: w.title });
+      continue;
+    }
     if (!w.phone) { noPhone.push(w.name + ' · ' + w.title); continue; }
     sd.workerSent[k] = now;
     out.sms.push({ phone: e164(w.phone), text: w.text });
@@ -22,8 +28,9 @@ if (which === '낮12시') {
     sent.push(w.name + ' · ' + w.title);
     if (w.missing.length) thin[w.title] = w.missing;
   }
-  if (sent.length || noPhone.length) {
+  if (sent.length || noPhone.length || pickup.length) {
     const lines = ['📨 <b>내일 작업자 안내 문자</b>'].concat(sent.map((x) => '✅ ' + esc(x)), noPhone.map((x) => '❗ 연락처 없어 못 보냄: ' + esc(x)),
+      pickup.map((x) => '🚗 ' + esc(x) + ' — 픽업이라 문자 안 보냄. 전화로 만날 시간·장소 정하세요'),
       Object.keys(thin).map((t) => '❓ ' + esc(t) + ' — 빈 칸: ' + esc(thin[t].join(' · '))));
     out.notify.push({ html: true, text: lines.join('\n') });
   }

@@ -280,4 +280,16 @@ assert.strictEqual(run('요청', { 보고서요청: { body: { action: 'inbox', i
   assert.ok(r1.notify[0].text.includes('연락처 없어 못 보냄: 사아'));
   assert.strictEqual(run('실행', noon).sms.length, 0, '같은 안내는 한 번만');
 }
+// 🚗 픽업 (11/8) — 픽업한 사람은 문자 없이 사장님께 '전화하세요' 한 줄 + 업무비서 기록
+{
+  clock = Date.parse('2026-11-12T03:00:00Z');
+  const noon = { 낮12시: {}, 현장읽기: rec([{ id: 'p1', name: '평창', date: '2026-11-13', pwLobby: '#0000', pickup: { '2026-11-13': ['마바'] },
+    days: [{ date: '2026-11-13', staff: ['마바', '사아'] }] }]),
+    설정읽기: rec([{ people: { 마바: { phone: '010-1111-2222' }, 사아: { phone: '010-3333-4444' } } }]), 할일읽기: rec([]), 앱코드받기: air.앱코드받기 };
+  const r = run('실행', noon);
+  assert.deepStrictEqual(r.sms.map((x) => x.phone), ['+821033334444'], '픽업한 마바에게는 문자 없음');
+  assert.ok(r.notify[0].text.includes('🚗 마바 · ') && r.notify[0].text.includes('전화로 만날 시간·장소'), r.notify[0].text);
+  assert.ok(r.fills.some((f) => f.kind === 'log' && f.title.startsWith('마바님은 픽업')));
+  assert.strictEqual(run('실행', noon).notify.length, 0, '픽업 알림도 한 번만');
+}
 console.log('daily_report ok');
