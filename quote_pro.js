@@ -579,45 +579,56 @@ function buildItem(item, 구역) {
   return box;
 }
 
-/* 품목 금액 직접 고치기. 고친 금액을 원래 인건비·자재비 비율로 나눠 '고정' 금액으로 둔다
-   (견적요청 고정과 같은 칸 - 수량·난이도·종류를 바꾸면 풀리고 단가 계산으로 돌아간다).
-   비율은 처음 금액 기준이다: 견적요청에서 넘어온 금액이면 그 금액, 아니면 방문견적 단가 계산.
-   여러 번 고쳐도 '원래' 는 처음 금액을 남긴다.
-   창: 치는 동안 천 단위 쉼표, ✕ 는 칸을 비운다(= 0원), [원래 금액으로] 는 고침을 푼다. */
-let 금액창 = null;   // { item, 구역, row, 기준, 원래, 요청고정 }
+/* 품목 금액 직접 고치기 — 인건비·자재비를 각각 적는다 (2026-11-09 사장님: 금액 하나를 적으면
+   원래 비율로 나누던 것을 바꿈. 자재를 업자가 대는 건이 있어 둘이 따로 정해진다).
+   적은 두 값을 더한 게 그 줄 금액이고 '고정' 금액으로 둔다 (견적요청 고정과 같은 칸 - 수량·난이도·종류를
+   바꾸면 풀리고 단가 계산으로 돌아간다). 여러 번 고쳐도 '원래' 는 처음 금액을 남긴다.
+   창: 처음엔 지금 인건비·자재비가 들어 있다. 치는 동안 천 단위 쉼표, ✕ 는 그 칸을 비운다(= 0원),
+   [원래 금액으로] 는 고침을 푼다. */
+let 금액창 = null;   // { item, 구역, row, 원래, 요청고정 }
 
 function 금액고치기(item, 구역, row) {
   const s = state.선택[item.체크_ID];
   if (!s) return;
   const 지금줄 = 품목줄(item, 구역, s);
   const 지금 = QuoteCalc.lineAmount(지금줄);
+  const 지금인건비 = QuoteCalc.lineWage(지금줄);
   const 요청고정 = s.고정 && !s.고정.고침 ? s.고정 : null;
-  const 기준 = 요청고정
-    ? { 금액: 요청고정.금액, 인건비: 요청고정.인건비 }
+  const 원래 = s.고정 && s.고정.원래 != null ? s.고정.원래 : 지금;
+  금액창 = { item: item, 구역: 구역, row: row, 원래: 원래, 요청고정: 요청고정 };
+  $('#amtTitle').textContent = '‘' + 지금줄.품목명 + '’ 금액';
+  // 자동 계산 값 (견적요청 금액이면 그 금액) — 고친 뒤에도 무엇이 자동값이었는지 보이게
+  const 자동줄 = 요청고정 || (s.고정 && s.고정.요청) || null;
+  const 자동 = 자동줄
+    ? { 금액: 자동줄.금액, 인건비: 자동줄.인건비 }
     : (() => { const 줄 = 품목줄(item, 구역, Object.assign({}, s, { 고정: null }));
                return { 금액: QuoteCalc.lineAmount(줄), 인건비: QuoteCalc.lineWage(줄) }; })();
-  const 원래 = s.고정 && s.고정.원래 != null ? s.고정.원래 : 지금;
-  금액창 = { item: item, 구역: 구역, row: row, 기준: 기준, 원래: 원래, 요청고정: 요청고정 };
-  $('#amtTitle').textContent = '‘' + 지금줄.품목명 + '’ 금액';
-  $('#amtOrig').textContent = '원래 ' + won(원래);
-  $('#amtInput').value = QuoteCalc.금액포맷(String(지금));
+  $('#amtOrig').textContent = 자동.인건비 == null
+    ? '자동 계산 ' + won(자동.금액)
+    : '자동 계산 ' + won(자동.금액) + ' (인건비 ' + won(자동.인건비) + ' · 자재비 ' + won(자동.금액 - 자동.인건비) + ')';
+  // 나뉘어 있지 않은 줄(예전 직접 입력)은 전액을 인건비 칸에 두고 자재비는 비운다
+  const 인 = 지금인건비 == null ? 지금 : 지금인건비;
+  $('#amtWage').value = QuoteCalc.금액포맷(String(인));
+  $('#amtMat').value = 지금인건비 == null ? '' : QuoteCalc.금액포맷(String(지금 - 인));
   $('#amtReset').hidden = !(s.고정 && s.고정.고침);
-  금액창나눔();
+  금액창합계();
   $('#amtBack').hidden = false;
   $('#amtSheet').hidden = false;
-  const inp = $('#amtInput');
+  const inp = $('#amtWage');
   inp.focus();
   inp.setSelectionRange(inp.value.length, inp.value.length);
 }
 
-// 지금 친 금액이면 인건비·자재비가 얼마씩인지 미리 보여준다 (빈 칸은 0원)
-function 금액창나눔() {
+// 적은 인건비·자재비 (빈 칸은 0원)
+function 금액창값() {
+  const 칸 = (id) => { const v = QuoteCalc.금액파싱($(id).value); return isFinite(v) ? v : 0; };
+  const 인건비 = 칸('#amtWage'), 자재비 = 칸('#amtMat');
+  return { 금액: 인건비 + 자재비, 인건비: 인건비, 자재비: 자재비 };
+}
+
+function 금액창합계() {
   if (!금액창) return;
-  const 새 = QuoteCalc.금액파싱($('#amtInput').value);
-  const 나눔 = QuoteCalc.금액나누기(isFinite(새) ? 새 : 0, 금액창.기준.인건비, 금액창.기준.금액);
-  $('#amtSplit').textContent = 나눔.인건비 == null
-    ? won(나눔.금액) + ' (인건비·자재비를 나눌 수 없는 줄)'
-    : won(나눔.금액) + ' = 인건비 ' + won(나눔.인건비) + ' · 자재비 ' + won(나눔.자재비);
+  $('#amtSplit').textContent = '합계 ' + won(금액창값().금액);
 }
 
 function 금액창닫기() {
@@ -638,9 +649,7 @@ function 금액창적용(되돌리기) {
       if (s.고정.요청) s.고정 = s.고정.요청; else delete s.고정;
     }
   } else {
-    const 새 = QuoteCalc.금액파싱($('#amtInput').value);
-    const 나눔 = QuoteCalc.금액나누기(isFinite(새) ? 새 : 0, c.기준.인건비, c.기준.금액);
-    s.고정 = Object.assign({}, 나눔, {
+    s.고정 = Object.assign({}, 금액창값(), {
       고침: true, 원래: c.원래,
       범위: c.요청고정 ? c.요청고정.범위 : (s.고정 && s.고정.범위),
       요청: c.요청고정 || (s.고정 && s.고정.요청) || null,
@@ -653,14 +662,25 @@ function 금액창적용(되돌리기) {
   refresh();
 }
 
-$('#amtInput').addEventListener('input', () => {
-  const el = $('#amtInput');
-  const 새값 = QuoteCalc.금액포맷(el.value);
-  if (새값 !== el.value) el.value = 새값;
-  금액창나눔();
+['#amtWage', '#amtMat'].forEach((id) => {
+  const el = $(id);
+  el.addEventListener('input', () => {
+    const 새값 = QuoteCalc.금액포맷(el.value);
+    if (새값 !== el.value) el.value = 새값;
+    금액창합계();
+  });
+  el.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (id === '#amtWage') $('#amtMat').focus(); else 금액창적용(false);
+  });
 });
-$('#amtInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); 금액창적용(false); } });
-$('#amtClear').addEventListener('click', () => { $('#amtInput').value = ''; 금액창나눔(); $('#amtInput').focus(); });
+document.querySelectorAll('#amtSheet .amt-x').forEach((b) => b.addEventListener('click', () => {
+  const el = document.getElementById(b.dataset.for);
+  el.value = '';
+  금액창합계();
+  el.focus();
+}));
 $('#amtOk').addEventListener('click', () => 금액창적용(false));
 $('#amtReset').addEventListener('click', () => 금액창적용(true));
 $('#amtCancel').addEventListener('click', 금액창닫기);

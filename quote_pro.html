@@ -475,9 +475,16 @@
 <section id="amtSheet" hidden aria-label="금액 고치기">
   <h2 id="amtTitle">금액 고치기</h2>
   <p class="hint" id="amtOrig"></p>
+  <!-- 인건비·자재비를 각각 적는다 (2026-11-09 사장님). 합계 = 둘을 더한 값 -->
+  <label class="amt-lbl" for="amtWage">인건비</label>
   <div class="amt-wrap">
-    <input type="text" id="amtInput" inputmode="numeric" autocomplete="off" placeholder="0원">
-    <button type="button" id="amtClear" aria-label="지우기">✕</button>
+    <input type="text" id="amtWage" class="amt-in" inputmode="numeric" autocomplete="off" placeholder="0원">
+    <button type="button" class="amt-x" data-for="amtWage" aria-label="인건비 지우기">✕</button>
+  </div>
+  <label class="amt-lbl" for="amtMat">자재비</label>
+  <div class="amt-wrap">
+    <input type="text" id="amtMat" class="amt-in" inputmode="numeric" autocomplete="off" placeholder="0원">
+    <button type="button" class="amt-x" data-for="amtMat" aria-label="자재비 지우기">✕</button>
   </div>
   <p class="hint" id="amtSplit"></p>
   <div class="amt-row">
