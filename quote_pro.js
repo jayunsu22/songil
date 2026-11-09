@@ -579,8 +579,8 @@ function buildItem(item, 구역) {
   return box;
 }
 
-/* 품목 금액 직접 고치기 — 인건비·자재비를 각각 적는다 (2026-11-09 사장님: 금액 하나를 적으면
-   원래 비율로 나누던 것을 바꿈. 자재를 업자가 대는 건이 있어 둘이 따로 정해진다).
+/* 품목 금액 직접 고치기 (2026-11-09 사장님). 맨 위 합계를 고치면 인건비·자재비가 자동 계산 비율로 나뉘고,
+   그 인건비·자재비를 다시 각각 고칠 수 있다(그러면 합계 = 둘의 합). 자재를 업자가 대는 건이 있어 둘이 따로 정해진다.
    적은 두 값을 더한 게 그 줄 금액이고 '고정' 금액으로 둔다 (견적요청 고정과 같은 칸 - 수량·난이도·종류를
    바꾸면 풀리고 단가 계산으로 돌아간다). 여러 번 고쳐도 '원래' 는 처음 금액을 남긴다.
    창: 처음엔 지금 인건비·자재비가 들어 있다. 치는 동안 천 단위 쉼표, ✕ 는 그 칸을 비운다(= 0원),
@@ -595,7 +595,7 @@ function 금액고치기(item, 구역, row) {
   const 지금인건비 = QuoteCalc.lineWage(지금줄);
   const 요청고정 = s.고정 && !s.고정.고침 ? s.고정 : null;
   const 원래 = s.고정 && s.고정.원래 != null ? s.고정.원래 : 지금;
-  금액창 = { item: item, 구역: 구역, row: row, 원래: 원래, 요청고정: 요청고정 };
+  금액창 = { item: item, 구역: 구역, row: row, 원래: 원래, 요청고정: 요청고정, 자동: null };
   $('#amtTitle').textContent = '‘' + 지금줄.품목명 + '’ 금액';
   // 자동 계산 값 (견적요청 금액이면 그 금액) — 고친 뒤에도 무엇이 자동값이었는지 보이게
   const 자동줄 = 요청고정 || (s.고정 && s.고정.요청) || null;
@@ -603,6 +603,7 @@ function 금액고치기(item, 구역, row) {
     ? { 금액: 자동줄.금액, 인건비: 자동줄.인건비 }
     : (() => { const 줄 = 품목줄(item, 구역, Object.assign({}, s, { 고정: null }));
                return { 금액: QuoteCalc.lineAmount(줄), 인건비: QuoteCalc.lineWage(줄) }; })();
+  금액창.자동 = 자동;
   $('#amtOrig').textContent = 자동.인건비 == null
     ? '자동 계산 ' + won(자동.금액)
     : '자동 계산 ' + won(자동.금액) + ' (인건비 ' + won(자동.인건비) + ' · 자재비 ' + won(자동.금액 - 자동.인건비) + ')';
@@ -614,7 +615,7 @@ function 금액고치기(item, 구역, row) {
   금액창합계();
   $('#amtBack').hidden = false;
   $('#amtSheet').hidden = false;
-  const inp = $('#amtWage');
+  const inp = $('#amtTotal');
   inp.focus();
   inp.setSelectionRange(inp.value.length, inp.value.length);
 }
@@ -626,9 +627,23 @@ function 금액창값() {
   return { 금액: 인건비 + 자재비, 인건비: 인건비, 자재비: 자재비 };
 }
 
+// 인건비·자재비를 고치면 합계 칸 = 둘의 합
 function 금액창합계() {
   if (!금액창) return;
-  $('#amtSplit').textContent = '합계 ' + won(금액창값().금액);
+  $('#amtTotal').value = QuoteCalc.금액포맷(String(금액창값().금액));
+  $('#amtSplit').textContent = '합계를 고치면 인건비·자재비가 자동 계산 비율로 나뉩니다';
+}
+
+// 합계를 고치면 자동 계산 비율로 인건비·자재비를 나눈다 (나눌 수 없는 줄이면 전부 인건비)
+function 금액창나눔() {
+  if (!금액창) return;
+  const 합 = QuoteCalc.금액파싱($('#amtTotal').value);
+  const 자 = 금액창.자동;
+  const 나눔 = QuoteCalc.금액나누기(isFinite(합) ? 합 : 0, 자.인건비, 자.금액);
+  const 인 = 나눔.인건비 == null ? 나눔.금액 : 나눔.인건비;
+  const 칸 = (v) => (isFinite(합) ? QuoteCalc.금액포맷(String(v)) : '');
+  $('#amtWage').value = 칸(인);
+  $('#amtMat').value = 칸(나눔.금액 - 인);
 }
 
 function 금액창닫기() {
@@ -662,23 +677,23 @@ function 금액창적용(되돌리기) {
   refresh();
 }
 
-['#amtWage', '#amtMat'].forEach((id) => {
+['#amtTotal', '#amtWage', '#amtMat'].forEach((id) => {
   const el = $(id);
   el.addEventListener('input', () => {
     const 새값 = QuoteCalc.금액포맷(el.value);
     if (새값 !== el.value) el.value = 새값;
-    금액창합계();
+    if (id === '#amtTotal') 금액창나눔(); else 금액창합계();
   });
   el.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
-    if (id === '#amtWage') $('#amtMat').focus(); else 금액창적용(false);
+    금액창적용(false);
   });
 });
 document.querySelectorAll('#amtSheet .amt-x').forEach((b) => b.addEventListener('click', () => {
   const el = document.getElementById(b.dataset.for);
   el.value = '';
-  금액창합계();
+  if (b.dataset.for === 'amtTotal') 금액창나눔(); else 금액창합계();
   el.focus();
 }));
 $('#amtOk').addEventListener('click', () => 금액창적용(false));
