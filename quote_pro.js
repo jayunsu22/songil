@@ -507,6 +507,15 @@ function buildItem(item, 구역) {
   // 견적요청 금액으로 고정된 품목을 여기서 고치면 그때부터 방문견적 단가로 다시 계산한다
   const 고정풀기 = (s) => { if (s && s.고정) { delete s.고정; syncRow(row); } };
 
+  // 체크한 품목의 금액을 누르면 직접 고친다 (현장에서 말로 알려준 금액 맞추기, 2026-11-01).
+  // 금액 칸은 label 안이라 그냥 두면 체크가 풀린다 - 체크된 줄이면 막고 고치기 창을 연다.
+  row.amt.addEventListener('click', (e) => {
+    if (!state.선택[item.체크_ID]) return;
+    e.preventDefault();
+    e.stopPropagation();
+    금액고치기(item, 구역, row);
+  });
+
   /* 이벤트 */
   row.cb.addEventListener('change', () => {
     if (row.cb.checked) {
@@ -570,6 +579,113 @@ function buildItem(item, 구역) {
   return box;
 }
 
+/* 품목 금액 직접 고치기 — 인건비·자재비를 각각 적는다 (2026-11-09 사장님: 금액 하나를 적으면
+   원래 비율로 나누던 것을 바꿈. 자재를 업자가 대는 건이 있어 둘이 따로 정해진다).
+   적은 두 값을 더한 게 그 줄 금액이고 '고정' 금액으로 둔다 (견적요청 고정과 같은 칸 - 수량·난이도·종류를
+   바꾸면 풀리고 단가 계산으로 돌아간다). 여러 번 고쳐도 '원래' 는 처음 금액을 남긴다.
+   창: 처음엔 지금 인건비·자재비가 들어 있다. 치는 동안 천 단위 쉼표, ✕ 는 그 칸을 비운다(= 0원),
+   [원래 금액으로] 는 고침을 푼다. */
+let 금액창 = null;   // { item, 구역, row, 원래, 요청고정 }
+
+function 금액고치기(item, 구역, row) {
+  const s = state.선택[item.체크_ID];
+  if (!s) return;
+  const 지금줄 = 품목줄(item, 구역, s);
+  const 지금 = QuoteCalc.lineAmount(지금줄);
+  const 지금인건비 = QuoteCalc.lineWage(지금줄);
+  const 요청고정 = s.고정 && !s.고정.고침 ? s.고정 : null;
+  const 원래 = s.고정 && s.고정.원래 != null ? s.고정.원래 : 지금;
+  금액창 = { item: item, 구역: 구역, row: row, 원래: 원래, 요청고정: 요청고정 };
+  $('#amtTitle').textContent = '‘' + 지금줄.품목명 + '’ 금액';
+  // 자동 계산 값 (견적요청 금액이면 그 금액) — 고친 뒤에도 무엇이 자동값이었는지 보이게
+  const 자동줄 = 요청고정 || (s.고정 && s.고정.요청) || null;
+  const 자동 = 자동줄
+    ? { 금액: 자동줄.금액, 인건비: 자동줄.인건비 }
+    : (() => { const 줄 = 품목줄(item, 구역, Object.assign({}, s, { 고정: null }));
+               return { 금액: QuoteCalc.lineAmount(줄), 인건비: QuoteCalc.lineWage(줄) }; })();
+  $('#amtOrig').textContent = 자동.인건비 == null
+    ? '자동 계산 ' + won(자동.금액)
+    : '자동 계산 ' + won(자동.금액) + ' (인건비 ' + won(자동.인건비) + ' · 자재비 ' + won(자동.금액 - 자동.인건비) + ')';
+  // 나뉘어 있지 않은 줄(예전 직접 입력)은 전액을 인건비 칸에 두고 자재비는 비운다
+  const 인 = 지금인건비 == null ? 지금 : 지금인건비;
+  $('#amtWage').value = QuoteCalc.금액포맷(String(인));
+  $('#amtMat').value = 지금인건비 == null ? '' : QuoteCalc.금액포맷(String(지금 - 인));
+  $('#amtReset').hidden = !(s.고정 && s.고정.고침);
+  금액창합계();
+  $('#amtBack').hidden = false;
+  $('#amtSheet').hidden = false;
+  const inp = $('#amtWage');
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+}
+
+// 적은 인건비·자재비 (빈 칸은 0원)
+function 금액창값() {
+  const 칸 = (id) => { const v = QuoteCalc.금액파싱($(id).value); return isFinite(v) ? v : 0; };
+  const 인건비 = 칸('#amtWage'), 자재비 = 칸('#amtMat');
+  return { 금액: 인건비 + 자재비, 인건비: 인건비, 자재비: 자재비 };
+}
+
+function 금액창합계() {
+  if (!금액창) return;
+  $('#amtSplit').textContent = '합계 ' + won(금액창값().금액);
+}
+
+function 금액창닫기() {
+  $('#amtBack').hidden = true;
+  $('#amtSheet').hidden = true;
+  금액창 = null;
+}
+
+/* 확인(되돌리기=false) 또는 [원래 금액으로](되돌리기=true) */
+function 금액창적용(되돌리기) {
+  const c = 금액창;
+  if (!c) return;
+  const s = state.선택[c.item.체크_ID];
+  if (!s) { 금액창닫기(); return; }
+  if (되돌리기) {
+    // 견적요청 금액을 고쳤던 거면 견적요청 금액으로, 아니면 단가 계산으로
+    if (s.고정 && s.고정.고침) {
+      if (s.고정.요청) s.고정 = s.고정.요청; else delete s.고정;
+    }
+  } else {
+    s.고정 = Object.assign({}, 금액창값(), {
+      고침: true, 원래: c.원래,
+      범위: c.요청고정 ? c.요청고정.범위 : (s.고정 && s.고정.범위),
+      요청: c.요청고정 || (s.고정 && s.고정.요청) || null,
+    });
+  }
+  const row = c.row;
+  금액창닫기();
+  persist();
+  syncRow(row);
+  refresh();
+}
+
+['#amtWage', '#amtMat'].forEach((id) => {
+  const el = $(id);
+  el.addEventListener('input', () => {
+    const 새값 = QuoteCalc.금액포맷(el.value);
+    if (새값 !== el.value) el.value = 새값;
+    금액창합계();
+  });
+  el.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (id === '#amtWage') $('#amtMat').focus(); else 금액창적용(false);
+  });
+});
+document.querySelectorAll('#amtSheet .amt-x').forEach((b) => b.addEventListener('click', () => {
+  const el = document.getElementById(b.dataset.for);
+  el.value = '';
+  금액창합계();
+  el.focus();
+}));
+$('#amtOk').addEventListener('click', () => 금액창적용(false));
+$('#amtReset').addEventListener('click', () => 금액창적용(true));
+$('#amtCancel').addEventListener('click', 금액창닫기);
+$('#amtBack').addEventListener('click', 금액창닫기);
+
 /* 저장된 상태를 한 행의 컨트롤에 반영한다 */
 function syncRow(row) {
   const s = state.선택[row.item.체크_ID];
@@ -581,7 +697,12 @@ function syncRow(row) {
     row.diff.value = String(s.난이도 || 1);
     if (row.kind) row.kind.value = String(s.옵션 || 0);
   }
-  if (row.req) row.req.hidden = !(s && s.고정);
+  if (row.req) {
+    row.req.hidden = !(s && s.고정);
+    // 견적요청에서 넘어온 금액인지, 여기서 직접 고친 금액인지
+    // 머리줄은 품목명·금액이 같이 있어 짧게. 원래 금액은 인건비·자재비 줄 아래에 (refresh)
+    row.req.textContent = s && s.고정 && s.고정.고침 ? '고침' : '견적요청';
+  }
   // 체크하면 몸통 줄의 사진 버튼이 보이므로 제목 줄 것은 감춘다. 둘 다 있으면 헷갈린다.
   if (row.photoHead) row.photoHead.hidden = !!s || !사진가능;
   if (row.descBtn) {
@@ -622,27 +743,69 @@ function buildAdjust() {
       o.textContent = (v > 0 ? '+' : '') + Math.round(v * 100) + '%';
       sel.appendChild(o);
     });
+    // 맨 끝 '직접입력' (2026-11-02): % 대신 금액을 적는다 - '-150,000원' 이면 총액에서 15만원을 뺀다
+    const 직접 = document.createElement('option');
+    직접.value = 'won';
+    직접.textContent = '직접입력';
+    sel.appendChild(직접);
+    // 금액 칸은 그 줄 바로 아래. '직접입력' 일 때만 보인다
+    const won칸 = document.createElement('input');
+    won칸.type = 'text'; won칸.inputMode = 'numeric'; won칸.autocomplete = 'off';
+    won칸.className = 'adj-won'; won칸.dataset.slot = sel.dataset.slot; won칸.hidden = true;
+    won칸.placeholder = '-150,000원 (빼면 앞에 -)';
+    sel.parentElement.after(won칸);
+    won칸.addEventListener('input', () => {
+      const a = state.조정[+sel.dataset.slot];
+      if (!a) return;
+      won칸.value = QuoteCalc.금액포맷(won칸.value);
+      const n = QuoteCalc.금액파싱(won칸.value);
+      a.금액 = isNaN(n) ? 0 : n;
+      refresh();
+      persist();
+    });
     sel.addEventListener('change', () => {
       const slot = +sel.dataset.slot;
-      if (state.조정[slot]) {
-        state.조정[slot].비율 = parseFloat(sel.value) || 0;
+      const a = state.조정[slot];
+      if (a) {
+        if (sel.value === 'won') {
+          // 할인이 대부분이라 '-' 를 먼저 넣어 둔다. 더하는 금액이면 지우고 쓴다
+          a.금액 = 0; a.비율 = 0;
+        } else {
+          delete a.금액;
+          a.비율 = parseFloat(sel.value) || 0;
+        }
+        syncAdjust();
         refresh();
         persist();
+        if (sel.value === 'won') won칸.focus();
       }
     });
   });
   syncAdjust();
 }
 
+// '업자단가' 는 '업체조정가' 로 이름을 바꿨다 (2026-11-02, 에어테이블 전체조정항목). 저장함·다시 담은 견적의 예전 이름도 새 이름으로
+function 조정이름맞추기() {
+  state.조정.forEach((a) => { if (a && a.항목명 === '업자단가') a.항목명 = '업체조정가'; });
+}
+
 function syncAdjust() {
+  조정이름맞추기();
   document.querySelectorAll('.adj-name').forEach((sel) => {
     const a = state.조정[+sel.dataset.slot];
     sel.value = a ? a.항목명 : '';
   });
   document.querySelectorAll('.adj-pct').forEach((sel) => {
     const a = state.조정[+sel.dataset.slot];
-    sel.value = a ? String(a.비율) : '0';
+    const 금액 = a && QuoteCalc.금액조정(a);
+    sel.value = 금액 ? 'won' : a ? String(a.비율) : '0';
     sel.disabled = !a;
+    const won칸 = document.querySelector('.adj-won[data-slot="' + sel.dataset.slot + '"]');
+    if (won칸) {
+      won칸.hidden = !금액;
+      // 지금 적고 있는 칸은 건드리지 않는다 (커서가 튄다)
+      if (금액 && document.activeElement !== won칸) won칸.value = a.금액 ? QuoteCalc.금액포맷(String(a.금액)) : '-';
+    }
   });
 }
 
@@ -830,8 +993,11 @@ function refresh() {
     나눔맵[l.체크_ID] = 인건비자재비글(l);
   });
   ROWS.forEach((row, id) => {
+    // 금액을 고친 줄은 원래 금액을 인건비·자재비 줄 아래에 남긴다
+    const 고정 = state.선택[id] && state.선택[id].고정;
+    const 원래 = 고정 && 고정.고침 && 고정.원래 != null ? '<small class="i-split">원래 ' + esc(won(고정.원래)) + '</small>' : '';
     row.amt.innerHTML = 금액맵[id] != null
-      ? esc(won(금액맵[id])) + (나눔맵[id] ? '<small class="i-split">' + esc(나눔맵[id]) + '</small>' : '')
+      ? esc(won(금액맵[id])) + (나눔맵[id] ? '<small class="i-split">' + esc(나눔맵[id]) + '</small>' : '') + 원래
       : '';
   });
 
@@ -850,14 +1016,18 @@ function refresh() {
     det._sum.textContent = n ? won(sum) : '';
   });
 
-  const 율 = r.조정_합계율;
+  // 조정은 총액에서 한 번에 (품목 금액에는 안 건다): '합계 조정 -10% · -150,000원 = -270,900원'
+  const 퍼합 = r.조정율합;
+  const 금액합 = r.조정들.filter(QuoteCalc.금액조정).reduce((s, a) => s + a.금액, 0);
+  const 부호원 = (n) => (n > 0 ? '+' : '-') + won(Math.abs(n));
+  const 조정글 = [퍼합 ? (퍼합 > 0 ? '+' : '') + Math.round(퍼합 * 1000) / 10 + '%' : '',
+    금액합 ? 부호원(금액합) : ''].filter(Boolean).join(' · ');
   $('#adjSum').textContent = 조정목록().length
-    ? '합계 조정 ' + (율 > 0 ? '+' : '') + Math.round(율 * 1000) / 10 + '%'
-      + (율 === 0 ? ' (상쇄되어 그대로 나갑니다)' : '')
+    ? '합계 조정 ' + (조정글 || '0%') + (r.조정액 ? ' = 총액에서 ' + 부호원(r.조정액) : ' (상쇄되어 그대로 나갑니다)')
     : '';
 
   $('#totalAmount').innerHTML = won(r.총액) +
-    (율 !== 0 ? ' <small>조정 전 ' + won(r.소계) + '</small>' : '') +
+    (r.조정액 !== 0 ? ' <small>조정 전 ' + won(r.소계) + '</small>' : '') +
     (r.절삭액 ? ' <small>절삭 -' + won(r.절삭액) + '</small>' : '');
   $('#publishBtn').disabled = items.length === 0;
 
@@ -1224,15 +1394,17 @@ function buildText() {
   });
 
   L.push('');
-  // 인건비만 보낼 때는 소계·조정 줄을 안 쓴다. 그 소계는 자재비까지 든
-  // 금액이라 인건비 합계와 안 맞아서 받는 쪽이 계산기를 두드리면 어긋난다.
-  if (!인건비만 && $('#optAdj').checked && q.result.조정_합계율 !== 0) {
-    L.push('소계 ' + q.result.소계.toLocaleString('ko-KR') + '원');
-    // 견적서 화면과 같은 모양으로 조정 이유(항목명)를 같이 적는다.
+  // 조정은 총액에서 빼거나 더한다 - 품목 금액에 안 들어 있으니 소계·조정 줄을 늘 적는다 (그래야 합이 맞는다).
+  // 인건비만 보낼 때는 인건비 소계에 같은 조정을 건다 (% 는 인건비 소계의 %, 금액은 그대로)
+  const 조정줄 = (인건비만 ? q.result.인건비조정들 : q.result.조정들).filter((a) => a && a.조정금액);
+  if (조정줄.length) {
+    const 소계 = 인건비만 ? q.result.인건비절삭전총액 - q.result.인건비조정액 : q.result.소계;
+    L.push((인건비만 ? '인건비 소계 ' : '소계 ') + 소계.toLocaleString('ko-KR') + '원');
     const 퍼 = (v) => (v > 0 ? '+' : '') + Math.round(v * 1000) / 10 + '%';
-    const 내역 = 조정목록().filter((a) => a && a.항목명 && a.비율);
-    if (내역.length) 내역.forEach((a) => L.push('조정 (' + a.항목명 + ') ' + 퍼(a.비율)));
-    else L.push('조정 ' + 퍼(q.result.조정_합계율));
+    const 원 = (n) => (n > 0 ? '+' : '-') + Math.abs(n).toLocaleString('ko-KR') + '원';
+    // 깎아 주는 조정은 눈에 띄게 '🎁 업체조정가 (-10%) -110,200원'
+    조정줄.forEach((a) => L.push((a.조정금액 < 0 ? '🎁 ' + a.항목명 : '조정 (' + a.항목명 + ')') +
+      (QuoteCalc.금액조정(a) ? '' : ' (' + 퍼(a.비율) + ')') + ' ' + 원(a.조정금액)));
   }
   // 만원 미만 절삭 (견적서 화면과 같은 줄). 품목을 더한 값과 합계가 왜 다른지 보이게
   const 절삭액 = 인건비만 ? q.result.인건비절삭액 : q.result.절삭액;
@@ -1350,8 +1522,10 @@ $('#doPublish').addEventListener('click', async () => {
         조정_합계율: q.result.조정_합계율,
         총액: q.result.총액,         // 만원 미만 절삭한 합계 (quote_calc 절삭)
         절삭단위: QuoteCalc.절삭단위,
-        조정_내역: 조정목록(),
-        조정내역_표시: $('#optAdj').checked,
+        // 금액 조정은 비율을 채워 싣는다 (견적서·다시 담기가 비율로 계산한다). 금액도 같이 실린다
+        조정_내역: q.result.조정들,
+        // 조정은 총액에서 거는 것이라 견적서에 늘 소계·조정 줄을 보여준다 (예전 '조정내역 표시' 선택은 뺐다)
+        조정내역_표시: true,
         부가세_별도표기: $('#optVat').checked,
         메모: state.메모,
         소비자_전달사항: state.전달사항,
@@ -1687,12 +1861,15 @@ function 백업줄그리기() {
    '새 견적' 을 누르면 덮인다. 저장함에 담아야 이름이 붙은 사본이 남는다. */
 // 견적요청 제목: '위치 가견적 10월29일 오후8시(거래처)'. 견적초안이 읽은 위치를 쓴다. 견적초안 화면도 부른다.
 function 요청제목만들기() {
-  const 위치 = (state.요청초안 && state.요청초안.공통 && state.요청초안.공통.위치) || '';
+  // 위치 뒤에 요청 요약 '30평 아파트 샤시' (2026-11-02) - 위치를 몰라도 무슨 견적인지 제목에 보이게
+  const 초안 = state.요청초안 || {};
+  const 위치 = [(초안.공통 && 초안.공통.위치) || '', 초안.요약 || ''].filter(Boolean).join(' ');
   return RequestDraft.요청제목(state.요청, (state.업체 && state.업체.이름) || 요청거래처명(state.요청), 위치);
 }
 
 // 업체를 고르지 않았어도 현장관리에서 거래처ID 를 넘겨 왔으면 업체 목록에서 이름을 찾는다
 function 요청거래처명(요청) {
+  if (!요청) return '';   // 견적요청 없이 새 견적에 바로 붙여넣은 경우 (2026-11-02: 여기서 멈춰 초안이 안 그려졌다)
   if (요청.거래처명) return 요청.거래처명;
   if (!요청.거래처ID || typeof 업체캐시 !== 'function') return '';
   const 찾음 = (업체캐시().목록 || []).find((c) => c.id === 요청.거래처ID);
@@ -1706,16 +1883,22 @@ function 저장함에담기() {
   if (!건수 && !state.요청) { toast('체크한 품목이 없습니다.'); return false; }
 
   // 기본 이름: 업체명 · 날짜 · 현장주소 순 (주소가 없으면 빼고). 주소가 있으면 묻지 않고 그 이름으로,
-  // 없으면 이름 창에 미리 채워 둔다. 이미 담긴 현장을 다시 담을 때는 처음 이름을 그대로 둔다 -
-  // 담을 때마다 날짜가 바뀌면 저장함에서 같은 현장을 못 알아본다.
+  // 없으면 이름 창에 미리 채워 둔다. 현장명에 이미 날짜·업체명이 있으면 또 붙이지 않는다('11/1 11/1 …' 방지).
+  // 이미 담긴 현장은 현장명이 그대로일 때만 처음 이름을 둔다 - 담을 때마다 날짜가 바뀌면 같은 현장을 못 알아본다.
+  // 현장명을 바꿨으면 새 이름으로 (2026-11-01: 이름을 바꿔 저장해도 안 바뀐다는 사장님 말씀).
   const 있던 = 저장함읽기().find((x) => x.현장ID && x.현장ID === state.현장ID);
   const 오늘 = new Date();
   const 현장주소 = (state.현장명 || '').trim();
-  const 기본이름 = [state.업체 && state.업체.이름, (오늘.getMonth() + 1) + '/' + 오늘.getDate(), 현장주소].filter(Boolean).join(' ');
+  const 날짜 = (오늘.getMonth() + 1) + '/' + 오늘.getDate();
+  const 업체이름 = (state.업체 && state.업체.이름) || '';
+  const 기본이름 = [업체이름 && 현장주소.indexOf(업체이름) < 0 ? 업체이름 : '',
+    현장주소.indexOf(날짜) < 0 ? 날짜 : '', 현장주소].filter(Boolean).join(' ');
+  const 있던현장명 = 있던 && 있던.상태 ? String(있던.상태.현장명 || '').trim() : null;
+  const 이름그대로 = 있던 && (!현장주소 || 있던현장명 === 현장주소);
   // 견적요청으로 시작한 견적은 '부평 삼산동 미래타운 3단지 가견적 10월29일 오후8시(김정헌)' (사장님 2026-10-29).
   // 접수일시로 만들어 담을 때마다 같은 제목이라, 이미 담긴 것도 이 제목으로 맞춘다.
   const 요청제목 = state.요청 ? 요청제목만들기() : '';
-  const 이름 = 요청제목 || (있던 ? 있던.이름 : (현장주소 ? 기본이름 : (prompt('저장할 이름을 적어주세요.', 기본이름) || '')));
+  const 이름 = 요청제목 || (이름그대로 ? 있던.이름 : (현장주소 ? 기본이름 : (prompt('저장할 이름을 적어주세요.', 기본이름) || '')));
   if (!이름.trim()) { toast('이름이 없어 저장하지 않았습니다.'); return false; }
 
   const list = 저장함읽기();

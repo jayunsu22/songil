@@ -74,7 +74,11 @@
       (z.items || []).forEach((it) => 품목표.set(it.체크_ID, { item: it, 구역: z.구역 }));
     });
 
-    const 조정 = (Array.isArray(d.조정_내역) ? d.조정_내역 : []).filter((a) => a && a.비율).slice(0, 3);
+    // 직접입력 금액 조정(-150,000원)은 비율이 0 이라 금액으로도 본다 (2026-11-02). 계산 때 붙인 값(방식·조정금액)은 뺀다
+    const 조정 = (Array.isArray(d.조정_내역) ? d.조정_내역 : [])
+      .filter((a) => a && (a.비율 || (typeof a.금액 === 'number' && a.금액)))
+      .map((a) => { const o = { 항목명: a.항목명, 비율: Number(a.비율) || 0 }; if (typeof a.금액 === 'number') { o.금액 = a.금액; o.비율 = 0; } return o; })
+      .slice(0, 3);
     const st = {
       현장ID: '', 현장코드: String(d.견적코드 || ''), 현장명: String(d.현장명 || ''),
       평형: d.평형 ? String(d.평형) : '확인안됨', 자재비: null,

@@ -95,7 +95,8 @@
 
     // 지금 화면에 보이는 품목만 (평형이 안 맞는 품목은 고를 수 없다)
     const zones = MASTER.zones.map((z) => ({ 구역: z.구역, items: z.items.filter(보이는가) }));
-    const r = RequestDraft.체크하기(j.items, zones, state.선택);
+    // 공통(평형) 을 같이 넘긴다 - '32평 전체 샤시' 를 방마다 담는다 (2026-11-02)
+    const r = RequestDraft.체크하기(j.items, zones, state.선택, j.공통);
     const 새것 = Object.keys(r.선택);
     Object.assign(state.선택, r.선택);
 
@@ -103,6 +104,8 @@
     state.요청초안 = {
       붙여넣기: (앞.붙여넣기 || []).concat([{ 출처: 고른.출처, 보낸이: 고른.보낸이, 글: 글, 일시: new Date().toISOString() }]),
       공통: 공통합치기(앞.공통, j.공통),
+      // 제목에 쓸 요약 '30평 아파트 샤시' (2026-11-02). 이번에 없으면 앞의 것
+      요약: RequestDraft.요청요약(r) || 앞.요약 || '',
     };
 
     // 견적서 제목(현장명)이 비어 있으면 '위치 가견적 10월29일 오후8시(거래처)' 로 채운다 (사장님 2026-10-29)
@@ -124,6 +127,10 @@
       (r.확인필요.length
         ? '<ul class="dr-need">' + r.확인필요.map((x) =>
             '<li>⚠️ ' + esc(x.품목명) + ' ' + x.개수 + '개 — ' + esc(x.이유) + (x.근거 ? ' <small>「' + esc(x.근거) + '」</small>' : '') + '</li>').join('') + '</ul>'
+        : '') +
+      // 평형 전체 샤시를 방마다 나눠 담았다
+      ((r.평형샤시 || []).length
+        ? '<p class="dr-len">🪟 ' + r.평형샤시.map((x) => esc(x.평형) + ' 전체 ' + esc(x.품목명) + ' ' + x.틀 + '틀 — 거실·주방·방마다 3m 씩').join(' · ') + '</p>'
         : '') +
       // 길이를 안 말한 싱크대는 보통 길이로 채웠다 - 실측하면 수량 칸에서 고친다
       (r.보통길이.length

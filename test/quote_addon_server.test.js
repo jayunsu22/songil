@@ -19,6 +19,15 @@ test('서버 계산 함수 = quote_addon.js', () => {
     for (const 율 of [0, -0.1, 0.15]) for (const 자 of [null, 12000]) {
       assert.deepStrictEqual(계산부.줄만들기(r, { 길이, 한쪽, 이름: 'n' }, 율, 자, 'i', 't'), M.줄만들기(r, { 길이, 한쪽, 이름: 'n' }, 율, 자, 'i', 't'));
     }
+  const 총액식 = [{ 항목명: '업자단가', 비율: -0.05, 방식: '총액' }, { 항목명: '할인', 비율: 0, 금액: -100000, 방식: '총액' }];
+  for (const 내역 of [[], undefined, [{ 비율: -0.1 }], [{ 비율: -0.1 }, { 비율: -0.12, 금액: -150000 }], 총액식]) {
+    for (const 합 of [0, -0.22, '0.05']) assert.strictEqual(계산부.추가율(내역, 합), M.추가율(내역, 합));
+    for (const 기준 of [0, 1102000, 3871500]) assert.strictEqual(계산부.총액조정합(기준, 내역), M.총액조정합(기준, 내역));
+    for (const [a, b] of [[[{ 표시금액: 1102000 }], 940000], [[{ 표시금액: 3871500 }], 3870000]]) {
+      assert.strictEqual(계산부.절삭했나(a, b, 내역), M.절삭했나(a, b, 내역));
+      for (const c of [true, false]) assert.strictEqual(계산부.새총액(a, [{ 표시금액: 5555 }], c, 내역), M.새총액(a, [{ 표시금액: 5555 }], c, 내역));
+    }
+  }
   for (const [a, b] of [[[{ 표시금액: 3871500 }], 3870000], [[{ 표시금액: 100 }], 100]]) {
     assert.strictEqual(계산부.절삭했나(a, b), M.절삭했나(a, b));
     for (const c of [true, false]) assert.strictEqual(계산부.새총액(a, [{ 표시금액: 5555 }], c), M.새총액(a, [{ 표시금액: 5555 }], c));
@@ -61,4 +70,19 @@ test('거절: 목록에 없는 품목, 없는 견적, 이상한 길이', () => {
   assert.strictEqual(실행(Object.assign({ 'pro-addon': [{ body: { 추가: { 표이름: '문틀' } } }] }, 기본))[0].json.error, 'bad_item');
   assert.strictEqual(실행({ 'pro-addon': [{ body: { 추가: { 표이름: '방문' } } }], 견적_조회: [] })[0].json.error, 'not_found');
   assert.strictEqual(실행(Object.assign({ 'pro-addon': [{ body: { 추가: { 표이름: '샤시(2중창)', 길이: 99 } } }] }, 기본))[0].json.error, 'bad_length');
+});
+
+test('총액에서 조정하는 견적서 (2026-11-02): 추가 품목은 단가 그대로, 새 총액은 늘어난 소계에 조정을 다시 걸어 절삭', () => {
+  // 원래: 품목 1,102,000 · 업자단가 -5%(-55,100) · 할인 -100,000 → 946,900 → 940,000
+  const 내역 = [{ 항목명: '업자단가', 비율: -0.05, 방식: '총액', 조정금액: -55100 }, { 항목명: '할인', 비율: 0, 금액: -100000, 방식: '총액', 조정금액: -100000 }];
+  const q = 견적({ 총액: 940000, 소계: 1102000, 조정_합계율: 0, 조정_내역: JSON.stringify(내역),
+    견적_스냅샷: JSON.stringify([{ 표시금액: 1102000, 라인금액: 1102000, 자재비단가: 9000 }]) });
+  const r = 실행({ 'pro-addon': [{ body: { 추가: { 표이름: '샤시(2중창)', 길이: 3, 이름: '샤시 2중창' } } }],
+    견적_조회: [q], '시공품목정보 조회': 표, 가맹점_조회: [{}] })[0].json;
+  assert.strictEqual(r.ok, true);
+  const meta = JSON.parse(r.고객_추가품목);
+  assert.strictEqual(meta.절삭, true);
+  assert.strictEqual(meta.줄들[0].표시금액, 331500);           // 단가 그대로 (-5% 안 걸림)
+  // 1,102,000 + 331,500 = 1,433,500 → -5% (-71,675) → -100,000 → 1,261,825 → 1,260,000
+  assert.strictEqual(r.총액, 1260000);
 });

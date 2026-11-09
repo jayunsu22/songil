@@ -212,6 +212,9 @@ header {
 }
 .adj-name { flex: 1 1 auto; min-width: 0; }
 .adj-pct { flex: 0 0 92px; font-weight: 700; }
+/* 직접입력 금액 칸 (2026-11-02) - 그 조정 줄 바로 아래 */
+.adj-won { display: block; width: 100%; margin: -2px 0 10px; padding: 12px 14px; border: 2px solid var(--text, #111); border-radius: 12px;
+  font-size: 18px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; background: #fff; }
 #adjSum { font-size: 13px; color: var(--muted); margin-top: 4px; }
 
 /* ---------- 하단 고정 바 ---------- */
@@ -1027,3 +1030,40 @@ header { column-gap: 6px; }
   border-radius: 6px; background: #fef3c7; color: #92400e;
   font-size: 12px; font-weight: 700;
 }
+
+/* 체크한 품목의 금액은 눌러서 고칠 수 있다 (2026-11-01) - 점선 밑줄로 눌리는 곳임을 보인다 */
+.item.on .i-amt { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 4px; }
+.item.on .i-amt .i-split { text-decoration: none; }
+
+/* 품목 금액 고치기 창 (2026-11-01) */
+#amtBack { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.35); }
+#amtSheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  background: var(--card); border-radius: 18px 18px 0 0;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+}
+#amtBack[hidden], #amtSheet[hidden] { display: none; }
+#amtSheet h2 { margin: 0 0 4px; font-size: 17px; }
+#amtSheet .hint { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+.amt-wrap { position: relative; }
+.amt-lbl { display: block; margin: 10px 0 4px; font-size: 14px; font-weight: 700; color: var(--muted); }
+.amt-in {
+  width: 100%; box-sizing: border-box; height: 52px; padding: 0 52px 0 14px;
+  border: 1.5px solid var(--line); border-radius: 12px; font-size: 22px; font-weight: 800; color: var(--text); background: #fff;
+}
+.amt-in:focus { border-color: var(--accent); outline: none; }
+.amt-x {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 36px; height: 36px; border: 0; border-radius: 50%; background: #e5e7eb; color: #374151; font-size: 16px; font-weight: 800;
+}
+#amtSplit { margin-top: 10px; font-size: 16px; font-weight: 800; color: var(--text); }
+.amt-row { display: flex; gap: 8px; margin-top: 6px; }
+.amt-row button, #amtReset {
+  flex: 1 1 0; min-height: 48px; border-radius: 12px; border: 1px solid var(--line);
+  background: #fff; font-size: 15px; font-weight: 700; color: var(--text);
+}
+.amt-row button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+#amtReset { width: 100%; margin-top: 8px; color: #b91c1c; border-color: #f3b4b4; }
+#amtReset[hidden] { display: none; }
+@media (min-width: 600px) { #amtSheet { max-width: 480px; margin-left: auto; margin-right: auto; } }
