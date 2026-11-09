@@ -475,13 +475,15 @@
 <section id="amtSheet" hidden aria-label="금액 고치기">
   <h2 id="amtTitle">금액 고치기</h2>
   <p class="hint" id="amtOrig"></p>
-  <!-- 합계를 고치면 인건비·자재비가 자동 계산 비율로 나뉘고, 그걸 다시 각각 고칠 수 있다 (2026-11-09 사장님).
-       인건비·자재비를 고치면 합계 = 둘의 합 -->
+  <!-- 합계를 고치면 인건비·자재비가 자동 계산 비율로 나뉜다 (2026-11-09 사장님).
+       [합계 고정] 켜면 인건비를 고치면 자재비 = 합계 − 인건비, 자재비를 고치면 인건비 = 합계 − 자재비.
+       끄면 합계 = 인건비 + 자재비 -->
   <label class="amt-lbl" for="amtTotal">합계</label>
   <div class="amt-wrap">
     <input type="text" id="amtTotal" class="amt-in amt-total" inputmode="numeric" autocomplete="off" placeholder="0원">
     <button type="button" class="amt-x" data-for="amtTotal" aria-label="합계 지우기">✕</button>
   </div>
+  <label class="amt-lock"><input type="checkbox" id="amtLock" checked> 합계 고정 <span>(한쪽을 바꾸면 다른 쪽이 맞춰짐)</span></label>
   <div class="amt-two">
     <div>
       <label class="amt-lbl" for="amtWage">인건비</label>
