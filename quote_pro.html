@@ -475,16 +475,28 @@
 <section id="amtSheet" hidden aria-label="금액 고치기">
   <h2 id="amtTitle">금액 고치기</h2>
   <p class="hint" id="amtOrig"></p>
-  <!-- 인건비·자재비를 각각 적는다 (2026-11-09 사장님). 합계 = 둘을 더한 값 -->
-  <label class="amt-lbl" for="amtWage">인건비</label>
+  <!-- 합계를 고치면 인건비·자재비가 자동 계산 비율로 나뉘고, 그걸 다시 각각 고칠 수 있다 (2026-11-09 사장님).
+       인건비·자재비를 고치면 합계 = 둘의 합 -->
+  <label class="amt-lbl" for="amtTotal">합계</label>
   <div class="amt-wrap">
-    <input type="text" id="amtWage" class="amt-in" inputmode="numeric" autocomplete="off" placeholder="0원">
-    <button type="button" class="amt-x" data-for="amtWage" aria-label="인건비 지우기">✕</button>
+    <input type="text" id="amtTotal" class="amt-in amt-total" inputmode="numeric" autocomplete="off" placeholder="0원">
+    <button type="button" class="amt-x" data-for="amtTotal" aria-label="합계 지우기">✕</button>
   </div>
-  <label class="amt-lbl" for="amtMat">자재비</label>
-  <div class="amt-wrap">
-    <input type="text" id="amtMat" class="amt-in" inputmode="numeric" autocomplete="off" placeholder="0원">
-    <button type="button" class="amt-x" data-for="amtMat" aria-label="자재비 지우기">✕</button>
+  <div class="amt-two">
+    <div>
+      <label class="amt-lbl" for="amtWage">인건비</label>
+      <div class="amt-wrap">
+        <input type="text" id="amtWage" class="amt-in" inputmode="numeric" autocomplete="off" placeholder="0원">
+        <button type="button" class="amt-x" data-for="amtWage" aria-label="인건비 지우기">✕</button>
+      </div>
+    </div>
+    <div>
+      <label class="amt-lbl" for="amtMat">자재비</label>
+      <div class="amt-wrap">
+        <input type="text" id="amtMat" class="amt-in" inputmode="numeric" autocomplete="off" placeholder="0원">
+        <button type="button" class="amt-x" data-for="amtMat" aria-label="자재비 지우기">✕</button>
+      </div>
+    </div>
   </div>
   <p class="hint" id="amtSplit"></p>
   <div class="amt-row">

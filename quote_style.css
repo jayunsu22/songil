@@ -1057,7 +1057,11 @@ header { column-gap: 6px; }
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
   width: 36px; height: 36px; border: 0; border-radius: 50%; background: #e5e7eb; color: #374151; font-size: 16px; font-weight: 800;
 }
-#amtSplit { margin-top: 10px; font-size: 16px; font-weight: 800; color: var(--text); }
+#amtSplit { margin: 8px 0 4px; font-size: 13px; color: var(--muted); }
+.amt-total { border-color: var(--accent); font-size: 26px; }
+.amt-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.amt-two .amt-in { font-size: 18px; padding-right: 40px; }
+.amt-two .amt-x { width: 30px; height: 30px; font-size: 14px; right: 6px; }
 .amt-row { display: flex; gap: 8px; margin-top: 6px; }
 .amt-row button, #amtReset {
   flex: 1 1 0; min-height: 48px; border-radius: 12px; border: 1px solid var(--line);
