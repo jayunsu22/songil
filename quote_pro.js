@@ -627,10 +627,20 @@ function 금액창값() {
   return { 금액: 인건비 + 자재비, 인건비: 인건비, 자재비: 자재비 };
 }
 
-// 인건비·자재비를 고치면 합계 칸 = 둘의 합
-function 금액창합계() {
+// 인건비·자재비 중 하나를 고쳤을 때 (고친칸 '#amtWage' | '#amtMat' | 없음).
+// [합계 고정] 이면 합계는 그대로, 다른 칸 = 합계 − 고친 칸. 아니면 합계 = 둘의 합.
+function 금액창합계(고친칸) {
   if (!금액창) return;
-  $('#amtTotal').value = QuoteCalc.금액포맷(String(금액창값().금액));
+  const 다른칸 = 고친칸 === '#amtWage' ? '#amtMat' : 고친칸 === '#amtMat' ? '#amtWage' : null;
+  if (다른칸 && $('#amtLock').checked) {
+    const 합 = QuoteCalc.금액파싱($('#amtTotal').value);
+    const 고 = QuoteCalc.금액파싱($(고친칸).value);
+    $(다른칸).value = QuoteCalc.금액포맷(String((isFinite(합) ? 합 : 0) - (isFinite(고) ? 고 : 0)));
+  } else {
+    $('#amtTotal').value = QuoteCalc.금액포맷(String(금액창값().금액));
+  }
+  // 인건비가 합계보다 크면 자재비가 마이너스가 된다 - 빨갛게 보여준다
+  ['#amtWage', '#amtMat'].forEach((id) => $(id).classList.toggle('minus', 금액창값()[id === '#amtWage' ? '인건비' : '자재비'] < 0));
   $('#amtSplit').textContent = '합계를 고치면 인건비·자재비가 자동 계산 비율로 나뉩니다';
 }
 
@@ -644,6 +654,7 @@ function 금액창나눔() {
   const 칸 = (v) => (isFinite(합) ? QuoteCalc.금액포맷(String(v)) : '');
   $('#amtWage').value = 칸(인);
   $('#amtMat').value = 칸(나눔.금액 - 인);
+  ['#amtWage', '#amtMat'].forEach((id) => $(id).classList.remove('minus'));
 }
 
 function 금액창닫기() {
@@ -682,7 +693,7 @@ function 금액창적용(되돌리기) {
   el.addEventListener('input', () => {
     const 새값 = QuoteCalc.금액포맷(el.value);
     if (새값 !== el.value) el.value = 새값;
-    if (id === '#amtTotal') 금액창나눔(); else 금액창합계();
+    if (id === '#amtTotal') 금액창나눔(); else 금액창합계(id);
   });
   el.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
@@ -693,9 +704,14 @@ function 금액창적용(되돌리기) {
 document.querySelectorAll('#amtSheet .amt-x').forEach((b) => b.addEventListener('click', () => {
   const el = document.getElementById(b.dataset.for);
   el.value = '';
-  if (b.dataset.for === 'amtTotal') 금액창나눔(); else 금액창합계();
+  if (b.dataset.for === 'amtTotal') 금액창나눔(); else 금액창합계('#' + b.dataset.for);
   el.focus();
 }));
+// [합계 고정] 은 이 기기에 기억한다 (처음엔 켜짐)
+try { $('#amtLock').checked = localStorage.getItem('amtLock') !== '0'; } catch (e) {}
+$('#amtLock').addEventListener('change', () => {
+  try { localStorage.setItem('amtLock', $('#amtLock').checked ? '1' : '0'); } catch (e) {}
+});
 $('#amtOk').addEventListener('click', () => 금액창적용(false));
 $('#amtReset').addEventListener('click', () => 금액창적용(true));
 $('#amtCancel').addEventListener('click', 금액창닫기);

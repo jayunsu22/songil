@@ -1059,6 +1059,10 @@ header { column-gap: 6px; }
 }
 #amtSplit { margin: 8px 0 4px; font-size: 13px; color: var(--muted); }
 .amt-total { border-color: var(--accent); font-size: 26px; }
+.amt-lock { display: flex; align-items: center; gap: 6px; white-space: nowrap; margin: 10px 0 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.amt-lock input { width: 20px; height: 20px; accent-color: var(--accent); }
+.amt-lock span { font-size: 12px; font-weight: 500; color: var(--muted); }
+.amt-in.minus { color: #b91c1c; border-color: #f3b4b4; }
 .amt-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .amt-two .amt-in { font-size: 18px; padding-right: 40px; }
 .amt-two .amt-x { width: 30px; height: 30px; font-size: 14px; right: 6px; }
