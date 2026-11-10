@@ -6,16 +6,22 @@ const J = $input.first().json;
 const b = (J.body && typeof J.body === 'object') ? J.body : J;
 const clip = (v, n) => String(v == null ? '' : v).slice(0, n);
 const ctx = (b.context && typeof b.context === 'object') ? b.context : {};
-const history = (Array.isArray(b.history) ? b.history : []).slice(-24).map((m) => ({
-  role: m && m.role === 'assistant' ? 'model' : 'user',
-  text: clip(m && m.text, 4000),
-})).filter((m) => m.text);
+// 📷 사진 (11/10): 사장님 말에 photos [{ mime, data(base64) }] 가 붙어 오면 그 말 뒤에 그림으로 넣는다. 모두 합쳐 12장까지
+let picsLeft = 12;
+const history = (Array.isArray(b.history) ? b.history : []).slice(-24).map((m) => {
+  const role = m && m.role === 'assistant' ? 'model' : 'user';
+  const pics = role === 'user' && Array.isArray(m.photos) ? m.photos.filter((p) => p && typeof p.data === 'string' && p.data.length > 100) : [];
+  const take = pics.slice(0, Math.max(0, picsLeft));
+  picsLeft -= take.length;
+  return { role, text: clip(m && m.text, 4000) + (take.length ? '\n(사진 ' + take.length + '장 첨부)' : ''),
+    pics: take.map((p) => ({ inlineData: { mimeType: /^image\//.test(p.mime || '') ? p.mime : 'image/jpeg', data: p.data } })) };
+}).filter((m) => m.text);
 // Gemini 는 user 로 시작해야 하고 같은 역할이 이어지면 안 된다 → 묶는다
 const contents = [];
 for (const m of history) {
   const last = contents[contents.length - 1];
-  if (last && last.role === m.role) last.parts[0].text += '\n' + m.text;
-  else if (contents.length || m.role === 'user') contents.push({ role: m.role, parts: [{ text: m.text }] });
+  if (last && last.role === m.role) { last.parts[0].text += '\n' + m.text; last.parts.push(...m.pics); }
+  else if (contents.length || m.role === 'user') contents.push({ role: m.role, parts: [{ text: m.text }].concat(m.pics) });
 }
 const system = `너는 인테리어 필름 시공업체 "섬세한손길" 김정헌 실장(사장님)의 비서다. 사장님과 카톡하듯 짧고 자연스러운 존댓말로 대화하며 일을 처리한다. 오늘은 ${clip(ctx.today, 10)} 이다.
 
@@ -58,7 +64,17 @@ const system = `너는 인테리어 필름 시공업체 "섬세한손길" 김정
 
 문자는 phone:false 인 사람(team·contacts)에게 못 보낸다. 업체가 noContact 에 있으면 그 업체 연락처가 앱에 없는 것이다 → "거래처 화면에 번호를 넣어 주시거나 번호를 알려 주세요" 라고 한다.
 '팀원에게만 보낼 수 있다' 고 말하지 마라 — 업체 연락처에도 보낼 수 있다.
-이 밖의 일(날씨 보기, 견적 만들기, 일정 날짜 옮기기 등)은 아직 못 한다.
+이 밖의 일(날씨 보기, 견적 만들기, 일정 날짜 옮기기 등)은 아직 못 한다. 사진은 볼 수 있다 (아래 [사진]).
+
+[사진] 사장님이 사진을 보내면 사진을 직접 보고 일한다. 시공 현장 사진에는 사장님이 위치와 필름 번호를 글씨로 적어 둔다 (예: '안방화장실문, 문틀 ps170').
+- '위치별로 필름 정리해', '필름 넣어' 처럼 시키면 사진마다 적힌 위치와 번호를 읽어 set_films 로 그 현장 필름 칸에 넣는다.
+  · place 는 사진에 적힌 위치를 그대로 쓰되 쉼표는 '·' 로 (예 '안방화장실문·문틀', '터닝도어 문선 인방만', '작은방 붙박이장 앞면 문·문틀'). code 는 적힌 번호 그대로 (예 'ps170').
+  · 사진 한 장 = 한 줄. 번호가 같아도 위치가 다르면 따로 둔다.
+  · set_films 는 그 현장 필름 칸 전체를 바꾼다. 그 현장 sites[].films 에 이미 있는 줄('위치 번호')은 지우지 말고 {place, code} 로 나눠 그대로 앞에 넣고, 새 줄을 뒤에 더한다. 위치가 같은 줄은 사진의 번호로 바꾼다.
+  · 어느 현장인지 사장님이 말하지 않았고 사진으로도 모르겠으면 넣지 말고 되묻는다 — 이때 say 에 읽은 위치·번호를 먼저 정리해 보여 주고, chips 에 가까운 날짜 현장 후보를 넣는다. 사진은 다음 말에도 같이 온다.
+  · 글씨가 없거나 흐려 못 읽은 사진은 몇 번째 사진인지 말하고 지어내지 마라.
+- 다 넣은 뒤 say 에는 위치별로 한 줄씩 정리해 보여 준다 (예 '· 안방화장실문·문틀 — ps170').
+- 필름 말고 다른 내용(비번 메모, 현장 상태 등)이 적힌 사진이면 시킨 대로 하고, 시킨 게 없으면 무엇이 적혀 있는지 말하고 어떻게 할지 묻는다.
 
 [잔금] 안 받은 현장을 물으면 todo 의 kind:"pay" 항목을 기준으로 답한다.
 

@@ -12,6 +12,15 @@ assert.deepStrictEqual(p.contents.map((c) => c.role), ['user', 'model', 'user'])
 assert.ok(p.contents[0].parts[0].text.includes('문자 보내줘') && p.contents[0].parts[0].text.includes('[앱 실행 결과]'));
 assert.ok(p.system.includes('2026-11-04') && p.system.includes('"s1"') && p.system.includes('거짓말 금지'));
 
+// 📷 사진: 내 말 뒤에 inlineData 로, 묶여도 사진이 남는다
+const D = 'A'.repeat(200);
+const q = run('프롬프트', { body: { context: {}, history: [{ role: 'user', text: '덕유주공 필름 정리해', photos: [{ mime: 'image/jpeg', data: D }, { mime: 'x', data: D }, { data: 'short' }] },
+  { role: 'tool', text: '[앱 실행 결과] []' }] } });
+assert.strictEqual(q.contents.length, 1);
+assert.deepStrictEqual(q.contents[0].parts.slice(1).map((x) => x.inlineData.mimeType), ['image/jpeg', 'image/jpeg']);
+assert.ok(q.contents[0].parts[0].text.includes('(사진 2장 첨부)') && q.contents[0].parts[0].text.includes('[앱 실행 결과]'));
+assert.ok(q.system.includes('[사진]') && q.system.includes('ps170'));
+
 // 결과정리
 const gem = (o) => ({ candidates: [{ content: { parts: [{ text: typeof o === 'string' ? o : JSON.stringify(o) }] } }] });
 let r = run('결과정리', gem({ say: '네', actions: [{ tool: 'mark_paid', siteId: 's1' }, { tool: 'rm_rf' }, null], chips: ['응', ''] }));
