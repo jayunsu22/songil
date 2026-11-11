@@ -279,6 +279,19 @@ assert.strictEqual(run('요청', { 보고서요청: { body: { action: 'inbox', i
   assert.strictEqual(r1.watch[0].fill, false);
   assert.ok(r1.notify[0].text.includes('연락처 없어 못 보냄: 사아'));
   assert.strictEqual(run('실행', noon).sms.length, 0, '같은 안내는 한 번만');
+  // 📨 12시 뒤에 인원을 넣고 저장 (11/11) — 그 현장의 새 사람에게만 바로, 12시에 받은 사람은 또 안 보냄
+  const added = Object.assign({}, noon, { 낮12시: undefined, 보고서요청: { body: { action: 'workerNow', siteId: 'n1' } },
+    현장읽기: rec([{ id: 'n1', name: '가람마을', date: '2026-11-06', pwLobby: '#0000', days: [{ date: '2026-11-06', staff: ['마바', '김정헌', '사아', '자차'] }] },
+      { id: 'n2', name: '다른현장', date: '2026-11-06', days: [{ date: '2026-11-06', staff: ['카타'] }] }]),
+    설정읽기: rec([{ people: { 마바: { phone: '010-1111-2222' }, 자차: { phone: '010-3333-4444' }, 카타: { phone: '010-5555-6666' } } }]) });
+  delete added.낮12시;
+  clock = Date.parse('2026-11-05T05:30:00Z');   // 한국 14시 30분
+  const r2 = run('실행', added);
+  assert.deepStrictEqual(r2.sms.map((x) => x.phone), ['+821033334444'], '새로 넣은 자차만, 다른 현장(카타)은 안 건드림');
+  assert.deepStrictEqual([r2.resp.sent, r2.resp.noPhone], [['자차'], ['사아']], '번호 없는 사람은 다시 알려 줌');
+  assert.ok(r2.notify[0].text.includes('저장하자마자'));
+  clock = Date.parse('2026-11-05T01:00:00Z');   // 한국 10시 — 12시 전이면 12시에 같이 간다
+  assert.deepStrictEqual([run('실행', added).sms.length, run('실행', added).resp.later], [0, true]);
 }
 // 🚗 픽업 (11/8) — 픽업한 사람은 문자 없이 사장님께 '전화하세요' 한 줄 + 업무비서 기록
 {

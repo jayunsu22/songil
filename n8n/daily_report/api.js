@@ -5,6 +5,8 @@ const b = $('보고서요청').first().json.body || {};
 const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 const latest = () => Object.keys(sd.reports).sort().pop() || '';
 if (b.action === 'make') { out.make = true; return finish(); }
+// 📨 저장하자마자 내일 작업자 안내 (11/11 사장님: 낮 12시 뒤에 인원을 넣으면 문자가 안 갔다) — 백업을 읽어야 해서 실행(run.js)으로
+if (b.action === 'workerNow') { out.make = true; return finish(); }
 if (b.action === 'outbox') {
   out.resp = { ok: true, texts: sd.outbox.map((o) => ({ id: o.id, text: o.text })) };
   sd.outbox = [];
