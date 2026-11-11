@@ -1,0 +1,162 @@
+{
+  "name": "견적사진_읽기",
+  "nodes": [
+    {
+      "id": "w",
+      "name": "받은사진",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "e81f4c2a-6d3b-4a97-b5e0-1c9d7f3a2b68",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quote-photo-read",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      }
+    },
+    {
+      "id": "p",
+      "name": "프롬프트",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 견적사진_읽기 › 프롬프트 (2026-11-11 사장님: 업자가 카톡으로 보낸 사진 20장 → 견적). 앱 방문견적 › 📷 사진으로 견적 이 보낸다 (사장님 열쇠)\n// 받는 것: { items: [{ id, 구역, 이름 }] (지금 방문견적 품목), photos: [{ mime, data(base64) }] (몇 장씩 나눠서), start: 이 묶음 첫 사진 번호 }\n// 사진에는 업자가 위치·필름번호·메모를 글씨로 적어 보낸다 (예 '현관 방화문 px451 화이트스톤 / 도어락 교체 예정, 그외 기구들 재사용').\nconst b = $input.first().json.body || {};\nconst items = (Array.isArray(b.items) ? b.items : []).slice(0, 400);\nconst photos = (Array.isArray(b.photos) ? b.photos : []).filter((p) => p && typeof p.data === 'string' && p.data.length > 100).slice(0, 12);\nif (!items.length || !photos.length) throw new Error('items 와 photos 가 필요합니다');\nconst 목록 = items.map((it) => '- ' + String(it.id).slice(0, 40) + ' : ' + String(it.구역 || '').slice(0, 20) + ' ' + String(it.이름 || '').slice(0, 60)).join('\\n');\nconst 글 = [\n  '인테리어 필름 시공 견적을 내려고 업자가 카톡으로 보낸 현장 사진들이다. 사진마다 업자가 위치·필름 번호·메모를 글씨로 적어 둔 경우가 많다.',\n  '사진마다 (1) 적힌 글씨를 그대로 읽고 (2) 아래 견적 품목 중 무엇인지 고른다.',\n  '',\n  '견적 품목 (id : 구역 품목명):',\n  목록,\n  '',\n  '고르는 법:',\n  '- 글씨의 위치(현관·거실·주방·안방·작은방·방1·드레스룸·베란다 등)와 물건(방화문·중문·방문·화장실문·샤시·문선·붙박이장·싱크대·몰딩·걸레받이 등)을 먼저 본다. 글씨가 없으면 사진 모습으로 판단한다.',\n  '  · 현관 방화문 = 현관문. 안방 = 방1, 작은방은 방2·방3 중 비어 있는 쪽 (모르면 방2). 문+틀·문, 문틀 = 문과 문틀을 같이 하는 품목.',\n  '  · 같은 물건을 여러 각도로 찍은 사진은 같은 id 로 둔다.',\n  '- 목록에 딱 맞는 품목이 없거나 확실하지 않으면 id 는 null (지어내지 마라).',\n  '- qty: 그 품목 수량. 글씨에 \"3짝\", \"2세트\", \"4m\" 처럼 수가 있으면 그 수, 없으면 1.',\n  '- film: 필름 번호와 이름 (예 \"px451 화이트스톤\", \"ps170\"). 없으면 \"\".',\n  '- memo: 위치·필름을 뺀 나머지 메모 (예 \"도어락 교체 예정, 그외 기구들 재사용\"). 없으면 \"\".',\n  '- text: 사진에 적힌 글씨 전부를 그대로 (줄바꿈은 공백). 글씨가 없으면 \"\".',\n  '',\n  '답은 JSON 하나만: {\"photos\":[{\"n\":사진번호,\"id\":\"품목id 또는 null\",\"qty\":1,\"film\":\"\",\"memo\":\"\",\"text\":\"\"}]}  — 사진 수만큼, 사진 순서대로.',\n].join('\\n');\nconst start = Number(b.start) || 0;\nconst parts = [{ text: 글 }];\nphotos.forEach((p, i) => {\n  parts.push({ text: '사진' + (start + i) + ':' });\n  parts.push({ inline_data: { mime_type: /^image\\//.test(p.mime || '') ? p.mime : 'image/jpeg', data: p.data } });\n});\nreturn [{ json: {\n  ids: items.map((it) => String(it.id)), start, count: photos.length,\n  gemini: { contents: [{ role: 'user', parts }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } },\n} }];\n"
+      }
+    },
+    {
+      "id": "g",
+      "name": "Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.gemini) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "DVT2g7GvXhSY4Y4b",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "id": "c",
+      "name": "결과정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 견적사진_읽기 › 결과정리: Gemini 답 → { ok, photos: [{ n, id|null, qty, film, memo, text }] } (보낸 사진 순서대로, 빠진 사진도 칸은 있다)\n// 목록에 없는 id 는 null — 모델이 지어낸 id 로 품목이 생기면 안 된다.\nconst 앞 = $('프롬프트').first().json;\nconst r = $input.first().json || {};\nlet 답 = {};\ntry {\n  const t = (((r.candidates || [])[0] || {}).content || {}).parts || [];\n  답 = JSON.parse(String(t.map((x) => x.text || '').join('')).replace(/^```(?:json)?\\s*|\\s*```$/g, '') || '{}');\n} catch (e) { 답 = {}; }\nconst ok = new Set(앞.ids);\nconst s = (v, n) => String(v == null ? '' : v).replace(/\\s+/g, ' ').trim().slice(0, n);\nconst got = (Array.isArray(답.photos) ? 답.photos : Array.isArray(답) ? 답 : []);\nconst photos = [];\nfor (let i = 0; i < 앞.count; i++) {\n  const n = 앞.start + i;\n  const x = got.find((g) => g && Number(g.n) === n) || got[i] || {};\n  const q = Number(x.qty);\n  photos.push({ n, id: typeof x.id === 'string' && ok.has(x.id) ? x.id : null, qty: Number.isFinite(q) && q > 0 ? Math.min(q, 99) : 1,\n    film: s(x.film, 60), memo: s(x.memo, 200), text: s(x.text, 300) });\n}\nreturn [{ json: { ok: !!got.length, photos, error: r.error ? String(r.error.message || r.error) : '' } }];\n"
+      }
+    },
+    {
+      "id": "r",
+      "name": "응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "받은사진": {
+      "main": [
+        [
+          {
+            "node": "프롬프트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "프롬프트": {
+      "main": [
+        [
+          {
+            "node": "Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini": {
+      "main": [
+        [
+          {
+            "node": "결과정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "결과정리": {
+      "main": [
+        [
+          {
+            "node": "응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  }
+}
