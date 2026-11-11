@@ -51,4 +51,20 @@ assert.deepStrictEqual([p.go, p.ai], [true, false]);
 r = result(p, p);
 assert.ok(r.notify.text.includes('글을 못 읽은 장문 문자'));
 Date.now = RealNow;
+// 📱 번호부 (11/11 A안): 비서가 보낸 적 없는 업체 번호의 문자도 읽는다 — 그 업체 가까운 현장 중에서
+assert.strictEqual(api({ action: 'book', items: [{ phone: '010-5555-6666', name: '지인인테리어 김사장', client: '지인인테리어',
+  sites: [{ id: 's7', name: '덕유주공', date: '2026-11-12', known: { pwUnit: '1111#' } }, { id: 's8', name: '푸르지오', date: '2026-11-20', known: {} }] }, { phone: '12', sites: [{ id: 'x' }] }] }).resp.n, 1);
+p = api({ action: 'in', from: '+821055556666', msg: '덕유주공 세대 2580# 로 바뀌었고 푸르지오 공현 *1234 입니다. 주차는 지하2층' });
+assert.deepStrictEqual([p.go, p.ai, p.digest, p.book, p.body.sites.length, p.body.room.client], [true, true, true, true, 2, '지인인테리어']);
+r = result(p, { items: [{ siteId: 's7', kind: 'field', field: 'pwUnit', value: '2580#' }, { siteId: 's8', kind: 'field', field: 'pwLobby', value: '*1234' },
+  { siteId: '', kind: 'field', field: 'toilet', value: '1층' }, { siteId: 's8', kind: 'field', field: 'parking', value: '지하2층' }] });
+assert.deepStrictEqual(r.fills.map((f) => [f.siteId, f.field, f.value, f.update, f.room]), [['s7', 'pwUnit', '2580#', true, '지인인테리어 김사장 문자'], ['s8', 'pwLobby', '*1234', false, '지인인테리어 김사장 문자']]);
+assert.ok(r.feed.lines.some((l) => l.includes('어느 현장인지 몰라')) && r.feed.lines.some((l) => l.includes('주차')));
+assert.deepStrictEqual([r.sms.length, r.feed.siteId, r.feed.siteName], [0, 's7', '덕유주공, 푸르지오']);
+assert.ok(!r.notify.text.includes('2580') && !r.notify.text.includes('*1234'), '텔레그램에는 비번 값 없이');
+p = api({ action: 'in', from: '01055556666', unread: true });
+assert.deepStrictEqual([p.go, p.ai], [true, false]);
+assert.ok(result(p, p).notify.text.includes('글을 못 읽은 장문 문자'));
+// 모르는 번호는 여전히 버린다
+assert.strictEqual(api({ action: 'in', from: '01077778888', msg: '[광고] 1234' }).go, false);
 console.log('sms_reply ok');
