@@ -28,7 +28,7 @@
 
   function 닫기() {
     if (읽는중 && !confirm('사진을 읽는 중이에요. 그만둘까요?')) return;
-    읽는중 = false; 판.hidden = true; document.body.classList.remove('pq-open');
+    읽는중 = false; 판.hidden = true; 큰.hidden = true; document.body.classList.remove('pq-open');
     사진들.forEach((p) => URL.revokeObjectURL(p.url)); 사진들 = [];
   }
 
@@ -126,7 +126,7 @@
   }
   function 카드(x, 확인필요) {
     const imgs = x.photos ? x.photos : [x.n];
-    const 사진 = imgs.slice(0, 2).map((n) => '<img src="' + 사진들[n].url + '" alt="">').join('') + (imgs.length > 2 ? '<small>+' + (imgs.length - 2) + '장</small>' : '');
+    const 사진 = imgs.slice(0, 2).map((n) => '<img src="' + 사진들[n].url + '" data-n="' + n + '" alt="사진 ' + (n + 1) + ' 크게 보기">').join('') + (imgs.length > 2 ? '<small>+' + (imgs.length - 2) + '장</small>' : '');
     const films = x.films || (x.film ? [x.film] : []), memos = x.memos || (x.memo ? [x.memo] : []);
     const 글 = x.texts ? x.texts.join(' / ') : x.text;
     return '<div class="pq-it' + (확인필요 ? ' need' : '') + (x.on ? '' : ' off') + '">' +
@@ -159,8 +159,30 @@
       w.querySelector('.pq-sel').onchange = (e) => { x.id = e.target.value; 그리기확인(); };
       w.querySelectorAll('.pq-q button').forEach((b) => { b.onclick = () => { x.qty = Math.max(1, Math.min(99, x.qty + Number(b.dataset.d))); 그리기확인(); }; });
       w.querySelector('.pq-del').onclick = () => { x.on = !x.on; 그리기확인(); };
+      const 장들 = x.photos ? x.photos : [x.n];
+      w.querySelectorAll('.pq-th img, .pq-th small').forEach((im) => { im.onclick = () => 크게(장들, im.dataset.n ? +im.dataset.n : 장들[0]); });
     });
   }
+
+  /* 🔍 사진 크게 (2026-11-11 사장님: 작은 사진은 글씨가 안 보인다). 누르면 화면 가득, 사진을 한 번 더 누르면 2.5배 (밀어서 보기),
+     그 품목 사진이 여러 장이면 ‹ › 로 넘긴다. ✕ 또는 바깥을 누르면 닫힌다 */
+  const 큰 = document.createElement('div'); 큰.id = 'pqBig'; 큰.hidden = true;
+  큰.innerHTML = '<div class="pqb-top"><span id="pqbN"></span><button type="button" class="pqb-x" aria-label="닫기">✕</button></div>' +
+    '<div class="pqb-wrap"><img id="pqbImg" alt=""></div><div class="pqb-bot"><button type="button" class="pqb-nav l">‹ 앞 사진</button><button type="button" class="pqb-nav r">다음 사진 ›</button></div>';
+  document.body.appendChild(큰);
+  let 큰목록 = [], 큰지금 = 0;
+  function 크게(목록, n) { 큰목록 = 목록; 큰지금 = Math.max(0, 목록.indexOf(n)); 큰그리기(); 큰.hidden = false; }
+  function 큰그리기() {
+    const n = 큰목록[큰지금], img = $('#pqbImg');
+    img.classList.remove('z'); img.src = 사진들[n].url;
+    $('#pqbN').textContent = '사진 ' + (n + 1) + (큰목록.length > 1 ? ' (' + (큰지금 + 1) + '/' + 큰목록.length + ')' : '') + ' · 누르면 확대';
+    큰.querySelector('.pqb-bot').hidden = 큰목록.length < 2;
+  }
+  $('#pqbImg').onclick = (e) => { e.stopPropagation(); e.target.classList.toggle('z'); };
+  큰.querySelector('.pqb-x').onclick = () => { 큰.hidden = true; };
+  큰.querySelector('.pqb-wrap').onclick = () => { 큰.hidden = true; };
+  큰.querySelector('.pqb-nav.l').onclick = () => { 큰지금 = (큰지금 + 큰목록.length - 1) % 큰목록.length; 큰그리기(); };
+  큰.querySelector('.pqb-nav.r').onclick = () => { 큰지금 = (큰지금 + 1) % 큰목록.length; 큰그리기(); };
 
   async function 넣기() {
     const 묶 = {};   // 품목 id → { qty, films, memos, photos }
