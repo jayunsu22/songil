@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const OWNER = { httpHeaderAuth: { id: 'Tm4pgTszEk1zUiQ8', name: '사장님 열쇠' } };
 const workflow = {
-  name: '사장님_말투',
+  name: '사장님_말투',   // n8n id G55u4LoioInD14R5
   nodes: [
     {
       id: 'w', name: '말투요청', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, 0], webhookId: '4b8e2f61-7c3a-4d95-a1e6-9f2c5b7d3e18',
