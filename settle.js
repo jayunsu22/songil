@@ -1025,11 +1025,3 @@ $('#setSave').addEventListener('click', async () => {
   await 잠금확인();
   await loadMaster();
 })();
-
-/* [품목 견적] - 방문견적을 이 현장 시공품목에 자동 체크해서 연다 (quote_pro.js 정산진입, 2026-11-12).
-   정산 화면에서 뺀 품목·고른 시공범위를 방문견적이 읽어 가므로 지금 상태를 먼저 저장한다. */
-$('#itemModeBtn').addEventListener('click', () => {
-  if (!현장ID) return;
-  save();
-  location.href = '/quote_pro.html?settle=' + encodeURIComponent(현장ID);
-});
