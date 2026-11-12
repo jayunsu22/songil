@@ -55,5 +55,48 @@ class ToneTest(unittest.TestCase):
         self.assertEqual(tone.harvest(dict(CFG, tone=False), {}, "방", [M("김정헌", "넵 알겠습니다", "z")], self.posted.append, self.logs.append), 0)
 
 
+EXPORT = """봄애실장님 님과 카카오톡 대화
+저장한 날짜 : 2026-11-12 17:32:10
+
+--------------- 2026년 11월 10일 월요일 ---------------
+[봄애실장님] [오후 2:53] 내일 몇시에 오세요?
+[김정헌] [오후 3:01] 넵! 8시까지 갈게요 실장님~
+주차는 지하에 할게요
+[김정헌] [오후 3:02] 공동현관 비번 *1234# 맞죠?
+--------------- 2026년 11월 11일 화요일 ---------------
+[봄애실장님] [오전 9:10] 네~ 확인했어요!
+[김정헌] [오전 9:11] 감사합니다 ^^
+"""
+
+
+class ImportTest(unittest.TestCase):
+    def test_export_file_owner_lines(self):
+        import os
+        import tempfile
+        d = tempfile.mkdtemp()
+        for name, enc in (("봄애실장님.txt", "utf-8-sig"), ("가나실장님.txt", "utf-16")):
+            with open(os.path.join(d, name), "w", encoding=enc) as f:
+                f.write(EXPORT)
+        posted, logs = [], []
+        n = tone.import_folder(CFG, d, posted.append, logs.append)
+        self.assertEqual(n, 6)
+        items = [x for b in posted for x in b["items"] if x["room"] == "봄애실장님"]
+        self.assertEqual([x["text"] for x in items][:1], ["넵! 8시까지 갈게요 실장님~\n주차는 지하에 할게요"])
+        self.assertEqual(items[0]["prev"], "내일 몇시에 오세요?")
+        self.assertEqual(items[0]["d"], "2026-11-10")
+        self.assertNotIn("1234", items[1]["text"])
+        self.assertEqual(items[2]["prev"], "네~ 확인했어요!")
+        # 실시간으로 읽은 같은 글과 지문이 같다 (n8n 이 두 번 안 쌓게)
+        import kakao_text
+        live = kakao_text.with_keys(kakao_text.parse(EXPORT))
+        self.assertIn(items[0]["k"], {m["key"] for m in live})
+
+    def test_empty_folder(self):
+        import tempfile
+        logs = []
+        self.assertEqual(tone.import_folder(CFG, tempfile.mkdtemp(), lambda b: None, logs.append), 0)
+        self.assertIn("txt 가 없음", logs[0])
+
+
 if __name__ == "__main__":
     unittest.main()

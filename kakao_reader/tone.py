@@ -36,6 +36,52 @@ def pairs(msgs, mine, room, sent):
     return out
 
 
+def read_export(path):
+    """카톡 '대화 내보내기' txt (utf-8 / utf-16 / cp949 어느 것이든)."""
+    raw = open(path, "rb").read()
+    for enc in ("utf-8-sig", "utf-16", "cp949"):
+        try:
+            text = raw.decode(enc)
+            if "[" in text:
+                return text
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", "replace")
+
+
+def import_folder(cfg, folder, post, log, per_room=800):
+    """🗣 지난 대화로 말투 한 번에 모으기 (사장님 11/12): 업체 방을 카톡 '대화 내보내기' 로 저장한 txt 들(파일 이름 = 방 이름).
+    방마다 최근 사장님 줄 per_room 개까지 보낸다. 같은 줄은 n8n 이 지문으로 걸러서 여러 번 해도 괜찮다.
+    파일을 옮기거나 복사하지 않는다 — 다 보낸 뒤 사장님이 지우면 된다."""
+    import glob
+    import os
+    mine = {_norm(x) for x in cfg.get("my_names", ["김정헌"])}
+    total = 0
+    files = sorted(glob.glob(os.path.join(folder, "*.txt")))
+    if not files:
+        log("🗣 %s 에 txt 가 없음 — 카톡 방 ≡ › 대화 내용 › 대화 내보내기로 저장해 넣어 주세요" % folder)
+        return 0
+    for path in files:
+        room = os.path.splitext(os.path.basename(path))[0]
+        msgs = kakao_text.with_keys(kakao_text.parse(read_export(path)))
+        items = pairs(msgs, mine, room, set())[-per_room:]
+        if not msgs:
+            log("🗣 [%s] 글을 못 읽음 (내보내기 파일이 맞는지 확인)" % room)
+            continue
+        sent = 0
+        for i in range(0, len(items), 100):
+            try:
+                post({"action": "add", "items": items[i:i + 100]})
+                sent += len(items[i:i + 100])
+            except Exception as e:
+                log("🗣 [%s] 보내기 실패: %s" % (room, str(e)[:120]))
+                break
+        log("🗣 [%s] 글 %d개 중 사장님 줄 %d개 보냄" % (room, len(msgs), sent))
+        total += sent
+    log("🗣 지난 대화 말투 %d줄 보냄 — 다 됐으면 txt 파일은 지워 주세요" % total)
+    return total
+
+
 def harvest(cfg, state, room, msgs, post, log):
     """읽은 방 글(msgs, kakao_text.with_keys 를 거친 것)에서 사장님 줄을 모아 보낸다. 몇 줄 보냈는지 돌려준다."""
     if not cfg.get("tone", True) or not cfg.get("tone_url"):

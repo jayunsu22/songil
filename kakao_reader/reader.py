@@ -349,6 +349,11 @@ def main():
     m = re.search(r"key=([^&\s]+)", cfg["owner_key"])
     if m:
         cfg["owner_key"] = urllib.parse.unquote(m.group(1))
+    if "--tone-import" in args:   # 🗣 지난 대화로 말투 모으기 (11/12): python reader.py --tone-import [폴더, 기본 말투내보내기]
+        rest = args[args.index("--tone-import") + 1:]
+        folder = rest[0] if rest else os.path.join(HERE, "말투내보내기")
+        tone.import_folder(cfg, folder, lambda body: n8n_send.post_json(cfg["tone_url"], cfg["owner_key"], body), log)
+        return
     if not cfg["owner_key"] and "--dry" not in args:
         log("config.json 에 owner_key(사장님 열쇠) 가 비어 있음 — README 를 보고 넣어 주세요")
     # 켤 때 버전(노트북용 zip 을 만든 때)을 먼저 보여 준다 — 새 zip 을 제대로 덮어썼는지 확인 (사장님 10/31)
