@@ -49,6 +49,49 @@ def read_export(path):
     return raw.decode("utf-8", "replace")
 
 
+# 카톡 내보내기 모양이 기기마다 다르다 (11/12 노트북 파일을 못 읽음) — 한 줄에 날짜·시간·보낸이가 다 있는 꼴들
+_LINE_FORMS = [
+    # 2026년 11월 12일 오후 2:53, 봄애실장님 : 글   (안드로이드·일부 PC)
+    re.compile(r"^(\d{4})년 (\d{1,2})월 (\d{1,2})일 (오전|오후) (\d{1,2}):(\d{2}),? (.+?) : (.*)$"),
+    # 2026. 11. 12. 오후 2:53, 봄애실장님 : 글   (아이폰)
+    re.compile(r"^(\d{4})\. ?(\d{1,2})\. ?(\d{1,2})\.? (오전|오후) (\d{1,2}):(\d{2}),? (.+?) : (.*)$"),
+]
+_CSV = re.compile(r'^"?(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})(?::\d{2})?"?,"?(.*?)"?,"?(.*?)"?$')   # Date,User,Message (맥·새 PC)
+
+
+def parse_export(text):
+    """카톡 '대화 내보내기' 글 → [{date, time, sender, text}]. PC 꼴([보낸이] [오후 2:53])이 아니면 한 줄 꼴·CSV 로 읽는다."""
+    msgs = kakao_text.parse(text)
+    if msgs:
+        return msgs
+    cur = None
+    for line in text.replace("\r\n", "\n").split("\n"):
+        hit = None
+        for form in _LINE_FORMS:
+            m = form.match(line.strip())
+            if m:
+                y, mo, d, ap, h, mi, who, body = m.groups()
+                hit = {"date": "%s-%02d-%02d" % (y, int(mo), int(d)), "time": kakao_text._time24(ap, h, mi), "sender": who.strip(), "text": body}
+                break
+        if not hit:
+            m = _CSV.match(line.strip())
+            if m:
+                y, mo, d, h, mi, who, body = m.groups()
+                hit = {"date": "%s-%s-%s" % (y, mo, d), "time": "%s:%s" % (h, mi), "sender": who.strip(), "text": body.replace('""', '"')}
+        if hit:
+            msgs.append(hit)
+            cur = hit
+        elif cur is not None and line.strip() and not re.match(r"^-*\s*\d{4}년 .*요일\s*-*$|^\d{4}년 \d{1,2}월 \d{1,2}일 (오전|오후) \d", line.strip()):
+            cur["text"] += "\n" + line
+    return msgs
+
+
+def _shape(text):
+    """못 읽은 파일의 모양을 보여 준다 (글자는 가리고 꼴만): 한글→가, 영문→a, 숫자→0"""
+    lines = [l for l in text.replace("\r\n", "\n").split("\n") if l.strip()][:6]
+    return " / ".join(re.sub(r"\d", "0", re.sub(r"[A-Za-z]", "a", re.sub(r"[가-힣]", "가", l)))[:50] for l in lines)
+
+
 def import_folder(cfg, folder, post, log, per_room=800):
     """🗣 지난 대화로 말투 한 번에 모으기 (사장님 11/12): 업체 방을 카톡 '대화 내보내기' 로 저장한 txt 들(파일 이름 = 방 이름).
     방마다 최근 사장님 줄 per_room 개까지 보낸다. 같은 줄은 n8n 이 지문으로 걸러서 여러 번 해도 괜찮다.
@@ -63,10 +106,15 @@ def import_folder(cfg, folder, post, log, per_room=800):
         return 0
     for path in files:
         room = os.path.splitext(os.path.basename(path))[0]
-        msgs = kakao_text.with_keys(kakao_text.parse(read_export(path)))
+        text = read_export(path)
+        msgs = kakao_text.with_keys(parse_export(text))
         items = pairs(msgs, mine, room, set())[-per_room:]
         if not msgs:
-            log("🗣 [%s] 글을 못 읽음 (내보내기 파일이 맞는지 확인)" % room)
+            log("🗣 [%s] 글을 못 읽음 — 파일 모양: %s" % (room, _shape(text)))
+            continue
+        if not items:
+            names = sorted({m["sender"] for m in msgs})[:8]
+            log("🗣 [%s] 글 %d개는 읽었는데 사장님 줄이 없음 — 보낸이 이름: %s (config 의 my_names 에 사장님 이름을 넣어 주세요)" % (room, len(msgs), ", ".join(names)))
             continue
         sent = 0
         for i in range(0, len(items), 100):

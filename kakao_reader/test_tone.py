@@ -100,3 +100,23 @@ class ImportTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FormTest(unittest.TestCase):
+    def test_mobile_iphone_csv_forms(self):
+        a = "봄애 님과 카카오톡 대화\n저장한 날짜 : 2026-11-12 오후 5:32\n\n2026년 11월 10일 월요일\n2026년 11월 10일 오후 2:53, 봄애실장님 : 몇시에 오세요?\n2026년 11월 10일 오후 3:01, 김정헌 : 넵! 8시까지 갈게요\n주차는 지하에\n"
+        m = tone.parse_export(a)
+        self.assertEqual([(x["time"], x["sender"], x["text"]) for x in m],
+                         [("14:53", "봄애실장님", "몇시에 오세요?"), ("15:01", "김정헌", "넵! 8시까지 갈게요\n주차는 지하에")])
+        self.assertEqual(tone.parse_export("2026. 11. 10. 오전 9:05, 김정헌 : 넵 실장님")[0]["time"], "09:05")
+        self.assertEqual(tone.parse_export('Date,User,Message\n2026-11-10 15:01:00,"김정헌","넵, 갈게요"')[0]["text"], "넵, 갈게요")
+
+    def test_unreadable_shows_shape_without_letters(self):
+        import os
+        import tempfile
+        d = tempfile.mkdtemp()
+        with open(os.path.join(d, "x.txt"), "w", encoding="utf-8") as f:
+            f.write("이상한 꼴 1234\nabc")
+        logs = []
+        tone.import_folder(CFG, d, lambda b: None, logs.append)
+        self.assertIn("가가가 가 0000 / aaa", logs[0])
