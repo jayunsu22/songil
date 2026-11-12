@@ -12,7 +12,7 @@ function run(name, inputs) {
   try {
     const $ = (n) => {
       const v = inputs[n];
-      return { isExecuted: v !== undefined, first: () => ({ json: v || {} }), all: () => [{ json: v || {} }] };
+      return { isExecuted: v !== undefined, first: () => ({ json: (v && v.__items) ? v.__items[0].json : (v || {}) }), all: () => (v && v.__items) || [{ json: v || {} }] };
     };
     return new Function('$getWorkflowStaticData', '$', codeOf(name))(() => sd, $)[0].json;
   } finally { Date.now = RealNow; }
@@ -291,5 +291,39 @@ assert.strictEqual(run('요청', { 보고서요청: { body: { action: 'inbox', i
   assert.ok(r.notify[0].text.includes('🚗 마바 · ') && r.notify[0].text.includes('전화로 만날 시간·장소'), r.notify[0].text);
   assert.ok(r.fills.some((f) => f.kind === 'log' && f.title.startsWith('마바님은 픽업')));
   assert.strictEqual(run('실행', noon).notify.length, 0, '픽업 알림도 한 번만');
+}
+// 🔋 서비스 사용량 (11/12) — 오후 5시 보고 끝에 붙고, 걱정할 일은 텔레그램에 따로. 숫자는 지어낸 것
+{
+  clock = Date.parse('2026-11-12T08:00:00Z');
+  const keep = JSON.stringify(sd);
+  const rw = { data: { me: { workspaces: [{ customer: { currentUsage: 13, state: 'ACTIVE', billingPeriod: { start: '2026-10-16T23:56:00Z', end: '2026-11-16T23:56:00Z' } } }] } } };
+  const nf = [{ slug: 'x', lifecycle_state: 'active', days_until_disabled: null, usages_exceeded: [], sites_with_usage_exceeded: [], configurable_limits_exceeded: [], has_stripe_payment_method: true, auto_topup_enabled: true }];
+  const gh = { workflow_runs: [{ status: 'completed', conclusion: 'success', created_at: '2026-11-12T06:50:00Z' }, { status: 'queued', created_at: '2026-11-12T06:00:00Z' }] };   // 뒤에 끝난 배포가 있으면 옛 queued 는 괜찮다
+  const tbl = { __items: [{ json: { base: '현장관리' } }, { json: { base: '현장관리' } }, { json: { base: '자동견적' } }] };
+  const cnt = { __items: [{ json: { records: new Array(100) }, pairedItem: { item: 0 } }, { json: { records: new Array(12) }, pairedItem: { item: 0 } },
+    { json: { records: new Array(3) }, pairedItem: { item: 1 } }, { json: { error: 'x' }, pairedItem: { item: 2 } }] };
+  const all = Object.assign({ 오후5시: {}, 레일웨이사용량: rw, 넷틀리파이사용량: nf[0], 깃허브배포: gh, 에어테이블표목록: tbl, 에어테이블세기: cnt }, air);
+  let r = run('실행', all);
+  const t = sd.outbox[sd.outbox.length - 1].text;
+  assert.ok(t.includes('🔋 서비스 사용량'), t);
+  assert.ok(t.includes('· 레일웨이: 이번 달 $13.0 / 예상 $15.') && t.includes('11/17 마감'), t);
+  assert.ok(t.includes('· 넷틀리파이: 정상') && t.includes('· 깃허브: 배포 정상'), t);
+  assert.ok(t.includes('현장관리 115줄') && t.includes('자동견적 0줄(표 1개 못 셈)'), t);
+  assert.strictEqual(r.notify.length, 0, '걱정할 일 없으면 텔레그램 없음');
+  // 걱정할 일: 넷틀리파이 카드 없음, 깃허브 40분 밀림, 레일웨이 상태 이상, 에어테이블 80%
+  nf[0].has_stripe_payment_method = false;
+  gh.workflow_runs.unshift({ status: 'queued', created_at: '2026-11-12T07:20:00Z' });
+  rw.data.me.workspaces[0].customer.state = 'SUSPENDED';
+  cnt.__items[0].json.records = new Array(40000);
+  r = run('실행', all);
+  const n = r.notify.map((x) => x.text).join('\n');
+  assert.ok(n.includes('서비스 확인 필요') && n.includes('결제 카드 없음') && n.includes('밀려 있습니다') && n.includes('SUSPENDED') && n.includes('80% 넘음'), n);
+  // 열쇠가 틀려 못 읽으면 보고에 ❓, 보고는 그대로 나간다
+  r = run('실행', Object.assign({}, all, { 레일웨이사용량: { errors: [{ message: 'Not Authorized' }] }, 넷틀리파이사용량: { code: 401 } }));
+  const t2 = sd.outbox[sd.outbox.length - 1].text;
+  assert.ok(t2.includes('레일웨이: ❓ 못 읽음') && t2.includes('넷틀리파이: ❓ 못 읽음'), t2);
+  // 낮 12시·9시에는 읽지 않는다
+  assert.ok(!('usage' in run('실행', Object.assign({ 오후5시: {} }, air)).resp));
+  Object.keys(sd).forEach((k) => delete sd[k]); Object.assign(sd, JSON.parse(keep));
 }
 console.log('daily_report ok');

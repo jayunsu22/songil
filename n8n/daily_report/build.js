@@ -15,9 +15,9 @@ const API = 'https://api.airtable.com/v0/apprglBOGXhKQN4cl/';
 const BASE = 'https://primary-production-a6fa.up.railway.app/webhook/';
 const CORS = { responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin', value: '*' }] } };
 
-const code = (id, name, file, x, y, withShare) => ({
+const code = (id, name, file, x, y, withShare, extra) => ({
   id, name, type: 'n8n-nodes-base.code', typeVersion: 2, position: [x, y],
-  parameters: { mode: 'runOnceForAllItems', jsCode: (withShare ? shareCode() : '') + read('lib.js') + '\n' + read(file) },
+  parameters: { mode: 'runOnceForAllItems', jsCode: (withShare ? shareCode() : '') + read('lib.js') + '\n' + (extra ? read(extra) + '\n' : '') + read(file) },
 });
 const split = (id, name, x, y, js) => ({ id, name, type: 'n8n-nodes-base.code', typeVersion: 2, position: [x, y], parameters: { mode: 'runOnceForAllItems', jsCode: js } });
 const respond = (id, name, x, y) => ({
@@ -55,6 +55,56 @@ const cron = (id, name, expr, y) => ({
   parameters: { rule: { interval: [{ field: 'cronExpression', expression: expr }] } },
 });
 const c = (n) => [{ node: n, type: 'main', index: 0 }];
+// 🔋 서비스 사용량 (11/12, usage.js) — 오후 5시에만. 열쇠는 사장님이 n8n 에 직접 넣음 (레일웨이·넷틀리파이 = Header Auth 'Bearer …')
+const RAILWAY = { httpHeaderAuth: { id: 'tLgcUcPi6osuvZhn', name: '레일웨이 열쇠' } };
+const NETLIFY = { httpHeaderAuth: { id: 'j4sBK8fQAoMXEbfN', name: '넷틀리파이 열쇠' } };
+// 에어테이블 줄 수를 셀 표 (창고마다 50,000줄). 표가 늘면 여기에 더한다 — [창고, 창고id, 표id, 첫 칸id]
+const AIR_TABLES = [
+  ['현장관리', 'apprglBOGXhKQN4cl', [['tbla6iO4sITOnSqPv', 'fldnEvOJyUkaMKpDq'], ['tbl5kW0l9Zhmgg7H4', 'fldX5zlhn1i32UPFb'], ['tblTjro7vxMeaegXa', 'fldQff7pF5LNI45JP'],
+    ['tblYfzpMhIjn2BkST', 'fldC1cdGsBVs9v62L'], ['tblcEKkDFrViEjxjR', 'fldmbBDEaqRU401t9']]],
+  ['자동견적', 'appAMNZv9V41mNjsY', [['tblfdNAHDfdFAnUct', 'fldXr6BuR4Fo0IrbR'], ['tblOu4laeXOR8Wmm5', 'fldoPSpdMKKAdn1D1'], ['tblnhpENWUGBYGNv1', 'fldfmfAh5xhoJJtEt'],
+    ['tblq06KeU2IK9HmSg', 'fld2sFXacxGVGDoTW'], ['tblP5JzEf2XQnIQvE', 'fld2KM7doehdOUvhH'], ['tblhVNxHeKu4KK6FH', 'fldaFETqq5OoaDFWg'], ['tbl6QPvdcaa2CfQUs', 'fldoP4uSLLTiQFIOh'],
+    ['tbl26gdI6xFBvjuS5', 'fldHBXnaXy9CeproY'], ['tblua0crBH4uUKaZS', 'fldKw6tHXQbasDY35'], ['tblWkCqSjhdRCRxrb', 'fldVI7YI65TR5vp9R'], ['tbluXtezxfUNE325v', 'fldQT9BSMec4oWCds'],
+    ['tblymRMTXGgJuHm8K', 'fld6mfXb2SVvdlq8r'], ['tblJ2mny2pACsbrGW', 'fldqK97NMK3qpmVCq'], ['tblZ2EfhtFRltIJFg', 'fld1PXCERzVeZyAwZ'], ['tblPEArPLT0kfzTMA', 'fldBg0WRNr1RBR4ro'],
+    ['tblXFNUP75bv3KREU', 'fldGdFelcVuebe1ll'], ['tblD4My1lpMjK1p6w', 'fldJKrs850jzxaIRf'], ['tbleqaP0Ter6KdnhH', 'fldyydxYN3mE6pIrk'], ['tbl5uFBnEAbQXcTZr', 'fld03HqBbbgIE1Hhh']]],
+];
+const usageNodes = (x, y) => [
+  iff('i3', '사용량볼때', x, y, "={{ $('오후5시').isExecuted }}"),
+  {
+    id: 'u1', name: '레일웨이사용량', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [x + 220, y - 150], executeOnce: true, continueOnFail: true, credentials: RAILWAY,
+    parameters: { method: 'POST', url: 'https://backboard.railway.com/graphql/v2', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+      sendBody: true, specifyBody: 'json',
+      jsonBody: JSON.stringify({ query: 'query { me { workspaces { customer { currentUsage state billingPeriod { start end } } } } }' }),
+      options: { timeout: 20000, response: { response: { neverError: true } } } },
+  },
+  {
+    id: 'u2', name: '넷틀리파이사용량', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [x + 440, y - 150], executeOnce: true, continueOnFail: true, credentials: NETLIFY,
+    parameters: { method: 'GET', url: 'https://api.netlify.com/api/v1/accounts', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+      options: { timeout: 20000, response: { response: { neverError: true } } } },
+  },
+  {
+    id: 'u3', name: '깃허브배포', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [x + 660, y - 150], executeOnce: true, continueOnFail: true,
+    parameters: { method: 'GET', url: 'https://api.github.com/repos/jayunsu22/sitenote/actions/runs?per_page=15',
+      sendHeaders: true, headerParameters: { parameters: [{ name: 'Accept', value: 'application/vnd.github+json' }, { name: 'User-Agent', value: 'songil-n8n' }] },
+      options: { timeout: 20000, response: { response: { neverError: true } } } },
+  },
+  split('u4', '에어테이블표목록', x + 880, y - 150, 'return ' + JSON.stringify(AIR_TABLES.flatMap(([base, app, list]) => list.map(([t, f]) => ({ json: { base, app, table: t, field: f } })))) + ';'),
+  {
+    id: 'u5', name: '에어테이블세기', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [x + 1100, y - 150], continueOnFail: true, credentials: AIR,
+    parameters: {
+      method: 'GET', url: "={{ 'https://api.airtable.com/v0/' + $json.app + '/' + $json.table }}", authentication: 'predefinedCredentialType', nodeCredentialType: 'airtableTokenApi',
+      sendQuery: true, queryParameters: { parameters: [{ name: 'fields[]', value: '={{ $json.field }}' }, { name: 'pageSize', value: '100' }] },
+      options: {
+        batching: { batch: { batchSize: 1, batchInterval: 250 } },
+        pagination: { pagination: {
+          paginationMode: 'updateAParameterInEachRequest',
+          parameters: { parameters: [{ type: 'qs', name: 'offset', value: '={{ $response.body.offset }}' }] },
+          paginationCompleteWhen: 'other', completeExpression: '={{ !$response.body.offset }}', requestInterval: 250,
+        } },
+      },
+    },
+  },
+];
 
 const workflow = {
   name: '업무일정표',   // n8n id 0zt1JGho9z57ECOP
@@ -79,7 +129,8 @@ const workflow = {
       parameters: { method: 'GET', url: SHARE_URL, sendQuery: true, queryParameters: { parameters: [{ name: 't', value: '={{ Date.now() }}' }] },
         options: { response: { response: { responseFormat: 'text' } }, timeout: 20000 } },
     },
-    code('c2', '실행', 'run.js', 1320, 300, true),
+    code('c2', '실행', 'run.js', 1320, 300, true, 'usage.js'),
+    ...usageNodes(1210, 600),
     iff('i2', '요청이었나', 1540, 200, "={{ $('보고서요청').isExecuted }}"),
     respond('r2', '만들기응답', 1760, 200),
     split('s1', '문자목록', 1540, 400, "return ($input.first().json.sms || []).map((x) => ({ json: x }));"),
@@ -109,7 +160,13 @@ const workflow = {
     설정읽기: { main: [c('할일읽기')] },
     할일읽기: { main: [c('거래처읽기')] },
     거래처읽기: { main: [c('앱코드받기')] },
-    앱코드받기: { main: [c('실행')] },
+    앱코드받기: { main: [c('사용량볼때')] },
+    사용량볼때: { main: [c('레일웨이사용량'), c('실행')] },
+    레일웨이사용량: { main: [c('넷틀리파이사용량')] },
+    넷틀리파이사용량: { main: [c('깃허브배포')] },
+    깃허브배포: { main: [c('에어테이블표목록')] },
+    에어테이블표목록: { main: [c('에어테이블세기')] },
+    에어테이블세기: { main: [c('실행')] },
     실행: { main: [[...c('요청이었나'), ...c('문자목록'), ...c('알림목록'), ...c('우편목록'), ...c('모집목록'), ...c('답장기억목록'), ...c('카톡목록')]] },
     요청이었나: { main: [c('만들기응답'), []] },
     문자목록: { main: [c('문자보내기')] },
