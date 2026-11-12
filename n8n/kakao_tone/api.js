@@ -26,28 +26,32 @@ if (b.action === 'add') {
   }
   sd.lines = sd.lines.slice(-KEEP);
   resp = { ok: true, added: n, total: sd.lines.length };
-} else if (b.action === 'list') {
-  const want = Math.max(1, Math.min(300, parseInt(b.n, 10) || 60));
-  const room = s(b.room, 60), kind = s(b.kind, 10);
+} else if (b.action === 'list' || b.action === 'examples') {
+  // examples → { normal, as } 한 번에 (비서가 말투를 붙일 때, 11/12)
   const AS = /하자|들떴|들뜸|들떠|뜯어|찢어|찢겨|벗겨|떨어졌|떨어져|에이에스|보수|불량|죄송|사과|불편|다시\s*(해|붙|가)/;
-  // 같은 글은 한 번만, 너무 짧은 대답('넵', 'ㅇㅇ')은 몇 개만 — 질문·부탁·설명 같은 긴 글이 말투를 더 잘 보여 준다
-  const seen = new Set(), longs = [], shorts = [];
-  for (const x of sd.lines.slice().reverse()) {
-    if (room && x.room !== room) continue;
-    const isAs = AS.test(x.prev + ' ' + x.text);
-    if ((kind === 'as' && !isAs) || (kind === 'normal' && isAs)) continue;
-    const key = x.text.replace(/\s+/g, '');
-    if (seen.has(key)) continue;
-    seen.add(key);
-    (x.text.length >= 8 ? longs : shorts).push(x);
-  }
-  // 방을 고루 섞는다 (한 업체 말투만 닮지 않게)
-  const byRoom = {};
-  longs.forEach((x) => { (byRoom[x.room] = byRoom[x.room] || []).push(x); });
-  const rooms = Object.keys(byRoom), picked = [];
-  for (let i = 0; picked.length < want && rooms.some((r) => byRoom[r][i]); i++) rooms.forEach((r) => { if (byRoom[r][i] && picked.length < want) picked.push(byRoom[r][i]); });
-  shorts.slice(0, Math.max(3, Math.round(want / 8))).forEach((x) => { if (picked.length < want) picked.push(x); });
-  resp = { ok: true, total: sd.lines.length, lines: picked.map((x) => ({ room: x.room, prev: x.prev, text: x.text })) };
+  const pick = (want, room, kind) => {
+    // 같은 글은 한 번만, 너무 짧은 대답('넵', 'ㅇㅇ')은 몇 개만 — 질문·부탁·설명 같은 긴 글이 말투를 더 잘 보여 준다
+    const seen = new Set(), longs = [], shorts = [];
+    for (const x of sd.lines.slice().reverse()) {
+      if (room && x.room !== room) continue;
+      const isAs = AS.test(x.prev + ' ' + x.text);
+      if ((kind === 'as' && !isAs) || (kind === 'normal' && isAs)) continue;
+      const key = x.text.replace(/\s+/g, '');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      (x.text.length >= 8 ? longs : shorts).push(x);
+    }
+    // 방을 고루 섞는다 (한 업체 말투만 닮지 않게)
+    const byRoom = {};
+    longs.forEach((x) => { (byRoom[x.room] = byRoom[x.room] || []).push(x); });
+    const rooms = Object.keys(byRoom), picked = [];
+    for (let i = 0; picked.length < want && rooms.some((r) => byRoom[r][i]); i++) rooms.forEach((r) => { if (byRoom[r][i] && picked.length < want) picked.push(byRoom[r][i]); });
+    shorts.slice(0, Math.max(3, Math.round(want / 8))).forEach((x) => { if (picked.length < want) picked.push(x); });
+    return picked.map((x) => ({ room: x.room, prev: x.prev, text: x.text }));
+  };
+  const n = (v, d) => Math.max(1, Math.min(300, parseInt(v, 10) || d));
+  if (b.action === 'examples') resp = { ok: true, total: sd.lines.length, normal: pick(n(b.n, 30), '', 'normal'), as: pick(n(b.nAs, 12), '', 'as') };
+  else resp = { ok: true, total: sd.lines.length, lines: pick(n(b.n, 60), s(b.room, 60), s(b.kind, 10)) };
 } else if (b.action === 'drop') {
   const room = s(b.room, 60), before = sd.lines.length;
   if (room) sd.lines = sd.lines.filter((x) => x.room !== room);

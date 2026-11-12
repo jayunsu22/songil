@@ -25,6 +25,10 @@ assert.strictEqual(wf.settings.saveDataSuccessExecution, 'none');
 run({ action: 'add', items: [it('as1', '라방', '죄송합니다.. 금요일에 가서 다시 붙여드릴께요', '방문 필름이 들떴어요'), it('nm1', '라방', '넵! 8시까지 갈게요 실장님~', '몇시에 오세요?')] });
 assert.deepStrictEqual(run({ action: 'list', room: '라방', kind: 'as' }).lines.map((x) => x.text), ['죄송합니다.. 금요일에 가서 다시 붙여드릴께요']);
 assert.deepStrictEqual(run({ action: 'list', room: '라방', kind: 'normal' }).lines.map((x) => x.text), ['넵! 8시까지 갈게요 실장님~']);
+// examples: 평소·AS 를 한 번에 (비서가 말투를 붙일 때)
+r = run({ action: 'examples', n: 5, nAs: 5 });
+assert.ok(r.normal.some((x) => x.text.startsWith('넵! 8시까지')) && r.as.some((x) => x.text.startsWith('죄송합니다..')));
+assert.ok(!r.normal.some((x) => x.text.startsWith('죄송합니다..')));
 // 방 줄 지우기 (11/12 가족 방)
 r = run({ action: 'drop', room: '라방' });
 assert.deepStrictEqual([r.ok, r.removed], [true, 2]);

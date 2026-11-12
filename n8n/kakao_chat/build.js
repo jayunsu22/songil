@@ -16,6 +16,20 @@ const toClaude = "={{ JSON.stringify({ model: '" + CLAUDE_MODEL + "', max_tokens
 const NOTICE = "const sd = $getWorkflowStaticData('global'); const day = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);\n"
   + "if (sd.fallbackDay === day) return [];\nsd.fallbackDay = day;\n"
   + "return [{ json: { html: true, text: '🤖 <b>비서: 클로드(소넷) 답을 못 받아 오늘은 제미나이로 대답합니다</b>\\n이유: ' + String($json.error || '').replace(/[<>&]/g, '') + '\\n크레딧 만료(12/2)·잔액이면 Claude Console 결제 화면을 봐 주세요' } }];";
+// 🗣 사장님 말투 (11/12): 사장님_말투 에서 평소·AS 예시를 받아 AI 에 묻기 전에 붙인다. 못 받아도 그대로 돈다
+const toneFetch = (x) => ({
+  id: 'tf', name: '말투가져오기', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [x, 200], continueOnFail: true, alwaysOutputData: true, executeOnce: true, credentials: OWNER,
+  parameters: { method: 'POST', url: 'https://primary-production-a6fa.up.railway.app/webhook/kakao-tone', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify({ action: "examples", n: 30, nAs: 12 }) }}', options: { timeout: 8000 } },
+});
+const toneAttach = (x, field) => ({
+  id: 'ta', name: '말투붙이기', type: 'n8n-nodes-base.code', typeVersion: 2, position: [x, 200],
+  parameters: { mode: 'runOnceForAllItems', jsCode: fs.readFileSync(path.join(__dirname, '..', 'kakao_tone', 'block.js'), 'utf8') + '\n' +
+    "const p = $('프롬프트').first().json;\nlet t = {};\ntry { t = $('말투가져오기').first().json || {}; } catch (e) { t = {}; }\nconst block = toneBlock(t);\n" +
+    (field === 'system'
+      ? "return [{ json: Object.assign({}, p, { system: p.system + block }) }];"
+      : "const mark = '\\n[그 방 최근 대화';\nconst i = String(p.prompt).indexOf(mark);\nreturn [{ json: Object.assign({}, p, { prompt: i < 0 ? p.prompt + block : p.prompt.slice(0, i) + block + p.prompt.slice(i) }) }];") },
+});
 const code = (id, name, file, x) => ({ id, name, type: 'n8n-nodes-base.code', typeVersion: 2, position: [x, 0],
   parameters: { mode: 'runOnceForAllItems', jsCode: read(file) } });
 const c = (n) => [[{ node: n, type: 'main', index: 0 }]];
@@ -28,6 +42,7 @@ const workflow = {
       credentials: OWNER,
     },
     code('p', '프롬프트', 'prompt.js', 220),
+    toneFetch(220), toneAttach(330, 'system'),
     {
       id: 'a', name: '클로드', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [440, 0], continueOnFail: true, credentials: ANT,
       parameters: {
@@ -49,7 +64,7 @@ const workflow = {
       parameters: {
         method: 'POST', url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googlePalmApi', sendBody: true, specifyBody: 'json',
-        jsonBody: "={{ JSON.stringify({ systemInstruction: { parts: [{ text: $('프롬프트').first().json.system }] }, contents: $('프롬프트').first().json.contents, generationConfig: { temperature: 0.4, responseMimeType: 'application/json' } }) }}",
+        jsonBody: "={{ JSON.stringify({ systemInstruction: { parts: [{ text: $('말투붙이기').first().json.system }] }, contents: $('말투붙이기').first().json.contents, generationConfig: { temperature: 0.4, responseMimeType: 'application/json' } }) }}",
         options: { timeout: 60000 },
       },
     },
@@ -65,7 +80,7 @@ const workflow = {
         options: { responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin', value: '*' }] } } } },
   ],
   connections: {
-    대화요청: { main: c('프롬프트') }, 프롬프트: { main: c('클로드') }, 클로드: { main: c('결과정리') }, 결과정리: { main: c('제미나이로') },
+    대화요청: { main: c('프롬프트') }, 프롬프트: { main: c('말투가져오기') }, 말투가져오기: { main: c('말투붙이기') }, 말투붙이기: { main: c('클로드') }, 클로드: { main: c('결과정리') }, 결과정리: { main: c('제미나이로') },
     제미나이로: { main: [[{ node: 'Gemini', type: 'main', index: 0 }, { node: '넘김알림', type: 'main', index: 0 }], [{ node: '응답', type: 'main', index: 0 }]] },
     Gemini: { main: c('결과정리2') }, 결과정리2: { main: c('응답') }, 넘김알림: { main: c('알림보내기') },
   },

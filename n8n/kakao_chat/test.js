@@ -41,7 +41,15 @@ assert.strictEqual(run('결과정리', cl('{"say": "깨진', { stop_reason: 'max
 assert.strictEqual(run('결과정리', gem('이상한 답')).fallback, undefined, 'Gemini 실패는 다시 넘기지 않는다');
 // 흐름: 프롬프트 → 클로드 → 결과정리 → (fallback) Gemini·넘김알림, 사진은 image 블록으로
 const conn = wf.connections;
-assert.deepStrictEqual(conn['프롬프트'].main[0].map((x) => x.node), ['클로드']);
+assert.deepStrictEqual(conn['프롬프트'].main[0].map((x) => x.node), ['말투가져오기']);
+assert.deepStrictEqual(conn['말투붙이기'].main[0].map((x) => x.node), ['클로드']);
+assert.ok(wf.nodes.find((n) => n.name === 'Gemini').parameters.jsonBody.includes("$('말투붙이기')"), 'Gemini 로 넘어가도 말투를 쓴다');
+// 🗣 말투 붙이기 (11/12): system 끝에 평소·AS 예시, 못 받으면 그대로
+const tAttach = (tone) => new Function('$', wf.nodes.find((n) => n.name === '말투붙이기').parameters.jsCode)((n) => ({ first: () => { if (n === '말투가져오기' && tone === null) throw new Error('x'); return { json: n === '프롬프트' ? p : tone }; } }))[0].json;
+const ta = tAttach({ normal: [{ prev: '', text: '실장님~ 필름 번호 알려주세요😊' }], as: [] });
+assert.ok(ta.system.startsWith(p.system) && ta.system.includes('[사장님 말투]') && ta.system.includes('실장님~ 필름 번호'));
+assert.deepStrictEqual(ta.contents, p.contents);
+assert.strictEqual(tAttach(null).system, p.system);
 assert.deepStrictEqual(conn['제미나이로'].main.map((b) => b.map((x) => x.node)), [['Gemini', '넘김알림'], ['응답']]);
 const body = wf.nodes.find((n) => n.name === '클로드').parameters.jsonBody;
 const $json = { system: 'S', contents: [{ role: 'user', parts: [{ text: '사진' }, { inlineData: { mimeType: 'image/png', data: 'AAA' } }] }, { role: 'model', parts: [{ text: '네' }] }] };
