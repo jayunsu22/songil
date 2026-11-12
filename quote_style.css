@@ -1027,3 +1027,19 @@ header { column-gap: 6px; }
   border-radius: 6px; background: #fef3c7; color: #92400e;
   font-size: 12px; font-weight: 700;
 }
+
+/* ---------- 정산견적 [품수 견적 | 품목 견적] (2026-11-12) ----------
+   정산견적(settle.html) 머리 아래, 그리고 정산견적에서 넘어온 방문견적(quote_pro.html) 머리 아래에 같은 모양으로.
+   품수 견적 = 정산견적 그대로, 품목 견적 = 방문견적에 그 현장 시공품목을 자동 체크. */
+.mode { display: flex; gap: 6px; padding: 10px 14px; background: var(--card); border-bottom: 1px solid var(--line); }
+.mode[hidden] { display: none; }
+.mode button {
+  flex: 1 1 0; min-height: 52px; padding: 6px 8px;
+  border: 1.5px solid var(--line); border-radius: 12px; background: #fff; color: var(--muted);
+  font-family: inherit; text-align: center; line-height: 1.25;
+}
+.mode button b { display: block; font-size: 16px; }
+.mode button small { display: block; font-size: 11.5px; font-weight: 600; margin-top: 2px; }
+.mode button.on { border-color: var(--accent); background: var(--accent); color: #fff; cursor: default; }
+.mode button.on small { color: #fff; }
+.mode button:focus-visible { outline: 3px solid #93b4f8; outline-offset: 2px; }
