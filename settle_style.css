@@ -246,3 +246,26 @@ button.addrow { display: block; width: 100%; text-align: left; padding: 10px 14p
 .aw-tag { display: inline-block; border-radius: 6px; padding: 0 6px; font-size: 11px; font-weight: 800; vertical-align: 1px; }
 .aw-re { background: #ede9fe; color: #6d28d9; } .aw-as { background: #fee2e2; color: #b91c1c; } .aw-add { background: #dbeafe; color: #1d4ed8; }
 .aw-hint { margin: 8px 0 0; color: #99a; font-size: 11.5px; line-height: 1.45; }
+
+/* ---------- 품목 견적 줄 (2026-11-12) ----------
+   정산 줄 모양 그대로 + 오른쪽 초록 금액(누르면 방문견적과 같은 금액 창). 문 품목은 위 .scope 시공범위 그대로 */
+section.card[hidden] { display: none; }
+.row.item .iamt {
+  flex: 0 0 auto; margin-left: auto; text-align: right; background: none; border: 0; padding: 2px 0 2px 8px;
+  font-family: inherit; color: var(--ok); font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums;
+  text-decoration: underline dotted; text-underline-offset: 4px; cursor: pointer;
+}
+.row.item .iamt small { display: block; color: #4b5563; font-size: 11.5px; font-weight: 600; margin-top: 1px; }
+.row.item .iamt .fixed { display: inline-block; margin-right: 4px; padding: 0 5px; border-radius: 6px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 800; vertical-align: 2px; }
+.row.item .iamt.none { color: #b45309; font-size: 14px; }
+.row.item .iamt.off { color: #6b7280; text-decoration: none; font-weight: 600; cursor: default; }
+.row.item .ctl .qty { display: flex; align-items: center; gap: 4px; }
+.row.item .ctl .qty input { width: 44px; height: 34px; text-align: center; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; font-weight: 700; }
+.row.item .ctl .diff { width: 96px; height: 34px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; font-weight: 700; padding: 0 6px; background: #fff; color: var(--text); }
+.row.item .ctl .diff.up { border-color: #f59e0b; background: #fff7ed; color: #b45309; }
+.row.item .ctl .fm { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.row.item .ctl .plen { margin-left: auto; width: 96px; min-width: 0; height: 34px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; font-weight: 700; padding: 0 6px; background: #fff; color: var(--text); }
+.row.item .ctl .plen.need { border-color: #f59e0b; background: #fff7ed; color: #b45309; }
+.row.item .hint.warn-t { color: #b45309; font-weight: 700; }
+#itemRule { padding: 8px 14px 10px; font-size: 12px; color: var(--muted); background: #fafbfc; border-top: 1px solid var(--line); line-height: 1.5; }
+#itemRule[hidden] { display: none; }

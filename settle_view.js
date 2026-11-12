@@ -117,18 +117,39 @@ function render(d) {
       '<span class="v-gallery-go">보기 ›</span></a>');
   }
 
-  // 인건비
-  const 인 = s.인건비 || {};
-  H.push('<div class="v-tbl"><h3>인건비</h3>' +
-    '<div class="v-line"><span class="v-nm">시공 인건비<small>' + esc(인.품수) + '품 × ' + won(인.품단가) + '</small></span>' +
-    '<span class="v-amt">' + won(인.금액) + '</span></div></div>');
+  // 품목 견적 (2026-11-12): 품목마다 금액 (방문견적처럼). 인건비 품수 표 대신 이 표가 나간다
+  const 품목방식 = s.방식 === '품목';
+  if (품목방식) {
+    const 시공 = s.시공품목 || [];
+    H.push('<div class="v-tbl"><h3>시공 품목</h3>');
+    if (!시공.length) H.push('<div class="v-empty">시공 품목 없음</div>');
+    시공.forEach((p) => {
+      const 덧 = [];
+      if (p.개수 && p.개수 !== 1) 덧.push(p.개수 + '개');
+      if (p.길이) 덧.push('길이 ' + p.길이 + 'm');
+      if (p.난이도 && p.난이도 !== 1) 덧.push('난이도 ' + Number(p.난이도).toFixed(1));
+      H.push('<div class="v-line"><span class="v-nm">' + (p.구역 ? esc(p.구역) + ' · ' : '') + esc(p.품목명) +
+        (p.시공범위 ? ' <span class="v-scope' + (p.시공범위 === '문+틀 양쪽면 시공' ? '' : ' part') + '">' + esc(p.시공범위) + '</span>' : '') +
+        (덧.length ? '<small>' + esc(덧.join(' · ')) + '</small>' : '') + '</span>' +
+        '<span class="v-amt">' + won(p.금액) + '</span></div>');
+    });
+    H.push('</div>');
+  } else {
+    // 인건비
+    const 인 = s.인건비 || {};
+    H.push('<div class="v-tbl"><h3>인건비</h3>' +
+      '<div class="v-line"><span class="v-nm">시공 인건비<small>' + esc(인.품수) + '품 × ' + won(인.품단가) + '</small></span>' +
+      '<span class="v-amt">' + won(인.금액) + '</span></div></div>');
+  }
 
   // 자재비: 자재별 한 줄 + 품목 내역 접기
   const 자재 = s.자재소계 || [];
   // 직접 추가 '금액' 줄(실리콘 시공 등)은 필름이 아니라 자재비 내역에서 빼고 따로 표로 보여준다
   const 품목 = (s.품목 || []).filter((p) => p.종류 !== '금액');
   const 추가금액 = (s.품목 || []).filter((p) => p.종류 === '금액');
-  H.push('<div class="v-tbl"><h3>자재비</h3>');
+  // 품목 견적은 자재비가 품목 금액에 들어 있다 - 직접 추가한 필름 줄이 있을 때만 자재비 표를 낸다
+  if (!(품목방식 && !자재.length && !품목.length)) {
+  H.push('<div class="v-tbl"><h3>' + (품목방식 ? '추가 자재비' : '자재비') + '</h3>');
   if (자재.length) {
     자재.forEach((r) => {
       H.push('<div class="v-line"><span class="v-nm">' + esc(r.자재명) + '<small>' + won(r.단가) + '/m × ' + m(r.소모량합) + '</small></span>' +
@@ -159,6 +180,7 @@ function render(d) {
     H.push('</details>');
   }
   H.push('</div>');
+  }
 
   // 추가 시공: 사장님이 금액을 직접 적은 품목 (실리콘 시공 등). 크게·굵게·파랗게
   if (추가금액.length) {

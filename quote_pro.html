@@ -48,13 +48,6 @@
   <button id="vendorBtn" type="button">🏢 업체 선택</button>
 </header>
 
-<!-- 정산견적의 [품목 견적] 으로 들어온 견적이면 보이는 칸 (quote_pro.js 정산진입·정산탭그리기).
-     품수 견적을 누르면 그 현장 정산견적으로 돌아간다. -->
-<div class="mode" id="settleMode" role="tablist" aria-label="견적 방식" hidden>
-  <button type="button" role="tab" data-m="품수" aria-selected="false"><b>품수 견적</b><small>품수 × 품단가 + 필름 m</small></button>
-  <button type="button" role="tab" data-m="품목" aria-selected="true" class="on"><b>품목 견적</b><small>품목별 금액 · 방문 견적</small></button>
-</div>
-
 <!-- 견적요청으로 시작한 견적이면 입력 화면으로 돌아가는 띠 (quote_request.js) -->
 <section id="reqBar" hidden>
   <span id="reqBarText"></span>
