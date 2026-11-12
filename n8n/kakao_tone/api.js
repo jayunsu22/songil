@@ -2,6 +2,7 @@
 // add  { items: [{ k, room, d, t, prevWho, prev, text }] } — 카톡 노트북(kakao_reader/tone.py)이 업체 방을 읽을 때 사장님 줄을 보낸다 (긴 숫자는 가려서)
 // list { n?, room? } → { lines: [{ room, prev, text }] } 비서가 말투 예시로 쓴다 — 짧은 '넵' 만 잔뜩 오지 않게 고르고 방을 고루 섞는다
 // stats → 방마다 몇 줄
+// kind: 'as' = AS(하자)·사과 상황 줄만, 'normal' = 그 밖 (사장님 11/12: AS 때 말투와 평소 말투가 다르다)
 const sd = $getWorkflowStaticData('global');
 sd.lines = Array.isArray(sd.lines) ? sd.lines : [];
 const KEEP = 3000;
@@ -26,11 +27,14 @@ if (b.action === 'add') {
   resp = { ok: true, added: n, total: sd.lines.length };
 } else if (b.action === 'list') {
   const want = Math.max(1, Math.min(300, parseInt(b.n, 10) || 60));
-  const room = s(b.room, 60);
+  const room = s(b.room, 60), kind = s(b.kind, 10);
+  const AS = /하자|들떴|들뜸|들떠|뜯어|찢어|찢겨|벗겨|떨어졌|떨어져|에이에스|보수|불량|죄송|사과|불편|다시\s*(해|붙|가)/;
   // 같은 글은 한 번만, 너무 짧은 대답('넵', 'ㅇㅇ')은 몇 개만 — 질문·부탁·설명 같은 긴 글이 말투를 더 잘 보여 준다
   const seen = new Set(), longs = [], shorts = [];
   for (const x of sd.lines.slice().reverse()) {
     if (room && x.room !== room) continue;
+    const isAs = AS.test(x.prev + ' ' + x.text);
+    if ((kind === 'as' && !isAs) || (kind === 'normal' && isAs)) continue;
     const key = x.text.replace(/\s+/g, '');
     if (seen.has(key)) continue;
     seen.add(key);

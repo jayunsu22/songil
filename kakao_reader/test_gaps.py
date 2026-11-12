@@ -457,6 +457,10 @@ class ReaskTest(unittest.TestCase):
         st = {"asks": {"봄애실장님": [self.entry()]}}
         gaps.on_answer(CFG, st, "봄애실장님", [M("네")], lambda *a: {"items": []}, lambda f: None,
                        lambda t: None, lambda m: None, lambda *a: ("", ""))
+        self.assertNotIn("봄애실장님", st.get("replies") or {}, "값 없는 글('네')에는 인사하지 않는다 (사장님 11/12)")
+        got = {"items": [{"siteId": "s1", "kind": "field", "field": "toilet", "value": "1층", "quote": "화장실 1층"}]}
+        gaps.on_answer(CFG, st, "봄애실장님", [M("화장실 1층이요")], lambda *a: got, lambda f: None,
+                       lambda t: None, lambda m: None, lambda *a: ("", ""))
         due = st["replies"]["봄애실장님"]["due"]
         self.assertAlmostEqual(due, time.time() + gaps.REPLY_DELAY, delta=5)
         sends = []
@@ -469,9 +473,10 @@ class ReaskTest(unittest.TestCase):
         self.assertEqual(st["replies"], {})
 
     def test_reply_once_without_values_but_every_answer(self):
-        # 값 없는 글('네', '잠시만요')은 묻기 한 번에 한 번, 값이 온 글은 매번 (9:31·9:59 비번에 인사가 없던 것)
+        # 값 없는 글('네', '잠시만요', 사진)에는 인사하지 않는다 — 뜻을 모르는 글에 답하지 않기 (사장님 11/12, 11/1 규칙 바꿈)
+        # 값이 온 글은 매번 (9:31·9:59 비번에 인사가 없던 것)
         st = {"asks": {"봄애실장님": [self.entry()]}}
-        self.assertEqual(len(self.reply_run(st, [], now=time.time() + 999)), 1)
+        self.assertEqual(self.reply_run(st, [], now=time.time() + 999), [])
         self.assertEqual(self.reply_run(st, [], now=time.time() + 999), [])
         got = [{"siteId": "s1", "kind": "field", "field": "toilet", "value": "1층"}]
         sends = self.reply_run(st, got, now=time.time() + 999)

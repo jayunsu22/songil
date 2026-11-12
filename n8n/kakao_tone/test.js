@@ -21,6 +21,10 @@ run({ action: 'add', items: Array.from({ length: 200 }, (_, i) => it('x' + i, '�
 for (let j = 0; j < 15; j++) run({ action: 'add', items: Array.from({ length: 200 }, (_, i) => it('y' + j + '_' + i, '다방', '글')) });
 assert.strictEqual(run({ action: 'stats' }).total, 3000);
 assert.strictEqual(wf.settings.saveDataSuccessExecution, 'none');
+// AS 상황 줄과 평소 줄을 나눠 꺼낸다 (11/12)
+run({ action: 'add', items: [it('as1', '라방', '죄송합니다.. 금요일에 가서 다시 붙여드릴께요', '방문 필름이 들떴어요'), it('nm1', '라방', '넵! 8시까지 갈게요 실장님~', '몇시에 오세요?')] });
+assert.deepStrictEqual(run({ action: 'list', room: '라방', kind: 'as' }).lines.map((x) => x.text), ['죄송합니다.. 금요일에 가서 다시 붙여드릴께요']);
+assert.deepStrictEqual(run({ action: 'list', room: '라방', kind: 'normal' }).lines.map((x) => x.text), ['넵! 8시까지 갈게요 실장님~']);
 // 4자리 숫자·링크 (11/12): 새로 들어오는 줄도, 이미 쌓인 줄도 가린다
 sd.lines.push({ k: 'old', room: '가방', prev: '차 번호요', text: '12가 3456 이에요', at: 1 });
 sd.lines.push({ k: 'old2', room: '가방', prev: '', text: '링크 https://x', at: 1 });

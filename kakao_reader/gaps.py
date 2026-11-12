@@ -632,7 +632,7 @@ def send_replies(state, now, send, log, done=None):
 def _reply(state, key, pend, kind, now):
     """kind: 'change' = 바꾼다는 글, 'got' = 값이 온 글, '' = 값 없는 글 (이번 묻기에 아직 인사 안 했을 때만)."""
     import random
-    if not kind and all(s.get("thanked") for s in pend):
+    if not kind:   # 값이 없는 글('네'·사진 등)에는 인사하지 않는다 — 뜻을 모르는 글에 답하지 않기 (사장님 11/12)
         return
     queue_reply(state, key, CHANGE_REPLY if kind == "change" else random.choice(THANKS), now)
     for s in pend:

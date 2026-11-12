@@ -43,6 +43,15 @@ class HandleTest(unittest.TestCase):
         self.assertIn("하늘마을 3단지 앱에 넣었어요", b.notes[0][0])
         self.assertEqual(b.queued, [("가인테리어 실장님", "네~ 받았어요👍")])
 
+    def test_unsure_does_not_reply_and_asks_owner(self):
+        # 🙋 사장님 11/12: 사진만 온 방에 '사진 잘 봤어요~' 를 보냈던 것 → 뜻을 모르면 안 보내고 사장님께 직접 답장하라고
+        b = Box({"ok": True, "reply": {"text": "", "type": "unsure", "auto": False, "why": "사진만 와서 무슨 뜻인지 모름"}})
+        b.run()
+        self.assertEqual(b.queued, [])
+        self.assertIn("직접 답장해 주세요", b.notes[-1][0])
+        self.assertIn("사진만 와서", b.notes[-1][0])
+        self.assertIsNone(b.notes[-1][1], "보내기 버튼 없음")
+
     def test_film_change_only_notifies(self):
         f = dict(FILL, kind="films", films=[{"place": "거실", "code": "BB2"}], update=True)
         b = Box({"ok": True, "fills": [f]})

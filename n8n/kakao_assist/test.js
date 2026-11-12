@@ -74,4 +74,22 @@ assert.strictEqual(res({ items: [{ kind: 'staff', names: ['a'], siteId: 's2', su
 // 거래처 이름이 글에 없으면 모든 업체 현장
 const bp2 = run('프롬프트', Object.assign({ 비서요청: { body: Object.assign({}, bossBody, { messages: [{ text: '은하수 세대비번 1234' }] }) } }, air));
 assert.strictEqual(bp2.sites.length, 5);
+// 🙋 사장님 11/12: 사진만 온 방에 '사진 잘 봤어요~' 자동 → 뜻이 확실하지 않으면 보내지 않고 사장님께
+const resSaid = (said, o) => run('결과정리', { 프롬프트: Object.assign({}, p, { said }), $input: gem(o) });
+r = resSaid('사진', { items: [], reply: { type: 'ack', text: '사진 잘 봤어요~' } });
+assert.deepStrictEqual([r.reply.type, r.reply.auto, r.reply.text], ['unsure', false, '']);
+assert.ok(r.reply.why.includes('사진만'));
+r = resSaid('그건 좀 그렇네요', { items: [], reply: { type: 'unsure', text: '' } });
+assert.deepStrictEqual([r.reply.type, r.reply.auto], ['unsure', false]);
+// 받은 값 없이 '받았어요' 만은 자동으로 안 보냄
+r = resSaid('확인했어요', { items: [], reply: { type: 'ack', text: '네~ 감사합니다😊' } });
+assert.deepStrictEqual([r.reply.auto, r.reply.why], [false, '받은 값이 없어서 자동으로 안 보냄']);
+// AS(하자)는 값이 있어도 늘 사장님이
+r = resSaid('방문 필름이 들떴어요 공현 *1234#', { items: [{ kind: 'field', field: 'pwLobby', value: '*1234#', siteId: 's1', sure: true }], reply: { type: 'ack', text: '죄송합니다. 확인하겠습니다' } });
+assert.deepStrictEqual([r.reply.auto, r.reply.why], [false, 'AS(하자) 얘기 — 사장님이 보고 보내세요']);
+// 되묻기도 사장님이 보고
+assert.strictEqual(resSaid('필름 보내드릴게요', { items: [], reply: { type: 'ask', text: '품번도 알 수 있을까요?' } }).reply.auto, false);
+// 잡담(none)은 답장 없음 그대로
+assert.strictEqual(resSaid('사진', { items: [], reply: { type: 'none', text: '' } }).reply, null);
+assert.ok(p.prompt.includes('"unsure"') && p.prompt.includes('사과하는 말투'));
 console.log('kakao_assist ok');
