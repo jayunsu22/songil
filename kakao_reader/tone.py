@@ -7,7 +7,7 @@ import re
 
 import kakao_text
 
-LONG_DIGITS = re.compile(r"\d[\d\-\s*#]{3,}\d")   # 4자리 넘는 숫자 덩어리 (비번·전화·계좌)
+LONG_DIGITS = re.compile(r"\d[\d\-\s*#]{2,}\d")   # 4자리 이상 숫자 덩어리 (비번·차량번호·전화·계좌) — 11/12 4자리가 새던 것
 WORD = re.compile(r"[가-힣A-Za-z]")                  # 'ㅇ'·'ㅋㅋ'·이모티콘만 있는 줄은 말투가 아니다
 KEEP = 5000
 
@@ -28,7 +28,7 @@ def pairs(msgs, mine, room, sent):
     for m in msgs or []:
         if _norm(m.get("sender")) in mine:
             text = _hide(m.get("text"), 400)
-            if m.get("key") and m["key"] not in sent and WORD.search(text) and "/q/" not in text:
+            if m.get("key") and m["key"] not in sent and WORD.search(text) and "http" not in text:
                 out.append({"k": m["key"], "room": room, "d": m.get("date", ""), "t": m.get("time", ""),
                             "prevWho": (prev or {}).get("sender", ""), "prev": _hide((prev or {}).get("text"), 200), "text": text})
         else:

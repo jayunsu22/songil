@@ -8,14 +8,17 @@ const KEEP = 3000;
 const J = $input.first().json;
 const b = (J.body && typeof J.body === 'object') ? J.body : {};
 const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+// 4자리 이상 숫자 덩어리(비번·차량번호·전화·계좌)는 여기서도 한 번 더 가린다 (11/12 노트북이 4자리를 흘린 것)
+const hide = (t) => String(t || '').replace(/\d[\d\-\s*#]{2,}\d/g, (m) => '●'.repeat(m.length));
+if (sd.masked !== 2) { sd.lines.forEach((x) => { x.text = hide(x.text); x.prev = hide(x.prev); }); sd.lines = sd.lines.filter((x) => !/https?:/.test(x.text)); sd.masked = 2; }
 let resp = { ok: false, error: '모르는 요청' };
 if (b.action === 'add') {
   const have = new Set(sd.lines.map((x) => x.k));
   let n = 0;
   for (const it of (Array.isArray(b.items) ? b.items : []).slice(0, 200)) {
-    const k = s(it && it.k, 40), text = s(it && it.text, 400);
-    if (!k || have.has(k) || !text) continue;
-    sd.lines.push({ k, room: s(it.room, 60), d: s(it.d, 12), t: s(it.t, 10), prevWho: s(it.prevWho, 40), prev: s(it.prev, 200), text, at: Date.now() });
+    const k = s(it && it.k, 40), text = hide(s(it && it.text, 400));
+    if (!k || have.has(k) || !text || /https?:/.test(text)) continue;
+    sd.lines.push({ k, room: s(it.room, 60), d: s(it.d, 12), t: s(it.t, 10), prevWho: s(it.prevWho, 40), prev: hide(s(it.prev, 200)), text, at: Date.now() });
     have.add(k);
     n++;
   }

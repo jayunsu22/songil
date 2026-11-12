@@ -36,12 +36,16 @@ class ToneTest(unittest.TestCase):
 
     def test_hides_codes_keeps_short_numbers(self):
         msgs = [M("가실장", "비번 알려주세요", "a"), M("김정헌", "공동현관 비번 *1234# 이에요", "b"),
-                M("김정헌", "제 번호 010-0000-0000 으로 주세요", "c"), M("김정헌", "11/14 방문 3짝 ps170", "d")]
+                M("김정헌", "제 번호 010-0000-0000 으로 주세요", "c"), M("김정헌", "11/14 방문 3짝 ps170", "d"),
+                M("김정헌", "공현 *5678# 차 12가 3456", "e"), M("김정헌", "링크 https://x.y/z", "f")]
         self.run_h({}, msgs)
         texts = [x["text"] for x in self.posted[0]["items"]]
         self.assertNotIn("1234", texts[0])
         self.assertNotIn("0000-0000", texts[1])
         self.assertEqual(texts[2], "11/14 방문 3짝 ps170")
+        self.assertNotIn("5678", texts[3])
+        self.assertNotIn("3456", texts[3])
+        self.assertEqual(len(texts), 4, "링크 줄은 뺀다")
 
     def test_failure_keeps_nothing_so_it_retries(self):
         st = {}
