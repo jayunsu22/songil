@@ -47,6 +47,13 @@ class ToneTest(unittest.TestCase):
         self.assertNotIn("3456", texts[3])
         self.assertEqual(len(texts), 4, "링크 줄은 뺀다")
 
+    def test_skip_rooms(self):
+        # 가족 방을 시험용으로 지켜봐도 말투에는 넣지 않는다 (사장님 11/12)
+        cfg = dict(CFG, tone_skip_rooms=["가족방"])
+        self.assertEqual(tone.harvest(cfg, {}, "가족방 ", [M("김정헌", "난 잔다 낼봐", "a")], self.posted.append, self.logs.append), 0)
+        self.assertEqual(self.posted, [])
+        self.assertEqual(tone.harvest(cfg, {}, "가나실장님", [M("김정헌", "넵 갈게요", "b")], self.posted.append, self.logs.append), 1)
+
     def test_failure_keeps_nothing_so_it_retries(self):
         st = {}
         self.assertEqual(self.run_h(st, [M("김정헌", "네 감사합니다~", "a")], fail=True), 0)

@@ -25,6 +25,10 @@ assert.strictEqual(wf.settings.saveDataSuccessExecution, 'none');
 run({ action: 'add', items: [it('as1', '라방', '죄송합니다.. 금요일에 가서 다시 붙여드릴께요', '방문 필름이 들떴어요'), it('nm1', '라방', '넵! 8시까지 갈게요 실장님~', '몇시에 오세요?')] });
 assert.deepStrictEqual(run({ action: 'list', room: '라방', kind: 'as' }).lines.map((x) => x.text), ['죄송합니다.. 금요일에 가서 다시 붙여드릴께요']);
 assert.deepStrictEqual(run({ action: 'list', room: '라방', kind: 'normal' }).lines.map((x) => x.text), ['넵! 8시까지 갈게요 실장님~']);
+// 방 줄 지우기 (11/12 가족 방)
+r = run({ action: 'drop', room: '라방' });
+assert.deepStrictEqual([r.ok, r.removed], [true, 2]);
+assert.strictEqual(run({ action: 'drop' }).ok, false);
 // 4자리 숫자·링크 (11/12): 새로 들어오는 줄도, 이미 쌓인 줄도 가린다
 sd.lines.push({ k: 'old', room: '가방', prev: '차 번호요', text: '12가 3456 이에요', at: 1 });
 sd.lines.push({ k: 'old2', room: '가방', prev: '', text: '링크 https://x', at: 1 });

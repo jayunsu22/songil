@@ -80,6 +80,7 @@ DEFAULTS = {
     # 🗣 사장님 말투 (11/12): 업체 방을 읽을 때 사장님이 쓴 줄(+바로 앞 업체 말)을 n8n 에 모은다 → 비서가 그 말투로 묻고 답한다. 긴 숫자는 가림
     "tone": True,
     "tone_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-tone",
+    "tone_skip_rooms": [],        # 말투에서 뺄 방 (가족·개인 방을 시험용으로 지켜볼 때). 방 이름에 들어 있으면 뺀다
 }
 
 # 방마다 '견적발행시작' 을 기다리는 글·사진 묶음 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다.

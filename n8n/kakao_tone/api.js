@@ -2,6 +2,7 @@
 // add  { items: [{ k, room, d, t, prevWho, prev, text }] } — 카톡 노트북(kakao_reader/tone.py)이 업체 방을 읽을 때 사장님 줄을 보낸다 (긴 숫자는 가려서)
 // list { n?, room? } → { lines: [{ room, prev, text }] } 비서가 말투 예시로 쓴다 — 짧은 '넵' 만 잔뜩 오지 않게 고르고 방을 고루 섞는다
 // stats → 방마다 몇 줄
+// drop { room } → 그 방 줄을 모두 지운다 (가족 방이 섞였을 때, 11/12)
 // kind: 'as' = AS(하자)·사과 상황 줄만, 'normal' = 그 밖 (사장님 11/12: AS 때 말투와 평소 말투가 다르다)
 const sd = $getWorkflowStaticData('global');
 sd.lines = Array.isArray(sd.lines) ? sd.lines : [];
@@ -47,6 +48,10 @@ if (b.action === 'add') {
   for (let i = 0; picked.length < want && rooms.some((r) => byRoom[r][i]); i++) rooms.forEach((r) => { if (byRoom[r][i] && picked.length < want) picked.push(byRoom[r][i]); });
   shorts.slice(0, Math.max(3, Math.round(want / 8))).forEach((x) => { if (picked.length < want) picked.push(x); });
   resp = { ok: true, total: sd.lines.length, lines: picked.map((x) => ({ room: x.room, prev: x.prev, text: x.text })) };
+} else if (b.action === 'drop') {
+  const room = s(b.room, 60), before = sd.lines.length;
+  if (room) sd.lines = sd.lines.filter((x) => x.room !== room);
+  resp = { ok: !!room, removed: before - sd.lines.length, total: sd.lines.length };
 } else if (b.action === 'stats') {
   const per = {};
   sd.lines.forEach((x) => { per[x.room] = (per[x.room] || 0) + 1; });

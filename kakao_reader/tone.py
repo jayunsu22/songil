@@ -16,6 +16,12 @@ def _norm(s):
     return re.sub(r"\s+", "", str(s or ""))
 
 
+def skipped(cfg, room):
+    """말투에서 뺄 방인가 — config 의 tone_skip_rooms (가족·개인 방을 시험용으로 지켜볼 때, 11/12). 방 이름에 들어 있으면 뺀다."""
+    r = _norm(room)
+    return any(_norm(x) and _norm(x) in r for x in cfg.get("tone_skip_rooms") or [])
+
+
 def _hide(text, n):
     t = kakao_text.mask(str(text or ""))
     t = LONG_DIGITS.sub(lambda m: "●" * len(m.group(0)), t)
@@ -106,6 +112,9 @@ def import_folder(cfg, folder, post, log, per_room=800):
         return 0
     for path in files:
         room = os.path.splitext(os.path.basename(path))[0]
+        if skipped(cfg, room):
+            log("🗣 [%s] 말투에서 빼는 방 (tone_skip_rooms) — 건너뜀" % room)
+            continue
         text = read_export(path)
         msgs = kakao_text.with_keys(parse_export(text))
         items = pairs(msgs, mine, room, set())[-per_room:]
@@ -132,7 +141,7 @@ def import_folder(cfg, folder, post, log, per_room=800):
 
 def harvest(cfg, state, room, msgs, post, log):
     """읽은 방 글(msgs, kakao_text.with_keys 를 거친 것)에서 사장님 줄을 모아 보낸다. 몇 줄 보냈는지 돌려준다."""
-    if not cfg.get("tone", True) or not cfg.get("tone_url"):
+    if not cfg.get("tone", True) or not cfg.get("tone_url") or skipped(cfg, room):
         return 0
     mine = {_norm(x) for x in cfg.get("my_names", ["김정헌"])}
     sent = state.setdefault("tone_sent", [])
