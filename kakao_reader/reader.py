@@ -28,6 +28,7 @@ import kakao_text
 import kakao_window
 import n8n_send
 import report
+import tone
 import worklog
 
 # 명령 프롬프트가 cp949 일 때 '—' 같은 글자로 멈추지 않게 (파이프·기록 파일로 보낼 때)
@@ -76,6 +77,9 @@ DEFAULTS = {
     "assist_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-assist",
     "work_log_url": "https://primary-production-a6fa.up.railway.app/webhook/work-log",  # 📋 업무 내역 (11/4)
     "kakao_send_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-send",  # 💬 앱 비서가 맡긴 카톡 보내기 (11/4)
+    # 🗣 사장님 말투 (11/12): 업체 방을 읽을 때 사장님이 쓴 줄(+바로 앞 업체 말)을 n8n 에 모은다 → 비서가 그 말투로 묻고 답한다. 긴 숫자는 가림
+    "tone": True,
+    "tone_url": "https://primary-production-a6fa.up.railway.app/webhook/kakao-tone",
 }
 
 # 방마다 '견적발행시작' 을 기다리는 글·사진 묶음 (메모리에만 — 글 내용을 노트북 파일에 남기지 않는다.
@@ -201,7 +205,9 @@ def run_once(cfg, state, dry=False):
                            lambda body: n8n_send.post_json(cfg["assist_url"], cfg["owner_key"], body),
                            lambda fills: n8n_send.post_json(cfg["site_fill_url"], cfg["owner_key"], {"fills": fills}),
                            lambda items: n8n_send.post_json(cfg["report_url"], cfg["owner_key"], {"action": "inbox_add", "items": items}),
-                           lambda text, buttons=None: notify(cfg, text, buttons), log) if cfg["assist"] else None)
+                           lambda text, buttons=None: notify(cfg, text, buttons), log) if cfg["assist"] else None,
+                       tone=lambda room, msgs: tone.harvest(cfg, state, room, msgs,
+                                                            lambda body: n8n_send.post_json(cfg["tone_url"], cfg["owner_key"], body), log))
     if cfg["auto_read"] and cfg["watch_list"] and not dry:  # 텔레그램 버튼 [가견적 발행]·[시작해] (3·4단계, 10/31)
         jobs.poll(cfg, state, lambda text: notify(cfg, text), log,
                   lambda: n8n_send.fetch_jobs(cfg["jobs_url"], cfg["owner_key"]), {"pub": jobs.run_publish, "ask": gaps.run_ask, "rs": assist.run_send, "ra": assist.run_reask})
