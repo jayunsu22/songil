@@ -24,6 +24,12 @@
   <span class="date" id="siteDate" hidden></span>
 </header>
 
+<!-- 견적 방식 (2026-11-12). 품수 견적 = 이 화면, 품목 견적 = 방문견적에 이 현장 시공품목을 자동 체크해서 연다 -->
+<div class="mode" id="settleMode" role="tablist" aria-label="견적 방식">
+  <button type="button" role="tab" data-m="품수" aria-selected="true" class="on"><b>품수 견적</b><small>품수 × 품단가 + 필름 m</small></button>
+  <button type="button" role="tab" data-m="품목" aria-selected="false" id="itemModeBtn"><b>품목 견적</b><small>품목별 금액 · 방문 견적</small></button>
+</div>
+
 <div id="status">불러오는 중…</div>
 <button id="retryBtn" type="button" hidden>다시 시도</button>
 
@@ -146,7 +152,7 @@
 <script src="/owner-key.js?v=20261006d"></script>
 <script src="/settle_calc.js?v=20261026a"></script>
 <script src="/settle_films.js?v=20261007"></script>
-<script src="/settle.js?v=20261026a"></script>
+<script src="/settle.js?v=20261112a"></script>
 <script src="/app-switcher.js?v=20261020a" data-app-id="settle"></script>
 </body>
 </html>

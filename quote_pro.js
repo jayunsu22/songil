@@ -275,6 +275,8 @@ function boot() {
   // 아직 TDZ 다. 파일 실행이 끝난 뒤로 미룬다.
   setTimeout(사진진입, 0);
   setTimeout(수정진입, 0);   // 현장관리 앱 [이 견적 수정하기] (같은 이유로 미룬다)
+  setTimeout(정산진입, 0);   // 정산견적 [품목 견적] (같은 이유로 미룬다)
+  setTimeout(정산탭그리기, 0);
 }
 
 /* ---------- 필름 자재비 ----------
@@ -1298,6 +1300,7 @@ async function 새견적시작(조용히) {
   구역장수갱신();
   refresh();
   if (typeof 요청바그리기 === 'function') 요청바그리기();
+  정산탭그리기();
   return true;
 }
 
@@ -2320,6 +2323,7 @@ function 저장함불러오기(항목) {
   buildAll();
   구역장수갱신();
   refresh();
+  정산탭그리기();
   save(STORAGE_KEY, state);
 }
 
@@ -3172,6 +3176,100 @@ async function 수정진입() {
   const 사진n = await 수정사진챙기기().catch(() => 0);
   toast('‘' + 항목.이름 + '’ 불러왔습니다' + (붙인 ? ' · 고객이 추가한 품목 ' + 붙인 + '개를 직접 입력으로 넣었습니다' : '') +
     (사진n ? ' · 사진 ' + 사진n + '장' : '') + ' · 고친 뒤 실제견적으로 발행하세요');
+}
+
+/* ---------- 정산견적의 [품목 견적] 으로 들어올 때 (2026-11-12) ----------
+   quote_pro.html?settle=<현장 recordId>. 정산견적 화면 위 [품수 견적 | 품목 견적] 중 품목 견적.
+   사장님: "현장방문견적을 그대로 쓰면 되겠는데.. 시공품목만 자동으로 체크되면".
+   settle-master 로 그 현장 작업목록을 받아, 견적요청 [방문견적에 넣기] 와 같은 짝짓기(QuoteToSite.요청짝)로
+   방문견적 품목에 체크한다. 정산 화면에서 뺀 품목은 빼고 고른 시공범위(문틀만 등)를 따라간다.
+   한쪽면·앞면만·뒷면만은 필름이 절반이라 금액을 절반으로 고정한다(견적요청과 같은 규칙, 고치면 풀린다).
+   문선만·짝 없는 품목은 체크하지 않고 이름을 알려 준다 - 0원이나 엉뚱한 금액으로 들어가면 안 된다.
+   같은 현장으로 다시 들어오면 고쳐 둔 견적을 그대로 둔다. 주소의 settle 은 바로 지운다. */
+const SETTLE_MASTER_URL = 'https://primary-production-a6fa.up.railway.app/webhook/settle-master';
+async function 정산진입() {
+  const q = new URLSearchParams(location.search);
+  const id = (q.get('settle') || '').trim();
+  if (!id) return;
+  try { history.replaceState(null, '', location.pathname); } catch (e) { /* 무시 */ }
+  if (state.정산현장 && state.정산현장.id === id) { 정산탭그리기(); return; }
+
+  toast('현장 품목을 불러오는 중…');
+  let M = null;
+  try {
+    const res = await fetch(SETTLE_MASTER_URL + '?site=' + encodeURIComponent(id));
+    M = await res.json().catch(() => null);
+    if (!res.ok || !M || M.error) throw new Error((M && M.error) || 'HTTP ' + res.status);
+  } catch (e) {
+    toast('현장 품목을 불러오지 못했습니다. 통신 상태를 확인해 주세요.');
+    return;
+  }
+  const 하던것 = Object.keys(state.선택 || {}).length || (state.직접품목 || []).length || (state.현장명 || '').trim() || state.요청;
+  if (하던것 && !(await 새견적시작())) return;
+  if (!하던것) await 새견적시작(true);
+
+  const 현장명 = (M.현장 && M.현장.현장명) || '';
+  let 정산저장 = null;
+  try { 정산저장 = JSON.parse(localStorage.getItem('settle_state_' + id) || 'null'); } catch (e) { /* 없으면 전부 체크 */ }
+  const 품목들 = QuoteToSite.정산품목들(M.작업목록, 정산저장 && 정산저장.줄들);
+  // 방 개수: 작업목록에 나오는 가장 큰 방 번호 (몰딩 나누기·방문 짝짓기에 쓴다)
+  const 구역맵 = {};
+  (M.시공품목 || []).forEach((m) => { 구역맵[m.품목명] = m.구역; });
+  const 방번호 = 품목들.map((p) => { const m = /^방(\d)/.exec(구역맵[p.품목명] || p.품목명); return m ? Number(m[1]) : 0; });
+  const 방 = Math.max(0, ...방번호);
+  state.현장명 = 현장명;
+  $('#siteName').value = 현장명;
+  if (방 >= 1 && 방 <= 5) { state.방수 = 방; $('#roomSelect').value = String(방); 파생품목붙이기(); buildAll(); }
+  state.정산현장 = { id: id, 현장명: 현장명 };
+
+  const 보이는 = ((MASTER && MASTER.zones) || []).map((z) => ({ 구역: z.구역, items: z.items.filter(보이는가) }));
+  let 체크수 = 0;
+  const 못함 = [];
+  품목들.forEach((p) => {
+    if (p.시공범위 === '문선만 시공') { 못함.push(p.품목명 + ' (문선만)'); return; }
+    const 짝 = QuoteToSite.요청짝(보이는, p.품목명, p.시공범위, 방개수());
+    const row = 짝 && ROWS.get(짝.체크_ID);
+    if (!row) { 못함.push(p.품목명); return; }
+    if (state.선택[짝.체크_ID]) {   // 같은 품목이 두 번(방1문+틀 2개 등) - 수량을 늘린다
+      if (row.item.적용평형 === '공통') state.선택[짝.체크_ID].수량 = (Number(state.선택[짝.체크_ID].수량) || 1) + 1;
+      return;
+    }
+    const s = 태그기본선택(row.item);
+    if (QuoteToSite.반쪽범위(p.시공범위)) {
+      const 줄 = 품목줄(row.item, 짝.구역, s);
+      const 금액 = Math.round(QuoteCalc.lineAmount(줄) / 2);
+      const 인건비 = Math.round((QuoteCalc.lineWage(줄) || 0) / 2);
+      s.고정 = { 금액: 금액, 인건비: 인건비, 자재비: 금액 - 인건비, 범위: p.시공범위 };
+    }
+    state.선택[짝.체크_ID] = s;
+    체크수++;
+  });
+  buildAll();
+  구역장수갱신();
+  refresh();
+  persist();
+  // 체크한 품목이 있는 구역을 펼쳐 둔다
+  document.querySelectorAll('.zone').forEach((det) => {
+    const z = MASTER.zones.find((x) => x.구역 === det._zone);
+    if (z && z.items.some((it) => state.선택[it.체크_ID])) det.open = true;
+  });
+  정산탭그리기();
+  if (못함.length) {
+    alert('현장 품목 ' + 체크수 + '개를 체크했습니다.\n\n방문견적에서 찾지 못한 품목 (직접 체크하거나 [+ 직접 입력] 으로 넣어 주세요):\n' +
+      못함.map((n) => '· ' + n).join('\n'));
+  } else {
+    toast('현장 품목 ' + 체크수 + '개를 체크했습니다 · 확인 후 [견적서 발행]');
+  }
+}
+
+/* 정산견적에서 들어온 견적이면 머리 아래에 [품수 견적 | 품목 견적] 을 보여 준다 (정산 화면과 같은 칸).
+   품수 견적을 누르면 그 현장 정산견적으로 돌아간다. 다른 견적을 시작하면(state 초기화) 사라진다. */
+function 정산탭그리기() {
+  const bar = document.getElementById('settleMode');
+  if (!bar) return;
+  const 현 = state.정산현장;
+  bar.hidden = !현;
+  if (현) bar.querySelector('[data-m="품수"]').onclick = () => { location.href = '/settle.html?site=' + encodeURIComponent(현.id); };
 }
 
 /* 다른 기기(카톡 읽기 노트북 등)에서 만든 견적을 고치러 오면 사진이 이 폰에 없다 (사장님 2026-10-31).
