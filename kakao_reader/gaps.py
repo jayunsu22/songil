@@ -28,7 +28,7 @@ THANKS = ("감사합니다~😊\n궁금한거 생기면 다시 연락드릴께�
 CHANGE_REPLY = "알겠습니다~ 변경할께요.."
 REPLY_DELAY = 120   # 방을 여는 데 이미 1분(조용해지면 엶) — 2분 더 기다려 글이 온 뒤 3분쯤에 보낸다
 REASK_END = 18
-MAX_REASK = 3
+MAX_REASK = 0   # 🙋 사장님 11/13: 업체엔 한 번만 묻는다 (계속 물으면 실례) — 다시 묻지 않고, 못 받은 건 업무일정표에 '직접 물어보세요'
 HOURS = (9, 20)             # 텔레그램은 평일·토요일 오전 9시~저녁 8시 (사장님 11/1)
 HOLIDAY_START = 13          # 일요일·공휴일은 오후 1시부터
 # 공휴일 (설·추석 연휴, 대체공휴일, 2026 지방선거 포함). 매년 말에 다음 해를 더한다.
@@ -499,6 +499,9 @@ def reask(cfg, state, now, send, notify, log, fetch=None):
                 continue
             if e.get("tries", 0) >= MAX_REASK:
                 e["gaveup"] = True
+                if not MAX_REASK:   # 한 번만 묻기 (11/13) — 텔레그램 대신 업무일정표 카드로 (서버가 '이미 물음' 을 안다)
+                    log("[%s] %s — 답 없는 것이 남음, 다시 안 물음 (업무일정표에 '직접 물어보세요')" % (room, e["name"]))
+                    continue
                 notify(tg.lines("🏠 " + tg.b("업체 답이 없습니다 · %s" % e["name"]),
                                 tg.esc("%s 방에 %d번 다시 물었는데 못 받은 것:" % (room, MAX_REASK)),
                                 *[tg.esc("%d. %s" % nt) for nt in remaining(e)], "직접 확인해 주세요."))
@@ -646,7 +649,7 @@ def filled_text(site, fills, cfg=None):
     left = [LABEL.get(k, k) for k in site["missing"] if k not in done] + \
            [short(c) for c in site.get("checks") or [] if "check:" + c["id"] not in done]
     if left:
-        lines.append("❓ 아직 못 받음: " + tg.esc(" · ".join(left)) + " (%g시간 뒤 다시 물어봄)" % reask_gap_hours(cfg))
+        lines.append("❓ 아직 못 받음: " + tg.esc(" · ".join(left)) + (" (%g시간 뒤 다시 물어봄)" % reask_gap_hours(cfg) if MAX_REASK else " (안 오면 업무일정표에 올려 드려요)"))
     lines.append("(현장관리 앱을 열면 들어갑니다)")
     return tg.lines(*lines)
 

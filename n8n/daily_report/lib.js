@@ -8,8 +8,9 @@ sd.outbox = sd.outbox || [];
 sd.log = sd.log || {};
 sd.marks = sd.marks || {};   // [완료표시] 한 항목 { 항목id: 날짜 } — 14일 동안 다시 묻지 않는다
 // ❓ 출입정보 질문을 이미 물은 현장 { 현장id: { at, by: '결재함'|'노트북', via, who } } — 결재함과 노트북이 서로 알린다 (11/6, 14일)
-sd.asked = Object.fromEntries(Object.entries(sd.asked || {}).filter(([, v]) => Date.now() - (v.at || 0) < 14 * 864e5));
-const ASK_FRESH = 7 * 864e5;   // 7일 안에 물었으면 또 묻지 않는다
+// 🙋 사장님 11/13: 업체엔 한 번만 묻는다 (계속 물으면 실례) — 기록을 60일 두고, 물은 현장은 다시 안 묻는다
+sd.asked = Object.fromEntries(Object.entries(sd.asked || {}).filter(([, v]) => Date.now() - (v.at || 0) < 60 * 864e5));
+const ASK_FRESH = 60 * 864e5;   // 한 번 물었으면 (60일 안) 또 묻지 않는다
 const now = Date.now();
 const todayKST = () => new Date(now + 9 * 3600e3).toISOString().slice(0, 10);
 const out = { resp: { ok: true }, sms: [], notify: [], fills: [], crew: [], watch: [], kakao: [] };   // kakao = 노트북이 보낼 카톡 (카톡_보내기, 11/5)

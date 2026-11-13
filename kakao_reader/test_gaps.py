@@ -379,6 +379,14 @@ class UrgentAndFilmCheckTest(unittest.TestCase):
 
 
 class ReaskTest(unittest.TestCase):
+    # 다시 묻기는 11/13 부터 꺼 둠 (MAX_REASK = 0) — 켰을 때의 동작은 그대로 시험한다
+    def setUp(self):
+        self._max = gaps.MAX_REASK
+        gaps.MAX_REASK = 3
+
+    def tearDown(self):
+        gaps.MAX_REASK = self._max
+
     """못 받은 답 다시 묻기 (사장님 11/1): 3시간 뒤, 18시 넘으면 다음 날 9시(일·공휴일 13시), 남은 것만 1번부터, 3번까지."""
 
     def test_reask_at(self):
@@ -458,6 +466,16 @@ class ReaskTest(unittest.TestCase):
         self.assertIn("업체 답이 없습니다", self.sent[0])
         self.run_reask(st, mon(16) + 86400)
         self.assertEqual(len(self.sent), 1)                                         # 알림도 한 번만
+
+    def test_ask_once_default(self):
+        # 🙋 11/13 기본: 업체엔 한 번만 — 다시 묻지도, 텔레그램도 안 보낸다 (업무일정표가 '직접 물어보세요')
+        gaps.MAX_REASK = 0
+        mon = lambda h: time.mktime((2026, 11, 2, h, 0, 0, 0, 0, -1))
+        st = {"asks": {"봄애실장님": [self.entry(last=mon(9))]}}
+        self.run_reask(st, mon(12))
+        self.run_reask(st, mon(12) + 86400)
+        self.assertEqual((self.sends, self.sent), ([], []))
+        self.assertTrue(st["asks"]["봄애실장님"][0]["gaveup"])
 
     def test_skip_past_or_failed_send(self):
         mon = lambda h: time.mktime((2026, 11, 2, h, 0, 0, 0, 0, -1))

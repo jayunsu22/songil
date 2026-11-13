@@ -19,10 +19,11 @@ function run(name, inputs) {
 }
 const rec = (list) => ({ records: list.map((d) => ({ fields: { data: JSON.stringify(d) } })) });
 const site = { id: 's1', name: '시험현장', date: '2026-11-06', needStaff: 2, days: [{ date: '2026-11-06', staff: [] }],
-  films: [{ code: 'ps035', qty: '2롤' }], pwLobby: '1', pwUnit: '1', toilet: '있음', dayPlan: { '2026-11-06': { need: 2 } } };
+  films: [{ code: 'ps035', qty: '2롤' }], pwLobby: '1', pwUnit: '1', toilet: '있음', dayPlan: { '2026-11-06': { need: 2 } },
+  askOn: { pwLobby: 1, pwUnit: 1, toilet: 1, door: 1, overlap: 1, xmark: 1 } };   // 11/13: 물을 칸은 사장님이 켠 것만
 const settings = { taskRules: { filmDays: 3, staffDays: 3, supplyDays: 1 }, team: ['가A', '나B'], recruitPick: ['가A', '나B'],
   people: { 가A: { pay: '20', phone: '01000000001' }, 나B: { pay: '18', phone: '01000000002' } } };
-const SHARE = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'n8n_거래처별_현장관리', 'share.js'), 'utf8');
+const SHARE = fs.readFileSync(process.env.SHARE_JS || path.join(__dirname, '..', '..', '..', 'n8n_거래처별_현장관리', 'share.js'), 'utf8');   // SHARE_JS = 고친 앱 share.js 로 시험할 때
 const air = { 현장읽기: rec([site]), 설정읽기: rec([settings]), 할일읽기: rec([]), 앱코드받기: { data: SHARE } };
 
 // 저녁 7시 — 보고서 + 카톡 글
@@ -106,6 +107,7 @@ assert.strictEqual(o.resp.ok, false);
   assert.ok(/\d\. .*겹치는 다른 공정/.test(g.sms[0].text), '업체 확인 질문도 들어감');
   assert.deepStrictEqual([g.watch[0].fill, g.watch[0].keys], [true, ['pwLobby', 'toilet']]);
   mk({ name: '실장님', kakaoRoom: '블라블라 실장님', via: 'kakao', client: '블라블라' });
+  delete sd.asked.a1;   // 위 문자로 이미 물음 — 한 번만 묻기(11/13)라 지우고 카톡 길을 본다
   g = run('실행', Object.assign({ 아침9시: {} }, air, { 현장읽기: rec([empty]) }));
   assert.strictEqual(g.sms.length, 0);
   assert.deepStrictEqual([g.kakao[0].room, g.kakao[0].ask.missing, g.kakao[0].ttl], ['블라블라 실장님', ['pwLobby', 'toilet'], 600]);
@@ -192,6 +194,9 @@ assert.strictEqual(o.resp.ok, false);
   clock = Date.parse('2026-11-15T08:00:00Z');
   run('실행', Object.assign({ 오후5시: {} }, air4));
   assert.ok(!sd.reports['2026-11-16'].rep.next.some((n) => n.id === 'ask:a4'));
+  // 🙋 대신 '업체 답 없음 — 직접 물어보세요' 카드 + 질문 글 (11/13 한 번만 묻기)
+  const self = sd.reports['2026-11-16'].rep.next.find((n) => n.id === 'askself:a4');
+  assert.ok(self && self.kind === 'askSelf' && /직접 물어보세요$/.test(self.title) && self.copy.includes('공동현관'), JSON.stringify(self));
   // 다 받았으면 안 올림
   sd.reports['2026-11-16'].rep.next.push(card);
   sd.reports['2026-11-16'].decisions['ask:a4'] = { act: 'later', at: 6, to: null };
@@ -222,7 +227,11 @@ assert.strictEqual(o.resp.ok, false);
   run('요청', { 보고서요청: { body: { action: 'asked', siteId: 'a2', by: '노트북', via: 'kakao', who: '블라블라 실장님' } } });
   g = run('실행', Object.assign({ 아침9시: {} }, air, { 현장읽기: rec([empty]) }));
   assert.strictEqual(g.sms.length, 0);
-  assert.ok(g.fills.some((f) => /노트북이 이미 물음/.test(f.title)));
+  assert.ok(g.fills.some((f) => /이미 한 번 물음/.test(f.title)));
+  // 🙋 한 번만 묻기 (11/13): 결재함이 물은 현장도 다음 날 [진행해] 로 또 묻지 않는다
+  sd.asked.a2 = { at: clock, by: '결재함', via: 'sms', who: '실장님' }; sd.reports['2026-11-09'].decisions['ask:a2'].doneAt = 0;
+  g = run('실행', Object.assign({ 아침9시: {} }, air, { 현장읽기: rec([empty]) }));
+  assert.strictEqual(g.sms.length + g.kakao.length, 0, '한 번만 묻는다');
   clock = at;
   Object.keys(sd).forEach((k) => delete sd[k]); Object.assign(sd, JSON.parse(keep));
 })();

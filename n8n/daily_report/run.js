@@ -93,8 +93,8 @@ if (which === '아침9시' || sendNow) {
       // 고른 사람, 없으면 정해 둔 질문 담당 (거래처 담당자·현장 발주처 담당자)
       const to = d.to || Share.askTarget(site, data.clients.find((c) => c.id === site.clientId)) || {};
       const was = sd.asked[site.id];
-      if (was && now - was.at < ASK_FRESH && was.by !== '결재함') {   // 그 사이 노트북이 이미 물음 (텔레그램 [시작해]·비서) — 두 번 안 묻는다
-        out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 안 함 — 노트북이 이미 물음', detail: Share.titleLine(site) + (was.who ? ' · ' + was.who : '') });
+      if (was && now - was.at < ASK_FRESH) {   // 🙋 한 번만 묻기 (사장님 11/13) — 이미 물었으면 (노트북이든 결재함이든) 다시 안 묻는다
+        out.fills.push({ siteId: site.id, kind: 'log', room: '결재함', title: '출입정보 질문 안 함 — 이미 한 번 물음', detail: Share.titleLine(site) + (was.who ? ' · ' + was.who : '') });
         continue;
       }
       if (!q) {   // 그 사이 앱에서 다 받음
@@ -171,6 +171,27 @@ Object.keys(lastAsk).forEach((siteId) => {
   carried[id] = { act: 'later', at: was.at, to: null, carried: true };
   if (!rep.next.some((n) => n.id === id)) rep.next.push({ id, kind: 'ask', title: Share.titleLine(site) + ' 출입정보 질문', siteId, act: 'ask',
     res: items.missing.map((k) => ASK_SHORT[k]).concat(items.checks.length ? ['확인 질문 ' + items.checks.length + '개'] : []).join('·') });
+});
+// 🙋 한 번만 묻기 (사장님 11/13: 계속 물으면 실례) — 이미 물었는데 못 받은 게 남은 현장은 9시에 또 묻지 않고
+// '업체 답 없음 — 직접 물어보세요' 카드로. 사장님이 [질문 링크 복사] 로 카톡에 직접 붙여 넣는다
+rep.next = rep.next.map((n) => {
+  if (n.kind !== 'ask' || !n.siteId || !sd.asked[n.siteId]) return n;
+  const site = data.sites.find((s) => s.id === n.siteId);
+  delete carried[n.id];
+  return Object.assign({}, n, { id: 'askself:' + n.siteId, kind: 'askSelf', act: '', title: n.title.replace(/ 출입정보 질문$/, '') + ' 업체 답 없음 — 직접 물어보세요',
+    link: site && Share.askLink ? Share.askLink(site) : '', copy: site ? Share.askQuestion(site, data.settings) : '' });
+}).filter((n, i, a) => a.findIndex((y) => y.id === n.id) === i && !sd.marks[n.id]);
+// 물은 지 6시간이 지났는데 아직 못 받은 게 남은 현장 — 시공날까지 날마다 올린다 ([보냈어요] 를 누르면 14일 안 올림)
+Object.keys(sd.asked).forEach((siteId) => {
+  const was = sd.asked[siteId], id = 'askself:' + siteId;
+  if (!was || now - (was.at || 0) < 6 * 3600e3 || sd.marks[id] || rep.next.some((n) => n.id === id)) return;
+  const site = data.sites.find((s) => s.id === siteId);
+  if (!site || site.hide || !site.date || site.date < rep.date) return;
+  const items = Share.siteAskItems(site, data.settings);
+  if (!items.missing.length && !items.checks.length) return;
+  rep.next.push({ id, kind: 'askSelf', act: '', siteId, title: Share.titleLine(site) + ' 업체 답 없음 — 직접 물어보세요',
+    res: items.missing.map((k) => ASK_SHORT[k] || (Share.ASK_LABEL || {})[k] || k).concat(items.checks.length ? ['확인 질문 ' + items.checks.length + '개'] : []).join('·'),
+    link: Share.askLink ? Share.askLink(site) : '', copy: Share.askQuestion(site, data.settings) });
 });
 sd.reports[rep.date] = { rep, decisions: Object.assign(carried, (old && old.decisions) || {}), at: now };
 keepRecent();
