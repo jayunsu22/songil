@@ -26,6 +26,12 @@ class TextTest(unittest.TestCase):
                          "5. 방문이 상하좌우 문틀에 닿는지\n6. 11/25에 겹치는 다른 공정\n7. 현관문 X 표시 부탁드려요")
         self.assertEqual(gaps.question(dict(SITE, missing=[], checks=CHECKS[1:2])).splitlines()[2:], ["1. 11/25에 겹치는 다른 공정"])
 
+    def test_question_link(self):
+        # 📋 11/13: 서버가 질문폼 링크를 주면 번호 대신 짧은 글 + 링크 (업체는 보기에서 고르기만)
+        q = gaps.question(dict(SITE, checks=CHECKS, link="https://jayunsu22.github.io/sitenote/ask.html#abcdef0123456789"))
+        self.assertEqual(q.splitlines(), ["안녕하세요. 실장님~", "그린워크1차 1104동 604호 (11/25 시공) 몇 가지만 확인 부탁드려요 😊",
+                                          "아래 눌러서 고르기만 하시면 돼요 (1분)", "https://jayunsu22.github.io/sitenote/ask.html#abcdef0123456789"])
+
     def test_ask_text(self):
         self.assertEqual(gaps.ask_text(SITE, "업체(봄애실장님 방)에 물어볼까요?"),
                          "🏠 <b>그린워크1차 1104동 604호</b>\n봄애 · 11/25 시작\n"

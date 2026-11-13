@@ -58,15 +58,20 @@ for (const it of $('현장읽기').all()) for (const r of (it.json.records || []
   // 🚚 업체가 필름을 가져다주는 현장 — 전날 그 방에 한 번 확인 (11/5). 이미 받았으면(수령) 안 물음
   if (s.filmVendor && date === tomorrow && stage < 3 && client) filmChecks.push({ id: s.id, client, name, date });
   if (date > until) continue;
+  // 사장님 11/13: 모든 질문은 기본 '이 현장은 안 물음' — 앱에서 [묻기] 를 누른 것(askOn)만 묻는다
+  const on = (k) => !!(s.askOn && s.askOn[k]);
   const missing = ['pwLobby', 'pwUnit', 'toilet'].filter((k) => !str(s[k]));
   if (!(Array.isArray(s.films) && s.films.some((x) => x && str(x.code)))) missing.push('films');
-  const ask = checks.filter((c) => !answered(s, c.id));
+  for (let i = missing.length - 1; i >= 0; i--) if (!on(missing[i])) missing.splice(i, 1);
+  const ask = checks.filter((c) => on(c.id) && !answered(s, c.id));
+  // 📋 질문폼 링크 (11/13) — 노트북이 번호 질문 대신 이 링크를 보낸다
+  const link = /^[a-z0-9]{12,40}$/.test(str(s.askKey)) ? 'https://jayunsu22.github.io/sitenote/ask.html#' + str(s.askKey) : '';
   // 📞 앱에서 '통화로 확인 — 그만 묻기' 를 누른 현장 (11/13) — 노트북이 묻지도 다시 묻지도 않는다
   if (str(s.askStop)) continue;
   if (!missing.length && !ask.length) continue;
   // 👤 개인고객 (11/5): 업체방이 없다 — '카톡 방 없음' 알림 대신 앱 현장 화면의 [문자로 물어보기]
   if (client.replace(/\s+/g, '') === '개인고객') continue;
-  out.push({ id: s.id, client, name, date, missing, checks: ask });
+  out.push({ id: s.id, client, name, date, missing, checks: ask, link });
 }
 const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
 out.sort(byDate); orders.sort(byDate);

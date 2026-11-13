@@ -39,6 +39,12 @@ const iff = (id, name, x, y, expr) => ({
   parameters: { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'loose' },
     conditions: [{ id: id + 'c', leftValue: expr, rightValue: true, operator: { type: 'boolean', operation: 'true', singleValue: true } }], combinator: 'and' }, options: {} },
 });
+// 📋 질문폼 (11/13): 업체용이라 열쇠 없이 (그 현장 전용 무작위 askKey 로만 찾는다). 현장 표에서 그 열쇠가 든 줄만 읽는다
+const formHook = (id, name, method, webhookId, y) => ({
+  id, name, type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, y], webhookId,
+  parameters: { httpMethod: method, path: 'ask-form', responseMode: 'responseNode', options: { allowedOrigins: '*' } },
+});
+const FORM_SITE_FORMULA = '={{ "FIND(\'\\"askKey\\":\\"" + String(($json.query || {}).k || ($json.body || {}).k || "").replace(/[^a-z0-9]/g, "").slice(0, 40) + "\\"\', {data})" }}';
 // ⏰ 정시 업무보고 폰 알림 (11/7) — 견적 앱의 웹푸시 발송 함수(Netlify send-push, 같은 VAPID)를 그대로 쓴다
 const PUSH_URL = 'https://songil.netlify.app/.netlify/functions/send-push';
 const PUSH_TOKEN = 'songil_secret_2025';   // send-push 의 x-secret-token (songil netlify/functions/send-push.js 와 같은 값)
@@ -78,6 +84,21 @@ const workflow = {
     { id: 'h6', name: '폰알림보내기', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [660, 1650], continueOnFail: true,
       parameters: { method: 'POST', url: PUSH_URL, sendHeaders: true, headerParameters: { parameters: [{ name: 'x-secret-token', value: PUSH_TOKEN }] },
         sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json) }}', options: { timeout: 30000 } } },
+    // 📋 업체 확인 질문폼 (사장님 11/13) — 업체가 링크로 열어(GET) 보기에서 고르고 보낸다(POST). 열쇠 = 그 현장 전용 무작위 글자라 로그인 없음
+    formHook('w8', '질문폼열기', 'GET', '3c7e1a9d-2f4b-4e6a-9d8c-5b1a0f2e7c64', 2150),
+    formHook('w9', '질문폼보내기', 'POST', '8f2d6b4a-1c3e-4a7f-b9d5-0e6c2a8f4b13', 2300),
+    Object.assign(airRead('a8', '현장읽기폼', '현장', FORM_SITE_FORMULA, 220, 2200), {}),
+    airRead('a9', '설정읽기폼', '설정', 'NOT({삭제})', 440, 2200),
+    { id: 'g8', name: '앱코드받기폼', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [660, 2200], executeOnce: true,
+      parameters: { method: 'GET', url: 'https://jayunsu22.github.io/sitenote/share.js', sendQuery: true, queryParameters: { parameters: [{ name: 't', value: '={{ Math.floor(Date.now() / 60000) }}' }] },
+        options: { response: { response: { responseFormat: 'text' } }, timeout: 20000 } } },
+    code('c8', '질문폼', 'form.js', 880, 2200),
+    { id: 'r8', name: '질문폼응답', type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: [1100, 2150],
+      parameters: { respondWith: 'json', responseBody: '={{ JSON.stringify(Object.assign({}, $json, { notify: undefined })) }}', options: CORS } },
+    iff('i8', '질문폼알림인가', 1100, 2300, '={{ !!$json.notify }}'),
+    { id: 'h8', name: '질문폼알림', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1320, 2300], continueOnFail: true, credentials: KEY,
+      parameters: { method: 'POST', url: 'https://primary-production-a6fa.up.railway.app/webhook/kakao-notify', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+        sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.notify) }}', options: { timeout: 30000 } } },
     // ✈️ 정시 업무보고는 텔레그램으로 (사장님 11/13: 텔레그램 = 업무보고, 업무비서 앱 알림 = 거래처 카톡·문자·일정)
     iff('i7', '텔레그램보고인가', 440, 1850, '={{ !!$json.tg }}'),
     { id: 'h7', name: '보고텔레그램', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [660, 1850], continueOnFail: true, credentials: KEY,
@@ -102,6 +123,13 @@ const workflow = {
     보고요청: { main: [[{ node: '정시보고', type: 'main', index: 0 }]] },
     정시보고: { main: [[{ node: '요청이었나', type: 'main', index: 0 }, { node: '알림목록', type: 'main', index: 0 }, { node: '텔레그램보고인가', type: 'main', index: 0 }]] },
     텔레그램보고인가: { main: [[{ node: '보고텔레그램', type: 'main', index: 0 }], []] },
+    질문폼열기: { main: [[{ node: '현장읽기폼', type: 'main', index: 0 }]] },
+    질문폼보내기: { main: [[{ node: '현장읽기폼', type: 'main', index: 0 }]] },
+    현장읽기폼: { main: [[{ node: '설정읽기폼', type: 'main', index: 0 }]] },
+    설정읽기폼: { main: [[{ node: '앱코드받기폼', type: 'main', index: 0 }]] },
+    앱코드받기폼: { main: [[{ node: '질문폼', type: 'main', index: 0 }]] },
+    질문폼: { main: [[{ node: '질문폼응답', type: 'main', index: 0 }, { node: '질문폼알림인가', type: 'main', index: 0 }]] },
+    질문폼알림인가: { main: [[{ node: '질문폼알림', type: 'main', index: 0 }], []] },
     요청이었나: { main: [[{ node: '보고응답', type: 'main', index: 0 }], []] },
     알림목록: { main: [[{ node: '폰알림보내기', type: 'main', index: 0 }]] },
   },
