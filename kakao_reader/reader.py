@@ -213,7 +213,9 @@ def run_once(cfg, state, dry=False):
                        # 📋 결재함에서 묻기로 한 현장은 [시작해] 대신 알림만 (11/6)
                        plan=lambda: n8n_send.post_json(cfg["report_url"], cfg["owner_key"], {"action": "askPlan"}, timeout=20))
             # 못 받은 답은 2시간 뒤 남은 번호만 자동으로 다시 (사장님 11/1, 18시 넘으면 다음 날 9시)
-            gaps.reask(cfg, state, time.time(), gaps.send_to_room, lambda text: notify(cfg, text), log)
+            gaps.reask(cfg, state, time.time(), gaps.send_to_room, lambda text: notify(cfg, text), log,
+                       # 앱에서 받은 것은 다시 안 묻기 (11/13) — 30일 안 현장의 지금 빈칸
+                       fetch=lambda: n8n_send.post_json(cfg["site_gaps_url"], cfg["owner_key"], {"days": 30, "orderDays": 0}))
             # 업체 답에 3분쯤 뒤 인사 (사장님 11/1)
             gaps.send_replies(state, time.time(), gaps.send_to_room, log,
                               lambda room, text, why: worklog.add("reply", "%s 방에 답장" % room, text) if not why else

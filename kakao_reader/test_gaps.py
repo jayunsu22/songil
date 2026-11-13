@@ -405,6 +405,33 @@ class ReaskTest(unittest.TestCase):
         gaps.reask({}, st, now, lambda room, text, log: (self.sends.append((room, text)) or room, "" if ok else "send"),
                    self.sent.append, lambda m: None)
 
+    def test_reask_skips_what_app_has(self):
+        # 사장님 11/13: 통화로 다 받았는데 다시 물었다 — 다시 묻기 전에 앱의 지금 빈칸(site-gaps)을 본다
+        mon = lambda h: time.mktime((2026, 11, 2, h, 0, 0, 0, 0, -1))
+        sends, calls = [], []
+        send = lambda room, text, log: (sends.append(text) or room, "")
+        # 앱에 아직 화장실·겹치는 공정 둘 다 빈칸 → 그대로 묻는다
+        st = {"asks": {"방": [self.entry(last=mon(9))]}}
+        gaps.reask({}, st, mon(12), send, lambda m: None, lambda m: None,
+                   fetch=lambda: calls.append(1) or {"sites": [{"id": SITE["id"], "missing": ["toilet"], "checks": [{"id": "overlap", "text": "x"}]}]})
+        self.assertEqual(len(sends), 1)
+        # 앱에서 화장실을 적음 → 겹치는 공정만
+        st = {"asks": {"방": [self.entry(last=mon(9))]}}
+        sends.clear()
+        gaps.reask({}, st, mon(12), send, lambda m: None, lambda m: None,
+                   fetch=lambda: {"sites": [{"id": SITE["id"], "missing": [], "checks": [{"id": "overlap", "text": "x"}]}]})
+        self.assertIn("1. 11/25에 겹치는 다른 공정", sends[0])
+        self.assertNotIn("화장실", sends[0])
+        # 앱 목록에 없음 (다 받음·📞 그만 묻기) → 안 묻는다
+        st = {"asks": {"방": [self.entry(last=mon(9))]}}
+        sends.clear()
+        gaps.reask({}, st, mon(12), send, lambda m: None, lambda m: None, fetch=lambda: {"sites": []})
+        self.assertEqual(sends, [])
+        # site-gaps 를 못 받으면 예전처럼 묻는다
+        st = {"asks": {"방": [self.entry(last=mon(9))]}}
+        gaps.reask({}, st, mon(12), send, lambda m: None, lambda m: None, fetch=lambda: 1 / 0)
+        self.assertEqual(len(sends), 1)
+
     def test_flow_three_times_then_tell_owner(self):
         mon = lambda h: time.mktime((2026, 11, 2, h, 0, 0, 0, 0, -1))
         st = {"asks": {"봄애실장님": [self.entry(last=mon(9))]}}

@@ -440,12 +440,51 @@ def urgent_asks(state, now, notify, log):
             log("[%s] %s — 현장 임박, 사장님께 전화 알림" % (room, e["name"]))
 
 
-def reask(cfg, state, now, send, notify, log):
+def sync_open(state, now, fetch, log):
+    """다시 묻기 전에 앱의 지금 빈칸(site-gaps)으로 기다리는 질문을 줄인다 (사장님 11/13: 통화로 다 받았는데 노트북이 또 물었다).
+    앱에서 칸을 채웠거나 업체 확인에 답·'확답 받음'을 적었거나 [📞 통화로 확인 — 그만 묻기] 를 누른 것은 빼고,
+    앱 목록에 아예 없는 현장(다 받음·그만 묻기·지난 현장)은 그만 묻는다. 30분에 한 번만 받는다. 못 받으면 그대로 둔다"""
+    g = state.setdefault("gaps", {"at": 0, "asked": {}})
+    if fetch is None:
+        return
+    if now - g.get("open_at", 0) >= 1800:
+        try:
+            data = fetch()
+            sites = (data.get("sites") or []) if isinstance(data, dict) else data
+            g["open"] = {x["id"]: {"missing": list(x.get("missing") or []), "checks": [str(c.get("id")) for c in x.get("checks") or []]}
+                         for x in sites if x and x.get("id")}
+            g["open_at"] = now
+        except Exception as e:
+            log("[현장] 다시 묻기 전 빈칸 확인 실패: %s" % str(e)[:120])
+            return
+    op = g.get("open")
+    if op is None:
+        return
+    for room, lst in (state.get("asks") or {}).items():
+        for e in lst:
+            if e.get("gaveup") or "items" not in e:
+                continue
+            cur = op.get(e["id"])
+            if cur is None:
+                if remaining(e):
+                    log("[%s] %s — 앱에서 다 받았거나 그만 묻기라 다시 안 물음" % (room, e.get("name")))
+                e["missing"], e["checks"] = [], []
+                continue
+            e["missing"] = [k for k in e["missing"] if k in cur["missing"]]
+            e["checks"] = [c for c in e.get("checks") or [] if str(c["id"]) in cur["checks"]]
+
+
+def reask(cfg, state, now, send, notify, log, fetch=None):
     """물어본 현장에 못 받은 답이 남았으면 때가 됐을 때 남은 번호만 업체 방에 다시 보낸다 (한 번에 한 현장).
-    send(방, 글, log) → (연 방, 실패 이유). 3번 다시 물어도 안 오면 사장님께 텔레그램 한 번."""
+    send(방, 글, log) → (연 방, 실패 이유). 3번 다시 물어도 안 오면 사장님께 텔레그램 한 번.
+    fetch = 앱의 지금 빈칸 (site-gaps) — 앱에서 받은 것은 다시 묻지 않는다 (11/13)"""
     import tg
-    urgent_asks(state, now, notify, log)
     today = time.strftime("%Y-%m-%d", time.localtime(now))
+    due = [e for lst in (state.get("asks") or {}).values() for e in lst
+           if not e.get("gaveup") and "items" in e and (e.get("date") or "") >= today and remaining(e) and now >= reask_at(e.get("last", e["at"]), cfg)]
+    if due:
+        sync_open(state, now, fetch, log)
+    urgent_asks(state, now, notify, log)
     for room, lst in (state.get("asks") or {}).items():
         for e in lst:
             if e.get("gaveup") or "items" not in e or (e.get("date") or "") < today or not remaining(e):
