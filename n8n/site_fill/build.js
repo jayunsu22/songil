@@ -78,6 +78,11 @@ const workflow = {
     { id: 'h6', name: '폰알림보내기', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [660, 1650], continueOnFail: true,
       parameters: { method: 'POST', url: PUSH_URL, sendHeaders: true, headerParameters: { parameters: [{ name: 'x-secret-token', value: PUSH_TOKEN }] },
         sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json) }}', options: { timeout: 30000 } } },
+    // ✈️ 정시 업무보고는 텔레그램으로 (사장님 11/13: 텔레그램 = 업무보고, 업무비서 앱 알림 = 거래처 카톡·문자·일정)
+    iff('i7', '텔레그램보고인가', 440, 1850, '={{ !!$json.tg }}'),
+    { id: 'h7', name: '보고텔레그램', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [660, 1850], continueOnFail: true, credentials: KEY,
+      parameters: { method: 'POST', url: 'https://primary-production-a6fa.up.railway.app/webhook/kakao-notify', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+        sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.tg) }}', options: { timeout: 30000 } } },
   ],
   connections: {
     빈칸요청: { main: [[{ node: '현장읽기', type: 'main', index: 0 }]] },
@@ -95,7 +100,8 @@ const workflow = {
     노트북확인: { main: [[{ node: '노트북알림', type: 'main', index: 0 }]] },
     매시정각: { main: [[{ node: '정시보고', type: 'main', index: 0 }]] },
     보고요청: { main: [[{ node: '정시보고', type: 'main', index: 0 }]] },
-    정시보고: { main: [[{ node: '요청이었나', type: 'main', index: 0 }, { node: '알림목록', type: 'main', index: 0 }]] },
+    정시보고: { main: [[{ node: '요청이었나', type: 'main', index: 0 }, { node: '알림목록', type: 'main', index: 0 }, { node: '텔레그램보고인가', type: 'main', index: 0 }]] },
+    텔레그램보고인가: { main: [[{ node: '보고텔레그램', type: 'main', index: 0 }], []] },
     요청이었나: { main: [[{ node: '보고응답', type: 'main', index: 0 }], []] },
     알림목록: { main: [[{ node: '폰알림보내기', type: 'main', index: 0 }]] },
   },

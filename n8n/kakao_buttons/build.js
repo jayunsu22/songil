@@ -115,6 +115,20 @@ const workflow = {
       id: 'or', name: '주문응답', type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: [660, 600],
       parameters: { respondWith: 'json', responseBody: '={{ JSON.stringify({ ok: true }) }}', options: {} },
     },
+    // 📝 업무비서 앱에서 누른 버튼 (11/13: 거래처 알림이 텔레그램 대신 앱으로) — 버튼정리부터 텔레그램과 같은 길, 끝에 앱에 결과 글
+    {
+      id: 'aw', name: '앱버튼', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, -400],
+      webhookId: '4e8a2c6d-9b1f-4d3e-a7c5-6f0b2d4e8a19',
+      parameters: { httpMethod: 'POST', path: 'kakao-press', responseMode: 'responseNode', authentication: 'headerAuth', options: { allowedOrigins: '*' } },
+      credentials: OWNER,
+    },
+    { id: 'ai', name: '앱이었나', type: 'n8n-nodes-base.if', typeVersion: 2, position: [1100, 0], parameters: { conditions: isTrue("={{ $('앱버튼').isExecuted }}"), options: {} } },
+    {
+      id: 'ar', name: '앱버튼응답', type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: [1320, 0],
+      parameters: { respondWith: 'json',
+        responseBody: "={{ JSON.stringify({ ok: !/^❌/.test($('표시').first().json.text || ''), text: String($('표시').first().json.text || '').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').slice(-600) }) }}",
+        options: { responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin', value: '*' }] } } },
+    },
     {
       id: 'w', name: '할일요청', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, 300],
       webhookId: '6d1c8a4e-2b9f-4e7a-8c3d-5f0a1b2c3d4e',
@@ -147,6 +161,9 @@ const workflow = {
     바로결과: { main: [[{ node: '바로응답', type: 'main', index: 0 }]] },
     주문알림: { main: [[{ node: '주문응답', type: 'main', index: 0 }]] },
     받았다고_답: { main: [[{ node: '버튼지우고_표시', type: 'main', index: 0 }]] },
+    앱버튼: { main: [[{ node: '가맹점_조회', type: 'main', index: 0 }]] },
+    버튼지우고_표시: { main: [[{ node: '앱이었나', type: 'main', index: 0 }]] },
+    앱이었나: { main: [[{ node: '앱버튼응답', type: 'main', index: 0 }], []] },
     할일요청: { main: [[{ node: '할일꺼내기', type: 'main', index: 0 }]] },
     할일꺼내기: { main: [[{ node: '할일응답', type: 'main', index: 0 }]] },
   },

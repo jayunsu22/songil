@@ -71,7 +71,116 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// 카톡_알림 › 글만들기: 받은 text 를 텔레그램 글로. 4000자 넘으면 자른다 (텔레그램 한도 4096).\nconst b = $('받은알림').first().json.body || {};\n// 텔레그램이 글을 서식(마크다운)으로 읽으면 '[카톡]' 이 사라지고 _ * 가 섞이면 안 보내진다 → HTML 로 보내고 <>& 만 바꾼다 (10/31)\n// html: true 면 노트북이 이미 꾸민 글(굵게·'견적서 열기' 링크, 카톡 글은 노트북이 바꿔 넣음) → 그대로 (11/1). 사장님 열쇠로만 들어온다\nconst raw = String(b.text || '');\nconst text = b.html === true ? raw.slice(0, 4000) : raw.slice(0, 4000).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nif (!text) throw new Error('text 가 비어 있음');\nconst r = $input.first().json || {};\nconst chat = (r.fields || r).텔레그램_챗ID;\nif (!chat) throw new Error('가맹점 p_001 의 텔레그램_챗ID 가 비어 있음');\n// buttons: [[{text, data}]] (카톡 읽기 3단계 10/31) - 줄은 모아서 버튼 열 개까지 (11/1: 필름 주문 담당자 전부). 셋까지 한 줄, 넷부터 두 개씩. data 는 텔레그램 한도 64바이트\nconst b2 = (Array.isArray(b.buttons) ? b.buttons : []).filter(Array.isArray).reduce((a, r) => a.concat(r), [])\n  .filter((x) => x && x.text && x.data).slice(0, 10).map((x) => ({ t: String(x.text).slice(0, 30), d: String(x.data).slice(0, 64) }));\nreturn [{ json: { chat_id: String(chat), text, n: b2.length, b: b2 } }];"
+        "jsCode": "// 카톡_알림 › 글만들기: 받은 text 를 텔레그램 글로. 4000자 넘으면 자른다 (텔레그램 한도 4096).\nconst b = $('받은알림').first().json.body || {};\n// 텔레그램이 글을 서식(마크다운)으로 읽으면 '[카톡]' 이 사라지고 _ * 가 섞이면 안 보내진다 → HTML 로 보내고 <>& 만 바꾼다 (10/31)\n// html: true 면 노트북이 이미 꾸민 글(굵게·'견적서 열기' 링크, 카톡 글은 노트북이 바꿔 넣음) → 그대로 (11/1). 사장님 열쇠로만 들어온다\nconst raw = String(b.text || '');\nconst text = b.html === true ? raw.slice(0, 4000) : raw.slice(0, 4000).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nif (!text) throw new Error('text 가 비어 있음');\nconst r = $input.first().json || {};\nconst chat = (r.fields || r).텔레그램_챗ID;\nif (!chat) throw new Error('가맹점 p_001 의 텔레그램_챗ID 가 비어 있음');\n// buttons: [[{text, data}]] (카톡 읽기 3단계 10/31) - 줄은 모아서 버튼 열 개까지 (11/1: 필름 주문 담당자 전부). 셋까지 한 줄, 넷부터 두 개씩. data 는 텔레그램 한도 64바이트\nconst b2 = (Array.isArray(b.buttons) ? b.buttons : []).filter(Array.isArray).reduce((a, r) => a.concat(r), [])\n  .filter((x) => x && x.text && x.data).slice(0, 10).map((x) => ({ t: String(x.text).slice(0, 30), d: String(x.data).slice(0, 64) }));\n// 📝 사장님 11/13: 텔레그램 = 업무보고·기계 상태, 업무비서 앱 알림 = 거래처 카톡·문자·일정. to:'tg'|'app' 이 오면 그대로,\n// 없으면 노트북·서버 상태 글('[카톡읽기]·[카톡]·[비서]·[현장]' 실패 글, 🔴🟢 노트북, 🔋 서비스, 🤖 클로드 넘김)만 텔레그램\nconst plain = (b.html === true ? raw.replace(/<a [^>]*>([\\s\\S]*?)<\\/a>/g, '$1').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"').replace(/&amp;/g, '&') : raw).trim();\nconst machine = /^(\\[(카톡읽기|카톡|비서|현장)\\]|🔴|🟢|🔋|🤖 ?비서: 클로드)/.test(plain);\nconst route = b.to === 'tg' ? 'tg' : b.to === 'app' ? 'app' : machine ? 'tg' : 'app';\nconst lines = plain.split('\\n');\nconst href = (raw.match(/href=\"(https:\\/\\/jayunsu22\\.github\\.io\\/sitenote\\/[^\"]+)\"/) || [])[1] || (plain.match(/https:\\/\\/jayunsu22\\.github\\.io\\/sitenote\\/\\S+/) || [])[0] || '';\nconst item = { title: lines[0].slice(0, 120), text: lines.slice(1).join('\\n').trim().slice(0, 1500), buttons: b2.map((x) => ({ text: x.t, data: x.d })), url: href, image: String(b.image || '') };\nreturn [{ json: { chat_id: String(chat), text, n: b2.length, b: b2, route, item } }];"
+      }
+    },
+    {
+      "id": "ia",
+      "name": "앱으로",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        550,
+        -250
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ia1",
+              "leftValue": "={{ $json.route === 'app' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ha",
+      "name": "앱알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        -400
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tm4pgTszEk1zUiQ8",
+          "name": "사장님 열쇠"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-a6fa.up.railway.app/webhook/hourly-report",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ action: 'notify', item: $json.item }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "ib",
+      "name": "앱됐나",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ib1",
+              "leftValue": "={{ $json.ok === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cb",
+      "name": "텔레그램으로",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 앱 알림을 못 보냄 (등록된 폰 없음·오류) → 텔레그램으로 그대로\nreturn [{ json: $('글만들기').first().json }];"
       }
     },
     {
@@ -981,6 +1090,64 @@
       ]
     },
     "글만들기": {
+      "main": [
+        [
+          {
+            "node": "앱으로",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "앱으로": {
+      "main": [
+        [
+          {
+            "node": "앱알림",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "버튼개수",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "앱알림": {
+      "main": [
+        [
+          {
+            "node": "앱됐나",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "앱됐나": {
+      "main": [
+        [
+          {
+            "node": "응답",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "텔레그램으로",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "텔레그램으로": {
       "main": [
         [
           {
