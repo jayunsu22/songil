@@ -61,6 +61,8 @@ for (const it of $('현장읽기').all()) for (const r of (it.json.records || []
   const missing = ['pwLobby', 'pwUnit', 'toilet'].filter((k) => !str(s[k]));
   if (!(Array.isArray(s.films) && s.films.some((x) => x && str(x.code)))) missing.push('films');
   const ask = checks.filter((c) => !answered(s, c.id));
+  // 📞 앱에서 '통화로 확인 — 그만 묻기' 를 누른 현장 (11/13) — 노트북이 묻지도 다시 묻지도 않는다
+  if (str(s.askStop)) continue;
   if (!missing.length && !ask.length) continue;
   // 👤 개인고객 (11/5): 업체방이 없다 — '카톡 방 없음' 알림 대신 앱 현장 화면의 [문자로 물어보기]
   if (client.replace(/\s+/g, '') === '개인고객') continue;
