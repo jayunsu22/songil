@@ -54,7 +54,12 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: 'subscription missing' }) };
   }
 
+  // extra (2026-11-13 업무비서 알림 나누기): tag·image·actions·data 를 서비스워커에 그대로 넘긴다 (title·body·url 은 위 값이 이긴다).
+  // 웹푸시 글은 4KB 한도라 extra 가 너무 크면 버린다.
+  let extra = body.extra && typeof body.extra === 'object' ? body.extra : {};
+  if (JSON.stringify(extra).length > 2500) extra = {};
   const payload = JSON.stringify({
+    ...extra,
     title: title || '1분견적 알림',
     body: message || '',
     url: url || 'https://songil.netlify.app/com_film_dashboard.html',
