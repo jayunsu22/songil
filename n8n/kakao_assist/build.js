@@ -7,6 +7,20 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 const OWNER = { httpHeaderAuth: { id: 'Tm4pgTszEk1zUiQ8', name: '사장님 열쇠' } };
 const AIR = { airtableTokenApi: { id: 'J5wefJCMalpjjm3Q', name: 'Airtable Personal Access Token account 2' } };
 const GEM = { googlePalmApi: { id: 'DVT2g7GvXhSY4Y4b', name: 'Google Gemini(PaLM) Api account' } };
+// 🗣 사장님 말투 (11/12): 사장님_말투 에서 평소·AS 예시를 받아 AI 에 묻기 전에 붙인다. 못 받아도 그대로 돈다
+const toneFetch = (x) => ({
+  id: 'tf', name: '말투가져오기', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [x, 200], continueOnFail: true, alwaysOutputData: true, executeOnce: true, credentials: OWNER,
+  parameters: { method: 'POST', url: 'https://primary-production-a6fa.up.railway.app/webhook/kakao-tone', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify({ action: "examples", n: 30, nAs: 12 }) }}', options: { timeout: 8000 } },
+});
+const toneAttach = (x, field) => ({
+  id: 'ta', name: '말투붙이기', type: 'n8n-nodes-base.code', typeVersion: 2, position: [x, 200],
+  parameters: { mode: 'runOnceForAllItems', jsCode: fs.readFileSync(path.join(__dirname, '..', 'kakao_tone', 'block.js'), 'utf8') + '\n' +
+    "const p = $('프롬프트').first().json;\nlet t = {};\ntry { t = $('말투가져오기').first().json || {}; } catch (e) { t = {}; }\nconst block = toneBlock(t);\n" +
+    (field === 'system'
+      ? "return [{ json: Object.assign({}, p, { system: p.system + block }) }];"
+      : "const mark = '\\n[그 방 최근 대화';\nconst i = String(p.prompt).indexOf(mark);\nreturn [{ json: Object.assign({}, p, { prompt: i < 0 ? p.prompt + block : p.prompt.slice(0, i) + block + p.prompt.slice(i) }) }];") },
+});
 const API = 'https://api.airtable.com/v0/apprglBOGXhKQN4cl/';
 const airRead = (id, name, table, formula, x, y) => ({
   id, name, type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [x, y], executeOnce: true, credentials: AIR,
@@ -35,6 +49,7 @@ const workflow = {
     airRead('a1', '현장읽기', '현장', "AND(NOT({삭제}), IS_AFTER(DATETIME_PARSE({시작날짜}), DATEADD(TODAY(), -50, 'days')))", 220, 0),
     airRead('a2', '거래처읽기', '거래처', 'NOT({삭제})', 440, 0),
     code('p', '프롬프트', 'prompt.js', 660),
+    toneFetch(660), toneAttach(770, 'prompt'),
     {
       id: 'g', name: 'Gemini', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [880, 0], continueOnFail: true, credentials: GEM,
       parameters: {
@@ -49,7 +64,7 @@ const workflow = {
       parameters: { respondWith: 'json', responseBody: '={{ JSON.stringify($json) }}', options: {} } },
   ],
   connections: { 비서요청: { main: c('현장읽기') }, 현장읽기: { main: c('거래처읽기') }, 거래처읽기: { main: c('프롬프트') },
-    프롬프트: { main: c('Gemini') }, Gemini: { main: c('결과정리') }, 결과정리: { main: c('응답') } },
+    프롬프트: { main: c('말투가져오기') }, 말투가져오기: { main: c('말투붙이기') }, 말투붙이기: { main: c('Gemini') }, Gemini: { main: c('결과정리') }, 결과정리: { main: c('응답') } },
   settings: { executionOrder: 'v1', timezone: 'Asia/Seoul' },
 };
 process.stdout.write(JSON.stringify(workflow, null, 2));

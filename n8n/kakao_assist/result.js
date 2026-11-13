@@ -72,9 +72,9 @@ for (const it of (Array.isArray(ai.items) ? ai.items : []).slice(0, 20)) {
 }
 // 답장: ack(받았다)·ask(되묻기)만 자동 — 그래도 시간·금액·약속·거절 말이 섞이면 초안으로 (사장님 확인)
 const rp = ai.reply && typeof ai.reply === 'object' ? ai.reply : {};
-let type = ['ack', 'ask', 'commit', 'none'].includes(rp.type) ? rp.type : 'none';
+let type = ['ack', 'ask', 'commit', 'none', 'unsure'].includes(rp.type) ? rp.type : 'none';
 const rtext = s(rp.text, 400);
-if (!rtext) type = 'none';
+if (!rtext && type !== 'unsure') type = 'none';
 // 그 현장의 이미 정해진 시공 날짜(25일·11/25·11월 25일)는 위험한 말로 보지 않는다
 let check = rtext;
 fills.concat(pays).forEach((f) => {
@@ -84,11 +84,24 @@ fills.concat(pays).forEach((f) => {
   check = check.split(m + '월 ' + dd + '일').join('').split(m + '월' + dd + '일').join('').split(m + '/' + dd).join('').split(dd + '일').join('');
 });
 const RISK = /\d+\s*(원|만|천)|금액|가격|비용|견적|할인|깎|입금|계좌|오전|오후|\d+\s*시|\d+\s*일|\d+\s*\/\s*\d+|내일|모레|다음\s*주|이번\s*주|[월화수목금토일]요일|불가|어렵|어려|안\s*돼|안\s*되|못\s*해|못\s*하|취소|연기|미뤄|추가\s*(작업|시공)|가능(해요|합니다|하세요)/;
+// 사장님 11/12: 사진만 온 방에 '사진 잘 봤어요~' 를 자동으로 보냄 → 확실하지 않으면 보내지 말고 사장님께 '직접 답장하세요'.
+// 자동은 '받았다(ack)' + 우리가 받을 값(비번·화장실·필름·잔금)이 실제로 온 글 + 위험한 말 없음 일 때만. AS(하자)는 늘 사장님이.
+const said = String(pre.said || '');
+const photoOnly = !said.replace(/사진(\s*\d+\s*장)?|동영상|이모티콘|파일\s*:[^\n]*|\s/g, '');
+const isAs = infos.some((i) => i.kind === 'as') || /하자|들떴|들뜸|들떠|뜯어|찢어|찢겨|벗겨|떨어졌|떨어져|(^|[^A-Za-z])AS([^A-Za-z]|$)|에이에스|보수|불량|다시\s*(해|붙)/i.test(said);
+const gotValue = fills.length > 0 || pays.length > 0 || filmVendors.length > 0;
 let auto = false, why = '';
-if (type === 'ack' || type === 'ask') {
+if (type === 'unsure' || (photoOnly && type !== 'none')) {
+  type = 'unsure';
+  why = photoOnly ? '사진만 와서 무슨 뜻인지 모름' : '글 뜻이 확실하지 않음';
+} else if (isAs && type !== 'none') {
+  why = 'AS(하자) 얘기 — 사장님이 보고 보내세요';
+} else if (type === 'ack' || type === 'ask') {
   if (RISK.test(check)) why = '시간·금액·약속 말이 들어 있음';
+  else if (type === 'ask') why = '되묻는 답은 사장님이 보고 보내세요';
+  else if (!gotValue) why = '받은 값이 없어서 자동으로 안 보냄';
   else auto = true;
 } else if (type === 'commit') why = 'AI 가 사장님 확인이 필요한 답으로 봄';
 // 사장님 지시(boss)는 답장 없음 — 사장님 본인 메모라서
 return [{ json: { ok: !!text, fills, picks, pays, infos, missed, tasks, filmVendors, noCode, boss: !!pre.boss,
-  reply: type === 'none' || pre.boss ? null : { text: rtext, type, auto, why } } }];
+  reply: type === 'none' || pre.boss ? null : { text: type === 'unsure' ? '' : rtext, type, auto, why } } }];

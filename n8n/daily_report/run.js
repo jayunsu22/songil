@@ -174,7 +174,27 @@ Object.keys(lastAsk).forEach((siteId) => {
 });
 sd.reports[rep.date] = { rep, decisions: Object.assign(carried, (old && old.decisions) || {}), at: now };
 keepRecent();
-const text = Share.dailyReportKakao(rep, APP_URL + '#approve/' + rep.date);
+let text = Share.dailyReportKakao(rep, APP_URL + '#approve/' + rep.date);
+// 🔋 서비스 사용량 (11/12) — 오후 5시에만 읽는다 (사용량볼때). 걱정할 일이 있으면 텔레그램에 따로
+let ran = false;
+try { ran = $('레일웨이사용량').isExecuted; } catch (e) { ran = false; }
+if (ran) {
+  const one = (n) => { try { return $(n).first().json; } catch (e) { return null; } };
+  const tables = (() => { try { return $('에어테이블표목록').all().map((x) => x.json); } catch (e) { return []; } })();
+  const rows = tables.map(() => 0), seen = tables.map(() => false);
+  try {
+    $('에어테이블세기').all().forEach((it) => {
+      const i = it.pairedItem && it.pairedItem.item != null ? it.pairedItem.item : -1;
+      if (i < 0 || !tables[i] || it.json.error || !Array.isArray(it.json.records)) return;
+      rows[i] += it.json.records.length; seen[i] = true;
+    });
+  } catch (e) { /* 못 셈 */ }
+  const u = usageReport({ railway: one('레일웨이사용량'), netlify: one('넷틀리파이사용량'), github: one('깃허브배포'),
+    airtable: tables.map((t, i) => ({ base: t.base, rows: seen[i] ? rows[i] : null })) }, now);
+  text += '\n\n🔋 서비스 사용량\n' + u.lines.join('\n');
+  if (u.alerts.length) out.notify.push({ html: true, text: '🔋 <b>서비스 확인 필요</b>\n' + u.alerts.map((a) => '❗ ' + esc(a)).join('\n') });
+  out.resp.usage = u;
+}
 sd.outbox.push({ id: 'r' + now.toString(36), t: now, text });
-out.resp = { ok: true, date: rep.date, done: rep.done.length, next: rep.next.length };
+out.resp = Object.assign({ ok: true, date: rep.date, done: rep.done.length, next: rep.next.length }, out.resp.usage ? { usage: out.resp.usage } : {});
 return finish();

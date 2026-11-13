@@ -473,7 +473,7 @@ def analyze(img, region, force=False, known=()):
     return now
 
 
-def check(cfg, state, notify, log, dry=False, classify=None, answer=None, assist=None):
+def check(cfg, state, notify, log, dry=False, classify=None, answer=None, assist=None, tone=None):
     """reader.py 가 확인할 때마다 부른다. 알릴 방에 배지가 새로 생기거나 늘면:
     - auto_read 꺼짐(A안): 바로 "○○ 방에 새 글 N개" 텔레그램.
     - auto_read 켜짐(B안, 사장님 10/30): 배지가 read_quiet_seconds 동안 그대로면(글이 멈추면) 그 방을 열어 읽고 닫은 뒤
@@ -526,7 +526,7 @@ def check(cfg, state, notify, log, dry=False, classify=None, answer=None, assist
                 log("[%s] 새 글 — %d초 조용하면 방을 엶" % (r, quiet))
         due = due_rooms(state["badges"], time.time(), quiet)
         if due:
-            read_and_report(cfg, state, due[0], notify, log, classify, answer, assist)
+            read_and_report(cfg, state, due[0], notify, log, classify, answer, assist, tone)
 
 
 def mark_since(prev, now, t):
@@ -859,7 +859,7 @@ def search_open(room, log, wait=4.0):
         u.SendMessageW(edit, 0x000C, 0, ctypes.c_wchar_p(""))
 
 
-def read_and_report(cfg, state, room, notify, log, classify, answer=None, assist=None):
+def read_and_report(cfg, state, room, notify, log, classify, answer=None, assist=None, tone=None):
     """글이 멈춘 방 하나를 열어 새 글을 읽고 닫은 뒤 분류·요약을 텔레그램으로. 실패해도 같은 배지로 다시 열지 않는다.
     answer(방, 새 글) = 현장 빈칸을 물어본 방이면 답에서 값을 뽑아 넣기 (gaps.on_answer, 4단계).
     assist(방, 새 글, 읽은 글 전부) = 🤖 능동 비서 — 물어보지 않은 방도 AI 가 판단해 넣고·답함 (assist.handle, 11/4)."""
@@ -891,6 +891,11 @@ def read_and_report(cfg, state, room, notify, log, classify, answer=None, assist
         notify(message([(title, cur.get("n"), cur.get("n"))]) + "\n(글을 못 읽어서 요약 없음)")
         return
     msgs = kakao_text.with_keys(kakao_text.parse(text))
+    if tone:   # 🗣 사장님 말투 모으기 (11/12) — 새 글이 없어도 창에 보이는 사장님 줄을
+        try:
+            tone(title, msgs)
+        except Exception as e:
+            log("[%s] 🗣 말투 모으기 실패: %s" % (title, str(e)[:150]))
     seen_all = state.setdefault("read", {})
     seen = seen_all.get(title, [])
     new = pick_new(msgs, set(seen), cur.get("n"))

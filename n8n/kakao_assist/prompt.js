@@ -111,6 +111,9 @@ ${sites.map((s) => '- ' + s.id + ' · ' + s.name + ' · ' + s.date + ' · ' + JS
   "ask" = 일에 꼭 필요한데 빠진 정보를 되묻기 (예 필름 품번이 없을 때 "혹시 품번도 알 수 있을까요? 발주 넣으려구요😊", 어느 현장인지 모를 때).
   "commit" = 시간 약속·일정 변경 수락/거절·금액·견적·할인·추가 작업 수락/거절·사장님만 정할 수 있는 것. 이때도 답 초안을 써라 (사장님이 보고 보냄).
   "none" = 답할 필요 없음 (업체가 '네'·'감사합니다'로 끝냄, 잡담, 사장님이 이미 답함, 우리에게 한 말이 아님).
+  "unsure" = 글 뜻을 확실히 모르겠음 — 사진·동영상·이모티콘만 왔거나, 무엇을 원하는지·누구에게 한 말인지 애매하거나, 앞뒤 흐름을 모르면. 이때 text 는 비운다 (사장님이 직접 답한다).
+  잘못 보낸 답장은 사업에 큰 문제가 된다 (사장님 11/12). 조금이라도 애매하면 짐작해서 쓰지 말고 "unsure".
+- AS(하자)·불만·사과가 필요한 글이면 아래 [사장님 말투]의 [AS 때] 말투로 정중하게 사과하고 (평소처럼 가볍게 쓰지 않는다), type 은 "commit" (사장님이 보고 보냄).
 
 JSON 으로만 답하라:
 {"items":[{"kind":"field","field":"pwLobby","value":"","films":[],"noCode":false,"siteId":"","sure":true,"cands":[],"quote":"근거 원문 60자 이내"}],
@@ -121,4 +124,4 @@ ${recent.join('\n') || '(없음)'}
 
 [업체 새 글 — 이것에 대해 판단]
 ${fresh.join('\n')}`;
-return [{ json: { prompt, sites, today, count: fresh.length, boss } }];
+return [{ json: { prompt, sites, today, count: fresh.length, boss, said: said.slice(0, 2000) } }];

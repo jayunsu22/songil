@@ -251,10 +251,21 @@ def handle(cfg, state, room, new, msgs, call, put, inbox, notify, log, now=None,
         worklog.feed(room, (cw or {}).get("siteId") or first.get("siteId", ""), (cw or {}).get("name") or first.get("name", ""), new, put_lines,
                      [KEY_LABEL[k] for k in (cw or {}).get("keys", [])])
     reply = res.get("reply")
-    if not reply or not reply.get("text"):
-        return
-    if msgs and _norm(msgs[-1].get("sender")) in mine:
+    if msgs and reply and _norm(msgs[-1].get("sender")) in mine:
         log("[%s] 🤖 사장님이 이미 답함 — 답장 안 함" % room)
+        return
+    if reply and reply.get("type") == "unsure":
+        import kakao_text
+        import tg
+        # 🙋 사장님 11/12: 뜻을 모르면 답장하지 말고 사장님께 — 잘못 보낸 답은 사업에 큰 문제
+        last = (new or [{}])[-1]
+        notify(tg.lines(tg.Html("🙋 <b>%s</b> 방 — 답장 안 보냈어요, 직접 답장해 주세요" % tg.esc(room)),
+                        tg.esc("(%s)" % (reply.get("why") or "글 뜻이 확실하지 않음")),
+                        tg.esc("「%s」" % kakao_text.mask(last.get("text", ""))[:120])))
+        worklog.add("reply", "%s 방 — 직접 답장 필요" % room, reply.get("why") or "", need=True, key="unsure:" + room)
+        log("[%s] 🤖 뜻이 확실하지 않음 — 답장 안 하고 사장님께 알림" % room)
+        return
+    if not reply or not reply.get("text"):
         return
     hour = time.localtime(now).tm_hour
     if reply.get("auto") and REPLY_HOURS[0] <= hour < REPLY_HOURS[1]:
