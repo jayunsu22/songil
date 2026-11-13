@@ -10,7 +10,7 @@
      계산은 settle_calc.js(SettleCalc), 화면·상태는 settle.js.
      절대경로로 두는 이유는 quote_view.html 주석 참조(/s/ 경로와 같은 저장소라 습관을 맞춘다). -->
 <link rel="stylesheet" href="/quote_style.css">
-<link rel="stylesheet" href="/settle_style.css?v=20261026a">
+<link rel="stylesheet" href="/settle_style.css?v=20261112b">
 </head>
 <body>
 
@@ -23,6 +23,12 @@
   <button id="resetBtn" type="button" class="hbtn">새로 시작</button>
   <span class="date" id="siteDate" hidden></span>
 </header>
+
+<!-- 견적 방식 (2026-11-12). 품수 견적 = 이 화면, 품목 견적 = 방문견적에 이 현장 시공품목을 자동 체크해서 연다 -->
+<div class="mode" id="settleMode" role="tablist" aria-label="견적 방식">
+  <button type="button" role="tab" data-m="품수" aria-selected="true" class="on"><b>품수 견적</b><small>품수 × 품단가 + 필름 m</small></button>
+  <button type="button" role="tab" data-m="품목" aria-selected="false" id="itemModeBtn"><b>품목 견적</b><small>품목별 금액 · 방문 견적</small></button>
+</div>
 
 <div id="status">불러오는 중…</div>
 <button id="retryBtn" type="button" hidden>다시 시도</button>
@@ -42,7 +48,7 @@
   </section>
 
   <section class="card" id="matCard">
-    <h2>② 자재비 <span class="sum" id="matSum">0원</span></h2>
+    <h2><span id="matTitle">② 자재비</span> <span class="sum" id="matSum">0원</span></h2>
     <div class="allmat">전체 자재
       <select id="allMat" autocomplete="off"></select>
     </div>
@@ -51,6 +57,7 @@
     <div id="lines"></div>
     <button type="button" class="addrow" id="addLineBtn">+ 품목 추가</button>
     <div class="matsum" id="matSubtotals"></div>
+    <div id="itemRule" hidden>금액 = 필름 m × (인건비 단가 + 필름 단가) × 난이도 × 개수 — 견적요청·방문견적과 같은 단가표. 초록 금액을 누르면 고칠 수 있습니다.</div>
   </section>
 
   <section class="card addwork" id="addWorkCard" hidden>
@@ -59,7 +66,7 @@
   </section>
 
   <section class="card" id="extraCard">
-    <h2>③ 부가 항목 <span class="sum" id="extraSum">0원</span></h2>
+    <h2><span class="no">③</span> 부가 항목 <span class="sum" id="extraSum">0원</span></h2>
     <div id="extras"></div>
     <button type="button" class="addrow" id="addExtraBtn">+ 직접 추가</button>
   </section>
@@ -67,7 +74,7 @@
   <!-- ④ 미수금: 지난 현장에서 못 받은 돈을 이번 견적서에 같이 실어 보낸다.
        현장명·금액을 직접 적고, 여러 건이면 줄을 추가한다. 합계에는 더해지되 시공대금과 갈라서 보인다. -->
   <section class="card" id="dueCard">
-    <h2>④ 미수금 <span class="sum" id="dueSum">0원</span></h2>
+    <h2><span class="no">④</span> 미수금 <span class="sum" id="dueSum">0원</span></h2>
     <div id="dues"></div>
     <button type="button" class="addrow" id="addDueBtn">+ 줄 추가</button>
   </section>
@@ -128,6 +135,43 @@
   </div>
 </section>
 
+<!-- 품목 견적 금액 고치기 (2026-11-12) — 방문견적(quote_pro.html)과 같은 창. 스타일은 quote_style.css 의 #amtSheet.
+     [합계 고정] 켜면 인건비를 고치면 자재비 = 합계 − 인건비, 자재비를 고치면 인건비 = 합계 − 자재비. 끄면 합계 = 둘의 합.
+     합계를 고치면 자동 계산 비율로 나뉜다 -->
+<div id="amtBack" hidden></div>
+<section id="amtSheet" hidden aria-label="금액 고치기">
+  <h2 id="amtTitle">금액 고치기</h2>
+  <p class="hint" id="amtOrig"></p>
+  <label class="amt-lbl" for="amtTotal">합계</label>
+  <div class="amt-wrap">
+    <input type="text" id="amtTotal" class="amt-in amt-total" inputmode="numeric" autocomplete="off" placeholder="0원">
+    <button type="button" class="amt-x" data-for="amtTotal" aria-label="합계 지우기">✕</button>
+  </div>
+  <label class="amt-lock"><input type="checkbox" id="amtLock" checked> 합계 고정 <span>(한쪽을 바꾸면 다른 쪽이 맞춰짐)</span></label>
+  <div class="amt-two">
+    <div>
+      <label class="amt-lbl" for="amtWage">인건비</label>
+      <div class="amt-wrap">
+        <input type="text" id="amtWage" class="amt-in" inputmode="numeric" autocomplete="off" placeholder="0원">
+        <button type="button" class="amt-x" data-for="amtWage" aria-label="인건비 지우기">✕</button>
+      </div>
+    </div>
+    <div>
+      <label class="amt-lbl" for="amtMat">자재비</label>
+      <div class="amt-wrap">
+        <input type="text" id="amtMat" class="amt-in" inputmode="numeric" autocomplete="off" placeholder="0원">
+        <button type="button" class="amt-x" data-for="amtMat" aria-label="자재비 지우기">✕</button>
+      </div>
+    </div>
+  </div>
+  <p class="hint" id="amtSplit">합계를 고치면 인건비·자재비가 자동 계산 비율로 나뉩니다</p>
+  <div class="amt-row">
+    <button type="button" id="amtCancel">취소</button>
+    <button type="button" id="amtOk" class="primary">확인</button>
+  </div>
+  <button type="button" id="amtReset">원래 금액으로</button>
+</section>
+
 <div id="toast" hidden></div>
 
 <!-- 관리자 잠금. admin.html 과 같은 PIN. -->
@@ -145,8 +189,11 @@
 
 <script src="/owner-key.js?v=20261006d"></script>
 <script src="/settle_calc.js?v=20261026a"></script>
+<script src="/quote_calc.js?v=20261112a"></script>
+<script src="/request_price.js?v=20261112b"></script>
+<script src="/settle_items.js?v=20261112a"></script>
 <script src="/settle_films.js?v=20261007"></script>
-<script src="/settle.js?v=20261026a"></script>
+<script src="/settle.js?v=20261112b"></script>
 <script src="/app-switcher.js?v=20261020a" data-app-id="settle"></script>
 </body>
 </html>
