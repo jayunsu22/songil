@@ -19,7 +19,7 @@ for (const it of $('현장읽기폼').all()) for (const r of (it.json.records ||
 }
 let settings = {};
 for (const it of $('설정읽기폼').all()) for (const r of (it.json.records || [])) {
-  try { const d = JSON.parse((r.fields || {}).data || '{}'); if (d && (Array.isArray(d.checks) || Array.isArray(d.toiletOpts))) settings = d; } catch (e) { /* 다음 줄 */ }
+  try { const d = JSON.parse((r.fields || {}).data || '{}'); if (d && (Array.isArray(d.checks) || Array.isArray(d.toiletOpts) || (d.fieldOpts && typeof d.fieldOpts === 'object'))) settings = d; } catch (e) { /* 다음 줄 */ }
 }
 const today = new Date(now + 9 * 3600e3).toISOString().slice(0, 10);
 // 시공일 다음 날까지만 연다 (시공 끝난 현장 링크는 닫음)
@@ -59,9 +59,10 @@ for (const id of Object.keys(answers).slice(0, 30)) {
     lines.push(q.label + ': ' + (/없음|당일/.test(v) ? v : '받음'));
     if (/당일/.test(v)) continue;   // 당일 알려준다 — 칸은 비워 둔다
     push({ kind: 'field', field: id, value: /^비번 없음/.test(v) ? '없음(열려 있음)' : v }, q.label + ' 넣음');
-  } else if (id === 'toilet') {
-    lines.push('화장실: ' + v);
-    push({ kind: 'field', field: 'toilet', value: v }, '화장실 넣음');
+  } else if ((Share.ASK_KEYS || ['toilet']).indexOf(id) !== -1) {
+    // 드롭다운 칸 (화장실·입구차단기·출입구·차량등록·주차·화물EV, 11/13) — 고른 그대로 그 칸에
+    lines.push((id === 'toilet' ? '화장실' : q.label.slice(0, 20)) + ': ' + v);
+    push({ kind: 'field', field: id, value: v }, (id === 'toilet' ? '화장실' : q.label.slice(0, 20)) + ' 넣음');
   } else if (id === 'films') {
     // 한 줄에 '위치 번호' — 마지막 낱말을 번호로
     const films = v.split(/\n|,/).map((l) => l.trim()).filter(Boolean).slice(0, 20).map((l) => {

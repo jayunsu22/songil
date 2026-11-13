@@ -60,7 +60,9 @@ for (const it of $('현장읽기').all()) for (const r of (it.json.records || []
   if (date > until) continue;
   // 사장님 11/13: 모든 질문은 기본 '이 현장은 안 물음' — 앱에서 [묻기] 를 누른 것(askOn)만 묻는다
   const on = (k) => !!(s.askOn && s.askOn[k]);
-  const missing = ['pwLobby', 'pwUnit', 'toilet'].filter((k) => !str(s[k]));
+  // 11/13: 드롭다운 칸 전부 (선택형 칸은 { v } 가 '미확인' 이면 빈칸)
+  const missing = ['pwLobby', 'pwUnit', 'barrier', 'gate', 'carReg', 'parking', 'cargoEv', 'toilet']
+    .filter((k) => (k === 'carReg' || k === 'cargoEv') ? !(s[k] && str(s[k].v) && s[k].v !== '미확인') : !str(s[k]));
   if (!(Array.isArray(s.films) && s.films.some((x) => x && str(x.code)))) missing.push('films');
   for (let i = missing.length - 1; i >= 0; i--) if (!on(missing[i])) missing.splice(i, 1);
   const ask = checks.filter((c) => on(c.id) && !answered(s, c.id));

@@ -54,6 +54,15 @@ sd.fills = [];
 o = run({ post: { k: KEY, answers: { pwLobby: '당일 알려드림' } } });
 assert.strictEqual(sd.fills.length, 0, '당일 알려준다 — 칸은 비워 둠');
 assert.ok(o.notify.text.includes('당일 알려드림'));
+// 칸마다 드롭다운 (11/13 둘째 판): 입구차단기·차량등록도 고른 그대로 그 칸에
+const site2 = Object.assign({}, site, { barrier: '', carReg: { v: '미확인' }, askOn: { barrier: true, carReg: true } });
+o = run({ get: { k: KEY }, s: site2, settings: { fieldOpts: { barrier: ['경비호출', '비번 1234'] } } });
+assert.deepStrictEqual(o.items.map((q) => [q.id, q.type, q.free]), [['barrier', 'choice', true], ['carReg', 'choice', false]]);
+assert.deepStrictEqual(o.items[0].opts, ['경비호출', '비번 1234']);
+assert.deepStrictEqual(o.items[1].opts, ['필요', '불필요']);
+sd.fills = [];
+run({ post: { k: KEY, answers: { barrier: '경비호출', carReg: '필요' } }, s: site2 });
+assert.deepStrictEqual(sd.fills.map((x) => [x.kind, x.field, x.value]), [['field', 'barrier', '경비호출'], ['field', 'carReg', '필요']]);
 // 흐름
 const c = wf.connections;
 assert.deepStrictEqual(c['질문폼열기'].main[0].map((x) => x.node), ['현장읽기폼']);
