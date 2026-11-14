@@ -27,7 +27,7 @@ if (!ai) {
   const why = r.error ? String(r.error.message || r.error.type || '오류').slice(0, 120) : r.stop_reason === 'refusal' ? '답 거절' : text ? 'AI 답을 읽지 못함' : 'AI 답 없음';
   return [{ json: claude ? { ok: false, fallback: true, error: why } : { ok: false, error: why } }];
 }
-const TOOLS = ['set_field', 'set_films', 'mark_paid', 'set_film_vendor', 'set_staff', 'send_site_info', 'send_text', 'save_phone', 'add_task', 'undo', 'find_sites', 'send_kakao', 'ask_site'];
+const TOOLS = ['set_field', 'set_films', 'mark_paid', 'set_film_vendor', 'set_staff', 'send_site_info', 'send_text', 'save_phone', 'add_task', 'undo', 'find_sites', 'send_kakao', 'ask_site', 'add_site', 'set_dates'];
 const s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 const actions = (Array.isArray(ai.actions) ? ai.actions : []).filter((a) => a && TOOLS.includes(a.tool)).slice(0, 8);
 const chips = (Array.isArray(ai.chips) ? ai.chips : []).map((c) => s(c, 40)).filter(Boolean).slice(0, 5);
