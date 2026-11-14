@@ -19,7 +19,7 @@ const workflowSms = {
     authentication: 'genericCredentialType', genericAuthType: 'httpBasicAuth',
     sendBody: true, specifyBody: 'json',
     jsonBody: '={{ JSON.stringify({ textMessage: { text: $json.sms.text }, phoneNumbers: [$json.sms.phone] }) }}',
-    options: { timeout: 20000 },
+    options: { timeout: 60000 },
   },
   credentials: { httpBasicAuth: { id: 'DXh5rioJUf4RGJEN', name: 'SMS Gateway (사장님 폰)' } },
 };
