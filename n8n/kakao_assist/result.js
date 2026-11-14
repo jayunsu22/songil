@@ -114,6 +114,14 @@ if (type === 'unsure' || (photoOnly && type !== 'none')) {
   else auto = true;
 } else if (type === 'commit') why = 'AI 가 사장님 확인이 필요한 답으로 봄';
 // 사장님 지시(boss)는 답장 없음 — 사장님 본인 메모라서
+// 🔑 이미 적힌 칸이 바뀜 (11/14 사장님: 기존 현장 비번이 바뀌면 알려줘야지) — 앱에는 바로 넣고, 무엇이 무엇으로 바뀌었는지 따로 알림
+const changedBy = {};
+fills.filter((f) => f.kind === 'field' && f.update && !pre.boss).forEach((f) => {
+  const was = s((byId[f.siteId] || { known: {} }).known[f.field], 100);
+  if (!was || squash(was) === squash(f.value)) return;
+  (changedBy[f.siteId] = changedBy[f.siteId] || { kind: 'changed', siteId: f.siteId, name: f.name, rows: [], quote: f.quote }).rows.push({ label: f.label, from: was, to: f.value });
+});
+Object.values(changedBy).forEach((c) => proposals.push(c));
 const B = $('비서요청').first().json.body || {};
 return [{ json: { ok: !!text, fills, picks, pays, infos, missed, tasks, filmVendors, noCode, boss: !!pre.boss, proposals, room: s(B.room, 60), client: s(B.client, 60),
   reply: type === 'none' || pre.boss ? null : { text: type === 'unsure' ? '' : rtext, type, auto, why } } }];

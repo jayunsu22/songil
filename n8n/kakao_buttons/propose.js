@@ -11,6 +11,22 @@ const md = (d) => (+d.slice(5, 7)) + '/' + (+d.slice(8, 10));
 const room = s(b.room, 60), client = s(b.client, 60);
 const out = [];
 for (const p of (Array.isArray(b.proposals) ? b.proposals : []).slice(0, 3)) {
+  // 🔑 바뀐 칸 알림 (11/14) — 앱에는 이미 넣었다. 버튼은 [확인함]만
+  if (p && p.kind === 'changed') {
+    const rows = (Array.isArray(p.rows) ? p.rows : []).map((r) => ({ label: s(r && r.label, 20), from: s(r && r.from, 100), to: s(r && r.to, 100) })).filter((r) => r.label && r.to).slice(0, 6);
+    const nm = s(p.name, 100), sid = s(p.siteId, 40), q = s(p.quote, 120);
+    if (!rows.length || !nm) continue;
+    const ckey = 'changed|' + sid + '|' + rows.map((r) => r.label + '=' + r.to).join(',');
+    if (Object.values(sd.proposals).some((o) => o.key === ckey && now - o.at < 864e5)) continue;
+    let cid = '';
+    while (!cid || sd.proposals[cid]) cid = (Math.random().toString(36).slice(2) + '000000').slice(0, 6);
+    sd.proposals[cid] = { key: ckey, kind: 'changed', client, room, name: nm, siteId: sid, at: now };
+    const cl = ['🔑 <b>현장 정보 바뀜 · ' + esc(nm) + '</b>'].concat(rows.map((r) => '· ' + esc(r.label) + ': ' + (r.from ? esc(r.from) + ' → ' : '') + '<b>' + esc(r.to) + '</b>'));
+    if (q) cl.push('「' + esc(q) + '」');
+    cl.push('', '(' + esc(room || client) + ' 카톡 — 앱에 바로 바꿔 넣었어요. 작업자에게 이미 알렸으면 다시 알려 주세요)');
+    out.push({ json: { text: cl.join('\n'), html: true, buttons: [[{ text: '✔ 확인함', data: 'k|' + cid + '|ok' }]] } });
+    continue;
+  }
   const kind = p && p.kind === 'dates' ? 'dates' : 'newSite';
   const dates = (Array.isArray(p && p.dates) ? p.dates : []).map((d) => s(d, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().slice(0, 20);
   const name = s(p && p.name, 100), siteId = s(p && p.siteId, 40), quote = s(p && p.quote, 120);
