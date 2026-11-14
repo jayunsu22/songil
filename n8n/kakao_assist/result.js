@@ -51,6 +51,8 @@ for (const it of (Array.isArray(ai.items) ? ai.items : []).slice(0, 20)) {
     if (value) tasks.push({ siteId: sure ? sid : '', name: sure ? byId[sid].name : '', title: value, quote });
     continue;
   } else if (kind === 'pay') {
+    // 💰 돈 얘기가 실제로 있을 때만 (11/14: '거실에 필름 있습니다. 다음에 뵙겠습니다' 를 잔금 넣었다고 봄)
+    if (!/입금|송금|이체|잔금|대금|결제|계좌|돈|\d\s*(원|만)/.test(quote + ' ' + String(pre.said || ''))) continue;
     const pid = sid || (cands.length === 1 ? cands[0] : '');
     if (pid && !byId[pid].payDone) pays.push({ siteId: pid, name: byId[pid].name, quote });
     continue;

@@ -1,6 +1,11 @@
 // 문자_답장 › 정리: AI 판단으로 칸에 넣을 것·남은 것을 고르고 → 우편함·비서 대화(feed)·텔레그램. 칸에 넣었으면 감사 문자 (사장님 11/6)
 const p = $('처리').first().json;
-const r = p.ai ? ($input.first().json || {}) : {};
+let r = {};
+try { if (p.ai && $('비서판단').isExecuted) r = $('비서판단').first().json || {}; } catch (e) { r = {}; }
+// 📋 앱의 지금 빈칸 (현장관리_빈칸 site-gaps, 11/14 사장님: '없습니다' 로 받은 공동현관을 또 '못 받음' 이라 함, 시작한 현장은 안 물어도 됨)
+// 그 현장이 목록에 없으면 (이미 시작했거나 다 받았거나 '그만 묻기') 남은 것이 없다. 못 불러오면(gs undefined) 예전처럼
+let gs;
+try { const gj = $input.first().json || {}; if (Array.isArray(gj.sites)) { const hit = gj.sites.find((x) => x && x.id === p.w.siteId); gs = hit && !(hit.date <= gj.today) ? hit : null; } } catch (e) { gs = undefined; }
 const sd = $getWorkflowStaticData('global');
 const now = Date.now();
 const LABEL = { pwLobby: '공동현관 비번', pwUnit: '세대 비번', toilet: '화장실 위치', films: '필름 번호' };
@@ -69,6 +74,10 @@ if (p.book) {
 });
 if (p.unread) lines.push(p.msg);
 if (w) w.keys = (w.keys || []).filter((k) => !got.has(k));
+if (w && !p.book && gs !== undefined) {
+  w.keys = (w.keys || []).filter((k) => gs && (gs.missing || []).includes(k));
+  if (w.ask) w.ask.checks = (w.ask.checks || []).filter((c) => gs && (gs.checks || []).some((x) => x.id === c.id));
+}
 if (w && w.ask) w.ask.checks = w.ask.checks.filter((c) => !gotChecks.has(c.id));
 const left = ((w && w.keys) || []).filter((k) => LABEL[k]).map((k) => LABEL[k])
   .concat(((w && w.ask && w.ask.checks) || []).map((c) => String(c.text).replace(/\s*\(.*?\)/g, '').slice(0, 24)));

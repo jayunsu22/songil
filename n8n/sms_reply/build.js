@@ -25,6 +25,8 @@ const workflow = {
       parameters: { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'loose' },
         conditions: [{ id: 'ic', leftValue: '={{ !!$json.ai }}', rightValue: true, operator: { type: 'boolean', operation: 'true', singleValue: true } }], combinator: 'and' }, options: {} } },
     post('a', '비서판단', 880, 0, "={{ '" + BASE + "' + ($json.digest ? 'kakao-digest' : 'kakao-assist') }}", '={{ JSON.stringify($json.body) }}'),   // 번호 질문의 답은 kakao-digest (11/6)
+    // 📋 앱의 지금 빈칸 (11/14) — 정리가 '아직 못 받음' 을 이걸로 거른다 (받았거나 시작한 현장은 안 적음)
+    Object.assign(post('gp', '지금빈칸', 990, 200, BASE + 'site-gaps', '={{ JSON.stringify({ days: 30 }) }}'), { alwaysOutputData: true }),
     code('r', '정리', 1100, 60, read('result.js')),
     code('s1', '우편목록', 1320, -60, "const f = $input.first().json.fills || []; return f.length ? [{ json: { fills: f } }] : [];"),
     post('h1', '우편넣기', 1540, -60, BASE + 'site-fill', '={{ JSON.stringify({ fills: $json.fills }) }}'),
@@ -35,8 +37,8 @@ const workflow = {
   ],
   connections: {
     요청: { main: c('처리') }, 처리: { main: c('응답', '답장만') }, 답장만: { main: c('AI물을까') },
-    AI물을까: { main: [[{ node: '비서판단', type: 'main', index: 0 }], [{ node: '정리', type: 'main', index: 0 }]] },
-    비서판단: { main: c('정리') }, 정리: { main: c('우편목록', '비서대화', '알림', '감사목록') }, 우편목록: { main: c('우편넣기') }, 감사목록: { main: c('감사문자') },
+    AI물을까: { main: [[{ node: '비서판단', type: 'main', index: 0 }], [{ node: '지금빈칸', type: 'main', index: 0 }]] },
+    비서판단: { main: c('지금빈칸') }, 지금빈칸: { main: c('정리') }, 정리: { main: c('우편목록', '비서대화', '알림', '감사목록') }, 우편목록: { main: c('우편넣기') }, 감사목록: { main: c('감사문자') },
   },
   settings: { executionOrder: 'v1', timezone: 'Asia/Seoul' },
 };
