@@ -1233,3 +1233,12 @@ select.ex-in { appearance: auto; }
 .ex-pm-bt button.ghost { background: #fff; color: #2b62d9; border: 1.5px dashed #2b62d9; }
 .ex-pm.done { background: #f7f8fa; border-color: #e5e7eb; }
 .ex-pm.done b { color: #556; font-size: 13.5px; }
+
+/* 📅 1일차·2일차 탭 (2026-11-14) */
+.day-tabs { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; margin: 0 0 12px; padding: 8px 0; background: var(--bg-body, #f8fafc); }
+.day-tabs button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 58px; border: 2px solid #cbd5e1; background: #fff; border-radius: 14px; padding: 8px 6px; color: #1e293b; cursor: pointer; font-family: inherit; }
+.day-tabs button b { font-size: 17px; font-weight: 800; }
+.day-tabs button span { font-size: 12.5px; font-weight: 700; color: #64748b; }
+.day-tabs button.on { background: #1e293b; border-color: #1e293b; color: #fff; } .day-tabs button.on span { color: #cbd5e1; }
+.day-tabs button.und { border-color: #f5b544; color: #b45309; } .day-tabs button.und.on { background: #b45309; border-color: #b45309; color: #fff; }
+.day-tabs button:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }

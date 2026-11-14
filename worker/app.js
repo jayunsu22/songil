@@ -907,7 +907,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 완료된 카드를 맨 아래로 - 완료 여부로만 재배치하고, 그 안에서는 원래 순서(우선순위) 유지
         cardEntries.sort((a, b) => (a.isCompleted === b.isCompleted) ? 0 : (a.isCompleted ? 1 : -1));
 
-        cardEntries.forEach(({ task, stage, 뒷정리 }) => {
+        // 📅 1일차·2일차 탭 (2026-11-14 사장님: 여러 날 나오는 기사는 날마다 따로 보기).
+        // 관리자 업무배정표가 날을 정하면 순서 번호에 날이 담긴다 — 1001·1002… = 1일차, 2001… = 2일차.
+        // 탭마다 그 날 카드만 (현장정리는 날마다 하는 일이라 모든 탭에). 날을 안 정한 카드는 '날짜 미정' 탭
+        const 일차 = (e) => e.뒷정리 ? -1 : Math.floor((Number(e.priority) || 0) / 1000);
+        const 날들 = [...new Set(cardEntries.map(일차).filter(d => d > 0))].sort((a, b) => a - b);
+        const 미정있음 = cardEntries.some(e => 일차(e) === 0);
+        let 보일카드 = cardEntries;
+        if (날들.length >= 2 || (날들.length === 1 && 미정있음)) {
+            const 탭들 = (미정있음 ? [0] : []).concat(날들);
+            const 탭키 = `workerDayTab_${projectRecordId}_${currentWorker}`;
+            let 고른 = Number(localStorage.getItem(탭키));
+            if (!탭들.includes(고른)) {
+                고른 = 날들.find(d => cardEntries.some(e => 일차(e) === d && !e.isCompleted)) || 날들[0];
+            }
+            const 탭 = document.createElement('div');
+            탭.className = 'day-tabs';
+            탭.setAttribute('role', 'tablist');
+            탭.innerHTML = 탭들.map(d => {
+                const 그날 = cardEntries.filter(e => 일차(e) === d);
+                const 남음 = 그날.filter(e => !e.isCompleted).length;
+                return `<button type="button" role="tab" aria-selected="${d === 고른}" class="${d === 고른 ? 'on' : ''}${d === 0 ? ' und' : ''}" data-day="${d}">` +
+                    `<b>${d === 0 ? '날짜 미정' : d + '일차'}</b><span>${남음 ? '남은 일 ' + 남음 + '개' : '✅ 다 했어요'}</span></button>`;
+            }).join('');
+            탭.addEventListener('click', (ev) => {
+                const b = ev.target.closest('button[data-day]');
+                if (!b) return;
+                localStorage.setItem(탭키, b.dataset.day);
+                renderTasks();
+                const top = 탭.getBoundingClientRect().top + window.scrollY - 70;
+                if (window.scrollY > top) window.scrollTo({ top, behavior: 'smooth' });
+            });
+            taskListContainer.appendChild(탭);
+            보일카드 = cardEntries.filter(e => 일차(e) === -1 || 일차(e) === 고른);
+            if (!보일카드.some(e => 일차(e) === 고른)) {
+                const 빈 = document.createElement('div');
+                빈.className = 'empty-state';
+                빈.textContent = '이날 맡은 일이 없습니다.';
+                taskListContainer.appendChild(빈);
+            }
+        }
+
+        보일카드.forEach(({ task, stage, 뒷정리 }) => {
             const fields = task.fields;
             // 추가작업(재시공·AS·추가요청)은 원래 품목의 지침·사진칸을 그대로 쓴다
             const item = projectData.items[fields.시공품목] || projectData.items[fields.원품목] || { 밑작업지침: "", 시공후점검지침: "", 필수사진슬롯: "" };
