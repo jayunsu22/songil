@@ -62,9 +62,18 @@ const workflow = {
     code('r', '결과정리', 'result.js', 1100),
     { id: 'o', name: '응답', type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: [1320, 0],
       parameters: { respondWith: 'json', responseBody: '={{ JSON.stringify($json) }}', options: {} } },
+    // 🏗 새 현장·시공일 변경 제안 (11/14) → 카톡_버튼 site-propose 가 [현장 만들기]·[날짜 바꾸기] 버튼을 띄운다
+    { id: 'pi', name: '제안있나', type: 'n8n-nodes-base.if', typeVersion: 2, position: [1320, 200],
+      parameters: { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'loose' },
+        conditions: [{ id: 'c', leftValue: '={{ ($json.proposals || []).length > 0 }}', rightValue: '', operator: { type: 'boolean', operation: 'true', singleValue: true } }], combinator: 'and' }, options: {} } },
+    { id: 'ps', name: '제안보내기', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1540, 200], continueOnFail: true, credentials: OWNER,
+      parameters: { method: 'POST', url: 'https://primary-production-a6fa.up.railway.app/webhook/site-propose',
+        authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth', sendBody: true, specifyBody: 'json',
+        jsonBody: '={{ JSON.stringify({ room: $json.room, client: $json.client, proposals: $json.proposals }) }}', options: { timeout: 20000 } } },
   ],
   connections: { 비서요청: { main: c('현장읽기') }, 현장읽기: { main: c('거래처읽기') }, 거래처읽기: { main: c('프롬프트') },
-    프롬프트: { main: c('말투가져오기') }, 말투가져오기: { main: c('말투붙이기') }, 말투붙이기: { main: c('Gemini') }, Gemini: { main: c('결과정리') }, 결과정리: { main: c('응답') } },
+    프롬프트: { main: c('말투가져오기') }, 말투가져오기: { main: c('말투붙이기') }, 말투붙이기: { main: c('Gemini') }, Gemini: { main: c('결과정리') }, 결과정리: { main: [[{ node: '응답', type: 'main', index: 0 }, { node: '제안있나', type: 'main', index: 0 }]] },
+    제안있나: { main: [[{ node: '제안보내기', type: 'main', index: 0 }], []] } },
   settings: { executionOrder: 'v1', timezone: 'Asia/Seoul' },
 };
 process.stdout.write(JSON.stringify(workflow, null, 2));

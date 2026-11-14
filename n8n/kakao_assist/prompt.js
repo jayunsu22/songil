@@ -30,7 +30,7 @@ for (const it of $('현장읽기').all()) for (const r of (it.json.records || []
   if (!s.id || s.hide) continue;
   if (body.siteId && s.id !== body.siteId) continue;   // 👤 개인고객 방 (11/5): 어느 현장인지 안다
   const date = str(s.date).slice(0, 10);
-  if (!date || dayN(date) < -45 || dayN(date) > 60) continue;
+  if (!date || dayN(date) < -45 || dayN(date) > 120) continue;   // 먼 날 현장도 (11/14: 두 달 뒤 1월 현장 시공일 변경을 알아보게)
   const client = clients[s.clientId] || clients[(r.fields || {})['거래처id']] || '';
   if (boss && bossClients.length && !bossClients.includes(client)) continue;
   if (!boss && want && !(norm(client) && (norm(client) === want || want.startsWith(norm(client)) || norm(client).startsWith(want)))) continue;
@@ -41,6 +41,7 @@ for (const it of $('현장읽기').all()) for (const r of (it.json.records || []
     known: { pwLobby: str(s.pwLobby), pwUnit: str(s.pwUnit), toilet: str(s.toilet),
       films: (Array.isArray(s.films) ? s.films : []).filter((x) => x && str(x.code)).map((x) => (str(x.place) + ' ' + str(x.code)).trim()) },
     payDone: !!s.payDone,
+    dates: (Array.isArray(s.days) ? s.days : []).map((d) => str(d && d.date).slice(0, 10)).filter(Boolean),
   });
   sites[sites.length - 1].known.filmVendor = !!s.filmVendor;
   // 사장님 지시는 날짜별 작업자도 본다 ('작업자 김정헌으로 바꿔줘', 11/4)
@@ -85,7 +86,7 @@ const prompt = boss ? bossPrompt : `너는 인테리어 필름 시공업체 "섬
 사장님이 물어보지 않았어도, 새 글에 현장 정보가 있으면 알아보고 어느 현장 얘기인지 맞춰라. 그리고 사장님 대신 보낼 답장을 써라.
 
 [이 업체의 현장 목록] (id · 현장명 · 시공날짜 · 이미 적힌 값 · 잔금받음)
-${sites.map((s) => '- ' + s.id + ' · ' + s.name + ' · ' + s.date + ' · ' + JSON.stringify(s.known) + ' · ' + (s.payDone ? '잔금받음' : '잔금안받음')).join('\n') || '- (없음)'}
+${sites.map((s) => '- ' + s.id + ' · ' + s.name + ' · ' + (s.dates && s.dates.length > 1 ? s.dates.join(',') : s.date) + ' · ' + JSON.stringify(s.known) + ' · ' + (s.payDone ? '잔금받음' : '잔금안받음')).join('\n') || '- (없음)'}
 
 [뽑을 것 — kind]
 - "field": field 는 pwLobby(공동현관 비번), pwUnit(세대 현관 비번), toilet(작업자가 쓸 화장실 위치) 중 하나. value 는 대화에 적힌 그대로 (* # 포함).
@@ -94,7 +95,9 @@ ${sites.map((s) => '- ' + s.id + ' · ' + s.name + ' · ' + s.date + ' · ' + JS
 - "filmVendor": 업체가 필름을 직접 가져오거나 현장으로 보내 준다고 한 것 (우리가 주문할 필요 없음). 묻는 말이면 뽑지 마라. siteId 필수.
 - "request": 업체가 사장님께 해 달라고 부탁한 일 — 계산서 발행, 사진 보내기, 서류, 견적서 보내기 등. value 는 할 일 한 줄 (예 "계산서 발행"). 칸에 넣을 정보·일정 얘기는 여기 넣지 마라.
 - "pay": 업체가 잔금(대금)을 보냈다·넣었다고 한 것. 끝난 현장 중 잔금안받음인 현장.
-- "schedule": 시공일·시간 변경, 다른 공정 얘기. value 한 줄 요약.
+- "newSite": 업체가 새 현장(주소·아파트·동호수)과 시공 날짜를 알려 줌 — 위 현장 목록에 없는 현장일 때만. name 에 주소·동호수를 글 그대로, dates 에 시공하는 날 모두 ["YYYY-MM-DD"] (오늘 기준 다가오는 날짜 — '1월 14 15 16' 이면 그 세 날, 해가 바뀌면 다음 해). 같은 현장 날짜를 여러 번 말했으면 마지막('변경'·'최종') 것만. 날짜 없이 주소만이면 "other".
+- "dates": 목록에 있는 현장의 시공 날짜가 새로 정해지거나 바뀜. siteId 와 dates (그 현장의 시공하는 날 모두). 목록에 적힌 날짜와 같으면 뽑지 마라.
+- "schedule": 시간 변경, 다른 공정 얘기 (시공 날짜가 바뀐 것은 "dates"). value 한 줄 요약.
 - "as": AS(하자 보수) 요청. value 한 줄 요약.
 - "other": 견적 요청·추가 작업 등 사장님이 알아야 할 업무. value 한 줄 요약.
 이미 적힌 값과 같으면 뽑지 마라. 인사·잡담은 뽑지 마라.
@@ -116,7 +119,7 @@ ${sites.map((s) => '- ' + s.id + ' · ' + s.name + ' · ' + s.date + ' · ' + JS
 - AS(하자)·불만·사과가 필요한 글이면 아래 [사장님 말투]의 [AS 때] 말투로 정중하게 사과하고 (평소처럼 가볍게 쓰지 않는다), type 은 "commit" (사장님이 보고 보냄).
 
 JSON 으로만 답하라:
-{"items":[{"kind":"field","field":"pwLobby","value":"","films":[],"noCode":false,"siteId":"","sure":true,"cands":[],"quote":"근거 원문 60자 이내"}],
+{"items":[{"kind":"field","field":"pwLobby","value":"","films":[],"noCode":false,"name":"","dates":[],"siteId":"","sure":true,"cands":[],"quote":"근거 원문 60자 이내"}],
  "reply":{"type":"ack","text":""}}
 
 [그 방 최근 대화 — 흐름·말투 참고]

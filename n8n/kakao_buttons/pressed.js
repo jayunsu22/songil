@@ -2,11 +2,17 @@
 // 콜백 'k|번호|동작' (동작 pub=가견적 발행, ask=빈칸 묻기 시작, later=나중에, ok=확인함, o0~o9=필름 주문 담당자). 사장님(가맹점 p_001 챗ID)이 누른 것만.
 // 가견적 발행은 이 흐름의 저장 공간(staticData)에 '할 일' 로 적어 두고, 노트북이 kakao-jobs 로 가져간다. 글 내용은 적지 않는다.
 // 필름 주문(11/1)은 주문받기가 적어 둔 sd.orders[번호] 의 담당자에게 문자 → sms 를 넘겨 문자보내기(SMS Gateway)가 보낸다.
-const cq = $('버튼누름').first().json.callback_query || {};
+// 📝 업무비서 앱에서 누른 버튼 (11/13) — POST kakao-press { data, text } (사장님 열쇠). 텔레그램 콜백과 똑같이 처리하고, 결과 글은 앱으로 돌려준다
+let app = null;
+try { if ($('앱버튼').isExecuted) app = $('앱버튼').first().json.body || {}; } catch (e) { app = null; }
 const owner = ($input.first().json.fields || $input.first().json).텔레그램_챗ID;
-if (!owner || String((cq.from || {}).id) !== String(owner)) return [];
+const cq = app ? { id: '', from: { id: owner }, data: String(app.data || ''), message: { text: String(app.text || '').slice(0, 3800), chat: { id: owner } } }
+  : ($('버튼누름').first().json.callback_query || {});
+// 앱은 답을 기다리므로 처리 못 하는 버튼도 글을 돌려준다
+const stop = () => (app ? [{ json: { query_id: '', answer: '', chat_id: String(owner || ''), message_id: '', text: '❌ 이 버튼은 처리할 수 없어요 (7일 지났거나 잘못된 버튼)' } }] : []);
+if (!owner || String((cq.from || {}).id) !== String(owner)) return stop();
 const [k, job, act] = String(cq.data || '').split('|');
-if (k !== 'k' || !/^[a-z0-9]{6}$/.test(job || '')) return [];
+if (k !== 'k' || !/^[a-z0-9]{6}$/.test(job || '')) return stop();
 const sd = $getWorkflowStaticData('global');
 // ask = 현장 빈칸을 업체 카톡 방에 물어보기 [시작해] (4단계, 10/31)
 // rs·rc·rn = 능동 비서 답장 초안 [보내]·[고쳐서 보내]·[안 보냄] (11/4). rs 는 노트북이 가져가 그 업체 방에 보낸다
@@ -27,7 +33,20 @@ if (/^o\d$/.test(act || '')) {
     표시 = '';
   }
 }
-if (표시 === undefined) return [];
+// 🏗 ns = 업체 카톡의 새 현장 [현장 만들기], nd = 시공일 변경 [날짜 바꾸기] (11/14) — 제안받기가 적어 둔 sd.proposals[번호] → 앱 우편함(site-fill)
+let fills = null;
+if (act === 'ns' || act === 'nd') {
+  const pr = (sd.proposals || {})[job];
+  if (!pr) 표시 = '❌ 제안 정보가 없습니다 (7일 지남) — 앱에서 직접 만들어 주세요';
+  else if (pr.done) 표시 = '✔ 이미 처리했습니다';
+  else {
+    pr.done = true;
+    const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    fills = [{ siteId: pr.siteId || '-', kind: act === 'nd' ? 'dates' : 'newSite', client: pr.client, room: pr.room, name: pr.name, dates: pr.dates, at: today }];
+    표시 = act === 'nd' ? '📅 앱 시공일을 바꿉니다 — 앱을 열면 반영돼요' : '🏗 앱에 현장을 만듭니다 — 앱을 열면 생겨요';
+  }
+}
+if (표시 === undefined) return stop();
 if (act === 'pub' || act === 'ask' || act === 'rs' || act === 'ra') {
   sd.jobs = (sd.jobs || []).filter((j) => Date.now() - j.at < 7 * 864e5);
   if (!sd.jobs.some((j) => j.job === job && j.action === act)) sd.jobs.push({ job, action: act, at: Date.now(), taken: false });
@@ -39,5 +58,5 @@ const draft = (t) => { const m = String(t || '').match(/「([\s\S]*)」/); retur
 return [{ json: {
   query_id: cq.id, answer: act === 'pub' || act === 'ask' || act === 'rs' || act === 'ra' ? '받았습니다 — 노트북이 곧 처리' : sms || crew ? '처리 중' : '받았습니다', crew,
   chat_id: String((msg.chat || {}).id || owner), message_id: String(msg.message_id || ''),
-  text: esc(String(msg.text || '').slice(0, 3800)) + (표시 ? '\n\n' + esc(표시) : '') + (act === 'rc' ? '\n<code>' + esc(draft(msg.text)) + '</code>' : ''), sms,
+  text: esc(String(msg.text || '').slice(0, 3800)) + (표시 ? '\n\n' + esc(표시) : '') + (act === 'rc' ? '\n<code>' + esc(draft(msg.text)) + '</code>' : ''), sms, fills,
 } }];

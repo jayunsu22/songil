@@ -13,7 +13,8 @@ const byId = {};
 const FIELDS = ['pwLobby', 'pwUnit', 'toilet'];
 const LABEL = { pwLobby: '공동현관 비번', pwUnit: '세대 비번', toilet: '화장실', films: '필름', staff: '작업자' };
 const squash = (v) => String(v || '').replace(/\s+/g, '').toLowerCase();
-const fills = [], picks = [], pays = [], infos = [], missed = [], tasks = [], filmVendors = [];
+const fills = [], picks = [], pays = [], infos = [], missed = [], tasks = [], filmVendors = [], proposals = [];
+const isoDates = (v) => [...new Set((Array.isArray(v) ? v : []).map((d) => s(d, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))].sort().slice(0, 20);
 let noCode = false;
 for (const it of (Array.isArray(ai.items) ? ai.items : []).slice(0, 20)) {
   if (!it || typeof it !== 'object') continue;
@@ -52,6 +53,16 @@ for (const it of (Array.isArray(ai.items) ? ai.items : []).slice(0, 20)) {
   } else if (kind === 'pay') {
     const pid = sid || (cands.length === 1 ? cands[0] : '');
     if (pid && !byId[pid].payDone) pays.push({ siteId: pid, name: byId[pid].name, quote });
+    continue;
+  } else if (kind === 'newSite' && !pre.boss) {
+    // 🏗 업체가 새 현장 일정을 알려 줌 (11/14 사장님: '현장을 만들까요?' 물어봐야) → 카톡_버튼 site-propose 가 [현장 만들기] 버튼을 띄운다
+    const name = s(it.name || it.value, 100), dates = isoDates(it.dates);
+    if (name && dates.length && !sid) proposals.push({ kind: 'newSite', name, dates, quote });
+    continue;
+  } else if (kind === 'dates' && !pre.boss) {
+    // 📅 목록에 있는 현장 시공일이 바뀜 → [날짜 바꾸기] 버튼 (이미 같은 날짜면 안 물음)
+    const dates = isoDates(it.dates);
+    if (sure && dates.length && dates.join(',') !== (byId[sid].dates || []).slice().sort().join(',')) proposals.push({ kind: 'dates', siteId: sid, name: byId[sid].name, from: byId[sid].date, dates, quote });
     continue;
   } else if (['schedule', 'as', 'other'].includes(kind)) {
     const value = s(it.value, 200);
@@ -103,5 +114,6 @@ if (type === 'unsure' || (photoOnly && type !== 'none')) {
   else auto = true;
 } else if (type === 'commit') why = 'AI 가 사장님 확인이 필요한 답으로 봄';
 // 사장님 지시(boss)는 답장 없음 — 사장님 본인 메모라서
-return [{ json: { ok: !!text, fills, picks, pays, infos, missed, tasks, filmVendors, noCode, boss: !!pre.boss,
+const B = $('비서요청').first().json.body || {};
+return [{ json: { ok: !!text, fills, picks, pays, infos, missed, tasks, filmVendors, noCode, boss: !!pre.boss, proposals, room: s(B.room, 60), client: s(B.client, 60),
   reply: type === 'none' || pre.boss ? null : { text: type === 'unsure' ? '' : rtext, type, auto, why } } }];

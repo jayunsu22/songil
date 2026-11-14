@@ -18,6 +18,8 @@ const logOf = (o, f) => {
   if (o.kind === 'crewAdd') return { kind: 'crew', title: o.name + ' 인원 넣음', detail: o.date };
   if (o.kind === 'task') return { kind: 'site', title: '할 일 추가', detail: o.title };
   if (o.kind === 'filmVendor') return { kind: 'site', title: '필름 업체가 가져옴으로 표시', detail: o.room };
+  if (o.kind === 'newSite') return { kind: 'site', title: '새 현장 만듦', detail: (o.client ? o.client + ' · ' : '') + o.name };
+  if (o.kind === 'dates') return { kind: 'site', title: '시공일 바꿈', detail: o.name };
   if (o.kind === 'done') return { kind: 'site', title: { pay: '잔금 받음', as: 'AS 완료', task: '할 일 완료' }[o.what], detail: '' };
   if (o.kind === 'undo') return { kind: 'site', title: { pay: '잔금 받음 취소', as: 'AS 완료 취소', task: '할 일 완료 취소', film: '필름 직접 주문 취소' }[o.what], detail: '결재함 되돌리기' };
   return null;
@@ -57,6 +59,11 @@ for (const f of (Array.isArray(body.fills) ? body.fills : []).slice(0, 50)) {
     o.title = s(f.title, 120); o.date = s(f.date, 10);
     if (!o.title || !/^\d{4}-\d{2}-\d{2}$/.test(o.date)) continue;
     if (f.vendor) o.vendor = true;   // 업체가 부탁한 일 (11/5)
+  } else if (o.kind === 'newSite' || o.kind === 'dates') {
+    // 🏗 업체 카톡의 새 현장·시공일 변경 → 사장님이 [현장 만들기]·[날짜 바꾸기] 를 누름 (카톡_버튼, 11/14) → 앱이 현장을 만들거나 날짜를 바꾼다
+    o.dates = (Array.isArray(f.dates) ? f.dates : []).map((d) => s(d, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 20);
+    o.name = s(f.name, 100); o.client = s(f.client, 60);
+    if (!o.dates.length || (o.kind === 'newSite' && !o.name)) continue;
   } else if (o.kind === 'filmVendor') {
     // 🚚 업체가 필름을 가져다줌 (11/5)
   } else if (o.kind === 'done') {

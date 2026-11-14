@@ -115,6 +115,34 @@ const workflow = {
       id: 'or', name: '주문응답', type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: [660, 600],
       parameters: { respondWith: 'json', responseBody: '={{ JSON.stringify({ ok: true }) }}', options: {} },
     },
+    // 🏗 업체 카톡의 새 현장·시공일 변경 (11/14) — 카톡_비서가 POST site-propose → 저장 공간에 두고 [현장 만들기]·[날짜 바꾸기] 버튼
+    {
+      id: 'pw', name: '현장제안요청', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, 1000],
+      webhookId: '26043e11-6f5b-42c7-b0c8-dc3a947fc19c',
+      parameters: { httpMethod: 'POST', path: 'site-propose', responseMode: 'onReceived', authentication: 'headerAuth', options: {} },
+      credentials: OWNER,
+    },
+    { id: 'pa', name: '제안받기', type: 'n8n-nodes-base.code', typeVersion: 2, position: [220, 1000], parameters: { mode: 'runOnceForAllItems', jsCode: read('propose.js') } },
+    {
+      id: 'pn', name: '제안알림', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [440, 1000], continueOnFail: true,
+      parameters: {
+        method: 'POST', url: 'https://primary-production-a6fa.up.railway.app/webhook/kakao-notify',
+        authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+        sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json) }}', options: {},
+      },
+      credentials: OWNER,
+    },
+    // [현장 만들기]·[날짜 바꾸기] 를 누르면 버튼정리가 fills 를 넘긴다 → 앱 우편함
+    { id: 'pi', name: '제안인가', type: 'n8n-nodes-base.if', typeVersion: 2, position: [660, -100], parameters: { conditions: isTrue('={{ !!$json.fills }}'), options: {} } },
+    {
+      id: 'pf', name: '현장넣기', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [880, -100], continueOnFail: true,
+      parameters: {
+        method: 'POST', url: 'https://primary-production-a6fa.up.railway.app/webhook/site-fill',
+        authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+        sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify({ fills: $json.fills }) }}', options: {},
+      },
+      credentials: OWNER,
+    },
     {
       id: 'w', name: '할일요청', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, 300],
       webhookId: '6d1c8a4e-2b9f-4e7a-8c3d-5f0a1b2c3d4e',
@@ -131,7 +159,11 @@ const workflow = {
     버튼누름: { main: [[{ node: '가맹점_조회', type: 'main', index: 0 }]] },
     가맹점_조회: { main: [[{ node: '버튼정리', type: 'main', index: 0 }]] },
     버튼정리: { main: [[{ node: '모집인가', type: 'main', index: 0 }]] },
-    모집인가: { main: [[{ node: '모집전달', type: 'main', index: 0 }], [{ node: '문자인가', type: 'main', index: 0 }]] },
+    모집인가: { main: [[{ node: '모집전달', type: 'main', index: 0 }], [{ node: '제안인가', type: 'main', index: 0 }]] },
+    제안인가: { main: [[{ node: '현장넣기', type: 'main', index: 0 }], [{ node: '문자인가', type: 'main', index: 0 }]] },
+    현장넣기: { main: [[{ node: '표시', type: 'main', index: 0 }]] },
+    현장제안요청: { main: [[{ node: '제안받기', type: 'main', index: 0 }]] },
+    제안받기: { main: [[{ node: '제안알림', type: 'main', index: 0 }]] },
     모집전달: { main: [[{ node: '모집결과', type: 'main', index: 0 }]] },
     모집결과: { main: [[{ node: '표시', type: 'main', index: 0 }]] },
     문자인가: { main: [[{ node: '문자보내기', type: 'main', index: 0 }], [{ node: '표시', type: 'main', index: 0 }]] },
