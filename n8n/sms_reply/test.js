@@ -5,7 +5,9 @@ const wf = JSON.parse(require('child_process').execFileSync(process.execPath, [p
 const js = (name) => wf.nodes.find((n) => n.name === name).parameters.jsCode;
 const sd = {};
 const api = (body) => new Function('$input', '$getWorkflowStaticData', js('처리'))({ first: () => ({ json: { body } }) }, () => sd)[0].json;
-const result = (p, ai) => new Function('$', '$input', '$getWorkflowStaticData', js('정리'))(() => ({ first: () => ({ json: p }) }), { first: () => ({ json: ai }) }, () => sd)[0].json;
+// 정리는 AI 답을 비서판단에서, 앱의 지금 빈칸(site-gaps, 11/14)을 $input 에서 읽는다 — gaps 를 안 주면 빈칸 응답이 없던 것처럼 (예전 규칙)
+const result = (p, ai, gaps) => new Function('$', '$input', '$getWorkflowStaticData', js('정리'))(
+  (n) => (n === '비서판단' ? { isExecuted: true, first: () => ({ json: ai }) } : { first: () => ({ json: p }) }), { first: () => ({ json: gaps || {} }) }, () => sd)[0].json;
 
 api({ action: 'watch', items: [{ phone: '010-1234-5678', name: '이다라', siteId: 's1', siteName: '하늘', client: '개인고객', fill: true, keys: ['pwLobby', 'pwUnit'] },
   { phone: '010-1111-2222', name: '마바', siteId: '-', fill: false }] });
@@ -67,4 +69,10 @@ assert.deepStrictEqual([p.go, p.ai], [true, false]);
 assert.ok(result(p, p).notify.text.includes('글을 못 읽은 장문 문자'));
 // 모르는 번호는 여전히 버린다
 assert.strictEqual(api({ action: 'in', from: '01077778888', msg: '[광고] 1234' }).go, false);
+// 📋 앱의 지금 빈칸 (11/14): '없습니다' 로 받은 칸·이미 시작한 현장은 '아직 못 받음' 에 안 적는다
+api({ action: 'watch', items: [{ phone: '010-3333-4444', name: '실장님', siteId: 'g1', siteName: '보현', client: '블라블라', fill: true, keys: ['pwLobby', 'toilet'] }] });
+p = api({ action: 'in', from: '+821033334444', msg: '거실에 필름 있습니다' });
+assert.deepStrictEqual(result(p, {}, { today: '2026-11-14', sites: [{ id: 'g1', date: '2026-11-20', missing: ['toilet'], checks: [] }] }).feed.left, ['화장실 위치']);
+p = api({ action: 'in', from: '+821033334444', msg: '다음에 뵙겠습니다' });
+assert.deepStrictEqual(result(p, {}, { today: '2026-11-14', sites: [] }).feed.left, [], '시작했거나 다 받은 현장');
 console.log('sms_reply ok');
