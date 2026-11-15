@@ -48,8 +48,10 @@ function feedItem(r, quiet) {
   sd.feed.push({ id, t: now, kind: 'report', title: r.title, quiet: !!quiet, start: r.start, end: r.end,
     done: r.done.slice(0, 20), replies: r.replies.slice(0, 10), need: r.need.slice(0, 10) });
 }
-function pushes(r) {
-  return sd.pushSubs.map((x) => ({ subscription: x.sub, title: r.title, message: message(r), url: APP }));
+// ✈️ 사장님 11/13: 정시 업무보고는 텔레그램으로 (업무비서 앱 알림은 거래처 카톡·문자·일정 차지) — 카톡_알림 에 to:'tg'
+const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function tg(r) {
+  return { to: 'tg', html: true, text: '<b>' + esc(r.title) + '</b>\n' + esc(message(r)) + '\n<a href="' + APP + '/log">업무 내역 전체</a>' };
 }
 
 if (body) {
@@ -73,11 +75,28 @@ if (body) {
     return [{ json: { resp: { ok: true, cfg: Object.assign({}, DEF, sd.reportCfg || {}), n: sd.pushSubs.length }, push: [] } }];
   }
   if (act === 'test') {
+    // 정시 보고는 텔레그램으로 간다 (11/13) — 시험도 텔레그램, 이 폰이 등록돼 있으면 업무비서 앱 알림도 하나
     const r = build(now);
-    if (!sd.pushSubs.length) return [{ json: { resp: { ok: false, error: '이 폰이 알림 받기에 등록되지 않음' }, push: [] } }];
-    return [{ json: { resp: { ok: true, n: r.n }, push: pushes(Object.assign({}, r, { title: '🔔 시험 · ' + r.title })) } }];
+    const ping = { title: '🔔 시험 · 업무비서 알림', message: '이 폰으로 거래처 카톡·문자·일정 알림이 옵니다', url: APP, extra: { tag: 'test' } };
+    return [{ json: { resp: { ok: true, n: r.n, subs: sd.pushSubs.length }, tg: tg(Object.assign({}, r, { title: '🔔 시험 · ' + r.title })),
+      push: sd.pushSubs.map((x) => Object.assign({ subscription: x.sub }, ping)) } }];
   }
-  return [{ json: { resp: { ok: false, error: 'action 은 sub·unsub·cfg·test' }, push: [] } }];
+  // 📝 업무비서 알림 (11/13): 카톡_알림 이 거래처 카톡·문자·일정 알림을 넘긴다 { item: { title, text, buttons:[{text,data}], url, image } }
+  // → 비서 대화 카드(feed kind 'notice', 버튼은 앱에서 누름) + 폰 알림 (버튼 앞 2개). 등록된 폰이 없으면 ok:false → 카톡_알림 이 텔레그램으로
+  if (act === 'notify') {
+    const it = body.item || {};
+    const id = 'n' + now.toString(36) + Math.random().toString(36).slice(2, 6);
+    const buttons = (Array.isArray(it.buttons) ? it.buttons : []).filter((b) => b && b.text && b.data).slice(0, 10).map((b) => ({ text: s(b.text, 30), data: s(b.data, 64) }));
+    const title = s(it.title, 120) || '업무비서', text = s(it.text, 1500);
+    const url = /^https:\/\/jayunsu22\.github\.io\/sitenote\//.test(s(it.url, 500)) ? s(it.url, 500) : APP;
+    sd.feed = (sd.feed || []).concat([{ id, t: now, kind: 'notice', title, text, buttons, url }]).slice(-200);
+    if (!sd.pushSubs.length) return [{ json: { resp: { ok: false, error: '등록된 폰 없음', id }, push: [] } }];
+    const extra = { tag: id, actions: buttons.slice(0, 2).map((b, i) => ({ action: 'b' + i, title: b.text })),
+      data: { id, buttons: buttons.slice(0, 2), text: text.slice(0, 500) } };
+    if (/^https:\/\//.test(s(it.image, 500))) extra.image = s(it.image, 500);
+    return [{ json: { resp: { ok: true, id, n: sd.pushSubs.length }, push: sd.pushSubs.map((x) => ({ subscription: x.sub, title, message: text.slice(0, 400), url, extra })) } }];
+  }
+  return [{ json: { resp: { ok: false, error: 'action 은 sub·unsub·cfg·test·notify' }, push: [] } }];
 }
 
 // 매시 정각 — 설정한 시간·요일만
@@ -87,7 +106,7 @@ const end = Math.floor(now / 3600e3) * 3600e3;   // 정각에 맞춤 (몇 초 �
 const r = build(end);
 if (!r.n) {
   feedItem(r, true);   // 대화에 회색 한 줄만
-  return [{ json: { resp: { ok: true, empty: true }, push: cfg.empty ? pushes(Object.assign({}, r, { done: [], need: [], replies: [] })) : [] } }];
+  return [{ json: Object.assign({ resp: { ok: true, empty: true }, push: [] }, cfg.empty ? { tg: tg(r) } : {}) }];
 }
 feedItem(r, false);
-return [{ json: { resp: { ok: true, n: r.n }, push: pushes(r) } }];
+return [{ json: { resp: { ok: true, n: r.n }, push: [], tg: tg(r) } }];

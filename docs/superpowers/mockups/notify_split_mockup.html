@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>알림 나누기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#eef0f3;--ink:#1d2330;--sub:#5f6776;--line:#d9dde4;--card:#fff;--shade:#1f242c;--nt:#2b313b;--nt-ink:#eef1f6;--nt-sub:#aab3c2;--accent:#2f6fde;--tg:#2aa3df}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',system-ui,sans-serif;font-size:15px;line-height:1.5}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 16px 60px}
+  h1{font-size:22px;margin:0 0 6px}
+  .lead{color:var(--sub);margin:0 0 24px}
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:24px;align-items:start}
+  .col h2{font-size:16px;margin:0 0 10px;display:flex;gap:8px;align-items:center}
+  .pill{font-size:12px;font-weight:500;padding:2px 9px;border-radius:99px;background:#dfe8fb;color:#1f4fa8}
+  .pill.tg{background:#d8f0fb;color:#11729f}
+  .phone{background:var(--shade);border-radius:28px;padding:14px 12px 18px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+  .status{display:flex;justify-content:space-between;color:#cfd5df;font-size:12px;padding:0 8px 10px}
+  .nt{background:var(--nt);border-radius:18px;padding:12px 14px;margin-bottom:10px;color:var(--nt-ink)}
+  .nt .top{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--nt-sub)}
+  .ic{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px}
+  .ic.app{background:#ffd54a}
+  .ic.tg{background:var(--tg)}
+  .nt .t{font-weight:700;margin-top:4px}
+  .nt .b{color:#d6dbe4;font-size:14px;white-space:pre-line}
+  .nt .img{margin-top:8px;height:110px;border-radius:10px;background:linear-gradient(135deg,#4f463c,#6e604f);display:grid;place-items:center;color:#fff;font-size:13px}
+  .nt .acts{display:flex;gap:18px;margin-top:8px;font-size:13px;font-weight:700;color:#9cc0ff}
+  .nt.tgm .acts{color:#7fd0f5}
+  .note{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:26px}
+  .note h3{margin:0 0 8px;font-size:15px}
+  .note ul{margin:0;padding-left:20px}
+  .note li{margin:3px 0}
+  .ok{color:#18794e;font-weight:700}
+  .no{color:#b4441d;font-weight:700}
+  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-top:26px}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px}
+  th{background:#f5f6f8;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>알림 나누기 — 이렇게 오게 됩니다</h1>
+  <p class="lead">거래처·문자·일정은 업무비서 앱 알림으로, 업무보고·기계 상태는 텔레그램으로. (이름·번호는 예시)</p>
+
+  <div class="cols">
+    <div class="col">
+      <h2>📝 업무비서 앱 알림 <span class="pill">거래처 카톡 · 문자 · 일정</span></h2>
+      <div class="phone">
+        <div class="status"><span>오후 6:00</span><span>5G 87%</span></div>
+
+        <div class="nt">
+          <div class="top"><span class="ic app">📝</span>업무비서 · 지금</div>
+          <div class="t">💬 김실장님 · 견적 문의</div>
+          <div class="b">한빛아파트 문짝 2개 마무리 했어요~ 10만원입니다
+사진 2장</div>
+          <div class="img">업체가 보낸 사진이 크게 보임</div>
+          <div class="acts"><span>확인함</span><span>결재함 열기</span></div>
+        </div>
+
+        <div class="nt">
+          <div class="top"><span class="ic app">📝</span>업무비서 · 3분 전</div>
+          <div class="t">🙋 박사장님 방 — 직접 답장해 주세요</div>
+          <div class="b">사진만 와서 무슨 뜻인지 모름 · 답장 안 보냈어요</div>
+          <div class="acts"><span>카톡 답장 초안 보기</span></div>
+        </div>
+
+        <div class="nt">
+          <div class="top"><span class="ic app">📝</span>업무비서 · 10분 전</div>
+          <div class="t">📱 최실장님 문자 · 차량번호</div>
+          <div class="b">12가3456 — 앱 팀원 칸에 넣을까요?</div>
+          <div class="acts"><span>넣기</span><span>보기</span></div>
+        </div>
+
+        <div class="nt">
+          <div class="top"><span class="ic app">📝</span>업무비서 · 오후 5:00</div>
+          <div class="t">📅 11/14(토) 업무일정표</div>
+          <div class="b">오늘 결과 5건 · 내일 예정 3건 — 결재해 주세요
+· 인천 ○○아파트 잔금 받기
+· 필름 주문: 예시 영화아이닉스</div>
+          <div class="acts"><span>결재하기</span><span>일정 보기</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <h2>✈️ 텔레그램 <span class="pill tg">업무보고 · 기계 상태</span></h2>
+      <div class="phone">
+        <div class="status"><span>오후 6:00</span><span>5G 87%</span></div>
+        <div class="nt tgm">
+          <div class="top"><span class="ic tg">✈</span>Telegram · 현장견적 봇</div>
+          <div class="t">⏰ 정시 업무보고 (17시~18시)</div>
+          <div class="b">✅ 처리됨 3 · 💬 받은 답장 2 · ⚠️ 확인 필요 1
+· 그린빌 1104호 공동현관 비번 받음
+· 동산아파트 출입정보 질문 보냄</div>
+          <div class="acts"><span>업무 내역 전체</span></div>
+        </div>
+        <div class="nt tgm">
+          <div class="top"><span class="ic tg">✈</span>Telegram · 현장견적 봇</div>
+          <div class="t">⚠️ 노트북: 사장님 방 글을 10분째 못 읽어요</div>
+          <div class="b">Ctrl 입력이 안 먹음 — 원격 접속을 끊거나 다시 켜 주세요</div>
+        </div>
+        <div class="nt tgm">
+          <div class="top"><span class="ic tg">✈</span>Telegram · 현장견적 봇</div>
+          <div class="t">🤖 비서: 오늘은 제미나이로 대답합니다</div>
+          <div class="b">클로드 답을 못 받음 (크레딧 12/2 만료 확인)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>알림</th><th>지금</th><th>바뀐 뒤</th></tr>
+    <tr><td>거래처 카톡 새 글 (견적 문의·하자·일정 변경·결제)</td><td>텔레그램</td><td><b>업무비서 앱</b></td></tr>
+    <tr><td>비서 답장 · "직접 답장해 주세요"</td><td>텔레그램</td><td><b>업무비서 앱</b></td></tr>
+    <tr><td>문자 답장 · 비번·화장실 등 받은 값</td><td>텔레그램</td><td><b>업무비서 앱</b></td></tr>
+    <tr><td>5시 업무일정표 · 내일 시공·인원 모집</td><td>텔레그램 + 카톡</td><td><b>업무비서 앱</b> + 카톡</td></tr>
+    <tr><td>정시 업무보고</td><td>업무비서 앱</td><td><b>텔레그램</b></td></tr>
+    <tr><td>노트북 고장 · AI 넘김 등 기계 상태</td><td>텔레그램</td><td>텔레그램 (그대로)</td></tr>
+  </table>
+
+  <div class="note">
+    <h3>앱 알림이 텔레그램보다 나은 점 / 못 하는 점</h3>
+    <ul>
+      <li><span class="ok">된다</span> 업체가 보낸 사진을 알림에 크게 띄우기</li>
+      <li><span class="ok">된다</span> 종류마다 제목 아이콘·묶음 따로 (카톡 알림끼리, 일정 알림끼리)</li>
+      <li><span class="ok">된다</span> 누르면 앱의 그 카드(결재함·비서·현장)가 바로 열림 — 앱 화면은 마음대로 꾸밀 수 있음</li>
+      <li><span class="ok">된다</span> 버튼으로 바로 처리 (확인함·넣기) — 앱이 열리지 않아도</li>
+      <li><span class="no">못 한다</span> 알림 글 안에 굵은 글씨·색·링크 — 글은 평범한 글자만 (꾸민 건 누르면 열리는 앱 화면에서)</li>
+      <li><span class="no">못 한다</span> 버튼 3개 이상 — 안드로이드는 2개까지 (필름 주문 담당자 고르기처럼 많은 건 앱 화면에서)</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

@@ -28,7 +28,7 @@ THANKS = ("감사합니다~😊\n궁금한거 생기면 다시 연락드릴께�
 CHANGE_REPLY = "알겠습니다~ 변경할께요.."
 REPLY_DELAY = 120   # 방을 여는 데 이미 1분(조용해지면 엶) — 2분 더 기다려 글이 온 뒤 3분쯤에 보낸다
 REASK_END = 18
-MAX_REASK = 3
+MAX_REASK = 0   # 🙋 사장님 11/13: 업체엔 한 번만 묻는다 (계속 물으면 실례) — 다시 묻지 않고, 못 받은 건 업무일정표에 '직접 물어보세요'
 HOURS = (9, 20)             # 텔레그램은 평일·토요일 오전 9시~저녁 8시 (사장님 11/1)
 HOLIDAY_START = 13          # 일요일·공휴일은 오후 1시부터
 # 공휴일 (설·추석 연휴, 대체공휴일, 2026 지방선거 포함). 매년 말에 다음 해를 더한다.
@@ -42,7 +42,9 @@ HOLIDAYS = {
     "2027-10-03", "2027-10-04", "2027-10-09", "2027-10-11", "2027-12-25", "2027-12-27",
 }
 FIELDS = ("pwLobby", "pwUnit", "toilet")
-LABEL = {"pwLobby": "공동현관 비번", "pwUnit": "세대 비번", "toilet": "화장실 위치", "films": "필름 정보"}
+LABEL = {"pwLobby": "공동현관 비번", "pwUnit": "세대 비번", "toilet": "화장실 위치", "films": "필름 정보",
+         # 11/13 칸마다 드롭다운 — 질문폼으로 묻는 칸이 늘었다
+         "barrier": "입구차단기", "gate": "출입구", "carReg": "차량등록", "parking": "주차", "cargoEv": "화물 엘리베이터"}
 ASK_LABEL = dict(LABEL, films="필름 번호 (위치별)")
 GREETING = "안녕하세요. 실장님~"  # 사장님 10/31
 
@@ -116,7 +118,11 @@ def send_to_room(room, text, log):
 
 
 def question(site):
-    """업체 카톡 방에 보낼 질문 — 번호를 매겨 묻는다 (사장님 11/1: 질문이 많으면 답하기·정리하기 어렵다. 11/6: 안내 한 줄은 뺐다)."""
+    """업체 카톡 방에 보낼 질문 — 번호를 매겨 묻는다 (사장님 11/1: 질문이 많으면 답하기·정리하기 어렵다. 11/6: 안내 한 줄은 뺐다).
+    📋 11/13: 서버가 질문폼 링크(link)를 주면 번호 질문 대신 짧은 글 + 링크 — 업체는 보기에서 고르기만 한다."""
+    if site.get("link"):
+        return "\n".join([GREETING, "%s (%s 시공) 몇 가지만 확인 부탁드려요 😊" % (site["name"], md(site["date"])),
+                          "아래 눌러서 고르기만 하시면 돼요 (1분)", site["link"]])
     lines = [GREETING, "%s (%s 시공) 확인 부탁드려요." % (site["name"], md(site["date"]))]
     return "\n".join(lines + ["%d. %s" % (n, t) for n, t in numbered(site)])
 
@@ -493,6 +499,9 @@ def reask(cfg, state, now, send, notify, log, fetch=None):
                 continue
             if e.get("tries", 0) >= MAX_REASK:
                 e["gaveup"] = True
+                if not MAX_REASK:   # 한 번만 묻기 (11/13) — 텔레그램 대신 업무일정표 카드로 (서버가 '이미 물음' 을 안다)
+                    log("[%s] %s — 답 없는 것이 남음, 다시 안 물음 (업무일정표에 '직접 물어보세요')" % (room, e["name"]))
+                    continue
                 notify(tg.lines("🏠 " + tg.b("업체 답이 없습니다 · %s" % e["name"]),
                                 tg.esc("%s 방에 %d번 다시 물었는데 못 받은 것:" % (room, MAX_REASK)),
                                 *[tg.esc("%d. %s" % nt) for nt in remaining(e)], "직접 확인해 주세요."))
@@ -616,7 +625,7 @@ def changed_text(site, fills, room):
     import tg
     parts = []
     for f in fills:
-        name = LABEL[f["field"]] if f["kind"] == "field" else "필름"
+        name = LABEL.get(f["field"], f["field"]) if f["kind"] == "field" else "필름"
         v = f["value"] if f["kind"] == "field" else ", ".join(("%s %s" % (x["place"], x["code"])).strip() for x in f["films"])
         parts.append("%s%s %s%s" % (name, _eul(name), v, _ro(v)))
     return tg.lines("🔄 " + tg.b("바뀐 정보 · %s" % site["name"]),
@@ -631,16 +640,16 @@ def filled_text(site, fills, cfg=None):
     lines = ["✅ " + tg.b("넣었습니다 · %s" % site["name"])]
     for f in fills:
         if f["kind"] == "field":
-            lines.append(tg.esc("%s: %s" % (LABEL[f["field"]], f["value"])))
+            lines.append(tg.esc("%s: %s" % (LABEL.get(f["field"], f["field"]), f["value"])))
         elif f["kind"] == "check":
             lines.append(tg.esc("📋 %s: %s" % (short(checks[f["checkId"]]), f["value"])))
         else:
             lines.append(tg.esc("필름: " + ", ".join(("%s %s" % (x["place"], x["code"])).strip() for x in f["films"])))
     done = {_done_key(f) for f in fills}
-    left = [LABEL[k] for k in site["missing"] if k not in done] + \
+    left = [LABEL.get(k, k) for k in site["missing"] if k not in done] + \
            [short(c) for c in site.get("checks") or [] if "check:" + c["id"] not in done]
     if left:
-        lines.append("❓ 아직 못 받음: " + tg.esc(" · ".join(left)) + " (%g시간 뒤 다시 물어봄)" % reask_gap_hours(cfg))
+        lines.append("❓ 아직 못 받음: " + tg.esc(" · ".join(left)) + (" (%g시간 뒤 다시 물어봄)" % reask_gap_hours(cfg) if MAX_REASK else " (안 오면 업무일정표에 올려 드려요)"))
     lines.append("(현장관리 앱을 열면 들어갑니다)")
     return tg.lines(*lines)
 
@@ -697,12 +706,12 @@ def on_answer(cfg, state, room, msgs, digest, put, notify, log, send=None):
 def _fill_line(f):
     if f["kind"] == "check":
         return "업체 확인 답 받음"
-    name = LABEL[f["field"]] if f["kind"] == "field" else "필름 번호"
+    name = LABEL.get(f["field"], f["field"]) if f["kind"] == "field" else "필름 번호"
     return name + (" 바꿈" if f.get("update") else " 넣음") + (" → 수량을 골라 주세요" if f["kind"] == "films" else "")
 
 
 def _left_labels(site, done):
-    return [LABEL[k] for k in site.get("missing") or [] if k not in done] + \
+    return [LABEL.get(k, k) for k in site.get("missing") or [] if k not in done] + \
            [re.sub(r"\s*\(.*?\)", "", check_text(c, site))[:24] for c in site.get("checks") or []]
 
 
