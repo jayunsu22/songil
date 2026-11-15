@@ -679,6 +679,54 @@ async function 보기삭제() {
   보기그리기();
 }
 
+/* 사진 돌리기 (2026-11-16 사장님: 현장사진 앱에서 찍은 사진을 상하좌우로).
+   보이는 것만 돌리지 않고 사진 자체를 돌려 저장한다 — 목록 작은 사진·견적서·서버 백업에도 돌아간 채로 나간다.
+   사진에 그려 둔 네모(품목 표시)도 같이 돌린다. 돌리는 동안은 버튼을 막는다 (두 번 눌려 두 번 도는 일 없게). */
+let 돌리는중 = false;
+async function 돌린사진(blob, 각) {
+  const img = await createImageBitmap(blob);
+  try {
+    const 옆 = Math.abs(각) === 90;
+    const cv = document.createElement('canvas');
+    cv.width = 옆 ? img.height : img.width;
+    cv.height = 옆 ? img.width : img.height;
+    const g = cv.getContext('2d');
+    g.translate(cv.width / 2, cv.height / 2);
+    g.rotate(각 * Math.PI / 180);
+    g.drawImage(img, -img.width / 2, -img.height / 2);
+    const out = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.95));
+    if (!out) throw new Error('사진을 만들지 못했습니다');
+    return out;
+  } finally { if (img.close) img.close(); }
+}
+async function 보기돌리기(각) {
+  const p = 사진들[보는중];
+  if (!p || 돌리는중) return;
+  돌리는중 = true;
+  document.querySelectorAll('.vw-rot button').forEach((b) => { b.disabled = true; });
+  try {
+    const 새사진 = await 돌린사진(p.blob, 각);
+    const 바뀐 = await PDB.사진바꾸기(p.id, 새사진);
+    if (!바뀐) throw new Error('사진을 찾지 못했습니다');
+    const 새표시 = QuotePhotos.표시돌리기(p.표시, 각);
+    if (p.표시) await PDB.필드저장(p.id, { 표시: 새표시 });
+    p.blob = 바뀐.blob;
+    p.thumb = 바뀐.thumb;
+    p.바뀐때 = 바뀐.바뀐때;
+    if (p.표시) p.표시 = 새표시;
+    if (p._url) { URL.revokeObjectURL(p._url); p._url = null; }   // 목록 작은 사진도 다시 만든다
+    if (사진들[보는중] === p) 보기그리기();
+  } catch (e) {
+    toast('사진을 돌리지 못했습니다.');
+  } finally {
+    돌리는중 = false;
+    document.querySelectorAll('.vw-rot button').forEach((b) => { b.disabled = false; });
+  }
+}
+document.querySelectorAll('.vw-rot button').forEach((b) => {
+  b.addEventListener('click', () => 보기돌리기(Number(b.dataset.rot)));
+});
+
 function 보기닫기() {
   $('#viewer').hidden = true;
   document.body.classList.remove('full');

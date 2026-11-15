@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="현장사진">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="/worker/icon-180.png">
-<link rel="stylesheet" href="/site_photos.css?v=20261021a">
+<link rel="stylesheet" href="/site_photos.css?v=20261116a">
 </head>
 <body>
 
@@ -83,6 +83,12 @@
   </div>
   <div class="vw-img">
     <img id="vwImg" alt="현장 사진">
+    <!-- 사진 돌리기 (2026-11-16). 돌린 모양 그대로 저장한다 — 목록·견적서·서버 백업에도 돌아간 채로 -->
+    <div class="vw-rot">
+      <button type="button" data-rot="-90" aria-label="왼쪽으로 돌리기"><span>⟲</span>왼쪽</button>
+      <button type="button" data-rot="180" aria-label="뒤집기"><span>⇅</span>뒤집기</button>
+      <button type="button" data-rot="90" aria-label="오른쪽으로 돌리기"><span>⟳</span>오른쪽</button>
+    </div>
   </div>
   <div class="vw-panel">
     <p class="vw-q">구역</p>
@@ -130,9 +136,9 @@
 
 <div id="toast" hidden></div>
 
-<script src="/quote_photos.js"></script>
+<script src="/quote_photos.js?v=20261116a"></script>
 <script src="/site_photos_core.js?v=20261021a"></script>
-<script src="/site_photos.js?v=20261021a"></script>
+<script src="/site_photos.js?v=20261116a"></script>
 <script src="/app-switcher.js?v=20261020a" data-app-id="sitephotos"></script>
 </body>
 </html>
