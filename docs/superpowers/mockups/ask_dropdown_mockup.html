@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>칸마다 드롭다운</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#eceef2;--card:#fff;--text:#111827;--muted:#5b6472;--border:#e2e5ea;--label:#a15c07;--primary:#2563eb;--soft:#e6eefc;--ask:#b45309;--ask-soft:#fff4e0}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',system-ui,sans-serif;font-size:15px;line-height:1.5}
+  .wrap{max-width:1150px;margin:0 auto;padding:28px 16px 60px}
+  h1{font-size:22px;margin:0 0 4px}
+  .lead{color:var(--muted);margin:0 0 22px}
+  .row{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .step{flex:0 0 350px}
+  .step h2{font-size:14px;margin:0 0 8px;color:var(--muted);font-weight:500}
+  .step h2 b{color:var(--text);margin-right:6px}
+  .phone{background:var(--card);border-radius:24px;border:1px solid var(--border);box-shadow:0 8px 26px rgba(15,23,42,.12);overflow:hidden}
+  .tabs{display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--border)}
+  .tab{padding:7px 12px;border-radius:12px;background:#eef0f3;font-size:13px}
+  .tab.on{background:var(--primary);color:#fff;font-weight:700}
+  .f{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)}
+  .f .lb{width:96px;flex:0 0 96px;color:var(--label);font-weight:700;font-size:14px}
+  .sel{flex:1;border:1.5px solid var(--border);border-radius:10px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;font-size:14.5px;min-height:44px}
+  .sel.off{color:#5f6672;background:#f7f8fa}
+  .sel.ask{border-color:#f0b35c;background:var(--ask-soft);color:var(--ask);font-weight:700}
+  .sel.val{color:var(--text)}
+  .sel i{font-style:normal;color:#9aa3af}
+  .menu{margin:-4px 14px 10px 120px;border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 20px rgba(15,23,42,.12);overflow:hidden;background:#fff}
+  .menu div{padding:10px 12px;font-size:14px;border-bottom:1px solid #f0f1f4}
+  .menu div:last-child{border:0}
+  .menu .cur{background:#f3f4f6;color:#6b7280}
+  .menu .ask{color:var(--ask);font-weight:700}
+  .menu .hd{font-size:12px;color:var(--muted);background:#fafbfc;padding:6px 12px}
+  .foot{padding:12px 14px}
+  .btn{background:var(--primary);color:#fff;border-radius:12px;text-align:center;font-weight:700;padding:12px}
+  .btn2{border:1.5px solid var(--border);border-radius:12px;text-align:center;font-weight:700;padding:11px;margin-top:8px}
+  .hint{font-size:12.5px;color:var(--muted);padding:10px 14px 0;margin:0}
+  /* 설정 */
+  .ah{padding:14px 16px;border-bottom:1px solid var(--border);font-weight:700;font-size:16px}
+  .sq{border:1px solid var(--border);border-radius:12px;padding:10px 11px;margin:10px 12px}
+  .sq .st{font-weight:700;font-size:14px;margin-bottom:6px;color:var(--label)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:13px}
+  .chip.fix{background:#f3f4f6;color:#6b7280}
+  .chip.fixa{background:var(--ask-soft);color:var(--ask);border-color:#f0b35c}
+  .chip .x{color:#9aa3af;margin-left:5px}
+  .add{color:var(--primary);font-weight:700;font-size:13px;border:1.5px dashed #9db8f2;border-radius:99px;padding:4px 10px}
+  .note{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-top:22px}
+  .note h3{margin:0 0 6px;font-size:15px}
+  .note ul{margin:0;padding-left:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>칸마다 드롭다운 — 기본은 "안 묻기"</h1>
+  <p class="lead">지금 현장 화면의 칸(공동현관·세대 비번·화장실…)을 그대로 쓰고, 칸마다 드롭다운만 붙입니다. 따로 있던 '업체 확인' 칸은 없앱니다. (예시)</p>
+  <div class="row">
+    <div class="step">
+      <h2><b>①</b>현장 › 기본·출입 (처음 연 모습)</h2>
+      <div class="phone">
+        <div class="tabs"><span class="tab on">기본·출입</span><span class="tab">일정·인원</span><span class="tab">필름</span></div>
+        <div class="f"><span class="lb">공동현관 비번</span><span class="sel off">안 묻기 <i>▾</i></span></div>
+        <div class="f"><span class="lb">세대 비번</span><span class="sel off">안 묻기 <i>▾</i></span></div>
+        <div class="f"><span class="lb">입구차단기</span><span class="sel val">경비호출 <i>▾</i></span></div>
+        <div class="f"><span class="lb">화장실</span><span class="sel off">안 묻기 <i>▾</i></span></div>
+        <div class="f"><span class="lb">문틀 닿는지</span><span class="sel off">안 묻기 <i>▾</i></span></div>
+        <div class="f"><span class="lb">겹치는 공정</span><span class="sel off">안 묻기 <i>▾</i></span></div>
+        <p class="hint">칸마다 "안 묻기"가 기본 — 업체에 아무것도 안 갑니다</p>
+        <div class="foot"><div class="btn">저장</div></div>
+      </div>
+    </div>
+    <div class="step">
+      <h2><b>②</b>드롭다운을 누르면</h2>
+      <div class="phone">
+        <div class="tabs"><span class="tab on">기본·출입</span><span class="tab">일정·인원</span><span class="tab">필름</span></div>
+        <div class="f"><span class="lb">공동현관 비번</span><span class="sel off">안 묻기 <i>▾</i></span></div>
+        <div class="f"><span class="lb">화장실</span><span class="sel off">안 묻기 <i>▴</i></span></div>
+        <div class="menu">
+          <div class="cur">안 묻기</div>
+          <div class="ask">❓ 업체에 묻기</div>
+          <div class="hd">바로 고르기 (사장님이 정한 목록)</div>
+          <div>안방 화장실</div>
+          <div>거실 화장실</div>
+          <div>사용 불가</div>
+          <div>직접 적기…</div>
+        </div>
+        <div class="f"><span class="lb">문틀 닿는지</span><span class="sel off">안 묻기 <i>▾</i></span></div>
+      </div>
+    </div>
+    <div class="step">
+      <h2><b>③</b>물을 칸만 "업체에 묻기"로 바꾼 뒤</h2>
+      <div class="phone">
+        <div class="tabs"><span class="tab on">기본·출입</span><span class="tab">일정·인원</span><span class="tab">필름</span></div>
+        <div class="f"><span class="lb">공동현관 비번</span><span class="sel ask">❓ 업체에 묻기 <i>▾</i></span></div>
+        <div class="f"><span class="lb">세대 비번</span><span class="sel off">안 묻기 <i>▾</i></span></div>
+        <div class="f"><span class="lb">입구차단기</span><span class="sel val">경비호출 <i>▾</i></span></div>
+        <div class="f"><span class="lb">화장실</span><span class="sel ask">❓ 업체에 묻기 <i>▾</i></span></div>
+        <div class="f"><span class="lb">문틀 닿는지</span><span class="sel val">안 닿음 <i>▾</i></span></div>
+        <div class="foot"><div class="btn">저장</div><div class="btn2">업자에게 질문 복사 (2개 · 링크)</div></div>
+        <p class="hint" style="padding-bottom:12px">업체 폼에는 "업체에 묻기"인 칸만, 같은 목록으로 나갑니다. 업체가 고르면 그 칸에 그대로 들어감</p>
+      </div>
+    </div>
+    <div class="step">
+      <h2><b>④</b>설정 › 칸별 목록 (내가 정하기)</h2>
+      <div class="phone">
+        <div class="ah">⚙️ 칸별 드롭다운 목록</div>
+        <div class="sq"><div class="st">화장실</div><div class="chips"><span class="chip fix">안 묻기</span><span class="chip fixa">업체에 묻기</span><span class="chip">안방 화장실<span class="x">✕</span></span><span class="chip">거실 화장실<span class="x">✕</span></span><span class="chip">사용 불가<span class="x">✕</span></span><span class="add">＋</span></div></div>
+        <div class="sq"><div class="st">공동현관 비번</div><div class="chips"><span class="chip fix">안 묻기</span><span class="chip fixa">업체에 묻기</span><span class="chip">없음(열려 있음)<span class="x">✕</span></span><span class="chip">경비실 호출<span class="x">✕</span></span><span class="add">＋</span></div></div>
+        <div class="sq"><div class="st">입구차단기</div><div class="chips"><span class="chip fix">안 묻기</span><span class="chip fixa">업체에 묻기</span><span class="chip">경비호출<span class="x">✕</span></span><span class="chip">비번<span class="x">✕</span></span><span class="add">＋</span></div></div>
+        <div class="sq"><div class="st">문틀 닿는지</div><div class="chips"><span class="chip fix">안 묻기</span><span class="chip fixa">업체에 묻기</span><span class="chip">안 닿음<span class="x">✕</span></span><span class="chip">닿음 → 목수님 조정<span class="x">✕</span></span><span class="add">＋</span></div></div>
+        <div class="sq" style="text-align:center"><span class="add">＋ 칸(질문) 더하기</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <h3>정리</h3>
+    <ul>
+      <li>현장 화면은 지금 칸 그대로 — 칸마다 드롭다운 하나 (기본 "안 묻기")</li>
+      <li>"❓ 업체에 묻기"로 둔 칸만 업체 질문폼(링크)에 나가고, 업체도 같은 목록에서 고름</li>
+      <li>알고 있으면 목록에서 바로 골라 채움 (비번처럼 숫자는 "직접 적기")</li>
+      <li>목록은 설정에서 칸마다 ＋/✕ — "안 묻기"·"업체에 묻기"는 늘 맨 위</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>
