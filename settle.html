@@ -10,7 +10,7 @@
      계산은 settle_calc.js(SettleCalc), 화면·상태는 settle.js.
      절대경로로 두는 이유는 quote_view.html 주석 참조(/s/ 경로와 같은 저장소라 습관을 맞춘다). -->
 <link rel="stylesheet" href="/quote_style.css">
-<link rel="stylesheet" href="/settle_style.css?v=20261115a">
+<link rel="stylesheet" href="/settle_style.css?v=20261116a">
 </head>
 <body>
 
@@ -99,7 +99,13 @@
 <!-- 발행 시트 -->
 <div id="pubBack" hidden></div>
 <section id="pubSheet" hidden aria-label="견적서 발행">
-  <h2>견적서 발행</h2>
+  <!-- 머리: 현장명 + 발행 날짜·시각 (2026-11-16 사장님). 발행하면 실제 발행 시각으로, 이 폰에서 전에 발행했으면 지난번 것도 작게 -->
+  <div class="pub-head">
+    <h2>견적서 발행</h2>
+    <div class="pub-site" id="pubSite"></div>
+    <div class="pub-when" id="pubWhen"></div>
+    <div class="pub-last" id="pubLast" hidden></div>
+  </div>
   <div id="pubBefore">
     <div class="pub-summary" id="pubSummary"></div>
     <p class="hint">발행하면 견적서 링크가 만들어집니다. 발행 시점의 금액이 그대로 저장되어,
@@ -198,7 +204,7 @@
 <script src="/request_price.js?v=20261112b"></script>
 <script src="/settle_items.js?v=20261112a"></script>
 <script src="/settle_films.js?v=20261007"></script>
-<script src="/settle.js?v=20261115a"></script>
+<script src="/settle.js?v=20261116a"></script>
 <script src="/app-switcher.js?v=20261020a" data-app-id="settle"></script>
 </body>
 </html>

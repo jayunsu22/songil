@@ -788,7 +788,12 @@ $('#retryBtn').addEventListener('click', loadMaster);
 // 입력은 매번 자동 저장되지만, 눌러서 저장한 게 아니면 안심이 안 된다고 하셔서 둔 버튼.
 // 발행 코드가 있으면 같이 남겨서 나중에 이 폰에서 다시 열었을 때 마지막 링크를 알 수 있게 한다.
 function 명시저장() {
-  if (발행결과) state.마지막발행 = { 견적코드: 발행결과.견적코드, 현장명: 발행결과.현장명, 일시: new Date().toISOString() };
+  // 일시는 발행한 시각이다 - 같은 견적서를 다시 저장해도 발행 시각은 그대로 둔다
+  if (발행결과) {
+    const 전 = state.마지막발행;
+    state.마지막발행 = { 견적코드: 발행결과.견적코드, 현장명: 발행결과.현장명,
+      일시: 전 && 전.견적코드 === 발행결과.견적코드 && 전.일시 ? 전.일시 : new Date().toISOString() };
+  }
   save();
   toast('저장했습니다');
 }
@@ -871,12 +876,27 @@ function openPublish() {
     `<div><span>부가 항목</span><span>${r.부가 > 0 ? won(r.부가) : '없음'}</span></div>` +
     (r.미수금 > 0 ? `<div><span>미수금</span><span>${won(r.미수금)}</span></div>` : '') +
     `<div class="tot"><span>합계${state.부가세별도 !== false ? ' (부가세 별도)' : ''}</span><span>${won(r.총액)}</span></div>`;
+  // 머리: 현장명 · 지금 발행하면 찍힐 날짜·시각 · 이 폰에서 지난번에 발행한 것
+  $('#pubSite').textContent = (MASTER && MASTER.현장 && MASTER.현장.현장명) || '';
+  $('#pubWhen').innerHTML = '발행 <b>' + esc(발행시각글(new Date())) + '</b>';
+  const 지난 = state.마지막발행;
+  const 지난시각 = 지난 && 지난.일시 ? new Date(지난.일시) : null;
+  $('#pubLast').hidden = !(지난 && 지난.견적코드 && 지난시각 && !isNaN(지난시각));
+  if (!$('#pubLast').hidden) $('#pubLast').textContent = '지난번 발행 ' + 발행시각글(지난시각, true) + ' · /s/' + 지난.견적코드;
   $('#pubBefore').hidden = false;
   $('#pubAfter').hidden = true;
   $('#doPublish').disabled = false;
   $('#doPublish').textContent = '발행하기';
   $('#pubBack').hidden = false;
   $('#pubSheet').hidden = false;
+}
+// '2026.11.16 (월) 오후 3:24' · 짧게(짧음=true) '11/14 (금) 오전 10:02'
+function 발행시각글(d, 짧음) {
+  const 요일 = '일월화수목금토'[d.getDay()];
+  const h = d.getHours(), m = d.getMinutes();
+  const 때 = (h < 12 ? '오전 ' : '오후 ') + ((h % 12) || 12) + ':' + String(m).padStart(2, '0');
+  const 날 = 짧음 ? (d.getMonth() + 1) + '/' + d.getDate() : d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0');
+  return 날 + ' (' + 요일 + ') ' + 때;
 }
 function closePublish() { $('#pubBack').hidden = true; $('#pubSheet').hidden = true; }
 $('#publishBtn').addEventListener('click', openPublish);
@@ -899,6 +919,12 @@ $('#doPublish').addEventListener('click', async () => {
     const j = await res.json();
     if (!j || !j.견적코드) throw new Error('견적코드 없음');
     발행결과 = { 견적코드: j.견적코드, 현장명: MASTER.현장.현장명 };
+    // 실제 발행 시각을 남긴다 (다음에 시트를 열면 '지난번 발행' 으로 보인다)
+    const 지금 = new Date();
+    state.마지막발행 = { 견적코드: j.견적코드, 현장명: MASTER.현장.현장명, 일시: 지금.toISOString() };
+    save();
+    $('#pubWhen').innerHTML = '발행됨 <b>' + esc(발행시각글(지금)) + '</b>';
+    $('#pubLast').hidden = true;
     $('#pubLink').textContent = 링크();
     $('#pubBefore').hidden = true;
     $('#pubAfter').hidden = false;

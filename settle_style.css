@@ -148,6 +148,14 @@ button.addrow { display: block; width: 100%; text-align: left; padding: 10px 14p
 }
 
 /* ---------- 발행 시트 ---------- */
+/* 발행 시트 머리: 현장명 · 발행 날짜·시각 (2026-11-16) */
+.pub-head { margin: 0 0 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+#pubSheet .pub-head h2 { margin: 0; }
+.pub-site { margin-top: 6px; font-size: 15px; font-weight: 800; line-height: 1.35; word-break: keep-all; }
+.pub-when { margin-top: 3px; font-size: 13px; color: #4b5563; font-variant-numeric: tabular-nums; }
+.pub-when b { color: var(--accent); }
+.pub-last { margin-top: 3px; font-size: 12px; color: #6b7280; font-variant-numeric: tabular-nums; }
+.pub-last[hidden] { display: none; }
 .pub-summary { font-size: 14px; line-height: 1.7; padding: 10px 12px; margin-bottom: 8px; background: #fafbfc; border: 1px solid var(--line); border-radius: 10px; font-variant-numeric: tabular-nums; }
 .pub-summary div { display: flex; justify-content: space-between; }
 .pub-summary .tot { font-weight: 800; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
