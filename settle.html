@@ -10,7 +10,7 @@
      계산은 settle_calc.js(SettleCalc), 화면·상태는 settle.js.
      절대경로로 두는 이유는 quote_view.html 주석 참조(/s/ 경로와 같은 저장소라 습관을 맞춘다). -->
 <link rel="stylesheet" href="/quote_style.css">
-<link rel="stylesheet" href="/settle_style.css?v=20261112b">
+<link rel="stylesheet" href="/settle_style.css?v=20261115a">
 </head>
 <body>
 
@@ -142,6 +142,11 @@
 <section id="amtSheet" hidden aria-label="금액 고치기">
   <h2 id="amtTitle">금액 고치기</h2>
   <p class="hint" id="amtOrig"></p>
+  <div class="amt-len" id="amtLenRow" hidden>
+    <label for="amtLen">길이</label>
+    <div class="amt-len-sel"><select id="amtLen" aria-label="길이"></select></div>
+    <span id="amtPerM"></span>
+  </div>
   <label class="amt-lbl" for="amtTotal">합계</label>
   <div class="amt-wrap">
     <input type="text" id="amtTotal" class="amt-in amt-total" inputmode="numeric" autocomplete="off" placeholder="0원">
@@ -193,7 +198,7 @@
 <script src="/request_price.js?v=20261112b"></script>
 <script src="/settle_items.js?v=20261112a"></script>
 <script src="/settle_films.js?v=20261007"></script>
-<script src="/settle.js?v=20261112b"></script>
+<script src="/settle.js?v=20261115a"></script>
 <script src="/app-switcher.js?v=20261020a" data-app-id="settle"></script>
 </body>
 </html>

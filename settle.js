@@ -1094,7 +1094,8 @@ const REQ_MASTER_LS = 'quote_req_master_v1';    // 견적요청 화면과 같은
 const REQ_FIXED_LS = 'quote_req_fixed_v1';      // 견적요청에서 표에 없는 품목에 정해 둔 단가
 let 단가M = null;
 const 난이도선택지 = [1.0, 1.1, 1.2, 1.3, 1.5];
-const 품목길이선택지 = Array.from({ length: 30 }, (_, i) => (i + 1) / 2);    // 0.5 ~ 15m
+// 길이 (11/15 사장님): 1~10m 는 0.5m 간격, 11~25m 는 1m 간격 — 목록 줄과 금액 창이 같이 쓴다
+const 품목길이선택지 = Array.from({ length: 19 }, (_, i) => 1 + i / 2).concat(Array.from({ length: 15 }, (_, i) => 11 + i));
 const 품목m선택지 = Array.from({ length: 14 }, (_, i) => (i + 1) / 2);      // 0.5 ~ 7m
 
 function 품목표() { return (단가M && 단가M.품목정보) || []; }
@@ -1103,6 +1104,7 @@ function 줄필름단가(l) {
   const z = 자재표[l.자재ID] || 자재표[state.전체자재ID];
   return z ? SettleCalc.수(z.단가) : null;
 }
+function 길이목록(v) { return v != null && !품목길이선택지.includes(v) ? 품목길이선택지.concat([v]).sort((a, b) => a - b) : 품목길이선택지; }
 function 품목금액(l) { return SettleItems.줄금액(l, 품목표(), 품목고정(), 줄필름단가(l)); }
 
 // 개수·난이도·m·길이를 바꾸면 고친 금액은 풀린다 (방문견적과 같다 - 새 조건의 자동 금액부터 다시)
@@ -1128,7 +1130,7 @@ function 품목줄HTML(l) {
     let 길이칸;
     if (r.단위 === 'm') {
       const v = r.길이 == null ? null : Number(r.길이);
-      const 목록 = v != null && !품목길이선택지.includes(v) ? 품목길이선택지.concat([v]).sort((a, b) => a - b) : 품목길이선택지;
+      const 목록 = 길이목록(v);
       길이칸 = `<select class="plen${v == null ? ' need' : ''}" data-f="plen" aria-label="길이"><option value="">길이</option>` +
         목록.map((n) => `<option value="${n}"${n === v ? ' selected' : ''}>길이 ${n}m</option>`).join('') + '</select>';
     } else if (r.문제 === 'm없음' || 시공범위값(l) === '문선만 시공') {
@@ -1202,11 +1204,18 @@ let 금액창 = null;   // { l, 자동: {금액, 인건비} | null }
 
 function 금액창열기(l) {
   const r = 품목금액(l);
-  금액창 = { l: l, 자동: r.자동 };
+  금액창 = { l: l, 자동: r.자동, 길이: r.단위 === 'm' && r.길이 != null ? Number(r.길이) : null };
   $('#amtTitle').textContent = '‘' + l.품목명 + '’ 금액';
-  $('#amtOrig').textContent = r.자동
-    ? '자동 계산 ' + won(r.자동.금액) + ' (인건비 ' + won(r.자동.인건비) + ' · 자재비 ' + won(r.자동.금액 - r.자동.인건비) + ')'
-    : '단가표에 없는 품목입니다 — 금액을 적어 주세요';
+  금액창안내(r.자동);
+  // 📏 m 로 견적 내는 품목 (신발장·싱크대 등, 11/15) — 합계 위에서 길이를 고르면 m당 단가로 다시 계산
+  const 길이줄 = $('#amtLenRow');
+  if (길이줄) {
+    길이줄.hidden = 금액창.길이 == null;
+    if (금액창.길이 != null) {
+      $('#amtLen').innerHTML = 길이목록(금액창.길이).map((n) => `<option value="${n}"${n === 금액창.길이 ? ' selected' : ''}>${n}m</option>`).join('');
+      금액창m당(r.자동, 금액창.길이);
+    }
+  }
   const 빈 = !!r.문제;
   $('#amtWage').value = 빈 ? '' : QuoteCalc.금액포맷(String(r.인건비));
   $('#amtMat').value = 빈 ? '' : QuoteCalc.금액포맷(String(r.자재비));
@@ -1218,6 +1227,37 @@ function 금액창열기(l) {
   const inp = $('#amtTotal');
   inp.focus();
   inp.setSelectionRange(inp.value.length, inp.value.length);
+}
+function 금액창안내(자동) {
+  const 길 = 금액창 && 금액창.길이 != null ? '길이 ' + 금액창.길이 + 'm · ' : '';
+  $('#amtOrig').textContent = 자동
+    ? '자동 계산 ' + won(자동.금액) + ' (' + 길 + '인건비 ' + won(자동.인건비) + ' · 자재비 ' + won(자동.금액 - 자동.인건비) + ')'
+    : '단가표에 없는 품목입니다 — 금액을 적어 주세요';
+}
+function 만글(n) { return String(Math.round(n / 100) / 100) + '만'; }
+function 금액창m당(자동, 길이) {
+  const el = $('#amtPerM');
+  if (!el) return;
+  if (!자동 || !길이) { el.innerHTML = ''; return; }
+  const 금 = 자동.금액 / 길이, 인 = 자동.인건비 / 길이;
+  el.innerHTML = '1m당 <b>' + won(Math.round(금)) + '</b><br>인건비 ' + 만글(인) + ' · 자재비 ' + 만글(금 - 인);
+}
+// 길이를 바꾸면 고친 금액은 버리고 새 길이의 자동 금액으로 다시 채운다 (확인을 눌러야 저장)
+function 금액창길이(n) {
+  const c = 금액창;
+  if (!c) return;
+  c.길이 = n;
+  const r = SettleItems.줄금액(Object.assign({}, c.l, { 품목: Object.assign({}, c.l.품목 || {}, { 길이: n, 고침: undefined }) }), 품목표(), 품목고정(), 줄필름단가(c.l));
+  c.자동 = r.자동;
+  금액창안내(r.자동);
+  금액창m당(r.자동, n);
+  if (!r.문제) {
+    $('#amtWage').value = QuoteCalc.금액포맷(String(r.인건비));
+    $('#amtMat').value = QuoteCalc.금액포맷(String(r.자재비));
+    $('#amtTotal').value = QuoteCalc.금액포맷(String(r.금액));
+  }
+  ['#amtWage', '#amtMat'].forEach((id) => $(id).classList.remove('minus'));
+  ['#amtTotal', '#amtWage', '#amtMat'].forEach((id) => { const e = $(id); e.classList.remove('amt-flash'); void e.offsetWidth; e.classList.add('amt-flash'); });
 }
 function 금액창값() {
   const 칸 = (id) => { const v = QuoteCalc.금액파싱($(id).value); return isFinite(v) ? v : 0; };
@@ -1255,9 +1295,12 @@ function 금액창적용(되돌리기) {
   if (!c) return;
   const l = c.l;
   l.품목 = Object.assign({}, l.품목 || {});
+  if (c.길이 != null && Number(l.품목.길이) !== c.길이) l.품목.길이 = c.길이;
   if (되돌리기) delete l.품목.고침;
   else {
     const v = 금액창값();
+    // 새 길이의 자동 금액 그대로면 '고침' 이 아니다 (목록 줄의 개수·난이도 칸이 그대로 살아 있게)
+    if (c.자동 && v.금액 === c.자동.금액 && v.인건비 === c.자동.인건비) { delete l.품목.고침; 금액창닫기(); save(); 줄다시그리기(l); renderTotals(); return; }
     // 다 비우고 확인하면 고침 없음 (단가표 금액으로)
     if (!isFinite(QuoteCalc.금액파싱($('#amtTotal').value)) && !v.금액) delete l.품목.고침;
     else l.품목.고침 = { 금액: v.금액, 인건비: v.인건비 };
@@ -1283,6 +1326,7 @@ document.querySelectorAll('#amtSheet .amt-x').forEach((b) => b.addEventListener(
 // [합계 고정] 은 이 기기에 기억한다 - 방문견적과 같은 열쇠라 두 화면이 같이 따라간다 (처음엔 켜짐)
 try { $('#amtLock').checked = localStorage.getItem('amtLock') !== '0'; } catch (e) { /* 기본 켬 */ }
 $('#amtLock').addEventListener('change', () => { try { localStorage.setItem('amtLock', $('#amtLock').checked ? '1' : '0'); } catch (e) { /* 무시 */ } });
+if ($('#amtLen')) $('#amtLen').addEventListener('change', () => 금액창길이(Number($('#amtLen').value)));
 $('#amtOk').addEventListener('click', () => 금액창적용(false));
 $('#amtReset').addEventListener('click', () => 금액창적용(true));
 $('#amtCancel').addEventListener('click', 금액창닫기);

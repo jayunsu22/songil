@@ -269,3 +269,15 @@ section.card[hidden] { display: none; }
 .row.item .hint.warn-t { color: #b45309; font-weight: 700; }
 #itemRule { padding: 8px 14px 10px; font-size: 12px; color: var(--muted); background: #fafbfc; border-top: 1px solid var(--line); line-height: 1.5; }
 #itemRule[hidden] { display: none; }
+
+/* 📏 금액 창 길이 고르기 (11/15) — m 로 견적 내는 품목만 */
+.amt-len { display: flex; align-items: center; gap: 10px; margin: 10px 0 2px; padding: 10px 12px; background: var(--accent-soft); border: 1.5px solid #c7d7fb; border-radius: 12px; }
+.amt-len[hidden] { display: none; }
+.amt-len label { font-size: 14px; font-weight: 800; color: #1e3a8a; }
+.amt-len-sel { position: relative; flex: 0 0 112px; }
+.amt-len-sel select { appearance: none; -webkit-appearance: none; width: 100%; height: 46px; padding: 0 34px 0 14px; border: 1.5px solid var(--accent); border-radius: 10px; background: #fff; font-size: 20px; font-weight: 800; color: var(--text); }
+.amt-len-sel::after { content: ""; position: absolute; right: 13px; top: 50%; width: 8px; height: 8px; border-right: 2.5px solid var(--accent); border-bottom: 2.5px solid var(--accent); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+#amtPerM { margin-left: auto; font-size: 12px; line-height: 1.4; color: #334155; text-align: right; white-space: nowrap; }
+#amtPerM b { font-size: 14px; color: var(--text); }
+.amt-flash { animation: amtFlash .5s; }
+@keyframes amtFlash { from { background: #fff7d6; } to { background: #fff; } }
