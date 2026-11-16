@@ -8,7 +8,7 @@ const CORS = { responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin
 // 현장관리 앱 백업 — 그 현장업무에 연결된 현장 (data 에 "adminId":"rec…")
 const SITE_FORMULA = '={{ "FIND(\'\\"adminId\\":\\"" + String(($json.query || {}).code || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 40) + "\\"\', {data})" }}';
 const workflow = {
-  name: '기사앱_필름번호',
+  name: '기사앱_필름번호',   // n8n id 2vE1baT7ZiqOVF6v
   nodes: [
     {
       id: 'w', name: '필름요청', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, 0], webhookId: '5a1d7c3e-8b2f-4e69-a0d4-3f6b9c1e7a52',
