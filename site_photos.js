@@ -748,6 +748,37 @@ $('#vwImg').addEventListener('touchend', (e) => {
   if (i >= 0 && i < 사진들.length) { 보는중 = i; 보기그리기(); }
 });
 
+/* ---------- 📤 팀원에게 공유 (2026-11-16) ----------
+   사진은 이 폰(IndexedDB)에만 있으므로 폰의 공유 창(카톡 등)으로 사진 파일을 그대로 보낸다.
+   구역 순서대로, 파일 이름에 구역을 넣어 받는 사람이 어디 사진인지 알게 한다 */
+async function 팀원공유() {
+  if (!지금방문) return;
+  await 사진읽기();
+  if (!사진들.length) { toast('공유할 사진이 없습니다'); return; }
+  const 묶음 = C.구역별묶기(사진들, 구역들);
+  const 안전 = (x) => String(x || '').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 30);
+  const files = [];
+  묶음.forEach((g) => g.사진들.forEach((ph, i) => {
+    const 구역 = g.구역 === C.미정 ? '구역미정' : g.구역;
+    const 타입 = (ph.blob && ph.blob.type) || 'image/jpeg';
+    const 확장 = /png/.test(타입) ? 'png' : /webp/.test(타입) ? 'webp' : 'jpg';
+    if (ph.blob) files.push(new File([ph.blob], 안전(지금방문.이름) + '_' + 안전(구역) + '_' + (i + 1) + '.' + 확장, { type: 타입 }));
+  }));
+  const 글 = '📷 ' + 지금방문.이름 + ' 현장사진 ' + files.length + '장\n' +
+    묶음.map((g) => (g.구역 === C.미정 ? '구역 미정' : g.구역) + ' ' + g.사진들.length + '장').join(' · ');
+  if (!navigator.canShare || !navigator.canShare({ files })) {
+    toast('이 브라우저에서는 사진 공유가 안 됩니다 — 크롬으로 열어 주세요');
+    return;
+  }
+  try {
+    await navigator.share({ files, title: 지금방문.이름 + ' 현장사진', text: 글 });
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;   // 공유 창을 닫음
+    console.warn(e);
+    toast('공유하지 못했습니다' + (files.length > 30 ? ' — 사진이 많으면 나눠 보내 주세요' : ''));
+  }
+}
+
 /* ---------- 사진 못 쓰는 브라우저 (시크릿 모드 등) ---------- */
 let 경고함 = false;
 function 사진못씀(e) {
@@ -762,7 +793,7 @@ $('#newVisit').addEventListener('click', 새방문);
 $('#backList').addEventListener('click', 목록보기);
 $('#renameVisit').addEventListener('click', 이름바꾸기);
 $('#delVisit').addEventListener('click', 방문지우기);
-$('#toQuote').addEventListener('click', 견적서로보내기);
+$('#shareBtn').addEventListener('click', 팀원공유);
 $('#shootBtn').addEventListener('click', 카메라열기);
 $('#albumBtn').addEventListener('click', () => $('#pickFile').click());
 $('#camClose').addEventListener('click', 카메라닫기);

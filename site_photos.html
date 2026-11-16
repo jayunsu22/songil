@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="현장사진">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="/worker/icon-180.png">
-<link rel="stylesheet" href="/site_photos.css?v=20261116a">
+<link rel="stylesheet" href="/site_photos.css?v=20261116b">
 </head>
 <body>
 
@@ -53,7 +53,8 @@
   <div id="groups"></div>
   <p id="noPhotos" class="empty" hidden>아직 사진이 없습니다. 위의 촬영을 누르세요.</p>
   <div class="bottom-bar">
-    <button id="toQuote" type="button" class="big primary">📄 방문견적서로 보내기</button>
+    <!-- 📤 팀원에게 공유 (11/16 사장님: 방문견적서로 보내기 대신) — 위쪽 [방문견적 →] 으로도 갈 수 있다 -->
+    <button id="shareBtn" type="button" class="big primary">📤 팀원에게 공유하기</button>
   </div>
   <button id="delVisit" type="button" class="del-visit">이 현장 지우기</button>
 </section>
@@ -138,7 +139,7 @@
 
 <script src="/quote_photos.js?v=20261116a"></script>
 <script src="/site_photos_core.js?v=20261021a"></script>
-<script src="/site_photos.js?v=20261116a"></script>
+<script src="/site_photos.js?v=20261116b"></script>
 <script src="/app-switcher.js?v=20261020a" data-app-id="sitephotos"></script>
 </body>
 </html>
