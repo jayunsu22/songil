@@ -98,18 +98,6 @@
             {
               "name": "sort[0][direction]",
               "value": "desc"
-            },
-            {
-              "name": "fields[]",
-              "value": "현장"
-            },
-            {
-              "name": "fields[]",
-              "value": "발행일시"
-            },
-            {
-              "name": "fields[]",
-              "value": "스냅샷"
             }
           ]
         },

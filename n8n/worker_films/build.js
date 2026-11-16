@@ -24,8 +24,8 @@ const workflow = {
       id: 'a2', name: '견적읽기', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [440, 0], executeOnce: true, alwaysOutputData: true, continueOnFail: true, credentials: AIR,
       parameters: { method: 'GET', url: 'https://api.airtable.com/v0/appV2Qy61YVhyRkZV/tblx0TAdgkepUdiTz', authentication: 'predefinedCredentialType', nodeCredentialType: 'airtableTokenApi',
         sendQuery: true, queryParameters: { parameters: [
+          // fields[] 를 여러 번 주면 n8n 이 하나만 보내 현장 칸이 빠진다 (site_fill 과 같은 일) — 모든 칸을 받는다
           { name: 'pageSize', value: '50' }, { name: 'sort[0][field]', value: '발행일시' }, { name: 'sort[0][direction]', value: 'desc' },
-          { name: 'fields[]', value: '현장' }, { name: 'fields[]', value: '발행일시' }, { name: 'fields[]', value: '스냅샷' },
         ] }, options: { timeout: 20000 } },
     },
     { id: 'c', name: '정리', type: 'n8n-nodes-base.code', typeVersion: 2, position: [660, 0],
