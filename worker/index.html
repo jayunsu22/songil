@@ -13,7 +13,7 @@
     <meta property="og:description" content="현장 품질 점검/사진 기록 페이지입니다.">
     <meta property="og:type" content="website">
     <!-- 주소가 /w/<현장코드> 라서 상대경로는 /w/ 기준으로 잡힌다. 반드시 절대경로로 쓸 것. -->
-    <link rel="stylesheet" href="/worker/style.css?v=20261116a">
+    <link rel="stylesheet" href="/worker/style.css?v=20261116b">
 
     <!-- 홈화면 추가(PWA) 설정: 아이콘/앱 이름/전체화면 모드 -->
     <link rel="manifest" href="/worker/manifest.json">
@@ -66,7 +66,7 @@
             <!-- 1. 현장 공지사항 (아코디언 토글) -->
             <section class="content-card accordion-card notice-card">
                 <button class="accordion-header" id="noticeHeader" onclick="toggleAccordion('noticeBody')">
-                    <span class="header-title">📢 현장 공지/주의사항</span>
+                    <span class="header-title">📢 현장 공지/주의사항 <span class="notice-count" id="noticeCount" hidden></span></span>
                     <span class="accordion-icon">내용 확인 ▼</span>
                 </button>
                 <div class="accordion-body" id="noticeBody" style="display: none;">
@@ -124,6 +124,6 @@
 
     <script src="/worker/extra_work.js?v=20261026a"></script>
     <script src="/worker/item_film.js?v=20261116a"></script>
-    <script src="/worker/app.js?v=20261116a"></script>
+    <script src="/worker/app.js?v=20261116b"></script>
 </body>
 </html>

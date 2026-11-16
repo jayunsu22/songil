@@ -1246,3 +1246,64 @@ select.ex-in { appearance: auto; }
 /* 🎞 품목 이름 옆 필름 번호 (2026-11-16 사장님: 아래 줄이 아니라 이름 옆에) */
 .task-film { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 9px; border-radius: 999px; background: #ffedd5; color: #7c2d12; border: 1.5px solid #fdba74; font-size: 0.82em; font-weight: 800; letter-spacing: .2px; white-space: nowrap; }
 .task-film small { margin-left: 4px; font-weight: 500; font-size: 0.8em; color: #9a3412; }
+
+/* ===== 공지·점검 읽기 쉽게 (2026-11-16 사장님 A안 · 여백 줄임) =====
+   글자를 키우고(14→17.5px) 여백을 줄여 한 줄에 글자가 많이 들어가게. 줄마다 번호(CSS 카운터),
+   체크 칸은 오른쪽으로. 공지 카드와 아래 작업 사이는 띄운다 */
+.main-content { padding: 14px 8px; }
+.notice-card { border-width: 1.5px; border-left-width: 1.5px; border-radius: 14px; margin-bottom: 28px; }
+.notice-card .accordion-header { padding: 13px 12px; }
+.notice-card .header-title { font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.notice-count { font-size: 12.5px; font-weight: 800; color: #78350f; background: #fde68a; border-radius: 99px; padding: 3px 9px; font-variant-numeric: tabular-nums; }
+.notice-count.done { background: #a7f3d0; color: #065f46; }
+.notice-card .accordion-body { padding: 8px 6px 8px; }
+.task-card { padding: 16px 10px; }
+
+.notice-list-container, .checklist-list { counter-reset: ck; gap: 6px; }
+.notice-list-container { margin-top: 0; }
+.check-item {
+    counter-increment: ck;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 10px 8px;
+    border-radius: 10px;
+    background: #fff;
+    border: 1.5px solid var(--border-color);
+}
+.notice-list-container .check-item { border-color: #fcd9a0; }
+.check-item::before {
+    content: counter(ck);
+    order: 0;
+    flex: 0 0 24px;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 13px; font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    background: #eff6ff; color: #1d4ed8;
+}
+.notice-list-container .check-item::before { background: #fef3c7; color: #78350f; }
+.check-item > * { order: 1; }
+.check-item .check-text {
+    flex: 1;
+    font-size: 17.5px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: -0.025em;
+    color: var(--text-main);
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}
+.check-item .sample-photo-thumb { order: 2; }
+.check-item .custom-checkbox { order: 3; width: 28px; height: 28px; border-radius: 8px; border-width: 2.5px; margin-top: 0; }
+.check-item .custom-checkbox::after { width: 7px; height: 13px; border-width: 0 3px 3px 0; }
+.check-item.checked { background: var(--success-light); border-color: #a7f3d0; }
+.check-item.checked::before { background: #a7f3d0; color: #065f46; }
+.check-item.checked .check-text { color: #047857; font-weight: 600; }
+.check-item.important-flag:not(.checked) { background: #fef2f2; border-color: #fca5a5; }
+.check-item.important-flag:not(.checked)::before { background: #fee2e2; color: #b91c1c; }
+.check-item.important-flag:not(.checked) .check-text { color: #b91c1c; font-weight: 800; }
+.check-item.site-note-item:not(.checked) { background: #fffbeb; border-color: #fcd34d; }
+.check-item.site-note-item::before { content: "!"; }
+.notice-report-btn { margin: 8px 0 2px; min-height: 50px; font-size: 16px; border-radius: 11px; }

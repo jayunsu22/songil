@@ -380,6 +380,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!noticeText.trim()) {
             noticeList.innerHTML = `<div style="font-size: 13.5px; color: var(--text-muted); text-align: center; padding: 10px;">현장 공지사항이 비어 있습니다.</div>`;
             if (btn) btn.style.display = 'none';
+            const c = document.getElementById('noticeCount'); if (c) c.hidden = true;
             return;
         }
 
@@ -431,6 +432,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // [알잘딱깔센] 공지사항 전송 버튼의 활성/비활성화 상태 실시간 제어 함수
     function updateNoticeReportButtonState(totalNoticeCount) {
         const btn = document.getElementById('noticeReportBtn');
+        // 머리줄에 '2 / 4 확인' (11/16 A안)
+        const cnt = document.getElementById('noticeCount');
+        if (cnt) {
+            const n = document.querySelectorAll('#noticeList .check-item.checked').length;
+            cnt.hidden = !totalNoticeCount;
+            cnt.textContent = n + ' / ' + totalNoticeCount + ' 확인';
+            cnt.classList.toggle('done', n >= totalNoticeCount);
+        }
         if (!btn) return;
 
         if (!currentWorker) {
@@ -456,7 +465,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 공지가 4개인데 체크가 2개밖에 없으면 -> 잠금 및 안내 문구 노출
         if (checkedCount < totalNoticeCount) {
             btn.disabled = true;
-            btn.textContent = "📢 모든 공지사항을 확인해 주세요";
+            btn.textContent = "📢 남은 공지 " + (totalNoticeCount - checkedCount) + "개를 확인해 주세요";
         } else {
             // 전부 체크 완료했을 때만 버튼이 초록색(활성)으로 풀림
             btn.disabled = false;
