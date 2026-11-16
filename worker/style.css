@@ -1242,3 +1242,7 @@ select.ex-in { appearance: auto; }
 .day-tabs button.on { background: #1e293b; border-color: #1e293b; color: #fff; } .day-tabs button.on span { color: #cbd5e1; }
 .day-tabs button.und { border-color: #f5b544; color: #b45309; } .day-tabs button.und.on { background: #b45309; border-color: #b45309; color: #fff; }
 .day-tabs button:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
+
+/* 🎞 품목 이름 옆 필름 번호 (2026-11-16 사장님: 아래 줄이 아니라 이름 옆에) */
+.task-film { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 9px; border-radius: 999px; background: #ffedd5; color: #7c2d12; border: 1.5px solid #fdba74; font-size: 0.82em; font-weight: 800; letter-spacing: .2px; white-space: nowrap; }
+.task-film small { margin-left: 4px; font-weight: 500; font-size: 0.8em; color: #9a3412; }

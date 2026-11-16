@@ -1,0 +1,211 @@
+{
+  "name": "기사앱_필름번호",
+  "nodes": [
+    {
+      "id": "w",
+      "name": "필름요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "5a1d7c3e-8b2f-4e69-a0d4-3f6b9c1e7a52",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "worker-films",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      }
+    },
+    {
+      "id": "a1",
+      "name": "현장읽기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "J5wefJCMalpjjm3Q",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      },
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/apprglBOGXhKQN4cl/%ED%98%84%EC%9E%A5",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ \"FIND('\\\"adminId\\\":\\\"\" + String(($json.query || {}).code || \"\").replace(/[^A-Za-z0-9]/g, \"\").slice(0, 40) + \"\\\"', {data})\" }}"
+            },
+            {
+              "name": "pageSize",
+              "value": "20"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "a2",
+      "name": "견적읽기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "J5wefJCMalpjjm3Q",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      },
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/appV2Qy61YVhyRkZV/tblx0TAdgkepUdiTz",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "pageSize",
+              "value": "50"
+            },
+            {
+              "name": "sort[0][field]",
+              "value": "발행일시"
+            },
+            {
+              "name": "sort[0][direction]",
+              "value": "desc"
+            },
+            {
+              "name": "fields[]",
+              "value": "현장"
+            },
+            {
+              "name": "fields[]",
+              "value": "발행일시"
+            },
+            {
+              "name": "fields[]",
+              "value": "스냅샷"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "c",
+      "name": "정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 기사앱_필름번호 › 정리: GET worker-films?code=<현장업무 id> (기사 앱이 부른다 — 기사 앱 주소처럼 현장업무 id 를 아는 사람만, 열쇠 없음).\n// 현장관리 앱 백업(현장 표 data 의 adminId) 에서 그 현장 필름 줄(위치·번호만), 정산견적 표에서 그 현장의 가장 최근 발행 견적서의\n// 품목별 자재 이름을 준다. 짝짓기는 기사 앱 worker/item_film.js 가 한다 (사장님 11/16). 비번 같은 다른 칸은 돌려주지 않는다\nconst s = (v, n) => String(v == null ? '' : v).trim().slice(0, n);\nconst q = $('필름요청').first().json.query || {};\nconst code = s(q.code, 40);\nif (!/^rec[A-Za-z0-9]{14}$/.test(code)) return [{ json: { ok: false, films: [], quote: [] } }];\nconst films = [];\nfor (const it of $('현장읽기').all()) for (const r of (it.json.records || [])) {\n  let d = {};\n  try { d = JSON.parse((r.fields || {}).data || '{}'); } catch (e) { continue; }\n  if (!d || d.adminId !== code || d.hide || !Array.isArray(d.films)) continue;\n  d.films.forEach((f) => { if (f && s(f.code, 30)) films.push({ place: s(f.place, 60), code: s(f.code, 30) }); });\n}\n// 그 현장 견적서 중 가장 최근 것 (링크 칸 현장 = [현장업무 id])\nlet best = null;\nfor (const it of $('견적읽기').all()) for (const r of (it.json.records || [])) {\n  const f = r.fields || {};\n  if (!(Array.isArray(f.현장) && f.현장.includes(code))) continue;\n  if (!best || s(f.발행일시, 40) > s(best.발행일시, 40)) best = f;\n}\nlet quote = [];\nif (best) {\n  try {\n    const snap = JSON.parse(best.스냅샷 || '{}');\n    quote = [].concat(snap.시공품목 || [], snap.품목 || []).filter((l) => l && l.품목명 && l.자재명)\n      .map((l) => ({ 품목명: s(l.품목명, 60), 자재명: s(l.자재명, 40) })).slice(0, 200);\n  } catch (e) { quote = []; }\n}\nreturn [{ json: { ok: true, films: films.slice(0, 60), quote } }];\n"
+      }
+    },
+    {
+      "id": "o",
+      "name": "응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "필름요청": {
+      "main": [
+        [
+          {
+            "node": "현장읽기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "현장읽기": {
+      "main": [
+        [
+          {
+            "node": "견적읽기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "견적읽기": {
+      "main": [
+        [
+          {
+            "node": "정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "정리": {
+      "main": [
+        [
+          {
+            "node": "응답",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul",
+    "saveDataSuccessExecution": "none"
+  }
+}

@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. 설정 및 글로벌 변수
     const n8nBase = "https://primary-production-a6fa.up.railway.app";
+    let 필름표 = {};   // 🎞 품목명 → { code, auto } (11/16, loadFilms) — 처음 그릴 때 쓰이므로 맨 위에
     // film-quality-get-v2: 기존 조회는 Airtable 5개를 한 줄로 이어서 호출하느라 2.2~2.4초가 걸렸는데,
     // 서로 의존하지 않는 조회를 묶어서 동시에 보내도록 바꾼 버전 (약 1.3초). 응답 모양은 완전히 동일함
     const API_GET_URL = `${n8nBase}/webhook/film-quality-get-v2`;
@@ -260,6 +261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!projectData || !projectData.project) {
                 throw new Error("현장 데이터가 존재하지 않습니다.");
             }
+            loadFilms(recordId);   // 🎞 품목 옆 필름 번호 — 기다리지 않는다 (오면 다시 그림)
 
             renderHeader();
             renderWorkerSelect();
@@ -639,6 +641,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         const g = f && ExtraWork.구분정보(f.추가구분);
         return g ? `<span class="ex-tag ex-${g.값 === 'AS' ? 'as' : g.값 === '재시공' ? 're' : 'add'}">${g.짧게}</span> ` : '';
     }
+    /* 🎞 품목 이름 옆 필름 번호 (2026-11-16 사장님) — n8n worker-films 가 그 현장 필름 줄·최근 정산 견적서 자재를 주고,
+       짝짓기는 item_film.js (ItemFilm). 못 받거나 짝이 없으면 아무것도 안 붙인다 (화면은 그대로) */
+    function 필름칩(name) {
+        const f = 필름표[String(name == null ? '' : name).trim()];
+        if (!f) return '';
+        const t = String(f.code).replace(/[&<>"']/g, '');
+        return ` <span class="task-film" title="${f.auto ? '현장 필름 줄에서 자동으로 짝지음' : '정산 견적서에서 고른 필름'}">${t}${f.auto ? '<small>자동</small>' : ''}</span>`;
+    }
+    async function loadFilms(recordId) {
+        if (typeof ItemFilm === 'undefined') return;
+        try {
+            const r = await fetchWithTimeout(`${n8nBase}/webhook/worker-films?code=${encodeURIComponent(recordId)}&_t=${Date.now()}`, { cache: 'no-store' }, 15000);
+            if (!r.ok) return;
+            const d = await r.json();
+            if (!d || !d.ok) return;
+            const names = (projectData && projectData.tasks || []).map(t => t.fields && t.fields.시공품목);
+            필름표 = ItemFilm.match(names, d.films, d.quote);
+            if (Object.keys(필름표).length) renderTasks();
+        } catch (e) { /* 필름 번호만 안 보일 뿐 */ }
+    }
     function 청구글(f) {
         const 금 = Math.round(Number(f.추가금액) || 0).toLocaleString('ko-KR') + '원';
         if (f.청구 === '무상') return '무상 AS 0원';
@@ -987,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cardBodyId = `task-body-${recordId}-${stage}`;
         let headerHtml = `
             <div class="task-card-header task-card-toggle" data-target="${cardBodyId}">
-                <span class="task-title">${추가표시(fields)}${fields.시공품목}</span>
+                <span class="task-title">${추가표시(fields)}${fields.시공품목}${뒷정리 ? '' : 필름칩(fields.시공품목)}</span>
                 <div class="task-head-row">
                     ${뒷정리
                         ? `<span class="task-badge cleanup">🧹 현장정리${매일 ? ' · 매일' : ''}</span>`

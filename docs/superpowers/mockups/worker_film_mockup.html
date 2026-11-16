@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>품목별 필름 번호</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#eceef2;--card:#fff;--text:#111827;--muted:#5b6472;--border:#e2e5ea;--blue:#2563eb;--green:#15803d;--mint:#ecfdf5;--mint-b:#a7e3c4;--film:#7c2d12;--film-bg:#ffedd5;--film-b:#fdba74}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',system-ui,sans-serif;font-size:15px;line-height:1.5}
+  .wrap{max-width:1150px;margin:0 auto;padding:28px 16px 60px}
+  h1{font-size:22px;margin:0 0 4px}
+  .lead{color:var(--muted);margin:0 0 22px}
+  .row{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .step{flex:0 0 350px}
+  .step h2{font-size:14px;margin:0 0 8px;color:var(--muted);font-weight:500}
+  .step h2 b{color:var(--text);margin-right:6px}
+  .phone{background:#f6f7f9;border-radius:24px;border:1px solid var(--border);box-shadow:0 8px 26px rgba(15,23,42,.12);overflow:hidden;padding-bottom:14px}
+  .top{background:#1e293b;color:#fff;padding:14px 16px;font-weight:700}
+  .top small{display:block;color:#cbd5e1;font-weight:400;font-size:12px}
+  .sec{font-weight:800;font-size:16px;margin:14px 16px 8px}
+  .item{background:var(--mint);border:1.5px solid var(--mint-b);border-radius:16px;margin:0 12px 10px;padding:14px}
+  .item .nm{font-weight:800;font-size:18px}
+  .film{display:inline-flex;align-items:center;gap:5px;margin-top:6px;background:var(--film-bg);color:var(--film);border:1.5px solid var(--film-b);border-radius:99px;padding:3px 11px;font-weight:800;font-size:15px;letter-spacing:.3px}
+  .film.none{background:#f3f4f6;color:#6b7280;border-color:#e5e7eb;font-weight:500}
+  .film small{font-weight:500;color:#9a3412;font-size:12px}
+  .st{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+  .tag{background:#e0ecff;color:#1d4ed8;border-radius:8px;padding:3px 10px;font-weight:700;font-size:13px}
+  .done{color:var(--green);font-weight:700;font-size:14px}
+  .btn{background:var(--blue);color:#fff;border-radius:99px;padding:7px 14px;font-weight:700;font-size:13px}
+  /* 정산 */
+  .ws{background:#fff;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .ws .h{font-weight:800;margin-bottom:8px}
+  .sr{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px dashed var(--border)}
+  .sr .n{flex:1;font-weight:700;font-size:14px}
+  .sel{border:1.5px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;min-width:120px;display:flex;justify-content:space-between}
+  .sel.pick{border-color:var(--film-b);background:var(--film-bg);color:var(--film);font-weight:800}
+  .note{font-size:12.5px;color:var(--muted);padding:8px 14px 0;margin:0}
+  /* 자동 짝 */
+  .fr{display:flex;gap:8px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);background:#fff}
+  .fr .pl{flex:1;font-size:14px}
+  .fr .cd{font-weight:800;color:var(--film)}
+  .arrow{padding:10px 14px;font-size:13.5px;line-height:1.7}
+  .arrow b{color:var(--film)}
+  .box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-top:22px}
+  .box h3{margin:0 0 6px;font-size:15px}
+  .box ul{margin:0;padding-left:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>기사 앱 품목에 필름 번호</h1>
+  <p class="lead">따로 고르지 않아도 되게 — 정산 품목 견적에서 고른 필름을 그대로, 견적이 없으면 현장관리 필름 줄의 위치 글자로 자동 짝 (예시)</p>
+  <div class="row">
+    <div class="step">
+      <h2><b>①</b>기사 앱 — 시공 품목 품질 관리</h2>
+      <div class="phone">
+        <div class="top">연수동 영남apt 113동 205호<small>기사 작업 화면</small></div>
+        <div class="sec">🛠 시공 품목 품질 관리</div>
+        <div class="item">
+          <div class="nm">방3문+틀</div>
+          <span class="film">🎞 ps170</span>
+          <div class="st"><span class="tag">시공</span><span class="done">✅ 완료됨 · 16:42</span><span class="btn">내용 확인 ▾</span></div>
+        </div>
+        <div class="item">
+          <div class="nm">거실화장실문</div>
+          <span class="film">🎞 px451 <small>자동</small></span>
+          <div class="st"><span class="tag">시공</span><span class="done">✅ 완료됨 · 14:50</span><span class="btn">내용 확인 ▾</span></div>
+        </div>
+        <div class="item">
+          <div class="nm">현관문</div>
+          <span class="film none">필름 번호 없음</span>
+          <div class="st"><span class="tag">시공</span><span class="btn">내용 확인 ▾</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <h2><b>②</b>어디서 정해지나 — 정산 품목 견적 (지금 있는 칸)</h2>
+      <div class="phone">
+        <div class="top">정산 견적 · 품목 견적<small>전체 자재: 영림ps · 이 현장 필름 ps170 · px451</small></div>
+        <div class="ws">
+          <div class="h">방3</div>
+          <div class="sr"><span class="n">방3문+틀</span><span class="sel pick">ps170 <span>▾</span></span></div>
+          <div class="h" style="margin-top:10px">거실</div>
+          <div class="sr"><span class="n">거실화장실문</span><span class="sel">전체 자재 <span>▾</span></span></div>
+          <div class="sr"><span class="n">현관문</span><span class="sel">전체 자재 <span>▾</span></span></div>
+        </div>
+        <p class="note">품목마다 자재 칸에서 고른 필름 번호가 기사 앱에 그대로 나갑니다. 필름이 하나뿐인 현장은 손댈 게 없어요.</p>
+      </div>
+    </div>
+    <div class="step">
+      <h2><b>③</b>견적에서 안 골랐을 때 — 위치 글자로 자동 짝</h2>
+      <div class="phone">
+        <div class="top">현장관리 앱 › 필름·부자재<small>시공위치 | 필름번호</small></div>
+        <div class="fr"><span class="pl">방3 문틀</span><span class="cd">ps170</span></div>
+        <div class="fr"><span class="pl">거실 화장실문</span><span class="cd">px451</span></div>
+        <div class="arrow">
+          방3문+틀 ← "방3 문틀" → <b>ps170</b><br>
+          거실화장실문 ← "거실 화장실문" → <b>px451</b> <small>(자동)</small><br>
+          현관문 ← 맞는 줄 없음 → <span style="color:#6b7280">비워 둠</span>
+        </div>
+        <p class="note">띄어쓰기·'+'는 무시하고 방3·거실·화장실·안방·현관 같은 위치 글자로 맞춥니다. 헷갈리면 비워 둡니다 (틀린 번호보다 빈칸이 안전).</p>
+      </div>
+    </div>
+  </div>
+  <div class="box">
+    <h3>정리</h3>
+    <ul>
+      <li>기사 앱 품목 이름 아래에 🎞 필름 번호 표시</li>
+      <li>먼저: 정산 품목 견적에서 그 품목에 고른 필름 (전체 자재 그대로면 아래 자동 짝)</li>
+      <li>그다음: 현장관리 앱 필름 줄의 시공위치 글자와 품목 이름이 맞으면 자동 ("자동" 작게 표시)</li>
+      <li>둘 다 없으면 "필름 번호 없음" — 사장님이 따로 고르는 일은 없음</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>
