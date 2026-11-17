@@ -1252,9 +1252,27 @@ function 금액창열기(l) {
   ['#amtWage', '#amtMat'].forEach((id) => $(id).classList.remove('minus'));
   $('#amtBack').hidden = false;
   $('#amtSheet').hidden = false;
+  $('#amtSheet').scrollTop = 0;
+  금액창맞추기();
+  // 📏 길이로 견적 내는 품목은 길이만 고르고 [확인] 하는 일이 많아 자판을 바로 띄우지 않는다 (11/17 — 자판이 [확인]을 가렸다)
+  if (금액창.길이 != null) return;
   const inp = $('#amtTotal');
   inp.focus();
   inp.setSelectionRange(inp.value.length, inp.value.length);
+}
+// 📱 자판이 올라오면 창을 자판 위에 맞추고 넘치면 창 안에서 밀어 보게 — [취소]·[확인] 줄은 창 아래에 붙어 있다 (11/17)
+function 금액창맞추기() {
+  const sh = $('#amtSheet');
+  if (!sh || sh.hidden) return;
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const 가림 = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  sh.style.bottom = 가림 + 'px';
+  sh.style.maxHeight = Math.max(240, vv.height - 12) + 'px';
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', 금액창맞추기);
+  window.visualViewport.addEventListener('scroll', 금액창맞추기);
 }
 function 금액창안내(자동) {
   const 길 = 금액창 && 금액창.길이 != null ? '길이 ' + 금액창.길이 + 'm · ' : '';
