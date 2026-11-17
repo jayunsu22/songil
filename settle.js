@@ -576,8 +576,7 @@ function bindLineEvents() {
       });
       else if (f === '품목명') el.addEventListener('input', () => { l.품목명 = el.value; save(); });
       else if (f === '자재ID') el.addEventListener('change', () => {
-        l.자재ID = el.value;
-        if (l.품목) { l.품목 = Object.assign({}, l.품목); delete l.품목.고침; }   // 필름이 바뀌면 자재비가 달라지므로 고친 금액은 푼다
+        필름바꾸기(l, el.value);
         save(); 줄다시그리기(l); renderTotals();
       });
       else if (f === 'del') el.addEventListener('click', () => {
@@ -749,10 +748,17 @@ $('#wageSelect').addEventListener('change', (ev) => {
 $('#wageCustom').addEventListener('input', (ev) => { state.품단가직접 = ev.target.value; save(); renderTotals(); });
 const 금액줄들 = () => state.줄들.filter((l) => l.체크 && is금액줄(l));
 // 전체 자재(= 기본 필름)를 바꾸면 모든 항목의 자재가 따라 바뀐다. 줄마다 따로 고친 것도 덮는다
+// 🎞 줄의 필름 바꾸기 (11/17 사장님) — m당 단가가 같으면 손으로 고친 견적 금액은 그대로 두고, 단가가 다를 때만 풀어 새 단가로 다시 계산
+function 필름바꾸기(l, id) {
+  const 전 = 줄필름단가(l);
+  l.자재ID = id;
+  const 후 = 줄필름단가(l);
+  if (l.품목 && l.품목.고침 && 전 !== 후) { l.품목 = Object.assign({}, l.품목); delete l.품목.고침; }
+}
 function 전체자재로(id) {
   if (!id) return;
   state.전체자재ID = id;
-  state.줄들.forEach((l) => { l.자재ID = state.전체자재ID; });
+  state.줄들.forEach((l) => 필름바꾸기(l, state.전체자재ID));
   save(); renderLines(); renderFilms(); renderTotals();
 }
 $('#allMat').addEventListener('change', (ev) => 전체자재로(ev.target.value));
