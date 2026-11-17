@@ -153,7 +153,7 @@ function render(d) {
   H.push('<div class="v-tbl"><h3>' + (품목방식 ? '추가 자재비' : '자재비') + '</h3>');
   if (자재.length) {
     자재.forEach((r) => {
-      H.push('<div class="v-line"><span class="v-nm">' + esc(r.자재명) + '<small>' + won(r.단가) + '/m × ' + m(r.소모량합) + '</small></span>' +
+      H.push('<div class="v-line"><span class="v-nm">필름 ' + esc(r.자재명) + '<small>' + won(r.단가) + '/m × ' + m(r.소모량합) + '</small></span>' +
         '<span class="v-amt">' + won(r.금액) + '</span></div>');
     });
   } else {
@@ -176,7 +176,8 @@ function render(d) {
         (p.구역 ? esc(p.구역) + ' · ' : '') + esc(p.품목명) + (p.이중창 ? ' <b class="v-dbl-tag">2중창</b>' : '') +
         // 문+틀 시공 범위. 기본(양쪽면)이 아니면 주황으로 눈에 띄게
         (p.시공범위 ? ' <span class="v-scope' + (p.시공범위 === '문+틀 양쪽면 시공' ? '' : ' part') + '">' + esc(p.시공범위) + '</span>' : '') + '</span>' +
-        '<span>' + m(p.소모량) + ' · ' + esc(p.자재명) + '</span></div>');
+        // 🎞 필름 번호를 눈에 띄게 (11/17 사장님: 품수 견적서에도 필름 번호)
+        '<span>' + (p.자재명 ? '<b class="v-film">필름 ' + esc(p.자재명) + '</b> ' : '') + m(p.소모량) + '</span></div>');
     });
     H.push('</details>');
   }

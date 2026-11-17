@@ -299,3 +299,7 @@ section.card[hidden] { display: none; }
 .row.item .pfilm-l { font-size: 14px; font-weight: 800; color: var(--muted); flex: 0 0 auto; }
 .row.item .pfilm select.mat { flex: 1 1 auto; width: auto; margin-left: 0; min-width: 0; height: 44px; font-size: 16px; font-weight: 700; }
 .row.item .pfilm-p { flex: 0 0 auto; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* 📄 발행 뒤 두 앱에 적용 (11/17) */
+.pub-apply { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+#pubSheet .pub-apply button { margin-top: 0; height: auto;  min-height: 52px; border-radius: 12px; border: 1.5px solid var(--accent); background: var(--accent-soft); color: #1d4ed8; font-size: 15px; font-weight: 800; padding: 0 6px; word-break: keep-all; }

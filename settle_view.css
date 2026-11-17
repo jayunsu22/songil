@@ -88,3 +88,6 @@
 /* 추가 작업 (2026-10-26) */
 .v-tbl.extra .v-ext { color: #9a6b2a; font-size: .9em; }
 .v-tbl.extra .v-note { margin-top: 8px; color: #8a7a68; font-size: 12.5px; }
+
+/* 🎞 품목 내역 필름 번호 (11/17) */
+.v-film { display: inline-block; font-weight: 800; color: #1d4ed8; background: #eff6ff; border-radius: 6px; padding: 1px 6px; margin-right: 4px; font-size: .95em; }

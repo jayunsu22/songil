@@ -965,6 +965,20 @@ async function copy(text) {
     return ok;
   }
 }
+// 📄 [현장관리자 앱에 적용]·[일정 앱에 적용] (11/17) — 두 앱은 다른 주소(github.io)라 그 앱을 열면서 주소에 견적코드를 실어 보낸다.
+// 관리자 앱: #site=<현장업무 id>&quote=s:<코드> (일정 앱의 [현장업무 열기] 와 같은 꼴) · 일정 앱: #applyquote=<현장업무 id>:s:<코드>
+const ADMIN_APP = 'https://jayunsu22.github.io/autoblog/admin.html';
+const SITE_APP = 'https://jayunsu22.github.io/sitenote/';
+function 적용열기(앱) {
+  if (!발행결과 || !발행결과.견적코드) { toast('먼저 발행해 주세요'); return; }
+  if (!/^rec[A-Za-z0-9]+$/.test(현장ID)) { toast('이 견적은 현장업무와 이어져 있지 않아 적용할 수 없습니다'); return; }
+  const code = 's:' + 발행결과.견적코드;
+  const u = 앱 === 'admin' ? ADMIN_APP + '#site=' + 현장ID + '&quote=' + code : SITE_APP + '#applyquote=' + 현장ID + ':' + code;
+  const w = window.open(u, '_blank');
+  if (!w) location.href = u;
+}
+$('#applyAdmin').addEventListener('click', () => 적용열기('admin'));
+$('#applySite').addEventListener('click', () => 적용열기('site'));
 $('#copyLink').addEventListener('click', async () => {
   toast((await copy(링크())) ? '링크를 복사했습니다' : '복사에 실패했습니다. 링크를 길게 눌러 복사해 주세요.');
 });
