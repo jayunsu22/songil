@@ -303,3 +303,6 @@ section.card[hidden] { display: none; }
 /* 📄 발행 뒤 두 앱에 적용 (11/17) */
 .pub-apply { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 #pubSheet .pub-apply button { margin-top: 0; height: auto;  min-height: 52px; border-radius: 12px; border: 1.5px solid var(--accent); background: var(--accent-soft); color: #1d4ed8; font-size: 15px; font-weight: 800; padding: 0 6px; word-break: keep-all; }
+
+/* 발행 뒤 두 앱 자동 잇기 안내 (11/17) */
+.pub-auto { margin: 10px 2px 0; font-size: 13.5px; font-weight: 700; color: #047857; line-height: 1.45; word-break: keep-all; }

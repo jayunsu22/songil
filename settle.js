@@ -983,8 +983,6 @@ function 적용열기(앱) {
   const w = window.open(u, '_blank');
   if (!w) location.href = u;
 }
-$('#applyAdmin').addEventListener('click', () => 적용열기('admin'));
-$('#applySite').addEventListener('click', () => 적용열기('site'));
 $('#copyLink').addEventListener('click', async () => {
   toast((await copy(링크())) ? '링크를 복사했습니다' : '복사에 실패했습니다. 링크를 길게 눌러 복사해 주세요.');
 });

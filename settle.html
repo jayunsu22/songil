@@ -10,7 +10,7 @@
      계산은 settle_calc.js(SettleCalc), 화면·상태는 settle.js.
      절대경로로 두는 이유는 quote_view.html 주석 참조(/s/ 경로와 같은 저장소라 습관을 맞춘다). -->
 <link rel="stylesheet" href="/quote_style.css">
-<link rel="stylesheet" href="/settle_style.css?v=20261117c">
+<link rel="stylesheet" href="/settle_style.css?v=20261117e">
 </head>
 <body>
 
@@ -117,11 +117,7 @@
     <button id="copyLink" class="primary" type="button">링크 복사</button>
     <button id="shareLink" type="button">카톡 등으로 공유</button>
     <button id="openLink" type="button">견적서 열기</button>
-    <!-- 📄 이 견적서를 두 앱의 이 현장에 잇기 (11/17 사장님) -->
-    <div class="pub-apply" id="pubApply">
-      <button id="applyAdmin" type="button">🏢 현장관리자 앱에 적용</button>
-      <button id="applySite" type="button">📅 일정 앱에 적용</button>
-    </div>
+    <p class="pub-auto">✅ 현장관리자 앱·일정 앱에서 이 현장을 열면 이 견적서로 자동으로 바뀝니다</p>
     <p class="hint">내용을 고쳤으면 닫고 다시 발행하세요. 새 링크가 생기고 이미 보낸 링크는 그대로 살아 있습니다.</p>
   </div>
   <button id="pubSave" type="button">저장</button>
@@ -209,7 +205,7 @@
 <script src="/request_price.js?v=20261112b"></script>
 <script src="/settle_items.js?v=20261112a"></script>
 <script src="/settle_films.js?v=20261007"></script>
-<script src="/settle.js?v=20261117d"></script>
+<script src="/settle.js?v=20261117e"></script>
 <script src="/app-switcher.js?v=20261020a" data-app-id="settle"></script>
 </body>
 </html>
