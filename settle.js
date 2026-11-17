@@ -575,7 +575,11 @@ function bindLineEvents() {
         renderTotals();
       });
       else if (f === '품목명') el.addEventListener('input', () => { l.품목명 = el.value; save(); });
-      else if (f === '자재ID') el.addEventListener('change', () => { l.자재ID = el.value; save(); 줄다시그리기(l); renderTotals(); });
+      else if (f === '자재ID') el.addEventListener('change', () => {
+        l.자재ID = el.value;
+        if (l.품목) { l.품목 = Object.assign({}, l.품목); delete l.품목.고침; }   // 필름이 바뀌면 자재비가 달라지므로 고친 금액은 푼다
+        save(); 줄다시그리기(l); renderTotals();
+      });
       else if (f === 'del') el.addEventListener('click', () => {
         state.줄들 = state.줄들.filter((x) => x !== l); save(); renderLines(); renderTotals();
       });
@@ -1174,7 +1178,10 @@ function 품목줄HTML(l) {
       `<button type="button" data-f="q+" aria-label="늘리기">+</button></div>` +
       `<select class="diff${난 > 1 ? ' up' : ''}" data-f="난이도" aria-label="난이도">` +
         난이도선택지.map((d) => `<option value="${d}"${d === 난 ? ' selected' : ''}>난이도 ${d.toFixed(1)}</option>`).join('') + '</select>' +
-      길이칸 + `</div>`;
+      길이칸 + `</div>` +
+      // 🎞 품목마다 필름 번호 (11/17 사장님) — 고르면 그 필름 단가로 자재비가 다시 계산되고, 견적서에 필름 번호가 나온다
+      (자재목록().length ? `<div class="ctl pfilm"><span class="pfilm-l">필름</span><select class="mat${자재표[l.자재ID] ? '' : ' none'}" data-f="자재ID" aria-label="필름">${자재옵션(l.자재ID)}</select>` +
+        `<span class="pfilm-p">${자재표[l.자재ID] ? won(줄필름단가(l)) + '/m' : ''}</span></div>` : '');
   }
   const 문제 = l.체크 && r.문제;
   return `<div class="row item ${l.체크 ? 'on' : 'off'}${문제 ? ' warn' : ''}" data-key="${l.key}">

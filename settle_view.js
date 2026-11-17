@@ -128,6 +128,7 @@ function render(d) {
       if (p.개수 && p.개수 !== 1) 덧.push(p.개수 + '개');
       if (p.길이) 덧.push('길이 ' + p.길이 + 'm');
       if (p.난이도 && p.난이도 !== 1) 덧.push('난이도 ' + Number(p.난이도).toFixed(1));
+      if (p.자재명) 덧.push('필름 ' + p.자재명);   // 🎞 품목마다 고른 필름 (11/17)
       H.push('<div class="v-line"><span class="v-nm">' + (p.구역 ? esc(p.구역) + ' · ' : '') + esc(p.품목명) +
         (p.시공범위 ? ' <span class="v-scope' + (p.시공범위 === '문+틀 양쪽면 시공' ? '' : ' part') + '">' + esc(p.시공범위) + '</span>' : '') +
         (덧.length ? '<small>' + esc(덧.join(' · ')) + '</small>' : '') + '</span>' +

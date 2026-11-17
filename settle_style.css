@@ -293,3 +293,9 @@ section.card[hidden] { display: none; }
 /* 📱 금액 창: 자판이 올라와도 [취소]·[확인] 이 보이게 (11/17) — 창 안에서 밀어 보고, 버튼 줄은 아래에 붙인다 */
 #amtSheet { overflow-y: auto; overscroll-behavior: contain; max-height: calc(100dvh - 12px); }
 #amtSheet .amt-row { position: sticky; bottom: -18px; background: var(--card); padding: 8px 0 18px; margin-bottom: -10px; z-index: 1; box-shadow: 0 -8px 12px -10px rgba(0,0,0,.18); }
+
+/* 🎞 품목 줄 필름 번호 고르기 (11/17) */
+.row.item .ctl.pfilm { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.row.item .pfilm-l { font-size: 14px; font-weight: 800; color: var(--muted); flex: 0 0 auto; }
+.row.item .pfilm select.mat { flex: 1 1 auto; width: auto; margin-left: 0; min-width: 0; height: 44px; font-size: 16px; font-weight: 700; }
+.row.item .pfilm-p { flex: 0 0 auto; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
