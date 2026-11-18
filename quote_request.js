@@ -590,7 +590,15 @@ function 요청줄그리기() {
     묶.줄들.push(줄);
   });
   구역들.forEach((묶) => {
-    box.appendChild(Object.assign(document.createElement('div'), { className: 'req-zh', textContent: 묶.구역 }));
+    const zh = Object.assign(document.createElement('div'), { className: 'req-zh', textContent: 묶.구역 });
+    if (묶.구역 === 미정글 && 묶.줄들.length) {
+      // 🗂 한꺼번에 나누기 (11/18)
+      const bb = document.createElement('button');
+      bb.type = 'button'; bb.className = 'req-zh-btn'; bb.textContent = '구역 한꺼번에 나누기 ›';
+      bb.addEventListener('click', () => 요청나누기열기());
+      zh.appendChild(bb);
+    }
+    box.appendChild(zh);
     묶.줄들.forEach((줄) => box.appendChild(요청줄카드(줄)));
   });
   let 합 = 0, m = 0;
@@ -802,6 +810,78 @@ function 요청미정머리(줄, card) {
   });
   if (!후보.length) zr.appendChild(Object.assign(document.createElement('small'), { textContent: '고를 구역이 없습니다' }));
   card.appendChild(zr);
+}
+
+/* 🗂 구역 한꺼번에 나누기 (2026-11-18 사장님) — 종류(방문+틀…)를 고르고 구역을 누를 때마다 구역 미정 줄이
+   하나씩 그 방 품목이 된다 (사진 붙은 줄부터). 이미 있는 방은 ✓ 로 막는다. [되돌리기] 는 방금 나눈 것부터 하나씩 */
+let 요청나누기유형 = '';
+let 요청나누기기록 = [];   // [{ 줄, 전: {…} }]
+function 요청나누기열기() {
+  요청나누기기록 = [];
+  if (!요청미정줄들().some((x) => x.유형 === 요청나누기유형)) 요청나누기유형 = (요청미정줄들()[0] || {}).유형 || '';
+  let back = document.getElementById('reqSplitBack');
+  if (!back) {
+    back = document.createElement('div'); back.id = 'reqSplitBack';
+    const sh = document.createElement('section'); sh.id = 'reqSplitSheet'; sh.setAttribute('aria-label', '구역 나누기');
+    document.body.appendChild(back); document.body.appendChild(sh);
+    back.addEventListener('click', 요청나누기닫기);
+  }
+  back.hidden = false;
+  document.getElementById('reqSplitSheet').hidden = false;
+  요청나누기그리기();
+}
+function 요청나누기닫기() {
+  const b = document.getElementById('reqSplitBack'), sh = document.getElementById('reqSplitSheet');
+  if (b) b.hidden = true; if (sh) sh.hidden = true;
+  요청저장(); 요청그리기();
+}
+function 요청나누기그리기() {
+  const sh = document.getElementById('reqSplitSheet');
+  if (!sh) return;
+  const 미정 = 요청미정줄들();
+  const 유형들 = [];
+  미정.forEach((x) => { if (!유형들.includes(x.유형)) 유형들.push(x.유형); });
+  if (!유형들.includes(요청나누기유형) && 유형들.length) 요청나누기유형 = 유형들[0];
+  const t = 요청나누기유형;
+  const 남은 = 미정.filter((x) => x.유형 === t);
+  const 처음수 = 남은.length + 요청나누기기록.filter((r) => r.전.유형 === t).length;
+  const 후보 = ((요청M && 요청M.시공품목) || []).filter((q) => 요청유형(q) === t).sort((a, b) => 요청구역키(a.구역) - 요청구역키(b.구역));
+  const 있는 = new Set(요청줄들().filter((x) => !x.미정).map((x) => x.품목명));
+  const 이번 = 요청나누기기록.filter((r) => r.전.유형 === t);
+  sh.innerHTML =
+    '<h2>구역 나누기' + (t ? ' · ' + esc(요청유형글(t)) : '') + '</h2>' +
+    '<p class="hint">구역을 누를 때마다 1개씩 그 방으로 갑니다 (사진 붙은 줄부터 · 금액은 그대로)</p>' +
+    (유형들.length > 1 ? '<div class="rs-types">' + 유형들.map((u) => '<button type="button" data-t="' + esc(u) + '" class="' + (u === t ? 'on' : '') + '">' +
+      esc(요청유형글(u)) + ' <b>' + 미정.filter((x) => x.유형 === u).length + '</b></button>').join('') + '</div>' : '') +
+    (t ? '<div class="rs-left"><span>❔ 아직 구역 미정</span><b>' + 남은.length + ' / ' + 처음수 + '</b></div>' : '<div class="rs-left done"><span>✅ 구역 미정이 없습니다</span></div>') +
+    '<div class="rs-grid">' + 후보.map((q) => {
+      const 쓰임 = 있는.has(q.품목명);
+      const 이번줄 = 이번.find((r) => r.줄.품목명 === q.품목명);
+      return '<button type="button" data-n="' + esc(q.품목명) + '" class="' + (이번줄 ? 'got' : 쓰임 ? 'used' : '') + '"' + (쓰임 || !남은.length ? ' disabled' : '') + '>' +
+        esc(q.구역 || '기타') + '<small>' + (이번줄 ? '이번에 ✓' : 쓰임 ? '이미 있음' : '') + '</small></button>';
+    }).join('') + '</div>' +
+    (이번.length ? '<div class="rs-res">' + 이번.map((r, i) => '<div><b>' + (i + 1) + '</b>' + esc(r.줄.품목명) + '<span>' +
+      (요청줄사진(r.줄).length ? '사진 ' + 요청줄사진(r.줄).length + '장' : '사진 없음') + ' · ' + won(요청줄계산(r.줄).합) + '</span></div>').join('') + '</div>' : '') +
+    '<div class="rs-btns"><button type="button" data-a="undo"' + (요청나누기기록.length ? '' : ' disabled') + '>되돌리기</button><button type="button" data-a="ok" class="primary">확인</button></div>';
+  sh.querySelectorAll('.rs-types button').forEach((b) => b.addEventListener('click', () => { 요청나누기유형 = b.dataset.t; 요청나누기그리기(); }));
+  sh.querySelectorAll('.rs-grid button').forEach((b) => b.addEventListener('click', () => {
+    const 대상 = 남은.find((x) => 요청줄사진(x).length) || 남은[0];
+    if (!대상) return;
+    요청나누기기록.push({ 줄: 대상, 전: { 미정: true, 유형: 대상.유형, 대표: 대상.대표, 품목명: 대상.품목명 } });
+    delete 대상.미정; delete 대상.유형; delete 대상.대표;
+    대상.품목명 = b.dataset.n;
+    요청저장();
+    요청나누기그리기();
+  }));
+  sh.querySelector('[data-a="undo"]').addEventListener('click', () => {
+    const r = 요청나누기기록.pop();
+    if (!r) return;
+    Object.assign(r.줄, r.전);
+    요청나누기유형 = r.전.유형;
+    요청저장();
+    요청나누기그리기();
+  });
+  sh.querySelector('[data-a="ok"]').addEventListener('click', 요청나누기닫기);
 }
 
 /* ② 직접 입력 줄: 적은 금액과 사진만 (옵션 없음). 고치기는 ① 과 같은 창 */
