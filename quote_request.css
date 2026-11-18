@@ -295,3 +295,26 @@ body.pq-open { overflow: hidden; }
 #pqBig .pqb-bot { display: flex; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
 #pqBig .pqb-bot[hidden] { display: none; }
 #pqBig .pqb-nav { flex: 1; height: 50px; border: 0; border-radius: 12px; background: rgba(255,255,255,.18); color: #fff; font-size: 16px; font-weight: 800; }
+
+/* ❔ 구역 미정 · 사진별 견적 (2026-11-18) */
+.req-chip.unset { background: #fff7e6; color: #b45309; border: 1.5px dashed #f0b45b; font-weight: 800; }
+.req-chip.unset.on { background: #b45309; color: #fff; border: 1.5px solid #b45309; }
+.req-unset-note { background: #fff7e6; border: 1px solid #f6d79b; color: #7c4a03; border-radius: 12px; padding: 10px 12px; font-size: 13.5px; line-height: 1.5; margin: 0 0 8px; }
+.req-unset-note b { color: #92400e; }
+.req-item.req-unset { cursor: default; padding-right: 8px; }
+.req-item.req-unset small { margin-left: 0; flex: 1; }
+.req-step { margin-left: auto; display: inline-flex; align-items: center; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
+.req-step button { width: 40px; height: 40px; border: 0; background: none; font-size: 20px; color: var(--muted); }
+.req-step i { font-style: normal; min-width: 30px; text-align: center; font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.req-item.req-unset.on .req-step { border-color: var(--accent); }
+.req-item.req-unset.on .req-step i { color: var(--accent); }
+.req-photonew { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; }
+.req-photonew button { height: 46px; padding: 0 14px; border-radius: 12px; border: 1.5px dashed #9fb5e8; background: #f5f8ff; color: var(--accent); font-weight: 800; font-size: 14.5px; }
+.req-photonew small { width: 100%; color: var(--muted); font-size: 12.5px; }
+.req-line.unset { border: 1.5px dashed #f0b45b; background: #fffdf8; }
+.req-line .req-type { flex: 1; min-width: 0; height: 40px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 15.5px; font-weight: 800; padding: 0 8px; background: #fff; }
+.req-zonepick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 2px; }
+.req-zonepick > span { font-size: 13px; font-weight: 800; color: #b45309; margin-right: 2px; }
+.req-zp { height: 34px; padding: 0 12px; border-radius: 99px; border: 1.5px solid #c7d7fb; background: #eff4ff; color: #1d4ed8; font-weight: 800; font-size: 13.5px; }
+.req-zp.used { opacity: .45; background: #f1f5f9; border-color: var(--line); color: var(--muted); }
+#reqPaneLines .req-mini { width: 72px; height: 72px; border-radius: 9px; }

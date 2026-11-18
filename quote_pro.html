@@ -9,7 +9,7 @@
 <title>현장견적 - 섬세한손길</title>
 <link rel="stylesheet" href="quote_style.css">
 <link rel="stylesheet" href="quote_photos.css">
-<link rel="stylesheet" href="quote_request.css?v=20261111c">
+<link rel="stylesheet" href="quote_request.css?v=20261118a">
 </head>
 <body>
 
@@ -373,7 +373,7 @@
   <input id="reqSite" type="text" autocomplete="off" placeholder="현장 (주소·단지·평형)">
   <div id="reqTabs">
     <button type="button" data-tab="품목" id="reqTabItems">① 품목</button>
-    <button type="button" data-tab="옵션" id="reqTabLines">② 사진·옵션</button>
+    <button type="button" data-tab="옵션" id="reqTabLines">② 사진별 견적</button>
     <button type="button" data-tab="합산" id="reqTabSum">③ 합산</button>
   </div>
 
@@ -394,7 +394,9 @@
       </div>
       <input type="file" id="reqLinePick" accept="image/*" multiple hidden>
       <input type="file" id="reqLineCam" accept="image/*" capture="environment" hidden>
-      <p class="hint" id="reqLinesEmpty" hidden>① 에서 품목을 먼저 고르세요.</p>
+      <input type="file" id="reqNewPick" accept="image/*" multiple hidden>
+      <input type="file" id="reqNewCam" accept="image/*" capture="environment" hidden>
+      <p class="hint" id="reqLinesEmpty" hidden>① 에서 품목을 고르거나, 위 [📷 사진으로 줄 만들기] 로 사진마다 줄을 만드세요.</p>
       <div id="reqLines"></div>
     </div>
 
@@ -413,7 +415,7 @@
   </div>
 
   <div class="req-bar" id="reqItemsBar" hidden>
-    <div class="req-row"><span class="req-cnt" id="reqItemsCount"></span><button type="button" id="reqToLines" class="primary">② 사진·옵션 →</button></div>
+    <div class="req-row"><span class="req-cnt" id="reqItemsCount"></span><button type="button" id="reqToLines" class="primary">② 사진별 견적 →</button></div>
   </div>
   <div class="req-bar" id="reqLinesBar" hidden>
     <div class="req-row"><span class="req-cnt" id="reqLinesSum"></span><button type="button" id="reqToSum" class="primary">③ 합산 →</button></div>
@@ -517,7 +519,7 @@
 <script src="quote_box.js"></script>
 <script src="request_price.js"></script>
 <script src="quote_pro.js"></script>
-<script src="quote_request.js"></script>
+<script src="quote_request.js?v=20261118a"></script>
 <script src="request_draft.js?v=20261102c"></script>
 <script src="quote_draft_view.js?v=20261102c"></script>
 <!-- 📷 사진으로 견적 (2026-11-11): 업자가 보낸 사진 → 품목·필름·메모 (n8n 견적사진_읽기) -->

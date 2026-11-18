@@ -43,6 +43,43 @@ let 요청디비목록 = [];
 const 요청줄들 = () => (state.요청 && state.요청.줄) || [];
 const 요청품목 = (이름) => ((요청M && 요청M.시공품목) || []).find((p) => p.품목명 === 이름) || null;
 const 요청고정 = () => load(요청단가_LS) || {};
+
+/* ❔ 구역 미정 (2026-11-18 사장님: 고객은 사진만 보내고 '방문+틀 5세트' 라고만 한다 — 어느 방인지 모른다)
+   ① 의 '구역 미정' 칩에서 종류(방문+틀·화장실문+틀…)별 개수만 고른다. 한 개 = 한 줄이라 사진을 줄마다 붙이고,
+   ② 에서 줄마다 구역을 정하면 그 구역의 품목(방1문+틀)이 된다. 금액은 그 종류의 대표 품목으로 같게 계산한다.
+   줄 = { id, 미정: true, 유형: '문+틀', 대표: '방1문+틀', 품목명: '방문+틀', 시공범위, … } */
+const 미정칩 = '__미정__';
+function 요청유형(p) {
+  const n = String((p && p.품목명) || ''), z = String((p && p.구역) || '');
+  return z && n.indexOf(z) === 0 && n.length > z.length ? n.slice(z.length).trim() : n;
+}
+const 요청유형글 = (t) => (t === '문+틀' ? '방문+틀' : t === '문' ? '방문' : t);
+// 종류 목록 [{ 유형, 대표, 묶음 }] — 대표는 구역 순서상 첫 품목 (값은 같은 표 줄로 계산된다)
+function 요청유형목록(묶음) {
+  const out = [];
+  ((요청M && 요청M.시공품목) || []).slice().sort((a, b) => 요청구역키(a.구역) - 요청구역키(b.구역)).forEach((p) => {
+    if (묶음 && 요청묶음of(p) !== 묶음) return;
+    const t = 요청유형(p);
+    const x = out.find((y) => y.유형 === t);
+    if (x) x.몇++; else out.push({ 유형: t, 대표: p.품목명, 묶음: 요청묶음of(p), 몇: 1 });
+  });
+  // 여러 방에 있는 종류(방문+틀 등)가 위로 — 고객이 '방문 5세트' 처럼 말하는 것부터
+  const 앞 = (t) => { const i = ['문+틀', '화장실문+틀'].indexOf(t); return i < 0 ? 9 : i; };
+  return out.sort((a, b) => 앞(a.유형) - 앞(b.유형) || b.몇 - a.몇);
+}
+const 요청줄품목 = (줄) => 요청품목((줄 && 줄.대표) || (줄 && 줄.품목명));
+const 요청새ID = () => 'rq' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+function 요청미정줄(유형, 대표, 밑) {
+  const p = 요청품목(대표) || { 품목명: 대표 };
+  const 첫필름 = 요청필름목록()[0];
+  return Object.assign({
+    id: 요청새ID(), 미정: true, 유형: 유형, 대표: 대표, 품목명: 요청유형글(유형),
+    시공범위: RequestPrice.is문(p) ? RequestPrice.시공범위들[0] : undefined,
+    샤시종류: RequestPrice.is샤시(p) ? RequestPrice.샤시종류들[0] : undefined,
+    필름ID: 첫필름 ? 첫필름.id : '', 난이도: 1,
+  }, 밑 || {});
+}
+const 요청미정줄들 = () => 요청줄들().filter((x) => x.미정);
 const 요청묶음of = (p) => (요청묶음들.indexOf(p.카테고리) >= 0 ? p.카테고리 : '기타');
 
 function 요청필름목록() {
@@ -60,7 +97,7 @@ function 요청줄계산(줄) {
     const 인 = Math.round(Number(줄.인건비) || 0), 자 = Math.round(Number(줄.자재비) || 0);
     return { 기준: null, 길이: null, 필름m: 0, 인건비: 인, 자재비: 자, 합: 인 + 자, 문제: null, 필름ID: '', 필름없음: false };
   }
-  const p = 요청품목(줄.품목명) || { 품목명: 줄.품목명 };
+  const p = 요청줄품목(줄) || { 품목명: 줄.품목명 };
   const f = 요청필름(줄.필름ID);
   const r = RequestPrice.줄계산(p, 줄, (요청M && 요청M.품목정보) || [], 요청고정(), f ? f.단가 : null);
   return Object.assign(r, { 필름ID: 줄.필름ID, 필름없음: !f });
@@ -204,7 +241,8 @@ function 요청탭숫자() {
   const n = 요청줄들().length;
   const 미지정 = 요청미지정사진().length;
   $('#reqTabItems').textContent = '① 품목 ' + n;
-  $('#reqTabLines').textContent = '② 사진·옵션' + (미지정 ? ' · 📷' + 미지정 : '');
+  const 미정 = 요청미정줄들().length;
+  $('#reqTabLines').textContent = '② 사진별 견적' + (미지정 ? ' · 📷' + 미지정 : '') + (미정 ? ' · ❔' + 미정 : '');
   $('#reqTabSum').textContent = '③ 합산' + (n ? ' ' + won(요청합계().총액) : '');
 }
 
@@ -260,8 +298,12 @@ function 요청품목그리기() {
   const 묶 = 목록.filter((p) => 요청묶음of(p) === 요청묶음);
   const 직접들 = 요청줄들().filter((x) => x.직접 && x.카테고리 === 요청묶음);
   const 구역들 = 요청구역들(묶.concat(직접들.map((x) => ({ 구역: x.구역 }))));
-  if (요청구역칩 !== '전체' && 구역들.indexOf(요청구역칩) < 0) 요청구역칩 = '전체';
+  if (요청구역칩 !== '전체' && 요청구역칩 !== 미정칩 && 구역들.indexOf(요청구역칩) < 0) 요청구역칩 = '전체';
   zc.appendChild(요청칩('전체', 요청구역칩 === '전체', null, () => { 요청구역칩 = '전체'; 다시(); }));
+  const 미정수 = 요청미정줄들().filter((x) => 요청묶음of(요청줄품목(x) || {}) === 요청묶음).length;
+  const 미정b = 요청칩('❔ 구역 미정' + (미정수 ? ' ✓' + 미정수 : ''), 요청구역칩 === 미정칩, null, () => { 요청구역칩 = 미정칩; 다시(); });
+  미정b.classList.add('unset');
+  zc.appendChild(미정b);
   구역들.forEach((z) => {
     const 몇 = 몇개(묶.filter((p) => (p.구역 || '기타') === z)) + 직접들.filter((x) => x.구역 === z).length;
     zc.appendChild(요청칩(z + (몇 ? ' ✓' + 몇 : ''), 요청구역칩 === z, 색of(z), () => { 요청구역칩 = z; 다시(); }));
@@ -274,6 +316,7 @@ function 요청품목그리기() {
 
   const box = $('#reqItemList');
   box.textContent = '';
+  if (요청구역칩 === 미정칩) { 요청미정목록그리기(box); $('#reqItemsCount').textContent = '고른 품목 ' + 요청줄들().length + '개'; return; }
   보일.forEach((p) => {
     const on = 고른.has(p.품목명);
     const k = RequestPrice.기준(p, {}, 요청M.품목정보, 요청고정());
@@ -407,6 +450,34 @@ function 요청직접삭제() {
   요청직접닫기();
 }
 
+/* ① ❔ 구역 미정: 종류마다 − n + (한 개 = 한 줄) */
+function 요청미정목록그리기(box) {
+  const note = document.createElement('p');
+  note.className = 'req-unset-note';
+  note.innerHTML = '<b>구역 미정</b> — 고객이 "방문+틀 5세트" 처럼만 보내면 여기서 <b>개수만</b> 고르세요. 금액은 똑같이 나오고, 어느 방인지는 ② 에서 사진 보고 나눕니다.';
+  box.appendChild(note);
+  요청유형목록(요청묶음).forEach((t) => {
+    const 줄들 = 요청미정줄들().filter((x) => x.유형 === t.유형);
+    const p = 요청품목(t.대표) || {};
+    const k = RequestPrice.기준(p, {}, 요청M.품목정보, 요청고정());
+    const 설명 = !k ? '단가 정해야 함' : (k.단위 === 'm' ? '길이 · ' + k.소모율 + 'm/m' : (k.기본m != null ? k.기본m + 'm/개' : ''));
+    const row = document.createElement('div');
+    row.className = 'req-item req-unset' + (줄들.length ? ' on' : '');
+    row.innerHTML = '<b>' + esc(요청유형글(t.유형)) + '</b><small class="' + (k ? '' : 'bad') + '">' + esc(설명) + '</small>' +
+      '<span class="req-step"><button type="button" data-d="-1" aria-label="빼기">−</button><i>' + 줄들.length + '</i><button type="button" data-d="1" aria-label="더하기">＋</button></span>';
+    row.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.d === '1') 요청줄들().push(요청미정줄(t.유형, t.대표));
+      else if (줄들.length) {
+        // 사진 없는 줄부터 뺀다
+        const 뺄 = 줄들.slice().reverse().find((x) => !요청줄사진(x).length) || 줄들[줄들.length - 1];
+        state.요청.줄 = 요청줄들().filter((x) => x !== 뺄);
+      }
+      요청저장(); 요청품목그리기(); 요청탭숫자();
+    }));
+    box.appendChild(row);
+  });
+}
+
 function 요청품목토글(p) {
   const 줄들 = 요청줄들();
   const i = 줄들.findIndex((x) => x.품목명 === p.품목명);
@@ -498,10 +569,22 @@ function 요청줄그리기() {
   const 줄들 = 요청줄들();
   $('#reqLinesEmpty').hidden = 줄들.length > 0;
   // 구역별로 묶어 보여준다 (정산견적처럼)
+  // 📷 사진으로 줄 만들기 — 고른 사진 한 장마다 '구역 미정' 줄 하나 (사진별 견적, 11/18)
+  const 새줄 = document.createElement('div');
+  새줄.className = 'req-photonew';
+  새줄.innerHTML = '<button type="button" data-c="0">📷 사진으로 줄 만들기</button><button type="button" data-c="1">📸 찍어서</button>' +
+    '<small>사진 한 장 = 견적 한 줄 (구역 미정으로 들어갑니다)</small>';
+  새줄.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    const inp = b.dataset.c === '1' ? $('#reqNewCam') : $('#reqNewPick');
+    inp.value = ''; inp.click();
+  }));
+  box.appendChild(새줄);
   const 구역들 = [];
+  const 미정글 = '❔ 구역 미정';
+  if (줄들.some((x) => x.미정)) 구역들.push({ 구역: 미정글, 줄들: [] });
   줄들.forEach((줄) => {
-    const p = 요청품목(줄.품목명);
-    const 구역 = 줄.직접 ? (줄.구역 || '기타') : ((p && p.구역) || '기타');
+    const p = 요청줄품목(줄);
+    const 구역 = 줄.미정 ? 미정글 : 줄.직접 ? (줄.구역 || '기타') : ((p && p.구역) || '기타');
     let 묶 = 구역들.find((x) => x.구역 === 구역);
     if (!묶) { 묶 = { 구역: 구역, 줄들: [] }; 구역들.push(묶); }
     묶.줄들.push(줄);
@@ -565,7 +648,7 @@ function 요청줄사진고르기(줄, 찍기) {
 }
 
 function 요청줄카드(줄) {
-  const p = 요청품목(줄.품목명) || { 품목명: 줄.품목명 };
+  const p = 요청줄품목(줄) || { 품목명: 줄.품목명 };
   const r = 요청줄계산(줄);
   const k = r.기준;
   const 바꿈 = (값) => { Object.assign(줄, 값); 요청저장(); 요청줄그리기(); 요청탭숫자(); };
@@ -578,6 +661,7 @@ function 요청줄카드(줄) {
     '<div class="r1"><b>' + esc(줄.품목명) + '</b><small>' + esc(단가글) + '</small>' +
     '<span class="req-amt">' + (r.합 ? won(r.합) : '—') + '</span></div>';
 
+  if (줄.미정) 요청미정머리(줄, card);
   card.appendChild(요청사진줄(줄));
 
   if (!k) {
@@ -674,6 +758,52 @@ function 요청줄카드(줄) {
   return card;
 }
 
+/* ② ❔ 구역 미정 줄: 종류 고르기 + 구역 정하기 (그 종류가 있는 구역만, 이미 고른 품목은 흐리게) */
+function 요청미정머리(줄, card) {
+  card.classList.add('unset');
+  const b = card.querySelector('.r1 b');
+  const sel = document.createElement('select');
+  sel.className = 'req-type';
+  const 전부 = 요청유형목록(null);
+  sel.innerHTML = 요청묶음들.map((m) => {
+    const 묶 = 전부.filter((t) => t.묶음 === m);
+    return 묶.length ? '<optgroup label="' + esc(m) + '">' + 묶.map((t) => '<option value="' + esc(t.유형) + '"' + (t.유형 === 줄.유형 ? ' selected' : '') + '>' + esc(요청유형글(t.유형)) + '</option>').join('') + '</optgroup>' : '';
+  }).join('');
+  sel.addEventListener('change', () => {
+    const t = 전부.find((x) => x.유형 === sel.value);
+    if (!t) return;
+    const 새 = 요청미정줄(t.유형, t.대표, { id: 줄.id, 필름ID: 줄.필름ID, 난이도: 줄.난이도 });
+    Object.keys(줄).forEach((k2) => delete 줄[k2]);
+    Object.assign(줄, 새);
+    요청저장(); 요청줄그리기(); 요청탭숫자();
+  });
+  if (b) b.replaceWith(sel);
+  const 후보 = ((요청M && 요청M.시공품목) || []).filter((q) => 요청유형(q) === 줄.유형)
+    .sort((a, b2) => 요청구역키(a.구역) - 요청구역키(b2.구역));
+  const 있는 = new Set(요청줄들().filter((x) => !x.미정).map((x) => x.품목명));
+  const zr = document.createElement('div');
+  zr.className = 'req-zonepick';
+  zr.innerHTML = '<span>❔ 구역</span>';
+  후보.forEach((q) => {
+    const c = document.createElement('button');
+    c.type = 'button';
+    const 쓰임 = 있는.has(q.품목명);
+    c.className = 'req-zp' + (쓰임 ? ' used' : '');
+    c.textContent = (q.구역 || '기타') + (쓰임 ? ' ✓' : '');
+    c.title = 쓰임 ? q.품목명 + ' 은(는) 이미 있습니다' : q.품목명 + ' 으로';
+    c.addEventListener('click', () => {
+      if (쓰임) { toast('‘' + q.품목명 + '’ 은(는) 이미 있습니다'); return; }
+      delete 줄.미정; delete 줄.유형; delete 줄.대표;
+      줄.품목명 = q.품목명;
+      요청저장(); 요청줄그리기(); 요청탭숫자();
+      toast('📍 ' + q.품목명 + ' 으로 정했습니다');
+    });
+    zr.appendChild(c);
+  });
+  if (!후보.length) zr.appendChild(Object.assign(document.createElement('small'), { textContent: '고를 구역이 없습니다' }));
+  card.appendChild(zr);
+}
+
 /* ② 직접 입력 줄: 적은 금액과 사진만 (옵션 없음). 고치기는 ① 과 같은 창 */
 function 요청직접카드(줄, r, card) {
   card.innerHTML =
@@ -766,6 +896,8 @@ function 요청경고() {
   });
   const n = 요청미지정사진().length;
   if (n) out.push('품목에 안 붙인 사진 ' + n + '장');
+  const 미정 = 요청미정줄들().length;
+  if (미정) out.push('구역 미정 ' + 미정 + '개 — 방문견적에 ‘구역 미정’ 품목으로 들어갑니다');
   return out;
 }
 
@@ -797,8 +929,8 @@ async function 요청넣기() {
       새.push({ id: 줄.id, 구역: 요청방문구역(줄.구역), 품목명: 줄.품목명, 인건비: r.인건비, 자재비: r.자재비, 금액: r.합, 설명: 줄.설명 || '' });
       return;
     }
-    const p = 요청품목(줄.품목명) || {};
-    const 짝 = QuoteToSite.요청짝(보이는, 줄.품목명, 줄.시공범위, 방개수());
+    const p = 요청줄품목(줄) || {};
+    const 짝 = 줄.미정 ? null : QuoteToSite.요청짝(보이는, 줄.품목명, 줄.시공범위, 방개수());
     const row = 짝 && ROWS.get(짝.체크_ID);
     if (row && !state.선택[짝.체크_ID]) {
       const it = row.item;
@@ -823,8 +955,8 @@ async function 요청넣기() {
     if (줄.샤시종류) 덧.push(줄.샤시종류);
     새.push({
       id: 줄.id,
-      구역: 요청방문구역(p.구역),
-      품목명: 줄.품목명 + (덧.length ? ' (' + 덧.join(' · ') + ')' : ''),
+      구역: 요청방문구역(줄.미정 ? '' : p.구역),
+      품목명: 줄.품목명 + (줄.미정 ? ' (구역 미정)' : '') + (덧.length ? ' (' + 덧.join(' · ') + ')' : ''),
       인건비: r.인건비, 자재비: r.자재비, 금액: r.합,
       설명: [(r.길이 != null ? '길이 ' + r.길이 + 'm' : ''), '필름 ' + (필름 ? 필름.이름 + ' ' : '') + r.필름m + 'm',
         (줄.난이도 && 줄.난이도 !== 1 ? '난이도 ' + Number(줄.난이도).toFixed(1) : '')].filter(Boolean).join(' · '),
@@ -1000,6 +1132,30 @@ $('#reqMemo').addEventListener('input', () => { if (state.요청) { state.요청
   요청줄사진대상 = null;
   await 요청사진태그넣기(files, 대상);
   요청그리기();
+}));
+// 📷 사진으로 줄 만들기: 사진마다 '구역 미정' 줄 (종류는 마지막으로 고른 미정 줄의 종류, 없으면 지금 묶음의 첫 종류)
+['#reqNewPick', '#reqNewCam'].forEach((id) => $(id).addEventListener('change', async () => {
+  const files = Array.from($(id).files || []);
+  if (!files.length) return;
+  const 마지막 = 요청미정줄들().slice(-1)[0];
+  const t = 마지막 ? { 유형: 마지막.유형, 대표: 마지막.대표 } : (요청유형목록(요청묶음)[0] || 요청유형목록(null)[0]);
+  if (!t) { toast('품목 목록을 아직 못 받았습니다'); return; }
+  if (!사진가능) { toast('이 브라우저에서는 사진을 쓸 수 없습니다.'); return; }
+  let 된 = 0;
+  const 실패 = [];
+  for (const f of files) {
+    try {
+      const ph = await PDB.추가(현장ID확보(), 요청구역, f);
+      const 줄 = 요청미정줄(t.유형, t.대표);
+      await PDB.태그저장(ph.id, [줄.id]);
+      요청줄들().push(줄);
+      된++;
+    } catch (err) { 실패.push(await 사진실패이유(err, f)); }
+  }
+  await 요청사진읽기();
+  요청저장();
+  요청그리기();
+  toast(된 ? '사진 ' + 된 + '장으로 ' + 된 + '줄 만들었습니다 (구역 미정)' + (실패.length ? ' · ' + 실패.length + '장 실패' : '') : '사진을 넣지 못했습니다 · ' + (실패[0] || ''));
 }));
 $('#reqToLines').addEventListener('click', () => 요청탭바꾸기('옵션'));
 $('#reqToSum').addEventListener('click', () => 요청탭바꾸기('합산'));
