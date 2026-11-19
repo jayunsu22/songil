@@ -91,8 +91,9 @@ export default async (request, context) => {
         // 카톡으로 받은 링크 카드가 어느 현장이든 "현장 품질 관리 시스템"으로만 떠서
         // 기사님이 어느 현장 링크인지 구분할 수 없었다.
         // [New] 정산 견적서(/s/<코드>)도 같은 방식. 품수 기반 사후 견적이라 제목만 다르다.
-        if (url.pathname.startsWith('/q/') || url.pathname.startsWith('/g/') || url.pathname.startsWith('/w/') || url.pathname.startsWith('/s/')) {
+        if (url.pathname.startsWith('/q/') || url.pathname.startsWith('/g/') || url.pathname.startsWith('/w/') || url.pathname.startsWith('/s/') || url.pathname.startsWith('/t/')) {
             const 갤러리 = url.pathname.startsWith('/g/');
+            const 시공사진 = url.pathname.startsWith('/t/');   // 일정 앱 [📷 시공사진] 공유 (2026-11-19)
             const 품질관리 = url.pathname.startsWith('/w/');
             const 정산 = url.pathname.startsWith('/s/');
             const escAttrQ = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
@@ -118,7 +119,10 @@ export default async (request, context) => {
             현장명 = 현장명.trim().slice(0, 60);
             let qTitle;
             let qDesc;
-            if (갤러리) {
+            if (시공사진) {
+                qTitle = 현장명 ? `${현장명} 시공사진` : '시공사진';
+                qDesc = '섬세한손길 구역별 시공 사진입니다.';
+            } else if (갤러리) {
                 qTitle = 현장명 ? `${현장명} 사진 갤러리` : '현장 사진 갤러리';
                 qDesc = '섬세한손길 시공 사진입니다.';
             } else if (품질관리) {
