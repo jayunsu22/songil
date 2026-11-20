@@ -39,5 +39,13 @@ var EJ = (function () {
       '</h1><div class="card"><p style="margin:0">' + esc(r.error) + '</p>' + (r.net ? '<button class="btn line" onclick="location.reload()">다시 불러오기</button>' : '') + '</div>';
   }
   function tel(p) { return 'tel:' + String(p || '').replace(/[^0-9]/g, ''); }
+  // ?demo 미리보기는 n8n 을 안 부른다 — 진짜로 착각하지 않게 맨 위에 띠를 붙인다 (11/21 사장님이 미리보기로 올렸다가 문자가 안 감)
+  if (demo) document.addEventListener('DOMContentLoaded', function () {
+    var bar = document.createElement('div');
+    bar.setAttribute('role', 'note');
+    bar.style.cssText = 'position:sticky;top:0;z-index:8;background:#1A1A1A;color:#fff;font-size:15px;font-weight:700;text-align:center;padding:10px 16px;line-height:1.4';
+    bar.textContent = '미리보기 화면이에요 · 눌러도 실제로 보내지지 않아요';
+    document.body.insertBefore(bar, document.body.firstChild);
+  });
   return { call: call, esc: esc, toast: toast, busy: busy, today: today, I: I, logo: logo, blocked: blocked, tel: tel, demo: demo, key: key };
 })();

@@ -80,7 +80,7 @@
     html += '<fieldset><legend>모집 등급</legend><div class="grid3">' + GRADES.map(function (x) { return chip('grade', x.g, x.g, true, x.sub); }).join('') + '</div></fieldset>';
     html += '<fieldset><legend>일당 <span>만원 · ' + esc(f.grade) + ' 범위</span></legend><div class="chips">' + g.pays.map(function (p) { return chip('pay', p, p + '만'); }).join('') + '</div></fieldset>';
     html += '<fieldset><legend>현장 지역</legend><div class="grid3">' + ['서울', '인천', '경기'].map(function (x) { return chip('sido', x, x); }).join('') + '</div>' +
-      (f.sido === '경기' ? '<label class="hint" for="sigun" style="font-size:13px;color:var(--ink-2)">경기도 시 · 군</label><select id="sigun" class="field">' +
+      (f.sido === '경기' ? '<label class="hint" for="sigun">경기도 시 · 군</label><select id="sigun" class="field">' +
         SIGUN.map(function (x) { return '<option' + (x === f.sigun ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select>' : '') +
       '<span class="hint">기술자에게는 시 · 군까지만 보여요</span></fieldset>';
     html += '<fieldset><legend>현장 유형</legend><div class="grid2">' + chip('type', '주택', '주택') + chip('type', '상가', '상가') + '</div></fieldset>';
