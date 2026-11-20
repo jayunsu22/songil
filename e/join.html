@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F6F5F2">
 <title>긴급구인 · 가입 신청</title>
-<meta name="description" content="필름 현장 당일 아침 펑크, 문자 한 통으로 대타를 구해요.">
+<meta name="description" content="필름 현장 당일 아침 펑크, 문자 한 통으로 대타를 구하고 일도 받아요.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -15,27 +15,34 @@
 <main class="wrap" id="app"></main>
 <script src="/e/e.js"></script>
 <script>
-// 가입 신청 /e/join (?b 면 업체로 시작): 신청 → 운영자 텔레그램 → Airtable 에서 승인 → 시계가 링크 문자
+// 가입 신청 /e/join: 한 사람이 기술자로 일 받기·구인하기를 둘 다 고를 수 있다 (사장님 11/21 — 일 없으면 사장님도 기술자로 나간다).
+// 구인 쪽 업체명은 선택(없으면 이름으로 구인), 사업자번호는 받지 않는다. ?b 면 구인하기가 먼저 켜진다.
+// 신청 → 운영자 텔레그램 → Airtable 에서 승인 → 시계가 링크 문자
 (function () {
   var esc = EJ.esc, app = document.getElementById('app');
   var SIGUN = ['부천시', '김포시', '시흥시', '광명시', '안산시', '고양시', '파주시', '안양시', '군포시', '의왕시', '과천시', '수원시', '성남시', '용인시', '화성시', '오산시', '평택시', '안성시',
     '하남시', '구리시', '남양주시', '의정부시', '양주시', '동두천시', '포천시', '광주시', '이천시', '여주시', '양평군', '가평군', '연천군'];
-  var f = { kind: /[?&]b\b/.test(location.search) ? 'b' : 'w', name: '', phone: '', grade: '', regions: [], semi: false, ref: '', company: '', boss: '', bizno: '', agree: false };
+  var asBoss = /[?&]b\b/.test(location.search);
+  var f = { work: !asBoss, hire: asBoss, name: '', phone: '', grade: '', regions: [], semi: false, ref: '', company: '', agree: false };
   var chip = function (k, v, label) {
     var on = Array.isArray(f[k]) ? f[k].indexOf(v) >= 0 : f[k] === v;
     return '<button type="button" class="chip" aria-pressed="' + on + '" data-k="' + k + '" data-v="' + esc(v) + '">' + esc(label || v) + '</button>';
   };
-  var input = function (id, label, ph, type, extra) {
+  var role = function (k, title, sub) {
+    return '<button type="button" class="chip tall" aria-pressed="' + f[k] + '" data-role="' + k + '" style="padding:10px 8px"><b>' + title + '</b><small>' + sub + '</small></button>';
+  };
+  var input = function (id, label, ph, type, extra, hint) {
     return '<div style="display:flex;flex-direction:column;gap:8px"><label class="label" for="' + id + '" style="margin:0">' + label + '</label>' +
-      '<input id="' + id + '" class="field" type="' + (type || 'text') + '" placeholder="' + ph + '" value="' + esc(f[id]) + '"' + (extra || '') + '></div>';
+      '<input id="' + id + '" class="field" type="' + (type || 'text') + '" placeholder="' + ph + '" value="' + esc(f[id]) + '"' + (extra || '') + '>' +
+      (hint ? '<span class="hint">' + hint + '</span>' : '') + '</div>';
   };
   function render() {
-    var w = f.kind === 'w', html = '<div class="top">' + EJ.logo() + '</div>';
-    html += '<h1>' + (w ? '오늘 일 빌 때,<br>문자 한 통으로 연결돼요' : '아침에 펑크 나면,<br>1분 만에 대타 구해요') + '</h1>';
-    html += '<div class="stack" style="gap:22px"><div class="grid2" role="group" aria-label="가입 종류">' + chip('kind', 'w', '기술자예요') + chip('kind', 'b', '업체 사장님이에요') + '</div>';
-    if (w) {
-      html += input('name', '이름', '홍길동', 'text', ' maxlength="20" autocomplete="name"');
-      html += input('phone', '휴대폰 번호', '010-0000-0000', 'tel', ' inputmode="numeric" autocomplete="tel"');
+    var html = '<div class="top">' + EJ.logo() + '</div><h1>아침 펑크,<br>문자 한 통으로 연결돼요</h1><div class="stack" style="gap:22px">';
+    html += input('name', '이름', '홍길동', 'text', ' maxlength="20" autocomplete="name"');
+    html += input('phone', '휴대폰 번호', '010-0000-0000', 'tel', ' inputmode="numeric" autocomplete="tel"');
+    html += '<fieldset><legend>무엇을 할까요? <span>둘 다 골라도 돼요</span></legend><div class="grid2">' +
+      role('work', '기술자로 일 받기', '일 빈 날 구인 문자') + role('hire', '구인하기', '펑크 나면 대타 구하기') + '</div></fieldset>';
+    if (f.work) {
       html += '<fieldset><legend>내 등급</legend><div class="grid3">' + chip('grade', '조공') + chip('grade', '준기공') + chip('grade', '기공') + '</div>' +
         (f.grade === '기공' ? '<label style="display:flex;gap:10px;align-items:center;min-height:44px;font-size:15px"><input type="checkbox" id="semi"' + (f.semi ? ' checked' : '') + ' style="width:22px;height:22px;accent-color:var(--hot)"> 준기공 일도 받을게요</label>' : '') +
         '<span class="hint">같은 등급의 구인만 받아요</span></fieldset>';
@@ -43,13 +50,9 @@
         '<div class="row"><span class="label" style="margin:0;font-size:14px">경기도</span><button type="button" class="btn ghost" id="allG" style="width:auto">' +
         (SIGUN.every(function (x) { return f.regions.indexOf(x) >= 0; }) ? '경기 모두 빼기' : '경기 모두 고르기') + '</button></div>' +
         '<div class="chips">' + SIGUN.map(function (x) { return chip('regions', x); }).join('') + '</div></fieldset>';
-      html += input('ref', '추천해 준 분 <span>선택</span>', '이름이나 업체명', 'text', ' maxlength="30"');
-    } else {
-      html += input('company', '업체명', '○○인테리어', 'text', ' maxlength="30" autocomplete="organization"');
-      html += input('boss', '대표자', '홍길동', 'text', ' maxlength="20" autocomplete="name"');
-      html += input('phone', '휴대폰 번호', '010-0000-0000', 'tel', ' inputmode="numeric" autocomplete="tel"');
-      html += input('bizno', '사업자등록번호', '000-00-00000', 'text', ' inputmode="numeric" maxlength="20"');
     }
+    if (f.hire) html += input('company', '업체명 <span>선택</span>', '○○인테리어', 'text', ' maxlength="30" autocomplete="organization"', '안 쓰면 이름으로 구인해요');
+    html += input('ref', '추천해 준 분 <span>선택</span>', '이름이나 업체명', 'text', ' maxlength="30"');
     html += '<label style="display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.55;color:var(--ink-2)"><input type="checkbox" id="agree"' + (f.agree ? ' checked' : '') +
       ' style="width:22px;height:22px;flex:none;margin-top:1px;accent-color:var(--hot)"><span>이름·전화번호를 매칭에 쓰고, <b>아침 6시 반 등 이른 시간에도</b> 구인·확정 문자를 받는 데 동의해요. 전화번호는 확정된 상대에게만 보내요.</span></label>';
     html += '<div class="footer"><button class="btn hot" id="send" style="min-height:60px;font-size:20px">가입 신청하기</button>' +
@@ -57,15 +60,27 @@
     app.innerHTML = html;
   }
   function done() {
+    var what = f.work && f.hire ? '기술자 링크와 구인 링크를' : f.work ? '내 링크를' : '구인 링크를';
     app.innerHTML = '<div class="top">' + EJ.logo() + '</div><div class="center"><div class="big-ok">' + EJ.I.boltBig + '</div><h1 style="font-size:24px;margin:8px 0">신청했어요</h1>' +
-      '<p style="color:var(--ink-2);line-height:1.6">운영자가 확인하고 승인하면<br>문자로 ' + (f.kind === 'w' ? '내 링크' : '사장님 링크') + '를 보내 드려요.</p></div>';
+      '<p style="color:var(--ink-2);line-height:1.6;margin:0 0 28px">운영자가 확인하고 승인하면<br>문자로 ' + what + ' 보내 드려요.</p>' +
+      '<button class="btn ink" id="close">확인</button><p class="muted center" id="closeHint" hidden style="margin-top:12px">이제 이 창은 닫으셔도 돼요.</p></div>';
+  }
+  // 문자 링크로 연 창은 브라우저가 window.close 를 막을 때가 많다 — 안 닫히면 뒤로 가거나 안내만 보인다
+  function closeWin() {
+    window.close();
+    setTimeout(function () {
+      if (history.length > 1) history.back();
+      else { var h = document.getElementById('closeHint'); if (h) h.hidden = false; }
+    }, 250);
   }
   var rerender = function () { var y = scrollY; render(); scrollTo(0, y); };
   app.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
+    if (b.id === 'close') return closeWin();
+    if (b.dataset.role) { var k = b.dataset.role; f[k] = !f[k]; return rerender(); }
     if (b.dataset.k) {
-      var k = b.dataset.k, v = b.dataset.v;
-      if (Array.isArray(f[k])) { var i = f[k].indexOf(v); i >= 0 ? f[k].splice(i, 1) : f[k].push(v); } else f[k] = v;
+      var key = b.dataset.k, v = b.dataset.v;
+      if (Array.isArray(f[key])) { var i = f[key].indexOf(v); i >= 0 ? f[key].splice(i, 1) : f[key].push(v); } else f[key] = v;
       return rerender();
     }
     if (b.id === 'allG') {
@@ -74,8 +89,9 @@
       return rerender();
     }
     if (b.id === 'send') {
+      if (!f.work && !f.hire) return EJ.toast('기술자로 일 받기, 구인하기 중 하나 이상 골라 주세요');
       if (!f.agree) return EJ.toast('문자 받기에 동의해 주셔야 해요');
-      EJ.busy(b, EJ.call('join', f).then(function (r) { if (r.ok) done(); else EJ.toast(r.error || '다시 눌러 주세요'); }));
+      EJ.busy(b, EJ.call('join', f).then(function (r) { if (r.ok) { done(); scrollTo(0, 0); } else EJ.toast(r.error || '다시 눌러 주세요'); }));
     }
   });
   app.addEventListener('input', function (e) { if (e.target.id in f && e.target.type !== 'checkbox') f[e.target.id] = e.target.value; });

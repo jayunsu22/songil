@@ -45,7 +45,9 @@
       '<button class="btn ghost" data-unpaid="' + esc(r.match) + '">일당을 못 받았어요 (신고)</button></article>';
   }
   function render() {
-    var d = data, me = d.me, html = '<div class="top">' + EJ.logo() + '<span class="who">' + esc(me.name) + ' · ' + esc(me.grade) + '</span></div>';
+    var d = data, me = d.me, html = '<div class="top">' + EJ.logo() + (d.other
+      ? '<a class="who" href="/e/b/' + encodeURIComponent(d.other) + (EJ.demo ? '?demo' : '') + '" style="color:var(--hot-ink);font-weight:700;padding:10px 0">구인하기 →</a>'
+      : '<span class="who">' + esc(me.name) + ' · ' + esc(me.grade) + '</span>') + '</div>';
     html += '<div class="date">오늘 · ' + EJ.today(d.now) + '</div><h1>오늘 일 비세요?</h1><div class="stack">';
     if (d.confirmed) {
       var c = d.confirmed;

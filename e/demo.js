@@ -8,9 +8,9 @@
   ];
   var confirmed = null, reviews = [{ match: 'm0', company: '□□디자인', date: '2026-11-22' }];
   var job = null, post = { can: true, when: '바로 발송' };
-  var wv = function () { return { ok: true, kind: 'w', now: now, me: me, offers: offers, confirmed: confirmed, reviews: reviews }; };
+  var wv = function () { return { ok: true, kind: 'w', now: now, me: me, offers: offers, confirmed: confirmed, reviews: reviews, other: 'bdemo' }; };
   var bv = function () { return { ok: true, kind: 'b', now: now, me: { name: '○○인테리어', hires: 18, likes: 16 }, job: job, post: post,
-    waiting: [{ place: '인천', n: 12 }, { place: '부천시', n: 7 }, { place: '서울', n: 18 }], reviews: [{ match: 'm0', name: '김기사', date: '2026-11-22' }] }; };
+    waiting: [{ place: '인천', n: 12 }, { place: '부천시', n: 7 }, { place: '서울', n: 18 }], reviews: [{ match: 'm0', name: '김기사', date: '2026-11-22' }], other: 'wdemo' }; };
   window.EJ_DEMO = function (b) {
     var k = b.key || '';
     if (b.action === 'join') return { ok: true };

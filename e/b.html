@@ -36,7 +36,9 @@
   var arriveText = function () { return f.arrive === '상관없음' ? '' : f.arrive + '에 오실 분'; };
 
   function home() {
-    var d = data, j = d.job, html = '<div class="top">' + EJ.logo() + '<span class="who">' + esc(d.me.name) + '</span></div>';
+    var d = data, j = d.job, html = '<div class="top">' + EJ.logo() + (d.other
+      ? '<a class="who" href="/e/w/' + encodeURIComponent(d.other) + (EJ.demo ? '?demo' : '') + '" style="color:var(--hot-ink);font-weight:700;padding:10px 0">기술자로 일 받기 →</a>'
+      : '<span class="who">' + esc(d.me.name) + '</span>') + '</div>';
     html += '<div class="date">오늘 · ' + EJ.today(d.now) + '</div><h1>오늘 현장에<br>펑크 났나요?</h1><div class="stack">';
     html += d.post.can ? '<button class="btn big hot" id="go">' + I.boltBig.replace('34', '24').replace('34', '24') + ' 긴급구인 올리기</button><p class="muted center">' + esc(d.post.when) + '</p>'
       : '<button class="btn big" disabled>긴급구인 올리기</button><p class="muted center">' + esc(d.post.why) + '</p>';
