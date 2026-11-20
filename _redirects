@@ -17,6 +17,10 @@
 /film      /film/index.html   200
 # 필름 공유 링크. /film/s/<레코드id> 를 그 필름의 정적 페이지로. catch-all 보다 위에 있어야 한다.
 /film/s/*  /film/s/:splat.html   200
+# 긴급구인 (D:\n8n_긴급구인): 기술자 /e/w/<열쇠>, 사장님 /e/b/<열쇠>, 가입 /e/join. catch-all 보다 위.
+/e/w/*     /e/w.html     200
+/e/b/*     /e/b.html     200
+/e/join    /e/join.html  200
 # 현장사진 앱 짧은 주소 (홈 화면에 추가해서 쓴다). catch-all 보다 위.
 /p         /site_photos.html   200
 /*         /index.html    200

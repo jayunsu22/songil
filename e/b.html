@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#F6F5F2">
+<title>긴급구인 · 사장님</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/e/e.css">
+</head>
+<body>
+<main class="wrap" id="app" aria-live="polite"><div class="top"><div class="logo">긴급구인</div></div><div class="skeleton" style="margin-top:56px"></div></main>
+<script src="/e/e.js"></script>
+<script>
+// 사장님 화면 /e/b/<열쇠>: 홈(오늘 요청 진행·대기 기술자·평가) ↔ 긴급구인 올리기
+(function () {
+  var $ = function (s) { return document.querySelector(s); }, esc = EJ.esc, I = EJ.I;
+  var app = $('#app'), data = null, view = 'home';
+  var GRADES = [{ g: '조공', sub: '15만 이하', pays: [10, 12, 15], def: 15 }, { g: '준기공', sub: '20만 이하', pays: [17, 18, 20], def: 20 }, { g: '기공', sub: '20만 이상', pays: [20, 21, 23, 25, 27], def: 23 }];
+  var SIGUN = ['부천시', '수원시', '성남시', '고양시', '용인시', '안산시', '안양시', '남양주시', '화성시', '평택시', '의정부시', '시흥시', '파주시', '김포시', '광명시', '광주시', '군포시', '하남시', '오산시', '이천시', '양주시', '구리시', '안성시', '포천시', '의왕시', '여주시', '동두천시', '과천시', '양평군', '가평군', '연천군'];
+  var MEMOS = ['자재 현장에 있음', '주차 가능', '공구 지참', '엘리베이터 있음'];
+  var f = loadForm();
+  function loadForm() {
+    var d = { grade: '준기공', pay: 20, sido: '경기', sigun: '부천시', type: '주택', addr: '', start: '08:00', arrive: '1시간 안', reason: '펑크', memos: [], memo: '' };
+    try { return Object.assign(d, JSON.parse(localStorage.getItem('ej_form') || '{}'), { addr: '', memo: '' }); } catch (e) { return d; }
+  }
+  function saveForm() { try { localStorage.setItem('ej_form', JSON.stringify({ grade: f.grade, pay: f.pay, sido: f.sido, sigun: f.sigun, type: f.type, start: f.start, arrive: f.arrive })); } catch (e) {} }
+  var chip = function (k, v, label, tall, sub) {
+    var on = Array.isArray(f[k]) ? f[k].indexOf(v) >= 0 : String(f[k]) === String(v);
+    return '<button class="chip' + (tall ? ' tall' : '') + '" aria-pressed="' + on + '" data-k="' + k + '" data-v="' + esc(v) + '">' + (tall ? '<b>' + esc(label) + '</b><small>' + esc(sub) + '</small>' : esc(label)) + '</button>';
+  };
+  var place = function () { return f.sido === '경기' ? '경기 ' + f.sigun : f.sido; };
+  var arriveText = function () { return f.arrive === '상관없음' ? '' : f.arrive + '에 오실 분'; };
+
+  function home() {
+    var d = data, j = d.job, html = '<div class="top">' + EJ.logo() + '<span class="who">' + esc(d.me.name) + '</span></div>';
+    html += '<div class="date">오늘 · ' + EJ.today(d.now) + '</div><h1>오늘 현장에<br>펑크 났나요?</h1><div class="stack">';
+    html += d.post.can ? '<button class="btn big hot" id="go">' + I.boltBig.replace('34', '24').replace('34', '24') + ' 긴급구인 올리기</button><p class="muted center">' + esc(d.post.when) + '</p>'
+      : '<button class="btn big" disabled>긴급구인 올리기</button><p class="muted center">' + esc(d.post.why) + '</p>';
+    if (d.waiting && d.waiting.length) {
+      html += '<section class="stack" style="gap:10px"><h2>지금 대기 중인 기술자</h2><div class="counts">' + d.waiting.map(function (w) {
+        return '<div class="count"><b>' + esc(w.n) + '</b><span>' + esc(w.place) + '</span></div>'; }).join('') + '</div><p class="muted">오늘 아침 "오늘 가능" 체크한 인원</p></section>';
+    }
+    if (j) {
+      var st = j.status, w = j.worker;
+      var step = function (cls, t, s) { return '<div class="step ' + cls + '"><div class="dot">' + (cls === 'done' ? I.check.replace(/22/g, '14').replace('currentColor', '#fff') : '') + '</div><div><b>' + t + '</b><span>' + s + '</span></div></div>'; };
+      html += '<section class="card"><div class="row"><h2>오늘 내 요청</h2><span class="muted">' + esc(j.place) + ' · ' + esc(j.type) + '</span></div><p class="muted" style="margin-top:-6px">' + esc(j.line) + '</p><div class="steps">';
+      html += step('done', '접수', esc(j.at) + (st === '예약' ? ' · ' + (j.date === d.now.date ? '오늘' : '내일') + ' 06:30 발송 예약' : ''));
+      html += st === '예약' ? step('', '발송', '06:30에 조건 맞는 기술자에게 문자') :
+        step(st === '발송중' ? 'now' : 'done', '발송', esc(j.sentAt) + ' · ' + esc(j.sent) + '명에게' + (j.round >= 2 ? ' (범위 넓혀 다시)' : ''));
+      html += w ? step('done', '확정 · ' + esc(w.name) + ' 기술자', esc(w.at) + ' · ' + esc(w.grade) + ' · 좋아요 ' + esc(w.likes) + ' · 노쇼 ' + esc(w.noshows) + '회')
+        : st === '못구함' ? step('now', '못 구했어요', '오늘 아침엔 조건 맞는 분이 없었어요') : st === '취소' ? step('', '취소함', '') : step('', '확정', '먼저 수락한 1명이 자동 확정돼요');
+      html += '</div>';
+      if (w && st === '확정') {
+        html += '<div class="note ok">서로 전화번호를 보냈어요. 통화로 현장을 안내해 주세요.</div>' +
+          '<a class="btn ink" href="' + EJ.tel(w.phone) + '">' + I.phone + ' ' + esc(w.phone) + ' 전화하기</a>' +
+          '<button class="btn line" data-rematch="' + esc(w.match) + '">안 맞아요, 다시 구인</button>';
+      }
+      if (st === '예약' || st === '발송중') html += '<button class="btn ghost" id="stop">이 구인 취소하기</button>';
+      if (d.reopened != null) html += '<div class="note">다시 보냈어요. 그 기술자는 빼고, 남은 대기자에게 같은 조건으로 보냈어요. 기술자에게는 노쇼로 기록되지 않아요.</div>';
+      html += '</section>';
+    }
+    (d.reviews || []).forEach(function (r) {
+      html += '<section class="card"><h2>' + esc(r.name) + ' 기술자, 마감 깔끔했나요?</h2><p class="muted">' + esc(r.date) + ' · 평가는 발송 순서에만 쓰여요</p>' +
+        '<button class="btn hot" data-review="' + esc(r.match) + '" data-pick="좋아요">' + I.thumb + ' 좋았어요</button>' +
+        '<div class="grid2"><button class="btn line" data-review="' + esc(r.match) + '" data-pick="다시안부름">다시 안 부를래요</button>' +
+        '<button class="btn line" data-review="' + esc(r.match) + '" data-pick="노쇼">안 왔어요</button></div></section>';
+    });
+    html += '<div class="row" style="background:var(--chip-off);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--ink-2)"><span>지금은 <b>무료</b>로 운영해요</span><span>한 번에 1건</span></div></div>';
+    app.innerHTML = html;
+  }
+  function form() {
+    var g = GRADES.filter(function (x) { return x.g === f.grade; })[0];
+    var html = '<div class="top" style="justify-content:flex-start;gap:4px"><button class="btn ghost" id="back" aria-label="뒤로" style="width:44px;padding:0;text-decoration:none;color:var(--ink)">' + I.back + '</button><h1 style="margin:0;font-size:20px">긴급구인 올리기</h1></div><div class="stack" style="gap:22px">';
+    html += '<fieldset><legend>모집 등급</legend><div class="grid3">' + GRADES.map(function (x) { return chip('grade', x.g, x.g, true, x.sub); }).join('') + '</div></fieldset>';
+    html += '<fieldset><legend>일당 <span>만원 · ' + esc(f.grade) + ' 범위</span></legend><div class="chips">' + g.pays.map(function (p) { return chip('pay', p, p + '만'); }).join('') + '</div></fieldset>';
+    html += '<fieldset><legend>현장 지역</legend><div class="grid3">' + ['서울', '인천', '경기'].map(function (x) { return chip('sido', x, x); }).join('') + '</div>' +
+      (f.sido === '경기' ? '<label class="hint" for="sigun" style="font-size:13px;color:var(--ink-2)">경기도 시 · 군</label><select id="sigun" class="field">' +
+        SIGUN.map(function (x) { return '<option' + (x === f.sigun ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select>' : '') +
+      '<span class="hint">기술자에게는 시 · 군까지만 보여요</span></fieldset>';
+    html += '<fieldset><legend>현장 유형</legend><div class="grid2">' + chip('type', '주택', '주택') + chip('type', '상가', '상가') + '</div></fieldset>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px"><label class="label" for="addr" style="margin:0">상세 주소 <span>선택</span></label>' +
+      '<input id="addr" class="field" type="text" maxlength="80" placeholder="예) ○○아파트 101동 1203호" value="' + esc(f.addr) + '">' +
+      '<span class="hint">' + I.lock + ' 확정된 1명에게만, 전화번호와 같이 보내요</span></div>';
+    html += '<fieldset><legend>시작</legend><div class="grid3">' + ['지금', '08:00', '09:00'].map(function (x) { return chip('start', x, x); }).join('') + '</div></fieldset>';
+    html += '<fieldset><legend>도착 조건 <span>현장까지 걸리는 시간</span></legend><div class="grid3">' + ['30분 안', '1시간 안', '상관없음'].map(function (x) { return chip('arrive', x, x); }).join('') + '</div>' +
+      '<span class="hint">공고 맨 앞에 크게 보여요. 먼 분은 알아서 안 누르게요</span></fieldset>';
+    html += '<fieldset><legend>왜 구하세요?</legend><div class="grid2">' + chip('reason', '펑크', '펑크') + chip('reason', '물량 늘어남', '물량 늘어남') + '</div></fieldset>';
+    html += '<fieldset><legend>메모 <span>선택</span></legend><div class="chips">' + MEMOS.map(function (x) { return chip('memos', x, x); }).join('') + '</div>' +
+      '<label class="sr" for="memo">직접 쓰는 메모</label><textarea id="memo" class="field" rows="2" maxlength="50" placeholder="직접 쓰기 (50자 이내)">' + esc(f.memo) + '</textarea>' +
+      '<span class="hint" id="memoHint">전화번호는 메모에 쓸 수 없어요</span></fieldset>';
+    var memoLine = f.memos.concat(f.memo ? [f.memo] : []).join(' · ');
+    html += '<section style="display:flex;flex-direction:column;gap:8px"><h2 style="font-size:15px">기술자에게는 이렇게 보여요</h2><div class="preview">' +
+      '<div class="tags"><span class="tag hot">긴급</span><span class="tag">' + esc(f.grade) + '</span></div>' +
+      (arriveText() ? '<div class="arrive">' + esc(arriveText()) + '</div>' : '') +
+      '<div class="place" style="font-size:17px">' + esc(place()) + ' · ' + esc(f.type) + ' 현장</div>' +
+      '<div class="facts"><span>일당 <b>' + esc(f.pay) + '만원</b></span><span>' + (f.start === '지금' ? '지금 바로' : esc(f.start) + ' 시작') + '</span><span>1명</span></div>' +
+      (memoLine ? '<p class="muted">' + esc(memoLine) + '</p>' : '') + '</div></section>';
+    html += '<div class="footer"><div class="row"><span>' + esc(data.post.when || '') + '</span><span>선착순 1명 확정</span></div>' +
+      '<button class="btn hot" id="send" style="min-height:60px;font-size:20px">긴급구인 보내기</button></div></div>';
+    app.innerHTML = html;
+  }
+  function sent(p) {
+    app.innerHTML = '<div class="top">' + EJ.logo() + '</div><div class="center"><div class="big-ok">' + I.boltBig + '</div>' +
+      '<h1 style="font-size:24px;margin:8px 0">' + (p.status === '예약' ? '접수했어요' : '발송했어요') + '</h1>' +
+      '<p style="margin:0 0 6px;color:var(--ink-2);line-height:1.6">' + (p.status === '예약' ? (p.date === data.now.date ? '오늘' : '내일') + ' 아침 6:30에 조건 맞는 기술자에게 보내요.'
+        : p.sent ? esc(f.grade) + ' 기술자 ' + esc(p.sent) + '명에게 문자를 보냈어요.' : '지금은 조건 맞는 분이 없어요. 체크하는 대로 바로 보여 줘요.') +
+      '<br>먼저 수락한 분이 확정되면 서로 전화번호를 보내 드려요.</p>' +
+      (p.status === '예약' ? '' : '<p class="muted">3분 안에 안 잡히면 범위를 넓혀 다시 보내요.</p>') +
+      '<button class="btn line" id="home" style="margin-top:20px">홈으로</button></div>';
+  }
+  function render() { view === 'form' ? form() : home(); }
+  function load() { return EJ.call('me').then(function (r) { if (!r.ok) return EJ.blocked(app, r); data = r; render(); }); }
+  function act(btn, action, extra, okMsg) {
+    return EJ.busy(btn, EJ.call(action, extra).then(function (r) {
+      if (!r.ok) { EJ.toast(r.error || '다시 눌러 주세요'); return; }
+      data = r; view = 'home'; render(); if (okMsg) EJ.toast(okMsg);
+      return r;
+    }));
+  }
+  app.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.id === 'go') { view = 'form'; render(); scrollTo(0, 0); return; }
+    if (b.id === 'back' || b.id === 'home') { view = 'home'; render(); scrollTo(0, 0); return; }
+    if (b.dataset.k) {
+      var k = b.dataset.k, v = b.dataset.v;
+      if (k === 'memos') { var i = f.memos.indexOf(v); i >= 0 ? f.memos.splice(i, 1) : f.memos.push(v); }
+      else if (k === 'pay') f.pay = +v;
+      else { f[k] = v; if (k === 'grade') f.pay = GRADES.filter(function (x) { return x.g === v; })[0].def; }
+      var y = scrollY; form(); scrollTo(0, y); return;
+    }
+    if (b.id === 'send') {
+      if (/(\d[\s.\-]*){8,}/.test(f.memo)) { EJ.toast('메모에는 전화번호를 쓸 수 없어요'); return; }
+      saveForm();
+      return EJ.busy(b, EJ.call('post', f).then(function (r) {
+        if (!r.ok) { EJ.toast(r.error || '다시 눌러 주세요'); return; }
+        data = r; view = 'home'; f.addr = ''; f.memo = ''; f.memos = []; sent(r.posted);
+      }));
+    }
+    if (b.id === 'stop') { if (confirm('이 구인을 취소할까요?')) act(b, 'stop', {}, '취소했어요'); return; }
+    if (b.dataset.rematch) { if (confirm('이 기술자를 빼고 다시 구할까요? 기술자에게는 노쇼로 기록되지 않아요.')) act(b, 'rematch', { match: b.dataset.rematch }, '다시 보냈어요'); return; }
+    if (b.dataset.review) {
+      if (b.dataset.pick === '노쇼' && !confirm('기술자가 안 왔다고 기록할까요? 노쇼 3번이면 이용이 멈춰요.')) return;
+      act(b, 'review', { match: b.dataset.review, pick: b.dataset.pick }, '고마워요. 다음 매칭에 반영돼요');
+    }
+  });
+  app.addEventListener('input', function (e) {
+    if (e.target.id === 'addr') f.addr = e.target.value;
+    if (e.target.id === 'memo') {
+      f.memo = e.target.value;
+      var bad = /(\d[\s.\-]*){8,}/.test(f.memo), h = $('#memoHint');
+      if (h) { h.style.color = bad ? 'var(--hot-ink)' : ''; h.style.fontWeight = bad ? '700' : ''; }
+    }
+  });
+  app.addEventListener('change', function (e) { if (e.target.id === 'sigun') { f.sigun = e.target.value; var y = scrollY; form(); scrollTo(0, y); } });
+  // 발송 중이면 15초마다 진행 상황 확인
+  setInterval(function () { if (!document.hidden && view === 'home' && data && data.job && data.job.status === '발송중') load(); }, 15000);
+  if (EJ.demo) { var s = document.createElement('script'); s.src = '/e/demo.js'; s.onload = load; document.body.appendChild(s); } else load();
+})();
+</script>
+</body>
+</html>

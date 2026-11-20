@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#F6F5F2">
+<title>긴급구인 · 오늘 일 비세요?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/e/e.css">
+</head>
+<body>
+<main class="wrap" id="app" aria-live="polite"><div class="top"><div class="logo">긴급구인</div></div><div class="skeleton" style="margin-top:56px"></div></main>
+<script src="/e/e.js"></script>
+<script>
+// 기술자 화면 /e/w/<열쇠>: 오늘 가능 · 들어온 구인 · 수락 · 확정(못 가게 됐어요) · 평가
+(function () {
+  var $ = function (s) { return document.querySelector(s); }, esc = EJ.esc, I = EJ.I;
+  var app = $('#app'), data = null, why = {};
+  var WHY = ['일당 늦게 줌', '말이 거칠', '현장 준비 안 됨', '약속과 다른 일'];
+
+  function offerCard(o, first) {
+    return '<article class="card' + (o.open ? (first ? ' hot' : '') : ' dim') + '">' +
+      '<div class="row"><div class="tags"><span class="tag hot">긴급</span><span class="tag">' + esc(o.grade) + '</span></div>' +
+      '<span class="muted">' + (o.open ? (o.ago ? o.ago + '분 전' : '방금') : '마감') + '</span></div>' +
+      (o.arrive ? '<div class="arrive">' + esc(o.arrive) + '</div>' : '') +
+      '<div class="place">' + esc(o.place) + ' · ' + esc(o.type) + ' 현장</div>' +
+      '<div class="facts"><span>일당 <b>' + esc(o.pay) + '만원</b></span><span>' + esc(o.start) + '</span></div>' +
+      (o.memos.length || o.memo ? '<p class="muted">' + esc(o.memos.concat(o.memo ? [o.memo] : []).join(' · ')) + '</p>' : '') +
+      '<div class="rep"><b style="color:var(--ink)">' + esc(o.rep.name) + '</b><span style="margin-left:auto;display:flex;align-items:center;gap:4px">' +
+      '현장 채용 ' + esc(o.rep.hires) + '번 · ' + I.thumb + '<b style="color:var(--ink)">' + esc(o.rep.likes) + '명</b></span></div>' +
+      (o.open ? '<button class="btn ' + (first ? 'hot' : 'line') + '" data-accept="' + esc(o.id) + '">수락하기</button>'
+              : '<p class="muted center">다른 분이 먼저 수락했어요</p>') +
+      '</article>';
+  }
+  function reviewCard(r) {
+    var w = why[r.match] || [];
+    return '<article class="card"><h2>' + esc(r.company) + ' 현장 어땠어요?</h2><p class="muted">' + esc(r.date) + ' · 익명이라 업체는 누가 남겼는지 몰라요</p>' +
+      '<div class="grid2"><button class="btn hot" data-review="' + esc(r.match) + '" data-pick="좋아요">' + I.thumb + ' 좋았어요</button>' +
+      '<button class="btn line" data-review="' + esc(r.match) + '" data-pick="다시안감">다시 안 갈래요</button></div>' +
+      '<div class="chips" aria-label="이유 (선택)">' + WHY.map(function (x) {
+        return '<button class="chip" aria-pressed="' + (w.indexOf(x) >= 0) + '" data-why="' + esc(r.match) + '" data-v="' + esc(x) + '">' + esc(x) + '</button>'; }).join('') + '</div>' +
+      '<button class="btn ghost" data-unpaid="' + esc(r.match) + '">일당을 못 받았어요 (신고)</button></article>';
+  }
+  function render() {
+    var d = data, me = d.me, html = '<div class="top">' + EJ.logo() + '<span class="who">' + esc(me.name) + ' · ' + esc(me.grade) + '</span></div>';
+    html += '<div class="date">오늘 · ' + EJ.today(d.now) + '</div><h1>오늘 일 비세요?</h1><div class="stack">';
+    if (d.confirmed) {
+      var c = d.confirmed;
+      html += '<section class="card dark"><div style="font-size:20px;font-weight:900">확정됐어요</div>' +
+        '<div style="font-size:15px;line-height:1.6;color:var(--chip-off)">' + esc(c.company) + ' · ' + esc(c.line) + (c.addr ? '<br>주소 ' + esc(c.addr) : '') + '</div>' +
+        '<a class="btn white" href="' + EJ.tel(c.phone) + '">' + I.phone + ' 사장님께 전화하기</a>' +
+        '<button class="btn ghost" data-cancel="' + esc(c.match) + '">못 가게 됐어요</button>' +
+        '<p class="muted center" style="color:var(--line-strong)">누르면 사장님이 바로 다른 분을 구해요. 취소로 남아요.</p></section>';
+    } else {
+      var can = me.avail || me.canAvail;
+      html += '<section class="card"><button class="btn big ' + (me.avail ? 'ink' : 'hot') + '" id="avail" aria-pressed="' + me.avail + '"' + (can ? '' : ' disabled') + '>' +
+        (me.avail ? I.check + ' 오늘 가능 체크됨' : '오늘 가능으로 체크하기') + '</button>' +
+        '<p class="muted center">' + (me.avail ? '조건 맞는 긴급구인이 오면 바로 문자 드려요.<br>오전 10시에 자동으로 꺼져요. 다시 누르면 꺼져요.'
+          : can ? '아침 6:30 ~ 10:00 운영 · 체크한 날만 구인 문자가 가요' : '오늘 가능 체크는 아침 6시~10시에만 돼요') + '</p></section>';
+    }
+    var offers = d.offers || [];
+    if (me.avail || offers.length) {
+      html += '<section class="stack" style="gap:10px"><h2>들어온 긴급구인</h2>';
+      if (!offers.length) html += '<div class="card"><p class="muted" style="margin:0">아직 들어온 구인이 없어요. 오면 문자로 알려 드려요.</p></div>';
+      offers.forEach(function (o, i) { html += offerCard(o, i === 0 && o.open); });
+      if (offers.length) html += '<p class="muted center">선착순 1명 확정 · 업체 평가는 다녀간 기술자들이 익명으로 남겨요</p>';
+      html += '</section>';
+    }
+    (d.reviews || []).forEach(function (r) { html += reviewCard(r); });
+    html += '<section class="card"><h2>내 조건</h2><div style="display:grid;grid-template-columns:76px 1fr;row-gap:8px;font-size:14px">' +
+      '<span class="muted" style="font-size:14px">활동 지역</span><span>' + esc(me.regions.join(' · ')) + '</span>' +
+      '<span class="muted" style="font-size:14px">내 등급</span><span>' + esc(me.grade) + (me.semi ? ' (준기공 일도 받기)' : '') + '</span></div>' +
+      '<p class="muted">조건이 맞는 긴급구인만 문자로 보내 드려요. 바꾸려면 운영자에게 문자 주세요.</p></section></div>';
+    app.innerHTML = html;
+  }
+  function load() {
+    return EJ.call('me').then(function (r) { if (!r.ok) return EJ.blocked(app, r); data = r; render(); });
+  }
+  function act(btn, action, extra, okMsg) {
+    return EJ.busy(btn, EJ.call(action, extra).then(function (r) {
+      if (r.ok && r.kind) { data = r; render(); if (okMsg) EJ.toast(okMsg); return r; }
+      if (r.ok) { if (okMsg) EJ.toast(okMsg); return load(); }
+      EJ.toast(r.error || '다시 눌러 주세요');
+      if (r.closed) load();
+    }));
+  }
+  app.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.id === 'avail') return act(b, 'avail', { on: !data.me.avail }, data.me.avail ? '오늘 가능을 껐어요' : '체크했어요. 구인이 오면 문자 드려요');
+    if (b.dataset.accept) return EJ.busy(b, EJ.call('accept', { job: b.dataset.accept }).then(function (r) {
+      if (r.ok) { EJ.toast('확정됐어요! 사장님께 전화해 보세요'); return load(); }
+      EJ.toast(r.error || '다시 눌러 주세요'); load();
+    }));
+    if (b.dataset.cancel) { if (confirm('정말 못 가세요? 사장님께 바로 알리고 다른 분을 구해요.')) act(b, 'cancel', { match: b.dataset.cancel }, '사장님께 알렸어요'); return; }
+    if (b.dataset.why) { var m = b.dataset.why, v = b.dataset.v, list = why[m] = why[m] || []; var i = list.indexOf(v); i >= 0 ? list.splice(i, 1) : list.push(v); b.setAttribute('aria-pressed', i < 0); return; }
+    if (b.dataset.review) return act(b, 'review', { match: b.dataset.review, pick: b.dataset.pick, reasons: why[b.dataset.review] || [] }, '고마워요. 다음 매칭에 반영돼요');
+    if (b.dataset.unpaid) { if (confirm('일당을 못 받았다고 신고할까요? 확인될 때까지 그 업체 구인이 멈춰요.')) act(b, 'review', { match: b.dataset.unpaid, unpaid: true }, '신고를 받았어요. 운영자가 확인해요'); }
+  });
+  // 아침엔 30초마다 새 구인 확인 (화면을 보고 있을 때만)
+  setInterval(function () { if (!document.hidden && data && data.me && data.me.avail && !data.confirmed) load(); }, 30000);
+  if (EJ.demo) { var s = document.createElement('script'); s.src = '/e/demo.js'; s.onload = load; document.body.appendChild(s); } else load();
+})();
+</script>
+</body>
+</html>
