@@ -66,8 +66,11 @@
       '<p style="color:var(--ink-2);line-height:1.6;margin:0 0 28px">운영자가 확인하고 승인하면<br>문자로 ' + what + ' 보내 드려요.</p>' +
       '<button class="btn ink" id="close">확인</button><p class="muted center" id="closeHint" hidden style="margin-top:12px">이제 이 창은 닫으셔도 돼요.</p></div>';
   }
-  // 문자 링크로 연 창은 브라우저가 window.close 를 막을 때가 많다 — 안 닫히면 뒤로 가거나 안내만 보인다
+  // 카톡·네이버 앱 안 브라우저는 그 앱의 닫기 주소로 닫는다. 일반 브라우저는 window.close 를 막을 때가 많아 안 닫히면 뒤로 가거나 안내만 보인다
   function closeWin() {
+    var ua = navigator.userAgent;
+    if (/KAKAOTALK/i.test(ua)) { location.href = 'kakaotalk://inappbrowser/close'; return; }
+    if (/NAVER\(inapp/i.test(ua)) { location.href = 'naversearchapp://inappbrowser/close'; return; }
     window.close();
     setTimeout(function () {
       if (history.length > 1) history.back();
