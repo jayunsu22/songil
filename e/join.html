@@ -23,7 +23,8 @@
   var SIGUN = ['부천시', '김포시', '시흥시', '광명시', '안산시', '고양시', '파주시', '안양시', '군포시', '의왕시', '과천시', '수원시', '성남시', '용인시', '화성시', '오산시', '평택시', '안성시',
     '하남시', '구리시', '남양주시', '의정부시', '양주시', '동두천시', '포천시', '광주시', '이천시', '여주시', '양평군', '가평군', '연천군'];
   var asBoss = /[?&]b\b/.test(location.search);
-  var f = { work: !asBoss, hire: asBoss, name: '', phone: '', grade: '', regions: [], semi: false, ref: '', company: '', agree: false };
+  // 둘 다 켠 채로 시작 — 필요한 것만 채우면 된다 (사장님 11/21). 기술자 칸(등급·지역)을 비우면 구인만 가입한다.
+  var f = { work: true, hire: true, name: '', phone: '', grade: '', regions: [], semi: false, company: '', agree: false };
   var chip = function (k, v, label) {
     var on = Array.isArray(f[k]) ? f[k].indexOf(v) >= 0 : f[k] === v;
     return '<button type="button" class="chip" aria-pressed="' + on + '" data-k="' + k + '" data-v="' + esc(v) + '">' + esc(label || v) + '</button>';
@@ -51,8 +52,8 @@
         (SIGUN.every(function (x) { return f.regions.indexOf(x) >= 0; }) ? '경기 모두 빼기' : '경기 모두 고르기') + '</button></div>' +
         '<div class="chips">' + SIGUN.map(function (x) { return chip('regions', x); }).join('') + '</div></fieldset>';
     }
-    if (f.hire) html += input('company', '업체명 <span>선택</span>', '○○인테리어', 'text', ' maxlength="30" autocomplete="organization"', '안 쓰면 이름으로 구인해요');
-    html += input('ref', '추천해 준 분 <span>선택</span>', '이름이나 업체명', 'text', ' maxlength="30"');
+    if (f.hire) html += '<fieldset><legend>선택 사항 <span>안 써도 돼요</span></legend>' +
+      input('company', '업체명', '○○인테리어', 'text', ' maxlength="30" autocomplete="organization"', '안 쓰면 이름으로 구인해요') + '</fieldset>';
     html += '<label style="display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.55;color:var(--ink-2)"><input type="checkbox" id="agree"' + (f.agree ? ' checked' : '') +
       ' style="width:22px;height:22px;flex:none;margin-top:1px;accent-color:var(--hot)"><span>이름·전화번호를 매칭에 쓰고, <b>아침 6시 반 등 이른 시간에도</b> 구인·확정 문자를 받는 데 동의해요. 전화번호는 확정된 상대에게만 보내요.</span></label>';
     html += '<div class="footer"><button class="btn hot" id="send" style="min-height:60px;font-size:20px">가입 신청하기</button>' +
@@ -89,9 +90,15 @@
       return rerender();
     }
     if (b.id === 'send') {
-      if (!f.work && !f.hire) return EJ.toast('기술자로 일 받기, 구인하기 중 하나 이상 골라 주세요');
+      // 기술자 칸을 하나도 안 채웠으면 구인만 가입, 반만 채웠으면 알려 준다
+      var blankW = !f.grade && !f.regions.length;
+      var send = Object.assign({}, f, { work: f.work && !(blankW && f.hire) });
+      if (!send.work && !send.hire) return EJ.toast('기술자로 일 받기, 구인하기 중 하나 이상 골라 주세요');
+      if (send.work && !f.grade) return EJ.toast('기술자로 일 받으시려면 등급을 골라 주세요');
+      if (send.work && !f.regions.length) return EJ.toast('기술자로 일 받으시려면 갈 수 있는 지역을 골라 주세요');
       if (!f.agree) return EJ.toast('문자 받기에 동의해 주셔야 해요');
-      EJ.busy(b, EJ.call('join', f).then(function (r) { if (r.ok) { done(); scrollTo(0, 0); } else EJ.toast(r.error || '다시 눌러 주세요'); }));
+      f.work = send.work;
+      EJ.busy(b, EJ.call('join', send).then(function (r) { if (r.ok) { done(); scrollTo(0, 0); } else EJ.toast(r.error || '다시 눌러 주세요'); }));
     }
   });
   app.addEventListener('input', function (e) { if (e.target.id in f && e.target.type !== 'checkbox') f[e.target.id] = e.target.value; });
